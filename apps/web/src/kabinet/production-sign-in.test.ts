@@ -267,7 +267,7 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   history: 2,
 
-  operator: 289,
+  operator: 286,
 
   verificationDecision: 8,
 

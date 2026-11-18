@@ -58,6 +58,7 @@ import {
 } from "./email-senders";
 import { capturingPasswordMail } from "./password-mail";
 import { handleKabinetRpc } from "./rpc-route";
+import { roomyCitySearch } from "./test-city-search";
 import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
@@ -154,6 +155,7 @@ async function call<T = Record<string, unknown>>(
     locationPolicy: opts.locationPolicy === undefined ? policy : opts.locationPolicy,
     production: false,
     shelterWrites: SHELTER_WRITE_POLICY,
+    citySearch: roomyCitySearch(),
   });
   const text = await response.text();
   let body: unknown = null;
@@ -199,7 +201,7 @@ const reload = async (id: string) => {
 
 const createInput = () => {
   const base = makeShelter();
-  const { cityId: _addressCity, ...street } = base.exactAddress;
+  const { cityId: _addressCity, coordinates: _point, ...street } = base.exactAddress;
   return {
     displayName: "Лапа допомоги",
     cityId,
@@ -461,14 +463,14 @@ describe("registry.shelters.list / byId / history.list", () => {
 // ─── create ─────────────────────────────────────────────────────────────────
 
 describe("registry.shelters.create (S2)", () => {
-  it("creates a pending shelter with its evidence, the keyed pin, an invited admin, and two history lines", async () => {
+  it("creates a pending shelter with its evidence, located by its city (no point, P0-6), an invited admin, and two history lines", async () => {
     const input = createInput();
     const created = await call<RegistryShelterView>("registry.shelters.create", input);
     expect(created.status).toBe(200);
     const s = await reload(created.body.id);
     expect(s.verification.status).toBe("pending");
     expect(s.publicLocation).toEqual(
-      publicLocationOf(s.id, { ...input.exactAddress, cityId } as never, policy),
+      publicLocationOf(s.id, { ...input.exactAddress, cityId, coordinates: null } as never, policy),
     );
     // The site visit is the operator's, never typed (KABINET S2).
     expect(s.verification.evidence.items).toContainEqual(
@@ -595,7 +597,6 @@ describe("the minimal shelter: created without legal data or address", () => {
     line2: null,
     postalCode: null,
     district: null,
-    coordinates: null,
   };
 
   const created = async () => {
@@ -689,22 +690,25 @@ describe("the minimal shelter: created without legal data or address", () => {
 // ─── verified data and profile ──────────────────────────────────────────────
 
 describe("registry.shelters.updateVerifiedData / updateProfile (S4)", () => {
-  it("moves the address with a recomputed pin and the shelter's animals, recording it", async () => {
+  it("moves the address and the shelter's animals, nulling a stored point (P0-6), recording it", async () => {
     const s = await shelter();
+    expect(s.exactAddress.coordinates).not.toBeNull();
     const animal = makeAnimal({ shelterId: s.id });
     await animalRepo(db).insert(animal, cityId as never);
-    const next = {
-      ...s.exactAddress,
-      cityId: otherCityId,
-      coordinates: { lat: 49.84, lng: 24.03 },
-    };
+    const { coordinates: _stored, ...street } = s.exactAddress;
+    const next = { ...street, cityId: otherCityId, coordinates: null };
     const result = await call<RegistryShelterView>("registry.shelters.updateVerifiedData", {
       shelterId: s.id,
       expectedVersion: 0,
-      change: { field: "exact_address", next },
+      change: { field: "exact_address", next: { ...street, cityId: otherCityId } },
     });
     expect(result.status).toBe(200);
-    expect(result.body.publicLocation).toEqual(publicLocationOf(s.id, next as never, policy));
+    expect(result.body.publicLocation).toEqual({
+      precision: "city",
+      cityId: otherCityId,
+      district: street.district,
+    });
+    expect((await reload(s.id)).exactAddress?.coordinates).toBeNull();
     expect(result.body.version).toBe(1);
     // The animal at the shelter is now discoverable in the new city.
     const cards = await db.select().from(animals);

@@ -11,6 +11,7 @@ import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
 import { capturingPasswordMail } from "./password-mail";
 import { handleKabinetRpc, kabinetRouter } from "./rpc-route";
+import { roomyCitySearch } from "./test-city-search";
 import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
@@ -112,6 +113,7 @@ async function call(path: string, input: unknown, principal: KabinetPrincipal) {
     production: false,
     // What the served route passes (pinned by `allowlist-removed.test.ts`).
     shelterWrites: SHELTER_WRITE_POLICY,
+    citySearch: roomyCitySearch(),
   });
   const text = await response.text();
   return { status: response.status, body: text ? parsedBody(text) : null };
@@ -198,11 +200,12 @@ describe("the walk finds the shelter writes (an empty walk can't pass)", () => {
     );
   });
 
-  it("and the four shelter reads, which stay open", () => {
+  it("and the five shelter reads, which stay open", () => {
     expect(shelterReads.sort()).toEqual(
       [
         "shelter.animals.byId",
         "shelter.animals.list",
+        "shelter.cities.search",
         "shelter.history.list",
         "shelter.profile.get",
       ].sort(),
@@ -282,6 +285,7 @@ describe("reads stay open to a shelter admin", () => {
     "shelter.history.list": () => ({ cursor: null }),
     "shelter.animals.list": () => ({ filter: { kind: "all" }, cursor: null }),
     "shelter.animals.byId": () => ({ animalId: draft.id }),
+    "shelter.cities.search": () => ({ query: "Бровари", regionBias: null }),
   };
 
   it("has an input for every read the walk found", () => {

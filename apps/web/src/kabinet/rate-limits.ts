@@ -27,6 +27,15 @@ export const KABINET_RATE_LIMITS = {
 export type KabinetLimiters = { perUser: RateLimiter; perIp: RateLimiter };
 
 /**
+ * `shelter.cities.search` (owner, 2026-11-18): 60 a minute per signed-in person, on top of the
+ * kabinet's 100. A picker types a few letters a second; this is room for that, not a scrape.
+ */
+export const CITY_SEARCH_RATE_LIMITS = { perUser: { windowMs: 60_000, maxRequests: 60 } } as const;
+
+/** Per person, whoever is searching: the shelter's admin, or the operator in a support view. */
+export const citySearchKey = (who: string) => `city-search:${who}`;
+
+/**
  * The per-user key, shared by the API and the page loads, so a page load and
  * an API call draw on the same allowance. The per-IP key is
  * `ipRateLimitKey` (`api/rate-limit-key.ts`), the one every limiter uses:

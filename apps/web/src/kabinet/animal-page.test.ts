@@ -151,6 +151,27 @@ describe("kabinetAnimalPageOf: /[id] (edit)", () => {
     });
   });
 
+  it("names the shelter's city and an own city for «Де зараз тварина»", async () => {
+    const away = makeCity({
+      kind: "city",
+      name: { uk: "Бровари", en: { text: "Brovary", provenance: "machine" } },
+    });
+    await cityRepo(db).insert(away);
+    const draft = makeDraftAnimal({
+      shelterId: mine.id,
+      publicLocation: { precision: "city", cityId: away.id, district: null },
+    });
+    await animalRepo(db).insert(draft, away.id);
+    const page = await kabinetAnimalPageOf(adminOf(mine), existing(draft.id), deps());
+    if (page.kind !== "form") throw new Error("expected the form");
+    expect(page.location).toEqual({
+      shelterCityName: (await cityRepo(db).findById(cityId))?.name.uk,
+      ownCity: { value: away.id, label: "м. Бровари" },
+    });
+    const fresh = await kabinetAnimalPageOf(adminOf(mine), NEW, deps());
+    expect(fresh.kind === "form" && fresh.location?.ownCity).toBeNull();
+  });
+
   it("read-only for the support view, with writes open", async () => {
     const animal = makeAnimal({ shelterId: theirs.id });
     await animalRepo(db).insert(animal, cityId);

@@ -113,6 +113,8 @@ export const problemText = (
       });
     case "speciesRequired":
       return t.validation.speciesRequired;
+    case "mustPick":
+      return uk.kabinet.cityPicker.mustPick;
     case "descriptionTooLong":
       return fillTemplate(t.validation.descriptionTooLong, {
         max: integer.format(ANIMAL_DESCRIPTION_MAX_CHARACTERS),

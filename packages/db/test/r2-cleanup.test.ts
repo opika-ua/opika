@@ -15,6 +15,7 @@ import {
   photosAmong,
   runR2Cleanup,
 } from "../src/r2-cleanup";
+import { photoOwnerOf } from "../src/r2-cleanup-run";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
 import { recordScan, trackedUnreferencedObjects } from "../src/repos/r2-cleanup-repo";
@@ -22,6 +23,7 @@ import { shelterRepo } from "../src/repos/shelter-repo";
 import {
   makeAnimal,
   makeCity,
+  makeDraftAnimal,
   makeShelter,
   setupTestDatabase,
   truncateAll,
@@ -348,6 +350,24 @@ describe("photosAmong (what the cap counts, owner 2026-11-16)", () => {
 });
 
 describe("the per-run cap, in photos", () => {
+  // The cap counts photos whose row still exists (P0-4): these keys hang off real rows.
+  let ownerShelterId: string;
+  beforeEach(async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = makeShelter({
+      publicLocation: { ...makeShelter().publicLocation, cityId: city.id } as never,
+    });
+    await shelterRepo(db).insert(shelter);
+    ownerShelterId = shelter.id;
+    for (const id of ["orphan", "newer"]) {
+      await animalRepo(db).insert(
+        makeDraftAnimal({ id: id as never, shelterId: shelter.id }),
+        city.id as never,
+      );
+    }
+  });
+
   const orphans = (n: number) =>
     Array.from({ length: n }, (_, i) => variantObjectKey(`animals/orphan/${i}`, "card", "webp"));
   const later = new Date(NOW.getTime() + 8 * 24 * 60 * 60 * 1000);
@@ -393,7 +413,7 @@ describe("the per-run cap, in photos", () => {
     expect(dry.capTripped).toBeNull();
     expect(r2.remaining()).toHaveLength(4);
     expect(formatReport(dry, "Would delete").join("\n")).toContain(
-      "Photos and logos among them (what the cap counts): 4",
+      "Of those, whose animal or shelter still exists (what the cap counts): 4",
     );
     const report = await runR2Cleanup(db, r2, later, {
       commit: true,
@@ -445,7 +465,9 @@ describe("the per-run cap, in photos", () => {
     const keys = [
       ...olderPhotos(60),
       ...Array.from({ length: 39 }, (_, i) => photoObjects(`animals/newer/${i}`)).flat(),
-      ...LOGO_VARIANT_NAMES.map((v) => variantObjectKey("shelters/s/logo/1", v, "webp")),
+      ...LOGO_VARIANT_NAMES.map((v) =>
+        variantObjectKey(`shelters/${ownerShelterId}/logo/1`, v, "webp"),
+      ),
     ];
     expect(keys).toHaveLength(60 * 6 + 39 * 11 + 2);
     const r2 = fakeR2(keys);
@@ -484,6 +506,85 @@ describe("the per-run cap, in photos", () => {
     expect(r2.remaining()).toHaveLength(2);
   });
 });
+describe("the per-run budget: photos whose row is gone (P0-4)", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  /** `n` photos of animals that no longer exist (a deleted application's drafts). */
+  const gone = (n: number) =>
+    Array.from({ length: n }, () => photoObjects(`animals/${randomUUID()}/${randomUUID()}`)).flat();
+
+  it("a burst never trips the stop: the oldest 100 go, the rest wait for the next run", async () => {
+    const older = gone(60);
+    const newer = gone(90);
+    const r2 = fakeR2(older);
+    await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
+    const scanAgain = fakeR2([...older, ...newer]);
+    await runR2Cleanup(db, scanAgain, new Date(NOW.getTime() + DAY), {
+      commit: false,
+      graceDays: undefined,
+    });
+    const later = new Date(NOW.getTime() + 9 * DAY);
+    const first = await runR2Cleanup(db, scanAgain, later, { commit: true, graceDays: undefined });
+    expect(first.capTripped).toBeNull();
+    expect(first.orphanedPhotos).toBe(150);
+    expect(photosAmong(first.deleted)).toBe(DEFAULT_MAX_PHOTOS_PER_RUN);
+    expect(first.deleted).toEqual(expect.arrayContaining(older));
+    expect(first.deferredPhotos).toBe(50);
+    expect(formatReport(first, "Deleted").join("\n")).toContain(
+      "Over this run's budget, left tracked for the next run: 50 photos (550 objects)",
+    );
+    expect(await trackedUnreferencedObjects(db)).toHaveLength(550);
+
+    const second = await runR2Cleanup(db, scanAgain, later, { commit: true, graceDays: undefined });
+    expect(photosAmong(second.deleted)).toBe(50);
+    expect(second.deferredPhotos).toBe(0);
+    expect(scanAgain.remaining()).toEqual([]);
+  }, 30_000);
+
+  it("photos of existing rows go first, and those alone still stop the run", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = makeShelter({
+      publicLocation: { ...makeShelter().publicLocation, cityId: city.id } as never,
+    });
+    await shelterRepo(db).insert(shelter);
+    const live = makeDraftAnimal({ shelterId: shelter.id });
+    await animalRepo(db).insert(live, city.id as never);
+    const livePhotos = (n: number) =>
+      Array.from({ length: n }, () => photoObjects(`animals/${live.id}/${randomUUID()}`)).flat();
+    const kept = livePhotos(3);
+    const orphans = gone(5);
+    const r2 = fakeR2([...kept, ...orphans]);
+    await runR2Cleanup(db, r2, NOW, { commit: false, graceDays: undefined });
+    const later = new Date(NOW.getTime() + 8 * DAY);
+    const run = await runR2Cleanup(db, r2, later, {
+      commit: true,
+      graceDays: undefined,
+      maxPhotos: 4,
+    });
+    expect(run.deleted).toEqual(expect.arrayContaining(kept));
+    expect(photosAmong(run.deleted)).toBe(4);
+    expect(run.deferredPhotos).toBe(4);
+
+    const overCap = fakeR2(livePhotos(5));
+    await runR2Cleanup(db, overCap, NOW, { commit: false, graceDays: undefined });
+    const stopped = await runR2Cleanup(db, overCap, later, {
+      commit: true,
+      graceDays: undefined,
+      maxPhotos: 4,
+    });
+    expect(stopped.capTripped).toEqual({ photos: 5, objects: 55, cap: 4 });
+    expect(stopped.deleted).toEqual([]);
+  }, 30_000);
+
+  it("reads a photo's owner from its path; a key of no known shape has none", () => {
+    expect(photoOwnerOf("photo:animals/a1/p1")).toEqual({ kind: "animal", id: "a1" });
+    expect(photoOwnerOf("alone:animals/a1/p1/original.jpg")).toEqual({ kind: "animal", id: "a1" });
+    expect(photoOwnerOf("photo:shelters/s1/logo/l1")).toEqual({ kind: "shelter", id: "s1" });
+    expect(photoOwnerOf("alone:animals/loose.webp")).toBeNull();
+    expect(photoOwnerOf("alone:shelters/s1/evidence/x")).toBeNull();
+  });
+});
+
 describe("formatReport", () => {
   it("names the heading-appropriate fields; a dry run never claims a deletion count", () => {
     const base = {
@@ -492,6 +593,9 @@ describe("formatReport", () => {
       clearedBack: 0,
       dueForDeletion: ["animals/x/1/card.webp"],
       duePhotos: 1,
+      orphanedPhotos: 0,
+      deferred: [],
+      deferredPhotos: 0,
       deleted: [],
       failed: [],
       snapshotsNulled: 0,
@@ -517,6 +621,9 @@ describe("formatReport", () => {
         clearedBack: 0,
         dueForDeletion: ["k"],
         duePhotos: 1,
+        orphanedPhotos: 0,
+        deferred: [],
+        deferredPhotos: 0,
         deleted: [],
         failed: [{ key: "k", message: "AccessDenied" }],
         snapshotsNulled: 0,

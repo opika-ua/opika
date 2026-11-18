@@ -6,7 +6,6 @@ import type { ChannelKind } from "../../profile-edit/fields";
 import type { EvidenceRow } from "../evidence-editor/evidence-rows";
 import {
   type CreateShelterForm,
-  coordinatesOf,
   createInputOf,
   emptyCreateForm,
   type LegalForm,
@@ -53,7 +52,6 @@ const initiative = (patch: Partial<CreateShelterForm> = {}): CreateShelterForm =
   description: "Волонтери з Вишгорода, 18 собак і 6 котів.",
   cityId: CITY,
   line1: "вул. Мечникова, 4",
-  coordinates: "50.5843, 30.4890",
   legal: legal({ kind: "unregistered_initiative", contactPersonName: "Ірина Коваль" }),
   contacts: { phone: "+380 50 111-22-33", telegram: "", form: "", others: [] },
   evidence: [
@@ -86,7 +84,6 @@ describe("the form as registry.shelters.create's input", () => {
         line2: null,
         postalCode: null,
         district: null,
-        coordinates: { lat: 50.5843, lng: 30.489 },
       },
       contact: { primary: { kind: "phone", e164: "+380501112233" }, additional: [] },
       evidence: [
@@ -264,13 +261,11 @@ describe("the minimal shelter: legal data and address left for later", () => {
       line2: null,
       postalCode: null,
       district: null,
-      coordinates: null,
     });
     expect(parse(input).success).toBe(true);
   });
 
   it.each<[string, Partial<CreateShelterForm>]>([
-    ["coordinates", { coordinates: "50.5843, 30.4890" }],
     ["line 2", { line2: "корпус 2" }],
     ["a postcode", { postalCode: "07300" }],
   ])("asks for the street once %s is typed", (_case, patch) => {
@@ -337,17 +332,10 @@ describe("what the form refuses, and the contract refuses too", () => {
     ["no city", { cityId: "" }, "cityId", "required", { ...valid, cityId: "" }],
     [
       "no street",
-      { line1: " " },
+      { line1: " ", postalCode: "07300" },
       "line1",
       "required",
       { ...valid, exactAddress: { ...valid.exactAddress, line1: "" } },
-    ],
-    [
-      "coordinates out of range",
-      { coordinates: "91, 30.5" },
-      "coordinates",
-      "coordinatesFormat",
-      { ...valid, exactAddress: { ...valid.exactAddress, coordinates: { lat: 91, lng: 30.5 } } },
     ],
     [
       "no first admin name",
@@ -527,22 +515,4 @@ describe("an operator date typed in parts", () => {
     );
     expect(result.kind === "invalid" && result.errors.fields).toEqual({ registeredAt: error });
   });
-});
-
-describe("coordinatesOf", () => {
-  it.each([
-    ["50.4501, 30.5234", { lat: 50.4501, lng: 30.5234 }],
-    ["50.4501,30.5234", { lat: 50.4501, lng: 30.5234 }],
-    ["  50.4501   30.5234 ", { lat: 50.4501, lng: 30.5234 }],
-    ["-33.9, 151.2", { lat: -33.9, lng: 151.2 }],
-  ])("reads «%s»", (raw, expected) => {
-    expect(coordinatesOf(raw)).toEqual(expected);
-  });
-
-  it.each(["50.4501", "50,4501, 30,5234", "91, 30", "50.45, 181", "широта, довгота", ""])(
-    "refuses «%s»",
-    (raw) => {
-      expect(coordinatesOf(raw)).toBeNull();
-    },
-  );
 });

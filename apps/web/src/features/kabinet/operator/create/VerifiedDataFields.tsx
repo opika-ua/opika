@@ -1,68 +1,15 @@
-import type { PlaceOptionView } from "@opika/contracts";
-import { fillTemplate, isOwnRegion, placeLabel, uk } from "@opika/i18n";
-import { useCallback, useMemo } from "react";
-import { Combobox, type ComboboxOption, type ComboboxResult } from "../../../../ui/Combobox";
+import { uk } from "@opika/i18n";
+import { Combobox, type ComboboxOption } from "../../../../ui/Combobox";
 import { DateField } from "../../../../ui/DateField";
 import { FieldError, Radio, TextField } from "../../../../ui/form";
+import type { useCityPicker } from "../../shared/city-picker";
 import { DATE_FIELD_LABELS } from "../../shared/kabinet-date";
 import { type AddressForm, LEGAL_KINDS, type LegalForm } from "./create-input";
-import type { RegistryCreateClient } from "./registry-create-client";
 
 /**
  * The verified-data fields (premises address, legal form) shared by S2's create form and S4's
  * edit forms, so both say the same labels and check the same way. No state of their own.
  */
-
-/** A settlement as the picker prints it: the kind's prefix and name, then what tells namesakes apart. */
-function placeOptionOf(place: PlaceOptionView): ComboboxOption {
-  // Kyiv and Sevastopol are their own region: the label already says it.
-  const region = isOwnRegion({
-    kind: place.kind,
-    name: place.name,
-    regionShort: place.region.ukShort,
-  })
-    ? null
-    : place.region.ukShort;
-  const detail = [place.district, place.hromada, region]
-    .filter((part): part is string => part !== null)
-    .join(" · ");
-  return {
-    value: place.id,
-    label: placeLabel(place.kind, place.name),
-    ...(detail === "" ? {} : { detail }),
-  };
-}
-
-type CitySearch = Pick<RegistryCreateClient["registry"]["cities"], "search">;
-
-/** The city picker's search and messages; the server stays the authority on which id exists. */
-export function useCityPicker(cities: CitySearch) {
-  const picker = uk.kabinet.cityPicker;
-  const messages = useMemo(
-    () => ({
-      placeholder: picker.placeholder,
-      tooShort: picker.tooShort,
-      loading: picker.loading,
-      empty: picker.empty,
-      error: picker.error,
-      retry: picker.retry,
-      found: (count: number) => fillTemplate(picker.found, { count: String(count) }),
-      clear: picker.clear,
-      close: picker.close,
-    }),
-    [picker],
-  );
-  const search = useCallback(
-    async (query: string, signal: AbortSignal): Promise<ComboboxResult> => {
-      const answer = await cities.search({ query, regionBias: null }, { signal });
-      return answer.kind === "too_short"
-        ? { kind: "too_short" }
-        : { kind: "options", options: answer.places.map(placeOptionOf) };
-    },
-    [cities],
-  );
-  return { messages, search };
-}
 
 /** The settlement picker: S2 asks for it on its own (the address is optional there), S4 with the address. */
 export function CityField({
@@ -112,7 +59,6 @@ export function AddressFields({
   street: "required" | "optional";
   errors: {
     line1: string | null;
-    coordinates: string | null;
   };
 }) {
   const t = uk.kabinet.operator.create;
@@ -144,16 +90,6 @@ export function AddressFields({
         autoComplete="off"
         value={form.postalCode}
         onChange={(event) => set("postalCode", event.target.value)}
-      />
-      <TextField
-        id={`${idPrefix}-coordinates`}
-        label={t.coordinates}
-        hint={t.coordinatesHint}
-        type="text"
-        autoComplete="off"
-        value={form.coordinates}
-        onChange={(event) => set("coordinates", event.target.value)}
-        error={errors.coordinates}
       />
     </>
   );

@@ -68,11 +68,13 @@ export const kabinetProfileBrowserClient: KabinetProfileClient = createORPCClien
 /**
  * What K3's animal form (`/kabinet/tvaryny/*`) may call from the browser,
  * picked for the same reason as the profile's: reading one animal, creating
- * a draft, saving, publishing, and the four photo procedures. Nothing else
- * of the shelter contract is callable from this client.
+ * a draft, saving, publishing, the four photo procedures, and the place search
+ * behind «Де зараз тварина». Nothing else of the shelter contract is callable
+ * from this client.
  */
 const kabinetAnimalBrowserContract = {
   shelter: {
+    cities: { search: shelterKabinetContract.shelter.cities.search },
     animals: {
       byId: shelterKabinetContract.shelter.animals.byId,
       createDraft: shelterKabinetContract.shelter.animals.createDraft,

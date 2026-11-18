@@ -796,8 +796,11 @@ export const registrySheltersContract = {
         description: ShelterDescriptionInputSchema.optional(),
         /** Null: added later through `updateVerifiedData`; approval waits for it. */
         legalEntity: ShelterLegalEntitySchema.nullable(),
-        /** Without `cityId`: the address is in the shelter's city by construction. */
-        exactAddress: ExactAddressSchema.omit({ cityId: true }).nullable(),
+        /**
+         * Without `cityId`: the address is in the shelter's city by construction. No point either
+         * (P0-6): nothing reads one, so the handler stores null.
+         */
+        exactAddress: ExactAddressSchema.omit({ cityId: true, coordinates: true }).nullable(),
         contact: ShelterContactInputSchema,
         evidence: z.array(EvidenceItemInputSchema).readonly(),
         firstAdmin: z.strictObject({ name: humanName, email: z.email() }),
@@ -819,7 +822,11 @@ export const registrySheltersContract = {
         expectedVersion,
         change: z.discriminatedUnion("field", [
           z.strictObject({ field: z.literal("legal_entity"), next: ShelterLegalEntitySchema }),
-          z.strictObject({ field: z.literal("exact_address"), next: ExactAddressSchema }),
+          // No point (P0-6): the handler stores null, so a stored one goes on the next save.
+          z.strictObject({
+            field: z.literal("exact_address"),
+            next: ExactAddressSchema.omit({ coordinates: true }),
+          }),
         ]),
       }),
     )
@@ -1112,17 +1119,30 @@ export const kabinetInvitationContract = {
  * the answer is capped (`PLACE_SEARCH_MAX_RESULTS`), and `regionBias` ranks an oblast first
  * without ever filtering.
  */
+const PlaceSearchInputSchema = z.strictObject({
+  query: z.string().max(PLACE_SEARCH_MAX_QUERY_LENGTH),
+  regionBias: RegionIdSchema.nullable(),
+});
+
 export const registryCitiesContract = {
   search: kabinet
     .$meta(registry)
-    .input(
-      z.strictObject({
-        query: z.string().max(PLACE_SEARCH_MAX_QUERY_LENGTH),
-        regionBias: RegionIdSchema.nullable(),
-      }),
-    )
+    .input(PlaceSearchInputSchema)
     .output(PlaceSearchResultSchema)
     .errors({ UNAUTHENTICATED: apiErrors.UNAUTHENTICATED, FORBIDDEN: apiErrors.FORBIDDEN }),
+};
+
+/**
+ * The same place search for a shelter's own kabinet (owner, 2026-11-18): «Де зараз тварина» picks
+ * a settlement with it. A read, so a support view may search too; a per-user limit of its own
+ * beside the kabinet's (`RATE_LIMITED`).
+ */
+export const shelterCitiesContract = {
+  search: kabinet
+    .$meta(shelterRead)
+    .input(PlaceSearchInputSchema)
+    .output(PlaceSearchResultSchema)
+    .errors({ ...shelterScopedErrors, RATE_LIMITED: apiErrors.RATE_LIMITED }),
 };
 
 // ─── registry.applications (self-registration, 2026-11-18) ──────────────────

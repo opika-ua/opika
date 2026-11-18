@@ -47,7 +47,9 @@
     "worktree:remove": "tsx src/tools/worktree-remove.ts",
     "db:prune-test-dbs": "tsx src/tools/prune-test-dbs.ts",
     "smoke-sitting": "tsx src/tools/smoke-sitting.ts",
-    "r2:cleanup": "tsx src/r2-cleanup.ts"
+    "r2:cleanup": "tsx src/r2-cleanup.ts",
+    "applications:cleanup": "tsx src/application-cleanup.ts",
+    "invitations:legacy": "tsx src/legacy-invitations.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "catalog:",

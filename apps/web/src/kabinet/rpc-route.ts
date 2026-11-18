@@ -3,6 +3,7 @@ import type { Database } from "@opika/db";
 import type { LocationPrivacyPolicy } from "@opika/domain";
 import { BodyLimitPlugin, RPCHandler } from "@orpc/server/fetch";
 import { boundedBody, readBodyHead } from "../api/bounded-body";
+import type { RateLimiter } from "../api/rate-limit";
 import { ipRateLimitKey } from "../api/rate-limit-key";
 import { retryAfterSecondsOf } from "../api/retry-after";
 import type { ShelterWritePolicy } from "./access";
@@ -145,6 +146,8 @@ export async function handleKabinetRpc(
      * Left out, uploads are off: a caller that doesn't say can't store.
      */
     photoUploads?: PhotoUploads;
+    /** `shelter.cities.search`'s per-person limit: the served route passes the shared one. */
+    citySearch: RateLimiter;
     /**
      * The invitation link's «Створіть пароль» (PW-2). Called only once the kabinet is known to be
      * available, since it needs Better Auth. Left out, it is off: the procedure answers that the
@@ -235,6 +238,7 @@ export async function handleKabinetRpc(
       linkBaseURL: deps.availability.baseURL,
       shelterWrites: deps.shelterWrites,
       photoUploads: deps.photoUploads ?? PHOTO_UPLOADS_NOT_CONFIGURED,
+      citySearchLimiter: deps.citySearch,
       invitePasswords: deps.invitePasswords?.() ?? INVITE_PASSWORDS_OFF,
       ...(deps.notify === undefined ? {} : { notify: deps.notify }),
     },

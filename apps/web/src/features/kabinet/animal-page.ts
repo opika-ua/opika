@@ -1,5 +1,7 @@
 import type { KabinetAnimalView, KabinetShelterView } from "@opika/contracts";
-import { AnimalIdSchema } from "@opika/domain";
+import { cityRepo } from "@opika/db/repos";
+import { AnimalIdSchema, type AnimalLocation, type CityId } from "@opika/domain";
+import { placeLabel } from "@opika/i18n";
 import { createRouterClient, ORPCError } from "@orpc/server";
 import { decideAccess } from "../../kabinet/access";
 import type { KabinetPrincipal } from "../../kabinet/actor";
@@ -7,7 +9,7 @@ import type { KabinetContext } from "../../kabinet/context";
 import { INVITE_PASSWORDS_OFF } from "../../kabinet/invite-password";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "../../kabinet/photo-uploads";
 import { shelterKabinetRouter } from "../../kabinet/router";
-import type { AnimalFormEditing } from "./animal-form/AnimalForm";
+import type { AnimalFormEditing, AnimalFormLocation } from "./animal-form/AnimalForm";
 import { type ShelterVisibility, shelterVisibilityOf } from "./animal-form/labels";
 import type { KabinetHomeDeps } from "./home";
 
@@ -48,6 +50,8 @@ export type KabinetAnimalPage =
       editing: AnimalFormEditing;
       /** Where the shelter's cards stand with the public: `shelterVisibilityOf`. */
       shelterVisibility: ShelterVisibility;
+      /** «Де зараз тварина»'s labels; null when the shelter's city doesn't resolve (no section). */
+      location: AnimalFormLocation | null;
     };
 
 export type AnimalPageTarget = { kind: "new" } | { kind: "existing"; animalId: string };
@@ -99,20 +103,39 @@ export async function kabinetAnimalPageOf(
     write.kind === "allow_shelter_write" ? { kind: "open" } : { kind: "read_only" };
   const shelterVisibility = shelterVisibilityOf(shelter.verification.status, shelter.earlyListing);
 
+  const shelterCityId = shelter.cityId;
   if (target.kind === "new") {
     if (editing.kind === "read_only") return { kind: "not_found" };
-    return { kind: "form", shelter, view: null, viewer, editing, shelterVisibility };
+    const location = await locationLabelsOf(deps, shelterCityId, null);
+    return { kind: "form", shelter, view: null, viewer, editing, shelterVisibility, location };
   }
   // Not an id at all: the same answer as an id that names nothing here.
   const animalId = AnimalIdSchema.safeParse(target.animalId);
   if (!animalId.success) return { kind: "missing", shelter, viewer, editing };
   try {
     const view = await client.shelter.animals.byId({ animalId: animalId.data });
-    return { kind: "form", shelter, view, viewer, editing, shelterVisibility };
+    const location = await locationLabelsOf(deps, shelterCityId, view.location);
+    return { kind: "form", shelter, view, viewer, editing, shelterVisibility, location };
   } catch (error) {
     if (isCode(error, "NOT_FOUND", "FORBIDDEN")) {
       return { kind: "missing", shelter, viewer, editing };
     }
     throw error;
   }
+}
+
+/** The shelter's city by name, and an own city as the picker prints it («м. Бровари»). */
+async function locationLabelsOf(
+  deps: Pick<KabinetHomeDeps, "db">,
+  shelterCityId: CityId,
+  location: AnimalLocation | null,
+): Promise<AnimalFormLocation | null> {
+  const cities = cityRepo(deps.db);
+  const shelterCity = await cities.findById(shelterCityId);
+  if (shelterCity === null) return null;
+  const own = location?.kind === "own_city" ? await cities.findById(location.cityId) : null;
+  return {
+    shelterCityName: shelterCity.name.uk,
+    ownCity: own === null ? null : { value: own.id, label: placeLabel(own.kind, own.name.uk) },
+  };
 }

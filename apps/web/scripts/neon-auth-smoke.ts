@@ -53,6 +53,7 @@ import { generousPasswordLimiters } from "../src/kabinet/password-limits";
 import { capturingPasswordMail } from "../src/kabinet/password-mail";
 import { kabinetIdentityOf } from "../src/kabinet/principal";
 import { handleKabinetRpc } from "../src/kabinet/rpc-route";
+import { roomyCitySearch } from "../src/kabinet/test-city-search";
 
 /**
  * Better Auth's own write paths on real Neon, through the production driver
@@ -844,6 +845,7 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
       locationPolicy: null,
       production: true,
       shelterWrites: SHELTER_WRITE_POLICY,
+      citySearch: roomyCitySearch(),
       invitePasswords: () => ({
         kind: "on",
         perIp: unlimited(),

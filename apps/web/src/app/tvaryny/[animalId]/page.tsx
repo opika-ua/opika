@@ -1,6 +1,6 @@
 import type { AnimalDetailView } from "@opika/contracts";
-import { textIn } from "@opika/domain";
-import { speciesWordFor, uk } from "@opika/i18n";
+import { animalNoun, textIn } from "@opika/domain";
+import { fillTemplate, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
@@ -10,13 +10,13 @@ import {
   type AnimalPageLoad,
   loadAnimalPage,
 } from "../../../features/animal-detail/animal-page-load";
-import { speciesLabel } from "../../../features/animal-detail/detail-text";
 import { kabinetSessionCookiePresent } from "../../../features/chrome/kabinet-signed-in";
 import { RateLimitedScreen } from "../../../features/chrome/RateLimitedScreen";
 import { JsonLd } from "../../../seo/json-ld";
 import { animalBreadcrumbs } from "../../../seo/json-ld-builders";
+import { seoMetadata, withSite } from "../../../seo/page-metadata";
 import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../../../seo-flags";
-import { META_DESCRIPTION_MAX_LENGTH, trimAtWordBoundary } from "../../../seo-text";
+import { fitTitle, truncateDescription } from "../../../seo-text";
 
 /**
  * Same reasoning as `../page.tsx` and `../../page.tsx`: prerendering at
@@ -80,38 +80,13 @@ export function renderAnimalPage(load: AnimalPageLoad, kabinetSignedIn: boolean)
 const loadAnimalPageOnce = cache((animalId: string) => loadAnimalPage(animalId));
 
 /**
- * Phase T. Before this the route had no metadata at all, so a shared
- * `/tvaryny/{id}` link - the exact URL shape the product is designed to be
- * passed around in, and the one `/prytulkam` tells shelters they can send to
- * Telegram - previewed under the root layout's title with no image and no
- * description.
+ * Phase T, then SEO handoff B2: a shared `/tvaryny/{id}` link previews with the page's own title
+ * and description. The preview image is the sibling `opengraph-image.tsx` (1200x630 PNG), which
+ * Next wires into og:image and twitter:image.
  *
- * The preview image is the sibling `opengraph-image.tsx` (1200x630 PNG: photo, name, species, city;
- * nothing that can go stale), which Next wires into og:image and twitter:image. The raw 4:5 WebP
- * variants were dropped as a preview: uneven client support and portrait crops.
- *
- * D-2: this route builds its own `description`/`openGraph.description` rather
- * than inheriting the root layout's - Next does not merge them, it overrides.
- * Without its own demo swap, `/tvaryny/{id}` would preview an animal's
- * age/size with no demo-data disclosure at all - exactly the shared link
- * `/prytulkam` tells shelters they can paste into Telegram, so this is one
- * of the routes the disclosure matters on most (see the root layout's own
- * comment for which routes deliberately don't carry it).
- *
- * `title`/`description`, PR B (the SEO review of page titles), owner-approved:
- * - `title`: `{name}, {species}, {city}` (`city` omitted when the animal's own
- *   location doesn't resolve to a known city - `filter(Boolean)`, not a guess).
- *   The age bucket and the reserved/adopted state are both deliberately absent -
- *   neither belongs in a title a search index can keep stale, and the state was
- *   never in it to begin with.
- * - `description`: built by `animalMetaDescription`, below - see its own doc comment
- *   for the exact format, the sex-aware species word and the 160-character budget.
- *
- * `openGraph.title` is omitted, not duplicated: Next resolves a missing
- * `openGraph.title` from the page's own already-templated `title` (same
- * pattern `/prytulkam`'s and `/pro`'s own metadata already use), which is how
- * "og:title matches the page's title" (owner) holds without hand-typing the
- * brand suffix here too.
+ * D-2: while the registry holds no real shelters the description is the demo disclosure; an
+ * early-listed shelter's animal previews with the «на перевірці» line (N14), never a claim of a
+ * verified shelter. The canonical is the animal's own validated id, with no query string.
  */
 export async function generateMetadata({
   params,
@@ -129,31 +104,20 @@ export function animalMetadataOf(load: AnimalPageLoad): Metadata {
   if (load.kind === "rate_limited") return { robots: { index: false, follow: false } };
   if (load.kind !== "animal") return {};
   const { animal, shelter, cityName } = load.view;
-
-  const title = [animal.name, speciesLabel(animal.species), cityName].filter(Boolean).join(", ");
   const listedEarly = shelter.verification === "listed_before_verification";
+  const own = animalSeoText(animal, shelter.displayName, cityName);
   const description = REGISTRY_HAS_NO_REAL_SHELTERS
     ? uk.demo.bannerNotice
     : listedEarly
       ? // A link preview must not suggest a verified shelter (N14).
         uk.underReview.sharePreview
-      : animalMetaDescription(animal, shelter.displayName, cityName);
+      : own.description;
+  const seo = seoMetadata(own.title, description);
   return {
-    title,
-    description,
-    // Always the animal's own validated id, no query string - the pet-card work
-    // (owner, PR B) adds gallery-context params to this same URL, and this canonical
-    // must never vary with them. `animal.id`, not the raw route param: `AnimalIdSchema`
-    // accepts a UUID in any case, so a request that happened to use uppercase would
-    // otherwise get a canonical that disagrees with the lowercase form every other
-    // link on the site actually uses.
+    ...seo,
+    openGraph: { ...seo.openGraph, type: "article" },
+    // `animal.id`, not the raw param: a UUID in any case would otherwise give a second canonical.
     alternates: { canonical: `/tvaryny/${animal.id}` },
-    openGraph: {
-      type: "article",
-      description,
-    },
-    twitter: { card: "summary_large_image" },
-    // A paused shelter's animal page is reachable by link only: never indexed, even after the flip.
     // Paused, or an early-listed shelter's animal: by link only, whatever the discoverability flag.
     ...((animal.availability.kind === "paused" || listedEarly) && {
       robots: { index: false, follow: SITE_IS_PUBLICLY_DISCOVERABLE },
@@ -161,44 +125,41 @@ export function animalMetadataOf(load: AnimalPageLoad): Metadata {
   };
 }
 
-/** A body sentence shorter than this reads as a cut-off word, not a useful fragment -
- * omitted entirely rather than shown truncated (found on review: an unusually long
- * shelter name could leave almost no room for it). */
-const MIN_USEFUL_BODY_LENGTH = 20;
+/** The story's first sentence, whitespace collapsed; the whole text when it has no sentence end. */
+export function firstSentenceOf(text: string): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  return /^.*?[.!?…](?=\s|$)/u.exec(normalized)?.[0] ?? normalized;
+}
 
 /**
- * `{species word} {name} · {city} · {shelterName}. {animal's own description, trimmed}.`
- * - owner's exact wording, replacing an earlier draft ("з притулку «...», м. ..."):
- * no "з притулку", no "м.", and no quotes around the shelter name, because a shelter's
- * own display name may already contain "притулок" or quotes of its own. The species
- * word is sex-aware (`speciesWordFor`, `@opika/i18n`) - distinct from the title's own
- * `speciesLabel`, which stays sex-neutral. Exported for its own test; `cityName` is
- * `null` whenever the animal's location doesn't resolve to a known city (`loadAnimalPage`'s
- * own fallback), dropped from the sentence entirely rather than rendered as an empty
- * " · ".
- *
- * The shelter name itself is trimmed to whatever budget is left after the fixed
- * surrounding segments - found on review: an unusually long shelter name could
- * otherwise make the prefix alone exceed `META_DESCRIPTION_MAX_LENGTH`, which
- * `trimAtWordBoundary`'s own 160-character ceiling is supposed to guarantee never
- * happens to the description as a whole.
+ * Handoff B2's title and description for the animal page, in the effective city (its own, or the
+ * shelter's); a city that doesn't resolve takes the owner's no-city pair (2026-11-18). The title
+ * drops « | Opika» past 60 characters (`fitTitle`); the description stays under 155 with «…»
+ * (`truncateDescription`) and, with no story, ends after the shelter.
  */
-export function animalMetaDescription(
-  animal: Pick<AnimalDetailView, "name" | "species" | "sex" | "description">,
+export function animalSeoText(
+  animal: Pick<AnimalDetailView, "name" | "species" | "sex" | "ageBucket" | "description">,
   shelterName: string,
   cityName: string | null,
-): string {
-  const speciesWord = speciesWordFor(animal.species, animal.sex);
-  const fixedPrefix = [`${speciesWord} ${animal.name}`, cityName].filter(Boolean).join(" · ");
-  // " · " before the shelter name (3 characters), "." after it (1 character).
-  const shelterBudget = Math.max(0, META_DESCRIPTION_MAX_LENGTH - fixedPrefix.length - 3 - 1);
-  const safeShelterName = trimAtWordBoundary(shelterName, shelterBudget);
-  const prefix = `${fixedPrefix} · ${safeShelterName}.`;
-
-  const bodyBudget = META_DESCRIPTION_MAX_LENGTH - prefix.length - 1;
-  const body =
-    bodyBudget >= MIN_USEFUL_BODY_LENGTH
-      ? trimAtWordBoundary(textIn(animal.description, "uk"), bodyBudget)
-      : "";
-  return body ? `${prefix} ${body}` : prefix;
+): { title: string; description: string } {
+  const t = uk.seo.animal;
+  const noun = uk.seo.nouns[animalNoun(animal.species, animal.sex, animal.ageBucket)];
+  const values = {
+    name: animal.name,
+    noun,
+    shelter: shelterName,
+    story: firstSentenceOf(textIn(animal.description, "uk")),
+  };
+  const subject =
+    cityName === null
+      ? fillTemplate(t.titleNoCity, values)
+      : fillTemplate(t.title, { ...values, city: cityName });
+  const description =
+    cityName === null
+      ? fillTemplate(t.descriptionNoCity, values)
+      : fillTemplate(t.description, { ...values, city: cityName });
+  return {
+    title: fitTitle(withSite(uk.seo.titleWithSite, { title: subject }), subject),
+    description: truncateDescription(description),
+  };
 }

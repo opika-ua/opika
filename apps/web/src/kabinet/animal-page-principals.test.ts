@@ -29,6 +29,9 @@ vi.mock("./router", async () => {
   };
 });
 
+// No database here: «Де зараз тварина»'s city labels resolve to none (the form shows no section).
+vi.mock("@opika/db/repos", () => ({ cityRepo: () => ({ findById: async () => null }) }));
+
 const { kabinetAnimalPageOf } = await import("../features/kabinet/animal-page");
 
 const deps = { shelterWrites: SHELTER_WRITE_POLICY } as unknown as KabinetHomeDeps;

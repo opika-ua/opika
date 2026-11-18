@@ -6,6 +6,7 @@ import {
   upstashDelayStore,
 } from "./password-limits";
 import {
+  CITY_SEARCH_RATE_LIMITS,
   KABINET_RATE_LIMITS,
   PHOTO_CROP_ATTEMPT_LIMITS,
   PHOTO_UPLOAD_ATTEMPT_LIMITS,
@@ -47,6 +48,13 @@ export const kabinetLimiters = {
     onUnavailable: "deny",
   }),
 };
+
+/** `shelter.cities.search`, per person; an unreachable store refuses, like every kabinet limit. */
+export const citySearchLimiter = sharedRateLimiter({
+  name: "kabinet-city-search-user",
+  ...CITY_SEARCH_RATE_LIMITS.perUser,
+  onUnavailable: "deny",
+});
 
 /** P-Q12: per shelter, an hour and a day; and the upload and crop attempts beside them. */
 export const photoUploadLimiters = {

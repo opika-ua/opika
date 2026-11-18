@@ -16,6 +16,7 @@ const TARGET: Record<FieldProblem["field"], string> = {
   asOf: "#animal-as-of",
   temperamentCustom: "#animal-temperament-custom",
   colourCustom: "#animal-colour-custom",
+  location: "#animal-location-city",
 };
 
 /** The tab that holds each validated field, so a summary item can bring it into view. */
@@ -28,6 +29,7 @@ const FIELD_TAB: Record<FieldProblem["field"], AnimalTab> = {
   temperamentCustom: "pro-tvarynu",
   colourCustom: "pro-tvarynu",
   medicalNotes: "zdorovia",
+  location: "osnovne",
 };
 
 /** The form's problems as the kit's summary items: one per field, in the form's order, with the field's own sentence. */

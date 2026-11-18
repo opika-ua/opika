@@ -65,36 +65,51 @@ describe("the full page", () => {
     expect((await generateMetadata({ params })).robots).toEqual({ index: false, follow: false });
   });
 
-  describe("metadata (PR B, the SEO review of page titles)", () => {
-    it("title is name, species, city - no age bucket, no reserved/adopted state", async () => {
+  describe("metadata (SEO handoff B2, owner-approved 2026-11-18)", () => {
+    const titleOf = async (animal: Parameters<typeof makeDetailAnimal>[0]) => {
+      current = stubAnimalPageClient({ kind: "answer", animal: makeDetailAnimal(animal) });
+      return (await generateMetadata({ params })).title;
+    };
+
+    it("title is «{Name} – {noun} шукає дім, {city} | Opika»: no age bucket, no listing state", async () => {
       current = stubAnimalPageClient();
-      expect((await generateMetadata({ params })).title).toBe("Мурчик, Кіт, Бровари");
-    });
-
-    /**
-     * Found on review: the default fixture is a male cat, where the title's sex-neutral
-     * `speciesLabel` and the description's sex-aware `speciesWordFor` happen to agree
-     * («Кіт» either way), so nothing above actually proves the title uses the right one.
-     * A female cat is where they diverge - `speciesWordFor` gives «Кішка»; `speciesLabel`
-     * must still give «Кіт».
-     */
-    it("stays sex-neutral even where the sex-aware species word would differ (a female cat)", async () => {
-      current = stubAnimalPageClient({
-        kind: "answer",
-        animal: makeDetailAnimal({ sex: "female" }),
+      expect((await generateMetadata({ params })).title).toEqual({
+        absolute: "Мурчик – кіт шукає дім, Бровари | Opika",
       });
-      expect((await generateMetadata({ params })).title).toBe("Мурчик, Кіт, Бровари");
     });
 
-    it("drops the city segment rather than rendering an empty one when it doesn't resolve", async () => {
-      // The animal's own location, not the shelter's, wins when both are set
-      // (`loadAnimalPage`'s own fallback order) - a city id absent from the
-      // stub's one-city `cities.byIds` resolves to `cityName: null`.
+    it.each([
+      ["a male dog", { species: "dog", sex: "male", ageBucket: "adult" }, "собака"],
+      ["a female cat", { species: "cat", sex: "female", ageBucket: "adult" }, "кішка"],
+      ["a puppy", { species: "dog", sex: "female", ageBucket: "baby" }, "цуценя"],
+      ["a kitten", { species: "cat", sex: "male", ageBucket: "baby" }, "кошеня"],
+    ] as const)("the noun for %s is «%s»", async (_who, animal, noun) => {
+      expect(await titleOf(animal)).toEqual({
+        absolute: `Мурчик – ${noun} шукає дім, Бровари | Opika`,
+      });
+    });
+
+    it("the description is the name, the city, the shelter and the story's first sentence", async () => {
+      current = stubAnimalPageClient();
+      const { description } = await generateMetadata({ params });
+      expect(description).toMatch(
+        /^Мурчик шукає дім\. Бровари · .+\. Лагідний кіт, любить сидіти на підвіконні\.$/u,
+      );
+    });
+
+    it("a city that doesn't resolve takes the owner's no-city title and description (2026-11-18)", async () => {
+      // The animal's own location, not the shelter's, wins when both are set (`loadAnimalPage`'s
+      // order): a city id absent from the stub's one-city `cities.byIds` is `cityName: null`.
       current = stubAnimalPageClient({
         kind: "answer",
         animal: makeDetailAnimal({ publicLocation: { cityId: "unknown-city-id" as never } }),
       });
-      expect((await generateMetadata({ params })).title).toBe("Мурчик, Кіт");
+      const metadata = await generateMetadata({ params });
+      expect(metadata.title).toEqual({ absolute: "Мурчик – кіт шукає дім | Opika" });
+      expect(metadata.description).toMatch(
+        /^Мурчик шукає дім\. [^·]+\. Лагідний кіт, любить сидіти на підвіконні\.$/u,
+      );
+      expect(metadata.openGraph).toMatchObject({ title: "Мурчик – кіт шукає дім | Opika" });
     });
 
     it("canonical is always the bare id, never a query string", async () => {
@@ -119,17 +134,23 @@ describe("the full page", () => {
       );
     });
 
-    it("openGraph carries no title of its own - Next fills it from the already-templated one", async () => {
+    it("Open Graph and Twitter carry the page's own title and description (B2)", async () => {
       current = stubAnimalPageClient();
       const metadata = await generateMetadata({ params });
-      expect(metadata.openGraph).not.toHaveProperty("title");
+      const title = "Мурчик – кіт шукає дім, Бровари | Opika";
+      expect(metadata.openGraph).toMatchObject({ title, description: metadata.description });
+      expect(metadata.twitter).toEqual({
+        card: "summary_large_image",
+        title,
+        description: metadata.description,
+      });
     });
 
-    it("asks for the large twitter card and sets no image by hand: the sibling opengraph-image route supplies it (BR-7)", async () => {
+    it("sets no image by hand: the sibling opengraph-image route supplies it (BR-7)", async () => {
       current = stubAnimalPageClient();
       const metadata = await generateMetadata({ params });
-      expect(metadata.twitter).toEqual({ card: "summary_large_image" });
       expect(metadata.openGraph).not.toHaveProperty("images");
+      expect(metadata.twitter).not.toHaveProperty("images");
     });
 
     // The description's own demo/real branches (by `REGISTRY_HAS_NO_REAL_SHELTERS`) are

@@ -221,7 +221,6 @@ function AddressCard({
       : [cityName, address.line1, address.line2, address.postalCode]
           .filter((part): part is string => part !== null && part !== "")
           .join(", ");
-  const point = address?.coordinates ?? null;
   return (
     <Section id="operator-address" title={uk.kabinet.profile.address}>
       {address === null ? (
@@ -229,9 +228,6 @@ function AddressCard({
       ) : (
         <dl className="flex flex-col gap-3">
           <Fact label={uk.kabinet.profile.address}>{line === "" ? notRecorded : line}</Fact>
-          <Fact label={t.create.coordinates}>
-            {point === null ? notFilledYet : `${point.lat}, ${point.lng}`}
-          </Fact>
         </dl>
       )}
       <Text look="hint">{uk.kabinet.profile.addressNote}</Text>

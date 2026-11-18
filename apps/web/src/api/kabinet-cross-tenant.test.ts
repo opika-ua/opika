@@ -26,6 +26,7 @@ import type { KabinetPrincipal } from "../kabinet/actor";
 import { capturingInvitationSender } from "../kabinet/email-senders";
 import { capturingPasswordMail } from "../kabinet/password-mail";
 import { handleKabinetRpc } from "../kabinet/rpc-route";
+import { roomyCitySearch } from "../kabinet/test-city-search";
 import { TEST_SESSION_COOKIE } from "../kabinet/test-session-cookie";
 import { inMemoryRateLimiter } from "./rate-limit";
 import { fromRpcBody, rpcRequestInit } from "./test-harness";
@@ -135,6 +136,7 @@ async function call(path: string, input: unknown): Promise<{ status: number; bod
     production: false,
     // The served policy: every shelter's own admins write (PR 6).
     shelterWrites: SHELTER_WRITE_POLICY,
+    citySearch: roomyCitySearch(),
     // On, so an upload reaches the ownership check rather than stopping at
     // "uploads unavailable" (which would pass this suite for the wrong reason).
     photoUploads: {
@@ -293,6 +295,7 @@ describe("cross-tenant: a smuggled shelterId is BAD_REQUEST, and B is untouched"
     ["shelter.verification.requestReview", () => smuggle({})],
     ["shelter.animals.list", () => smuggle({ filter: { kind: "all" }, cursor: null, limit: 50 })],
     ["shelter.history.list", () => smuggle({ cursor: null, limit: 50 })],
+    ["shelter.cities.search", () => smuggle({ query: "Бро", regionBias: null })],
     ["shelter.animals.createDraft", () => smuggle({ name: "Новий", species: "dog" })],
     [
       "shelter.logo.set",
@@ -442,8 +445,9 @@ describe("coverage", () => {
       "shelter.history.list",
       "shelter.logo.set",
       "shelter.logo.remove",
+      "shelter.cities.search",
     ];
-    expect(new Set(covered).size).toBe(24);
+    expect(new Set(covered).size).toBe(25);
     expect([...covered].sort()).toEqual(pathsOf(shelterKabinetContract.shelter, "shelter").sort());
   });
 });

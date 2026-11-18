@@ -207,9 +207,11 @@ export const supportSessions = pgTable(
     operatorUserId: text("operator_user_id")
       .notNull()
       .references(() => authUser.id),
-    shelterId: text("shelter_id")
-      .notNull()
-      .references(() => shelters.id),
+    /**
+     * Null once the shelter is gone (0029, owner 2026-11-18, Q4 (B)): a deleted application's
+     * support session still records who viewed and when, but no longer which shelter.
+     */
+    shelterId: text("shelter_id").references(() => shelters.id, { onDelete: "set null" }),
     tokenHash: text("token_hash").notNull().unique(),
     startedAt: at("started_at"),
     lastSeenAt: at("last_seen_at"),

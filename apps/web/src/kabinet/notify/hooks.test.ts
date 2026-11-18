@@ -20,6 +20,7 @@ import { writePlanned } from "../handlers/registry-writes";
 import { capturingPasswordMail } from "../password-mail";
 import { PHOTO_UPLOADS_NOT_CONFIGURED } from "../photo-uploads";
 import { handleKabinetRpc } from "../rpc-route";
+import { roomyCitySearch } from "../test-city-search";
 import { TEST_SESSION_COOKIE } from "../test-session-cookie";
 import { notifyAfterWrite } from "./after-write";
 import type { HistoryLine } from "./intents";
@@ -93,6 +94,7 @@ async function call<T = Record<string, unknown>>(
       locationPolicy: policy,
       production: false,
       shelterWrites: SHELTER_WRITE_POLICY,
+      citySearch: roomyCitySearch(),
       notify: (shelter, lines) => {
         handedOver.push({ shelter, lines });
         if (notifierThrows) throw new Error("no request scope");

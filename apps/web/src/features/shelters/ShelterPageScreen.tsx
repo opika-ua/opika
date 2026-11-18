@@ -45,6 +45,7 @@ export function ShelterPageScreen({
   cityPlace,
   animals,
   cityNames,
+  animalCities,
   query,
   filterUi,
   kabinetSignedIn = false,
@@ -147,6 +148,13 @@ export function ShelterPageScreen({
                   <span className="text-body font-semibold text-accent-text desktop:text-body-l">
                     {fillTemplate(uk.cardMeta.atShelter, { place: cityPlace })}
                   </span>
+                </span>
+              )}
+              {animalCities.length > 0 && (
+                <span data-testid="shelter-animal-cities" className="text-body text-ink-2">
+                  {fillTemplate(uk.kabinet.location.shelterCities, {
+                    cities: animalCities.join(", "),
+                  })}
                 </span>
               )}
               <span aria-hidden="true" className="hidden h-6 w-0.5 bg-line desktop:block" />

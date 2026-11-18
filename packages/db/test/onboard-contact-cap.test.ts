@@ -43,7 +43,6 @@ const fileWith = (contact: unknown) => ({
       postalCode: null,
       cityId: CITY_ID,
       district: null,
-      coordinates: { lat: 50.5111, lng: 30.7903 },
     },
     contact,
     donation: null,

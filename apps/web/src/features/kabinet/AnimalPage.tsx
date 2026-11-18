@@ -68,6 +68,7 @@ export function AnimalPage({
           }
           back={back}
           initialTab={tab}
+          {...(page.location === null ? {} : { location: page.location })}
         />
       ) : (
         <div className="flex flex-col gap-4">

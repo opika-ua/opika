@@ -174,8 +174,8 @@ describe("every served kabinet procedure goes through implement(shelterKabinetCo
   const contractLeaves = collectLeaves(shelterKabinetContract);
   const routerLeaves = collectLeaves(shelterKabinetRouter);
 
-  it("finds all twenty-four shelter procedures (not vacuous)", () => {
-    expect(contractLeaves).toHaveLength(24);
+  it("finds all twenty-five shelter procedures (not vacuous)", () => {
+    expect(contractLeaves).toHaveLength(25);
   });
 
   it("serves exactly the contracted paths", () => {

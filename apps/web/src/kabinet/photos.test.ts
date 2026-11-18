@@ -27,6 +27,7 @@ import {
   shelterUploadKey,
 } from "./rate-limits";
 import { handleKabinetRpc } from "./rpc-route";
+import { roomyCitySearch } from "./test-city-search";
 import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 type Pipeline = typeof import("@opika/db/image-pipeline/server");
@@ -228,6 +229,7 @@ async function call<T = KabinetAnimalView>(
     locationPolicy: null,
     production: false,
     shelterWrites: SHELTER_WRITE_POLICY,
+    citySearch: roomyCitySearch(),
     photoUploads: opts.uploads,
   });
   const text = await response.text();

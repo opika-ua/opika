@@ -1,4 +1,9 @@
-import type { GalleryFacetCounts, GalleryRelaxation, PublicShelterView } from "@opika/contracts";
+import type {
+  CityLabelView,
+  GalleryFacetCounts,
+  GalleryRelaxation,
+  PublicShelterView,
+} from "@opika/contracts";
 import {
   ANIMAL_SPECIES,
   type AnimalSpecies,
@@ -32,6 +37,8 @@ export interface ShelterPageView {
   listedSpecies: readonly AnimalSpecies[];
   /** Card city names (a fostered animal's city can differ from the shelter's). */
   cityNames: ReadonlyMap<CityId, string>;
+  /** «Тварини в: …»: every city its listed animals are in, the shelter's first; empty when that is the only one. */
+  animalCities: readonly string[];
   query: ShelterPageQuery;
   /** The filter controls' data; null while the shelter has {@link SHELTER_FILTERS_ABOVE} animals or fewer and no filter is on. */
   filterUi: ShelterFilterUi | null;
@@ -39,6 +46,26 @@ export interface ShelterPageView {
 
 /** Above this many discoverable animals a shelter page offers filters; at or below it, only the sort. */
 export const SHELTER_FILTERS_ABOVE = 12;
+
+const ukrainianOrder = new Intl.Collator("uk");
+
+/**
+ * The cities a shelter's listed animals are in (§12.2: derived, never entered), the shelter's own
+ * city first and the rest in Ukrainian order. Empty when they are all in the shelter's city.
+ */
+export function animalCitiesOf(
+  shelterCityId: CityId,
+  labels: readonly CityLabelView[],
+): readonly string[] {
+  const unique = [...new Map(labels.map((label) => [label.id, label])).values()];
+  if (!unique.some((label) => label.id !== shelterCityId)) return [];
+  const own = unique.filter((label) => label.id === shelterCityId).map(placeName);
+  const others = unique
+    .filter((label) => label.id !== shelterCityId)
+    .map(placeName)
+    .sort(ukrainianOrder.compare);
+  return [...own, ...others];
+}
 
 export interface ShelterFilterUi {
   /** Per-option counts for the filters in force, scoped to this shelter. */
@@ -141,6 +168,10 @@ export async function loadShelterPage(
       animals.cityLabels.find((city) => city.id === shelterCityId) ??
       cityRows?.find((city) => city.id === shelterCityId) ??
       null;
+    // With counts, the cities come from the unfiltered scan; without, page 1 holds every animal.
+    const listedCityLabels = counted
+      ? counted[1].cities.filter((city) => city.count > 0).map((city) => city.label)
+      : animals.cityLabels;
     const cityNames = new Map<CityId, string>(
       animals.cityLabels.map((city) => [city.id, placeName(city)]),
     );
@@ -153,6 +184,7 @@ export async function loadShelterPage(
         animals,
         listedSpecies,
         cityNames,
+        animalCities: animalCitiesOf(shelterCityId, listedCityLabels),
         query,
         filterUi,
       },

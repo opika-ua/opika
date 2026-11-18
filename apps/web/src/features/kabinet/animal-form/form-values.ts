@@ -8,6 +8,7 @@ import {
   animalDescriptionProblem,
   animalNameProblem,
   type CalendarDate,
+  type CityId,
   COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
   type CoatColour,
   type CoatLength,
@@ -22,6 +23,7 @@ import {
   type TemperamentTrait,
 } from "@opika/domain";
 import type { z } from "zod";
+import type { ComboboxOption } from "../../../ui/Combobox";
 import {
   type DateFieldValue,
   type DateInvalidReason,
@@ -29,6 +31,12 @@ import {
   EMPTY_DATE,
   sameDateValue,
 } from "../../../ui/date-field";
+import {
+  type LocationValue,
+  locationNeedsCity,
+  locationPatchOf,
+  locationValueOf,
+} from "./location-values";
 
 /**
  * K3's form as the screen holds it, and the one translation each way:
@@ -81,6 +89,8 @@ export type FormValues = {
   colourCustom: string;
   vaccination: MedicalState;
   spayNeuter: MedicalState;
+  /** «Де зараз тварина» (§12.2): the shelter's city unless another is picked. */
+  location: LocationValue;
 };
 
 export type AnimalPatch = z.infer<typeof AnimalPatchSchema>;
@@ -106,6 +116,7 @@ export const emptyValues = (today: CalendarDate): FormValues => ({
   colourCustom: "",
   vaccination: "unknown",
   spayNeuter: "unknown",
+  location: { kind: "shelter_city" },
 });
 
 /**
@@ -175,7 +186,12 @@ const customTemperamentOf = (temperament: Temperament): LocalizedText | null => 
 const customColourOf = (colour: AnimalColour | null): LocalizedText | null =>
   colour?.kind === "custom" ? colour.text : null;
 
-export const valuesOf = (view: KabinetAnimalView, today: CalendarDate): FormValues => {
+/** `ownCity`: the stored own city's picker label, read with the page (the view carries its id only). */
+export const valuesOf = (
+  view: KabinetAnimalView,
+  today: CalendarDate,
+  ownCity: ComboboxOption<CityId> | null = null,
+): FormValues => {
   const customTemperament = customTemperamentOf(view.temperament);
   return {
     name: view.name,
@@ -196,16 +212,23 @@ export const valuesOf = (view: KabinetAnimalView, today: CalendarDate): FormValu
     colourCustom: customColourOf(view.colour)?.uk ?? "",
     vaccination: view.vaccination.state,
     spayNeuter: view.spayNeuter.state,
+    location: locationValueOf(view.location, ownCity),
   };
 };
 
 const sameList = <T>(a: readonly T[], b: readonly T[]): boolean =>
   a.length === b.length && a.every((item, index) => item === b[index]);
 
+const sameLocation = (a: LocationValue, b: LocationValue): boolean =>
+  a.kind === "shelter_city" || b.kind === "shelter_city"
+    ? a.kind === b.kind
+    : (a.city?.value ?? null) === (b.city?.value ?? null);
+
 /** Field by field, so a `/nova` form with nothing typed can be told from one with something in it, even before a name and a species exist to diff against. */
 export function valuesEqual(a: FormValues, b: FormValues): boolean {
   return (Object.keys(a) as (keyof FormValues)[]).every((key) => {
     if (key === "birthDate" || key === "asOf") return sameDateValue(a[key], b[key]);
+    if (key === "location") return sameLocation(a.location, b.location);
     const left = a[key];
     const right = b[key];
     return Array.isArray(left) && Array.isArray(right) ? sameList(left, right) : left === right;
@@ -335,6 +358,8 @@ export function patchOf(view: KabinetAnimalView, values: FormValues): AnimalPatc
   if (!sameTemperament(temperament, view.temperament)) patch.temperament = temperament;
   const colour = colourOf(values, view.colour);
   if (!sameColour(colour, view.colour)) patch.colour = colour;
+  const location = locationPatchOf(view.location, values.location);
+  if (location !== null) patch.location = location;
   return Object.keys(patch).length === 0 ? null : patch;
 }
 
@@ -352,7 +377,9 @@ export type FieldProblem =
    * characters too many, which the field says in the counter's own words
    * («Зайвих символів»): no sentence of its own exists for these two yet.
    */
-  | { field: "temperamentCustom" | "colourCustom"; key: "overLimit"; over: number };
+  | { field: "temperamentCustom" | "colourCustom"; key: "overLimit"; over: number }
+  /** «В іншому місті» with no city picked yet (`cityPicker.mustPick`). */
+  | { field: "location"; key: "mustPick" };
 
 /** The keys both age dates share; a date in the future has a sentence per field. */
 type DateProblemKey = "dateTooOld" | "dateIncomplete" | "dateNoSuchDate";
@@ -436,5 +463,6 @@ export function problemsOf(
     const key = ageDateKeyOf(values.asOf, now);
     if (key !== null) problems.push({ field: "asOf", key: key === "future" ? "asOfFuture" : key });
   }
+  if (locationNeedsCity(values.location)) problems.push({ field: "location", key: "mustPick" });
   return problems;
 }

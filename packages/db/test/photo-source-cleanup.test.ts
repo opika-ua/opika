@@ -31,6 +31,7 @@ import { shelters } from "../src/schema/shelters";
 import {
   makeAnimal,
   makeCity,
+  makeDraftAnimal,
   makeShelter,
   setupTestDatabase,
   truncateAll,
@@ -405,9 +406,12 @@ describe("the clean-up cap (owner, crop-frame Q4; counted in photos since 2026-1
     expect(store.objects.size).toBe(0);
   }, 30_000);
 
-  it("one photo more is refused whole: nothing goes", async () => {
+  it("one photo more, of an animal that still exists, is refused whole: nothing goes", async () => {
     const store = bucket();
-    await offEveryCard(store, DEFAULT_MAX_PHOTOS_PER_RUN + 1);
+    // Photos whose animal is gone are the per-run budget's, never the stop's (P0-4).
+    const owner = makeDraftAnimal({ shelterId: await insertShelter() });
+    await animalRepo(db).insert(owner, cityId);
+    for (let i = 0; i <= DEFAULT_MAX_PHOTOS_PER_RUN; i += 1) await stored(store, owner.id);
     await runR2Cleanup(db, store.r2, DAY_0, { commit: true, graceDays: undefined });
     const later = await runR2Cleanup(db, store.r2, DAY_8, { commit: true, graceDays: undefined });
     expect(later.capTripped).toEqual({ photos: 101, objects: 1111, cap: 100 });

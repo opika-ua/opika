@@ -3,6 +3,7 @@
 import "../../../zod-client-config";
 import type { KabinetAnimalView } from "@opika/contracts";
 import {
+  type CityId,
   isDiscoverable,
   kyivCalendarDateOf,
   type PublishGap,
@@ -15,6 +16,7 @@ import {
   kabinetAnimalBrowserClient,
 } from "../../../api/kabinet-browser-client";
 import { Button, buttonClass, LinkButton } from "../../../ui/Button";
+import type { ComboboxOption } from "../../../ui/Combobox";
 import { ErrorSummary } from "../../../ui/ErrorSummary";
 import { FormSection } from "../../../ui/FormSection";
 import { InlineStatus } from "../../../ui/feedback";
@@ -25,12 +27,13 @@ import { Text } from "../../../ui/Text";
 import type { CompressedPhoto } from "../photos/compress-photo";
 import { publicAnimalPath } from "../routes";
 import { ListingStatusChip } from "../StatusChips";
+import { useCityPicker } from "../shared/city-picker";
 import { SavePill, SaveStatusLine } from "../shared/save-pill";
 import { type SaveBarState, saveBarTextOf } from "../shared/save-state";
 import { clearUnsavedNow, confirmLeave, useUnsavedChanges } from "../shared/unsaved-changes";
 import { ANIMAL_TABS, type AnimalTab } from "./animal-tabs";
 import { summaryItemsOf } from "./error-summary-items";
-import { AboutFields, BasicsFields, HealthFields } from "./FormSections";
+import { AboutFields, BasicsFields, HealthFields, problemText } from "./FormSections";
 import {
   emptyValues,
   type FieldProblem,
@@ -40,6 +43,7 @@ import {
   valuesEqual,
   valuesOf,
 } from "./form-values";
+import { LocationFields } from "./LocationFields";
 import {
   cardsArePublic,
   createdWhen,
@@ -86,6 +90,12 @@ const AUTOSAVE_AFTER_MS = 10_000;
 
 export type AnimalFormEditing = { kind: "open" } | { kind: "read_only" };
 
+/** «Де зараз тварина»'s labels, read with the page: the shelter's city, and the stored own city's. */
+export type AnimalFormLocation = {
+  shelterCityName: string;
+  ownCity: ComboboxOption<CityId> | null;
+};
+
 type SaveState =
   | { kind: "idle" }
   | { kind: "saving" }
@@ -126,6 +136,7 @@ export function AnimalForm({
   publishGate = { kind: "open" },
   back,
   initialTab = "osnovne",
+  location,
   client = kabinetAnimalBrowserClient,
   clock = () => new Date(),
   compress,
@@ -141,6 +152,8 @@ export function AnimalForm({
   back: { href: string; label: string };
   /** The tab `?tab=` named; «Публікація» is only there for a shelter that can write. */
   initialTab?: AnimalTab;
+  /** Left out, no «Де зараз тварина» section (a caller that can't name the shelter's city). */
+  location?: AnimalFormLocation;
   client?: KabinetAnimalClient;
   clock?: () => Date;
   compress?: (file: File) => Promise<CompressedPhoto>;
@@ -154,10 +167,24 @@ export function AnimalForm({
   // Where focus goes once the tab it lives on is showing (a hidden panel cannot take focus).
   const pendingFocus = useRef<string | null>(null);
   const [focusTick, setFocusTick] = useState(0);
+  // The picker labels of cities this form has shown, so a re-read keeps an own city's name.
+  const cityLabels = useRef(
+    new Map<CityId, ComboboxOption<CityId>>(
+      location?.ownCity ? [[location.ownCity.value, location.ownCity]] : [],
+    ),
+  );
+  const ownCityOf = useCallback(
+    (next: KabinetAnimalView): ComboboxOption<CityId> | null =>
+      next.location.kind === "own_city"
+        ? (cityLabels.current.get(next.location.cityId) ?? null)
+        : null,
+    [],
+  );
+  const cityPicker = useCityPicker(client.shelter.cities);
   const [values, setValues] = useState<FormValues>(() =>
     initialView === null
       ? emptyValues(kyivCalendarDateOf(clock()))
-      : valuesOf(initialView, kyivCalendarDateOf(clock())),
+      : valuesOf(initialView, kyivCalendarDateOf(clock()), location?.ownCity ?? null),
   );
   const [touched, setTouched] = useState<ReadonlySet<FieldProblem["field"]>>(new Set());
   const [attempted, setAttempted] = useState(false);
@@ -250,6 +277,8 @@ export function AnimalForm({
   }, [tab, focusTick]);
 
   const set = useCallback((change: Partial<FormValues>) => {
+    const picked = change.location?.kind === "own_city" ? change.location.city : null;
+    if (picked) cityLabels.current.set(picked.value, picked);
     setValues((current) => ({ ...current, ...change }));
     setServerProblems((current) =>
       current.filter((problem) => !Object.keys(change).some((key) => problem.field === key)),
@@ -403,7 +432,7 @@ export function AnimalForm({
     try {
       const current = await client.shelter.animals.byId({ animalId: view.id });
       setView(current);
-      setValues(valuesOf(current, kyivCalendarDateOf(clock())));
+      setValues(valuesOf(current, kyivCalendarDateOf(clock()), ownCityOf(current)));
       setServerProblems([]);
       setSave({ kind: "idle" });
       return current;
@@ -411,7 +440,7 @@ export function AnimalForm({
       setAnnouncement(t.errors.loadFailed);
       return null;
     }
-  }, [client, clock, view]);
+  }, [client, clock, view, ownCityOf]);
 
   /** A photo write changes the photos and their crops, the edit time and (RH-B7) the listing: only those are taken from it. */
   const onPhotoView = useCallback((photoView: KabinetAnimalView) => {
@@ -431,7 +460,7 @@ export function AnimalForm({
   /** «Скасувати»: back to what is saved. */
   const cancelEdits = () => {
     if (view === null) return;
-    setValues(valuesOf(view, kyivCalendarDateOf(clock())));
+    setValues(valuesOf(view, kyivCalendarDateOf(clock()), ownCityOf(view)));
     setServerProblems([]);
     setAttempted(false);
     setTouched(new Set());
@@ -582,6 +611,18 @@ export function AnimalForm({
           stored={view}
           now={now}
         />
+        {location === undefined ? null : (
+          <LocationFields
+            idPrefix="animal"
+            shelterCityName={location.shelterCityName}
+            value={values.location}
+            onChange={(next) => set({ location: next })}
+            search={cityPicker.search}
+            messages={cityPicker.messages}
+            error={problemText(shownProblems, "location")}
+            disabled={!editable}
+          />
+        )}
       </FormSection>
     ),
     foto: (
@@ -756,6 +797,7 @@ const fieldOfTarget = (target: EventTarget | null): FieldProblem["field"] | null
   if (datePart === "animal-as-of") return "asOf";
   if (id === "animal-temperament-custom") return "temperamentCustom";
   if (id === "animal-colour-custom") return "colourCustom";
+  if (id === "animal-location-city") return "location";
   return null;
 };
 

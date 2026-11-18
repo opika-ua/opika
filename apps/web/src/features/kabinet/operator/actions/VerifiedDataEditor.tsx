@@ -7,6 +7,7 @@ import { uk } from "@opika/i18n";
 import { type FormEvent, type ReactNode, useId, useState } from "react";
 import { Button } from "../../../../ui/Button";
 import type { ComboboxOption } from "../../../../ui/Combobox";
+import { useCityPicker } from "../../shared/city-picker";
 import { typedDateMessage } from "../../shared/kabinet-date";
 import {
   type AddressForm,
@@ -22,7 +23,7 @@ import {
   type RegistryCreateClient,
   registryCreateBrowserClient,
 } from "../create/registry-create-client";
-import { AddressFields, CityField, LegalFields, useCityPicker } from "../create/VerifiedDataFields";
+import { AddressFields, CityField, LegalFields } from "../create/VerifiedDataFields";
 import { useOperatorActions } from "./operator-actions";
 import type { RegistryActionsClient } from "./registry-actions-client";
 import { ACTIONS, NOTICE } from "./styles";
@@ -298,7 +299,7 @@ export function AddressEdit({
             form={form}
             set={(key, value) => setForm((current) => ({ ...current, [key]: value }))}
             street="required"
-            errors={{ line1: message(errors.line1), coordinates: message(errors.coordinates) }}
+            errors={{ line1: message(errors.line1) }}
           />
         </>
       }

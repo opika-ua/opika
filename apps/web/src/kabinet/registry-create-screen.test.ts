@@ -20,6 +20,7 @@ import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
 import { capturingPasswordMail } from "./password-mail";
 import { handleKabinetRpc } from "./rpc-route";
+import { roomyCitySearch } from "./test-city-search";
 import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
@@ -97,6 +98,7 @@ async function create(input: RegistryCreateInput, now: Date = NOW) {
     locationPolicy: testOnlyLocationPolicy("registry-create-screen-test"),
     production: false,
     shelterWrites: SHELTER_WRITE_POLICY,
+    citySearch: roomyCitySearch(),
   });
   return { status: response.status, body: fromRpcBody(await response.json()) };
 }
@@ -108,7 +110,6 @@ const initiative = (patch: Partial<CreateShelterForm> = {}): CreateShelterForm =
   description: "Волонтери з Вишгорода.",
   cityId,
   line1: "вул. Мечникова, 4",
-  coordinates: "50.5843, 30.4890",
   legal: {
     ...emptyCreateForm().legal,
     kind: "unregistered_initiative",
