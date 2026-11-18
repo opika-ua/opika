@@ -26,7 +26,6 @@ export function ShelterActionsScreen({
   view,
   cityName,
   history,
-  historyCities = {},
   blocked,
   me,
   now,
@@ -34,7 +33,6 @@ export function ShelterActionsScreen({
   view: RegistryShelterView;
   cityName: string | null;
   history: HistoryPage;
-  historyCities?: Readonly<Record<string, string>>;
   blocked: BlockedAddressesView;
   me: ModeratorId;
   now: Date;
@@ -45,7 +43,6 @@ export function ShelterActionsScreen({
         view={view}
         cityName={cityName}
         history={history}
-        historyCities={historyCities}
         blocked={blocked}
         me={me}
         actions={{

@@ -150,6 +150,8 @@ export async function operatorShelterListOf(
 export type HistoryPage = {
   items: readonly ShelterHistoryEntry[];
   nextCursor: KabinetCursor | null;
+  /** City names for the page's `city_changed` lines, by id. */
+  cities: Readonly<Record<string, string>>;
 };
 
 export type OperatorShelter =
@@ -160,18 +162,10 @@ export type OperatorShelter =
       /** The premises' city name, null if the id resolves to nothing. */
       cityName: string | null;
       history: HistoryPage;
-      /** City names (nominative) for the first page's `city_changed` lines, by city id. */
-      historyCities: Readonly<Record<string, string>>;
       blocked: BlockedAddressesView;
       /** The operator reading: their own history lines read «ви». */
       me: ModeratorId;
     };
-
-/** The cities a page of history names (`city_changed`), for its lines. */
-const historyCityRows = (items: readonly ShelterHistoryEntry[]): { cityId: CityId }[] =>
-  items.flatMap((entry) =>
-    entry.kind === "city_changed" ? [{ cityId: entry.from }, { cityId: entry.to }] : [],
-  );
 
 /**
  * S4, read-only (R-UI 1): the record first, which decides access and
@@ -193,16 +187,7 @@ export async function operatorShelterOf(
     // The operator reading, for «ви» in history: the decision the middleware just made.
     const me = registryOperatorOf(principal, deps.shelterWrites);
     if (me === null) return { kind: "not_found" };
-    const historyCities = await cityNamesOf(deps, historyCityRows(history.items));
-    return {
-      kind: "shelter",
-      view,
-      cityName: city?.name.uk ?? null,
-      history,
-      historyCities,
-      blocked,
-      me,
-    };
+    return { kind: "shelter", view, cityName: city?.name.uk ?? null, history, blocked, me };
   } catch (error) {
     const refusal = refusalOf(error);
     if (refusal !== null) return refusal;

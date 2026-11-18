@@ -765,7 +765,7 @@ describe("the operator's history keeps admin_joined's ids", () => {
       registryHistoryContract.list as unknown as {
         "~orpc": { outputSchema: { parse: (v: unknown) => { items: unknown[] } } };
       }
-    )["~orpc"].outputSchema.parse({ items: [entry], nextCursor: null });
+    )["~orpc"].outputSchema.parse({ items: [entry], nextCursor: null, cities: {} });
     expect(output.items).toEqual([entry]);
   });
 });
@@ -787,7 +787,7 @@ describe("the operator's history keeps an animal write's id", () => {
       registryHistoryContract.list as unknown as {
         "~orpc": { outputSchema: { parse: (v: unknown) => { items: unknown[] } } };
       }
-    )["~orpc"].outputSchema.parse({ items: [entry], nextCursor: null });
+    )["~orpc"].outputSchema.parse({ items: [entry], nextCursor: null, cities: {} });
     expect(output.items).toEqual([entry]);
   });
 });

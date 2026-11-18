@@ -62,7 +62,7 @@ const screenWith = (items: readonly ShelterHistoryEntry[]) => (
   <ShelterActionsScreen
     view={view}
     cityName="Бровари"
-    history={{ items, nextCursor: null }}
+    history={{ items, nextCursor: null, cities: {} }}
     blocked={CHECKED_NONE}
     me={MODERATOR as ModeratorId}
     now={NOW}
@@ -94,7 +94,7 @@ describe("S4 with its actions", () => {
       <ShelterActionsScreen
         view={{ ...view, admins: [] }}
         cityName="Бровари"
-        history={{ items: [created], nextCursor: null }}
+        history={{ items: [created], nextCursor: null, cities: {} }}
         blocked={CHECKED_NONE}
         me={MODERATOR as ModeratorId}
         now={NOW}
@@ -156,7 +156,7 @@ describe("S4 for a shelter created without its legal data and address", () => {
       <ShelterActionsScreen
         view={minimal}
         cityName="Бровари"
-        history={{ items: [created], nextCursor: null }}
+        history={{ items: [created], nextCursor: null, cities: {} }}
         blocked={CHECKED_NONE}
         me={MODERATOR as ModeratorId}
         now={NOW}

@@ -403,6 +403,43 @@ describe("registry.shelters.list / byId / history.list", () => {
       },
     ]);
   });
+
+  it("names the cities a page's city_changed lines need, on that page itself", async () => {
+    const s = await shelter();
+    const asAdmin = {
+      principal: {
+        kind: "shelter_admin",
+        shelterAdminId: crypto.randomUUID() as never,
+        shelterId: s.id,
+      } as const,
+    };
+    const moved = await call<{ version: number }>(
+      "shelter.profile.updateIdentity",
+      { cityId: otherCityId, expectedVersion: s.version },
+      asAdmin,
+    );
+    expect(moved.status).toBe(200);
+    const renamed = await call(
+      "shelter.profile.updateIdentity",
+      { displayName: "Інша назва", expectedVersion: moved.body.version },
+      { ...asAdmin, now: new Date(NOW.getTime() + 60_000) },
+    );
+    expect(renamed.status).toBe(200);
+    // Newest first: page one is the rename, page two the move, which names its cities itself.
+    const first = await call<{
+      items: { kind: string }[];
+      nextCursor: string | null;
+      cities: object;
+    }>("registry.history.list", { shelterId: s.id, cursor: null, limit: 1 });
+    expect(first.body.items.map((item) => item.kind)).toEqual(["display_name_changed"]);
+    expect(first.body.cities).toEqual({});
+    const second = await call<{ items: { kind: string }[]; cities: object }>(
+      "registry.history.list",
+      { shelterId: s.id, cursor: first.body.nextCursor, limit: 1 },
+    );
+    expect(second.body.items.map((item) => item.kind)).toEqual(["city_changed"]);
+    expect(second.body.cities).toEqual({ [cityId]: "Тест", [otherCityId]: "Тест" });
+  });
 });
 
 // ─── create ─────────────────────────────────────────────────────────────────

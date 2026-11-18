@@ -1025,6 +1025,8 @@ export const registryHistoryContract = {
       z.object({
         items: z.array(HistoryEntryViewSchema).readonly(),
         nextCursor: KabinetCursorSchema.nullable(),
+        /** The names (nominative) of the cities this page's `city_changed` lines name, by id. */
+        cities: z.record(z.string(), z.string().min(1)),
       }),
     )
     .errors({ ...registryErrors, INVALID_CURSOR: apiErrors.INVALID_CURSOR }),

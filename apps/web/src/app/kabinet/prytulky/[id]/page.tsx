@@ -59,7 +59,6 @@ export default async function OperatorShelterPage({ params }: { params: Params }
             view={shelter.view}
             cityName={shelter.cityName}
             history={shelter.history}
-            historyCities={shelter.historyCities}
             blocked={shelter.blocked}
             me={shelter.me}
             now={request.deps.now}
