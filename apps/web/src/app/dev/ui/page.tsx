@@ -10,7 +10,6 @@ import { Chip } from "../../../ui/Chip";
 import { Container, Section } from "../../../ui/Container";
 import { ErrorSummary } from "../../../ui/ErrorSummary";
 import { FormSection, FormSteps } from "../../../ui/FormSection";
-import { FreshnessPips } from "../../../ui/FreshnessPips";
 import { EmptyState, ErrorState, InlineStatus } from "../../../ui/feedback";
 import {
   Checkbox,
@@ -587,12 +586,6 @@ export default function DevUiPage() {
               </div>
             </StickyActionBar>
           </div>
-        </Row>
-        <Row label="FreshnessPips (fresh, aging, stale)">
-          <FreshnessPips kind="fresh" label="Updated today" />
-          <FreshnessPips kind="aging" label="Updated 12 days ago" />
-          <FreshnessPips kind="stale" label="Updated 45 days ago" />
-          <FreshnessPips kind="fresh" label="Updated 3 days ago" trail="dot" />
         </Row>
       </Group>
 

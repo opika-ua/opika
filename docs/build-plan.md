@@ -128,7 +128,7 @@ the wrong thing, not discovered after.
 
 **Decisions this phase surfaced:**
 - Whether `packages/ui` takes any dependency beyond what's already justified in the
-  catalog - **no.** It holds pure TS (`freshnessPips`/`freshnessLabel`), depending only on
+  catalog - **no.** It holds pure TS (`freshnessLabel`; `freshnessPips` went with the pips, 2026-11-18), depending only on
   `@opika/domain` and `@opika/i18n`, both internal workspace packages, not new external
   ones.
 - Where the new, still-mobile-shaped Screen 01 gets its real `CityId`s from - the

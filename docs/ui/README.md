@@ -103,4 +103,3 @@ What each of the five existing overlays needs to move over (done in its surface'
 | [FormSection](components/FormSection.md) | `FormSection.tsx` | One named section of a long form, with an optional step number. |
 | [FormSteps](components/FormSteps.md) | `FormSection.tsx` | The form's sections as a row of anchor links. |
 | [StickyActionBar](components/StickyActionBar.md) | `StickyActionBar.tsx` | The save / publish bar: sticky, safe-area aware, lifted above the on-screen keyboard. |
-| [FreshnessPips](components/FreshnessPips.md) | `FreshnessPips.tsx` | Three pips plus the day count in words. |
