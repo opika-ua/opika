@@ -1,10 +1,15 @@
 import {
   AnimalIdSchema,
+  AnimalLocationSchema,
   AnimalPhotoSchema,
   CityIdSchema,
   CitySchema,
+  ContactChannelSchema,
   DraftAnimalSchema,
+  DUPLICATE_SIGNAL_KINDS,
+  EmailStatusSchema,
   FreshnessSchema,
+  FunnelEventKindSchema,
   LISTING_KINDS,
   ListedAnimalSchema,
   MAX_ANIMAL_PHOTOS,
@@ -119,6 +124,8 @@ export type KabinetPhotoCropView = z.infer<typeof KabinetPhotoCropViewSchema>;
 
 const animalViewExtras = {
   photoCrops: z.array(KabinetPhotoCropViewSchema).max(MAX_ANIMAL_PHOTOS).readonly(),
+  /** «Де зараз тварина», read from `publicLocation` by `animalLocationOf` (§12.2). */
+  location: AnimalLocationSchema,
 };
 export const KabinetDraftAnimalViewSchema =
   DraftAnimalSchema.pick(ANIMAL_VIEW_FIELDS).extend(animalViewExtras);
@@ -140,10 +147,25 @@ export type KabinetAnimalView = KabinetDraftAnimalView | KabinetListedAnimalView
  */
 export const KabinetEarlyListingSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("none") }),
-  z.object({ kind: z.literal("running"), expiresAt: z.date() }),
+  /** `daysLeft` rounds up, so the last partial day reads as one (owner, P0-1 reminder). */
+  z.object({ kind: z.literal("running"), expiresAt: z.date(), daysLeft: z.int().min(1) }),
   z.object({ kind: z.literal("ended"), endedAt: z.date() }),
 ]);
 export type KabinetEarlyListing = z.infer<typeof KabinetEarlyListingSchema>;
+
+/**
+ * How the shelter came to be. A self-registered shelter carries whether its registrant confirmed
+ * the address, for the «Підтвердіть email» banner (A3) and the approval gate (D1).
+ */
+export const ShelterRegistrationViewSchema = z.discriminatedUnion("source", [
+  z.object({ source: z.literal("operator") }),
+  z.object({
+    source: z.literal("self_registration"),
+    appliedAt: z.date(),
+    email: EmailStatusSchema,
+  }),
+]);
+export type ShelterRegistrationView = z.infer<typeof ShelterRegistrationViewSchema>;
 
 /**
  * K4: what a shelter sees of itself. Legal entity and premises address appear
@@ -167,6 +189,7 @@ export const KabinetShelterViewSchema = ShelterSchema.pick({
   cityId: CityIdSchema,
   verification: ShelterFacingVerificationSchema,
   earlyListing: KabinetEarlyListingSchema,
+  registration: ShelterRegistrationViewSchema,
 });
 export type KabinetShelterView = z.infer<typeof KabinetShelterViewSchema>;
 
@@ -422,3 +445,78 @@ export const ReportGroupViewSchema = z.object({
   openCount: z.int().min(1),
   reports: z.array(ReportRowViewSchema).readonly(),
 });
+
+// ─── The operator's application queue (self-registration, §3) ───────────────
+
+/**
+ * One application card, everything on the card itself (operator only). `link` is shown in full
+ * with `rel="noopener noreferrer nofollow"` and never fetched by the server (§11.3).
+ */
+export const ApplicationQueueItemViewSchema = z.object({
+  shelterId: ShelterIdSchema,
+  version: z.int().nonnegative(),
+  name: z.string().min(1),
+  cityId: CityIdSchema,
+  appliedAt: z.date(),
+  link: z.url({ protocol: /^https$/ }),
+  contact: ContactChannelSchema,
+  email: z.email(),
+  emailStatus: EmailStatusSchema,
+  duplicates: z
+    .array(
+      z.object({
+        kind: z.enum(DUPLICATE_SIGNAL_KINDS),
+        shelterId: ShelterIdSchema,
+        shelterName: z.string().min(1),
+      }),
+    )
+    .readonly(),
+  drafts: z.object({ animals: z.int().nonnegative(), photos: z.int().nonnegative() }),
+});
+export type ApplicationQueueItemView = z.infer<typeof ApplicationQueueItemViewSchema>;
+
+/** An accepted application still listed before verification: the 60-day reminder (P0-1). */
+export const ListedUnverifiedItemViewSchema = z.object({
+  shelterId: ShelterIdSchema,
+  name: z.string().min(1),
+  cityId: CityIdSchema,
+  expiresAt: z.date(),
+  daysLeft: z.int().min(1),
+  remind: z.boolean(),
+});
+export type ListedUnverifiedItemView = z.infer<typeof ListedUnverifiedItemViewSchema>;
+
+/** A proposed donation link waiting in the same block; decided with `registry.donation.*`. */
+export const PendingDonationItemViewSchema = z.object({
+  shelterId: ShelterIdSchema,
+  name: z.string().min(1),
+  version: z.int().nonnegative(),
+  proposedUrl: z.url(),
+});
+export type PendingDonationItemView = z.infer<typeof PendingDonationItemViewSchema>;
+
+/** The funnel's step counts over the window (§8), operator only, never shown to a shelter. */
+export const FunnelCountsViewSchema = z.object({
+  windowDays: z.int().positive(),
+  counts: z
+    .array(z.object({ kind: FunnelEventKindSchema, count: z.int().nonnegative() }))
+    .readonly(),
+});
+export type FunnelCountsView = z.infer<typeof FunnelCountsViewSchema>;
+
+/** «Заявки (N)»: oldest application first. */
+export const ApplicationsQueueViewSchema = z.object({
+  applications: z.array(ApplicationQueueItemViewSchema).readonly(),
+  listedUnverified: z.array(ListedUnverifiedItemViewSchema).readonly(),
+  pendingDonations: z.array(PendingDonationItemViewSchema).readonly(),
+  funnel: FunnelCountsViewSchema,
+});
+export type ApplicationsQueueView = z.infer<typeof ApplicationsQueueViewSchema>;
+
+/** A decision's outcome; a double click is `already_decided`, never a second write. */
+export const ApplicationDecisionResultSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("decided"), status: VerificationStatusSchema }),
+  z.object({ kind: z.literal("already_decided"), status: VerificationStatusSchema }),
+  z.object({ kind: z.literal("email_unconfirmed") }),
+]);
+export type ApplicationDecisionResult = z.infer<typeof ApplicationDecisionResultSchema>;

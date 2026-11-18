@@ -4,6 +4,8 @@ import { WORDMARK } from "../../brand";
 import { ContentPageLayout } from "../../features/chrome/ContentPageLayout";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { KabinetEntryLink } from "../../features/kabinet/KabinetEntryLink";
+import { isSelfRegistrationEnabled } from "../../features/registration/flag";
+import { RegistrationSection } from "../../features/registration/RegistrationSection";
 import { Heading } from "../../ui/Heading";
 import { Panel } from "../../ui/Panel";
 import { Text } from "../../ui/Text";
@@ -138,11 +140,14 @@ export const dynamic = "force-dynamic";
 
 export default async function ForSheltersPage() {
   const kabinetSignedIn = await kabinetSessionCookiePresent();
-  return renderForSheltersPage(kabinetSignedIn);
+  return renderForSheltersPage(kabinetSignedIn, { selfRegistration: isSelfRegistrationEnabled() });
 }
 
 /** The page body; exported so `page.test.tsx` can render it without a real request scope. */
-export function renderForSheltersPage(kabinetSignedIn: boolean) {
+export function renderForSheltersPage(
+  kabinetSignedIn: boolean,
+  { selfRegistration }: { selfRegistration: boolean } = { selfRegistration: false },
+) {
   return (
     <ContentPageLayout
       kabinetSignedIn={kabinetSignedIn}
@@ -157,6 +162,9 @@ export function renderForSheltersPage(kabinetSignedIn: boolean) {
       <KabinetEntryLink to="signIn" variant="secondary" className="self-start">
         {uk.forShelters.signInLink}
       </KabinetEntryLink>
+
+      {/* Self-registration's one slot (Agent 1's); with the flag off the page is as it was. */}
+      {selfRegistration ? <RegistrationSection /> : null}
 
       <Text look="hint">{INDEPENDENT}</Text>
 

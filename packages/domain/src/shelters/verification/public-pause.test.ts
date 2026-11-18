@@ -21,6 +21,7 @@ const pausedFacts = {
 } as const;
 
 const states: Record<(typeof VERIFICATION_STATUSES)[number], ShelterVerification> = {
+  application: { status: "application", appliedAt: AT, evidence: EVIDENCE },
   pending: { status: "pending", submittedAt: AT, evidence: EVIDENCE },
   under_review: {
     status: "under_review",
@@ -34,6 +35,7 @@ const states: Record<(typeof VERIFICATION_STATUSES)[number], ShelterVerification
     rejectedAt: AT,
     rejectedBy: MODERATOR,
     reason: { code: "spam", note: null },
+    stage: "verification",
     evidence: EVIDENCE,
   },
   paused: { status: "paused", ...pausedFacts, evidence: EVIDENCE },

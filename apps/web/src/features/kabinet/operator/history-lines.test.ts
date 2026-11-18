@@ -57,6 +57,11 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
     "Взято на розгляд · ви",
   ],
   [
+    "accept_application",
+    verification({ type: "accept_application", at: AT, moderatorId: ME }, "application", "pending"),
+    "Заявку схвалено · ви",
+  ],
+  [
     "approve",
     verification({ type: "approve", at: AT, moderatorId: ME }, "under_review", "verified"),
     "Схвалено → «Перевірено» · ви",
@@ -149,6 +154,11 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
     "shelter_created in the screens",
     { kind: "shelter_created", at: AT, moderatorId: ME, via: "registry" },
     "Притулок створено · ви",
+  ],
+  [
+    "shelter_registered",
+    { kind: "shelter_registered", at: AT, shelterAdminId: OLENA },
+    "Притулок зареєстровано · Олена",
   ],
   [
     "shelter_created by the script",
@@ -357,7 +367,7 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
     {
       kind: "display_name_changed",
       at: AT,
-      moderatorId: ME,
+      actor: { kind: "moderator", moderatorId: ME },
       from: "Лапа",
       to: "Притулок «Лапа допомоги»",
     },

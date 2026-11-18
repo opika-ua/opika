@@ -31,6 +31,7 @@ const PUBLISHED = {
 
 const animal = (overrides: Record<string, unknown> = {}): KabinetAnimalView =>
   ({
+    location: { kind: "shelter_city" },
     id: ID,
     name: "Ластівка",
     species: "dog",

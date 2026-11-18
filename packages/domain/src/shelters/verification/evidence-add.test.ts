@@ -62,6 +62,8 @@ const underReview = (items: EvidenceItem[] = []): ShelterVerification => ({
 const stateOf = (status: ShelterVerification["status"]): ShelterVerification => {
   const e = evidence([ref()]);
   switch (status) {
+    case "application":
+      return { status, appliedAt: T0, evidence: e };
     case "pending":
       return pending([ref()]);
     case "under_review":
@@ -74,6 +76,7 @@ const stateOf = (status: ShelterVerification["status"]): ShelterVerification => 
         rejectedAt: T0,
         rejectedBy: MOD,
         reason: { code: "insufficient_evidence", note: null },
+        stage: "verification",
         evidence: e,
       };
     case "paused":
@@ -126,7 +129,7 @@ describe("addEvidence: where it is allowed", () => {
     const closed = VERIFICATION_STATUSES.filter(
       (s) => !(EVIDENCE_OPEN_STATUSES as readonly string[]).includes(s),
     );
-    expect(closed).toHaveLength(4);
+    expect(closed).toHaveLength(5);
     for (const status of closed) {
       expect(addEvidence(stateOf(status), [edrpou()])).toEqual({ kind: "not_open", from: status });
     }
@@ -135,6 +138,7 @@ describe("addEvidence: where it is allowed", () => {
   it("is not a verification event: the FSM's event list does not name it", () => {
     expect(VERIFICATION_EVENT_TYPES).toEqual([
       "start_review",
+      "accept_application",
       "approve",
       "reject",
       "resubmit",

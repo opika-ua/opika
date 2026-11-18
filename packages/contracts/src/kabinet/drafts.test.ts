@@ -33,6 +33,7 @@ const draftView = {
   description: null,
   photos: [],
   photoCrops: [],
+  location: { kind: "shelter_city" },
   temperament: [],
   colour: null,
   medicalNotes: null,

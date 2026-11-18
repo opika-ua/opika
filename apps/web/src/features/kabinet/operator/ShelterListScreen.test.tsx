@@ -26,6 +26,7 @@ const row = (overrides: Partial<RegistryShelterRowView> = {}): RegistryShelterRo
   ...overrides,
 });
 const COUNTS = {
+  application: 0,
   pending: 2,
   under_review: 1,
   verified: 4,

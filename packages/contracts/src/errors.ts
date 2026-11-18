@@ -344,6 +344,21 @@ export const apiErrors = {
     status: 409,
     message: "A listing adopters can see must keep at least one photo.",
   },
+  /**
+   * Self-registration (D2, §5): the shelter is still an application the operator hasn't approved,
+   * so nothing of it may go public yet (`publishGateOf`, `donationProposalGateOf`).
+   */
+  AWAITING_APPROVAL: {
+    status: 409,
+    message: "This shelter is awaiting approval.",
+    data: z.object({ action: z.enum(["publish", "propose_donation"]) }),
+  },
+  /** An application already holds the most drafts it may before approval (D5; `data.max`). */
+  DRAFT_LIMIT_REACHED: {
+    status: 409,
+    message: "This shelter already holds the most drafts it can before approval.",
+    data: z.object({ max: z.int().positive() }),
+  },
 } as const;
 
 export type ApiErrorCode = keyof typeof apiErrors;

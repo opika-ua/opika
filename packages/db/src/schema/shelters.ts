@@ -3,6 +3,7 @@ import type {
   ExactAddress,
   PendingDonation,
   PublicLocation,
+  RegistrationSource,
   ShelterContact,
   ShelterId,
   ShelterLegalEntity,
@@ -12,9 +13,10 @@ import type {
 } from "@opika/domain";
 import { sql } from "drizzle-orm";
 import { check, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import { authOrganization } from "./auth";
+import { authOrganization, authUser } from "./auth";
 import { cities } from "./cities";
 import { jsonb } from "./helpers";
+import { withRejectionStage } from "./legacy-shapes";
 
 export const shelters = pgTable(
   "shelters",
@@ -48,11 +50,19 @@ export const shelters = pgTable(
 
     /** Denormalised from the verification JSONB for feed-query filtering. */
     verificationStatus: text("verification_status", {
-      enum: ["pending", "under_review", "verified", "rejected", "paused", "suspended"],
+      enum: [
+        "application",
+        "pending",
+        "under_review",
+        "verified",
+        "rejected",
+        "paused",
+        "suspended",
+      ],
     })
       .notNull()
       .$type<VerificationStatus>(),
-    verification: jsonb<ShelterVerification>("verification").notNull(),
+    verification: jsonb<ShelterVerification>("verification", withRejectionStage).notNull(),
     /**
      * Operator permission to list before verification; expiry is read time, never written here.
      * Kept by moves inside pending/under_review (`keepsEarlyListing`), cleared by revoke and by
@@ -85,6 +95,26 @@ export const shelters = pgTable(
     organizationId: text("organization_id")
       .unique()
       .references(() => authOrganization.id),
+
+    /** Who created the shelter (2026-11-18); `self_registration` rows came through the form. */
+    registrationSource: text("registration_source", { enum: ["operator", "self_registration"] })
+      .notNull()
+      .default("operator")
+      .$type<RegistrationSource>(),
+    /**
+     * The person who registered it. Unique: one self-registered account, one shelter. Set null if
+     * that account is erased; the shelter's own record (`applied_at`) stays.
+     */
+    registrantUserId: text("registrant_user_id")
+      .unique()
+      .references(() => authUser.id, { onDelete: "set null" }),
+    /** When the form was submitted; the abandoned-application clock (D8) runs from here. */
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    /**
+     * When an application (never a verification) was refused: the 30-day clean-up clock. Cleared by
+     * the resubmit that returns it to `application`.
+     */
+    applicationRejectedAt: timestamp("application_rejected_at", { withTimezone: true }),
   },
   (t) => [
     index("shelters_city_id_idx").on(t.cityId),
@@ -104,7 +134,30 @@ export const shelters = pgTable(
     /** The approve gate, held by the database too: verified, paused and suspended all come from approval. */
     check(
       "shelters_verified_has_verified_data",
-      sql`${t.verificationStatus} IN ('pending', 'under_review', 'rejected') OR (${t.legalEntity} IS NOT NULL AND ${t.exactAddress} IS NOT NULL)`,
+      sql`${t.verificationStatus} IN ('application', 'pending', 'under_review', 'rejected') OR (${t.legalEntity} IS NOT NULL AND ${t.exactAddress} IS NOT NULL)`,
     ),
+    check(
+      "shelters_registration_source_check",
+      sql`${t.registrationSource} IN ('operator', 'self_registration')`,
+    ),
+    check(
+      "shelters_self_registration_facts",
+      sql`(${t.registrationSource} = 'self_registration') = (${t.appliedAt} IS NOT NULL) AND (${t.registrantUserId} IS NULL OR ${t.registrationSource} = 'self_registration')`,
+    ),
+    check(
+      "shelters_application_is_self_registered",
+      sql`${t.verificationStatus} <> 'application' OR ${t.registrationSource} = 'self_registration'`,
+    ),
+    check(
+      "shelters_application_rejected_at_check",
+      sql`${t.applicationRejectedAt} IS NULL OR (${t.verificationStatus} = 'rejected' AND ${t.registrationSource} = 'self_registration')`,
+    ),
+    /** The operator's queue, oldest first, and the abandoned-application sweep. */
+    index("shelters_application_queue_idx")
+      .on(t.appliedAt, t.id)
+      .where(sql`${t.verificationStatus} = 'application'`),
+    index("shelters_application_rejected_idx")
+      .on(t.applicationRejectedAt)
+      .where(sql`${t.applicationRejectedAt} IS NOT NULL`),
   ],
 );

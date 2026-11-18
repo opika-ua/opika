@@ -17,6 +17,15 @@ export const VerificationEventSchema = z.discriminatedUnion("type", [
     at: z.date(),
     reviewerId: ModeratorIdSchema,
   }),
+  /**
+   * The operator approves a self-registered application: it moves to `pending`, and the same write
+   * allows its first early-listing period (`acceptApplication`), so it is public with the label.
+   */
+  z.object({
+    type: z.literal("accept_application"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+  }),
   z.object({
     type: z.literal("approve"),
     at: z.date(),
@@ -73,6 +82,7 @@ export type VerificationEventType = VerificationEvent["type"];
 
 export const VERIFICATION_EVENT_TYPES = [
   "start_review",
+  "accept_application",
   "approve",
   "reject",
   "resubmit",

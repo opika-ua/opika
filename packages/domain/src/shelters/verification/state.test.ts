@@ -16,6 +16,7 @@ const OTHER = new Date("2026-01-01T00:00:00.000Z");
 const EVIDENCE: VerificationEvidence = { items: [], submittedAt: OTHER };
 
 const states: Record<string, ShelterVerification> = {
+  application: { status: "application", appliedAt: AT, evidence: EVIDENCE },
   pending: { status: "pending", submittedAt: AT, evidence: EVIDENCE },
   under_review: {
     status: "under_review",
@@ -29,6 +30,7 @@ const states: Record<string, ShelterVerification> = {
     rejectedAt: AT,
     rejectedBy: MODERATOR,
     reason: { code: "spam", note: null },
+    stage: "verification",
     evidence: EVIDENCE,
   },
   paused: {

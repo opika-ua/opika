@@ -15,6 +15,8 @@ export const RejectionCodeSchema = z.enum([
   "duplicate_submission",
   "out_of_service_area",
   "spam",
+  /** Not a shelter or an animal-welfare initiative (self-registration, A5). */
+  "not_animal_welfare",
   "other",
 ]);
 export type RejectionCode = z.infer<typeof RejectionCodeSchema>;

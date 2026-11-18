@@ -88,6 +88,11 @@ export const FULL_RESET_TABLES = [
   "notification_sends",
   // References animals, so it has to be in the same TRUNCATE; its R2 objects go with the variants.
   "animal_photo_sources",
+  // Self-registration (0028): the funnel references shelters, the email tokens auth_user; the
+  // deletion log names shelters that a reset removes anyway.
+  "funnel_events",
+  "registration_email_tokens",
+  "application_deletions",
 ] as const;
 export type FullResetTable = (typeof FULL_RESET_TABLES)[number];
 

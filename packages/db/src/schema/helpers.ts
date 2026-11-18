@@ -24,13 +24,14 @@ function reviveDates(_key: string, value: unknown): unknown {
   return value;
 }
 
-export function jsonb<T>(name: string) {
+/** `normalize` reads an older stored shape as today's (`legacy-shapes.ts`); identity by default. */
+export function jsonb<T>(name: string, normalize: (value: T) => T = (value) => value) {
   return customType<{ data: T; driverData: string }>({
     dataType: () => "jsonb",
     toDriver: (value: T): string => JSON.stringify(value),
     fromDriver: (value: string): T => {
       const raw = typeof value === "string" ? value : JSON.stringify(value);
-      return JSON.parse(raw, reviveDates) as T;
+      return normalize(JSON.parse(raw, reviveDates) as T);
     },
   })(name);
 }

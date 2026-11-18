@@ -108,6 +108,7 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     },
   },
   shelter_created: { kind: "shelter_created", at: AT, moderatorId: MOD, via: "script" },
+  shelter_registered: { kind: "shelter_registered", at: AT, shelterAdminId: ADMIN_ID },
   admin_invited: { kind: "admin_invited", at: AT, moderatorId: MOD, email: "olena@example.org" },
   admin_invitation_resent: {
     kind: "admin_invitation_resent",
@@ -165,7 +166,7 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
   display_name_changed: {
     kind: "display_name_changed",
     at: AT,
-    moderatorId: MOD,
+    actor: { kind: "moderator", moderatorId: MOD },
     from: "Лапа",
     to: "Лапа допомоги",
   },
@@ -193,7 +194,11 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
   early_listing_lapsed: { kind: "early_listing_lapsed", at: AT },
 };
 
-const OPERATOR_ONLY: string[] = ["evidence_added", "freshness_reminder_changed"];
+const OPERATOR_ONLY: string[] = [
+  "evidence_added",
+  "freshness_reminder_changed",
+  "shelter_registered",
+];
 
 /** The projection of an entry the shelter does see; fails the test on `null`. */
 const facing = (entry: ShelterHistoryEntry, operatorName: string) => {

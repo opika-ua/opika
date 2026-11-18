@@ -12,6 +12,7 @@ import type { ShelterVerification } from "./state";
  * The distinguishing field is `status`, matching `ShelterVerification`.
  */
 export const ShelterFacingVerificationSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("application"), since: z.date() }),
   z.object({ status: z.literal("pending"), since: z.date() }),
   z.object({ status: z.literal("under_review"), since: z.date() }),
   z.object({ status: z.literal("verified"), since: z.date() }),
@@ -30,6 +31,8 @@ export const shelterFacingVerificationOf = (
   state: ShelterVerification,
 ): ShelterFacingVerification => {
   switch (state.status) {
+    case "application":
+      return { status: "application", since: state.appliedAt };
     case "pending":
       return { status: "pending", since: state.submittedAt };
     case "under_review":

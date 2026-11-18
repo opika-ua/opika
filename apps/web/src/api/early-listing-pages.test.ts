@@ -34,6 +34,7 @@ const STATES = {
     rejectedAt: AT,
     rejectedBy: MOD,
     reason: { code: "spam", note: null },
+    stage: "verification",
     evidence: EVIDENCE,
   },
 } as const satisfies Record<string, ShelterVerification>;

@@ -8,6 +8,7 @@ import { cityRepo } from "../src/repos/city-repo";
 import { photoSourcesRepo } from "../src/repos/photo-sources-repo";
 import { revealRepo } from "../src/repos/reveal-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
+import { applicationDeletions } from "../src/schema/application-deletions";
 import {
   authAccount,
   authInvitation,
@@ -21,8 +22,10 @@ import {
   supportSessions,
 } from "../src/schema/auth";
 import { cities } from "../src/schema/cities";
+import { funnelEvents } from "../src/schema/funnel-events";
 import { notificationSends } from "../src/schema/notification-sends";
 import { r2UnreferencedObjects } from "../src/schema/r2-cleanup";
+import { registrationEmailTokens } from "../src/schema/registration-email-tokens";
 import { sessions } from "../src/schema/sessions";
 import { shelters } from "../src/schema/shelters";
 import { recordAnimalsImported } from "../src/script-history";
@@ -215,6 +218,24 @@ async function populateEveryResetTable() {
     status: "sent",
     createdAt: NOW,
     updatedAt: NOW,
+  });
+  await db.insert(funnelEvents).values({
+    id: randomUUID(),
+    shelterId: shelter.id,
+    kind: "registered",
+    at: NOW,
+  });
+  await db.insert(registrationEmailTokens).values({
+    tokenHash: randomUUID(),
+    userId: adminId,
+    purpose: "confirm_email",
+    expiresAt: NOW,
+  });
+  await db.insert(applicationDeletions).values({
+    id: randomUUID(),
+    shelterId: randomUUID(),
+    reason: "abandoned",
+    at: NOW,
   });
 
   return { city };

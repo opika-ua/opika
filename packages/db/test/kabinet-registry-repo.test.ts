@@ -34,6 +34,7 @@ const NOW = new Date("2026-10-13T10:00:00.000Z");
 const MOD = "mod-1" as ModeratorId;
 const evidence = { items: [], submittedAt: NOW };
 const STATES = {
+  application: { status: "application", appliedAt: NOW, evidence },
   pending: { status: "pending", submittedAt: NOW, evidence },
   under_review: { status: "under_review", startedAt: NOW, reviewerId: MOD, evidence },
   verified: { status: "verified", verifiedAt: NOW, verifiedBy: MOD, evidence },
@@ -42,6 +43,7 @@ const STATES = {
     rejectedAt: NOW,
     rejectedBy: MOD,
     reason: { code: "spam", note: null },
+    stage: "verification",
     evidence,
   },
 } as const satisfies Record<string, ShelterVerification>;
@@ -188,6 +190,7 @@ describe("kabinetRegistryRepo.statusCounts (S1 chips)", () => {
     await shelter("Хвіст", "pending");
     await shelter("Лапи", "pending");
     expect(await repo().statusCounts(null)).toEqual({
+      application: 0,
       pending: 2,
       under_review: 0,
       verified: 1,

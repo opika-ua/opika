@@ -43,6 +43,7 @@ import {
   profileUpdateDescription,
   verificationRequestReview,
 } from "./handlers/profile";
+import { profileUpdateIdentity } from "./handlers/profile-identity";
 
 const base = implement(shelterKabinetContract).$context<KabinetContext>();
 
@@ -114,6 +115,9 @@ export const shelterKabinetRouter = guarded.router({
       ),
       resume: guarded.shelter.profile.resume.handler(({ context, errors }) =>
         profileResume(context, writeScope(context.access), errors),
+      ),
+      updateIdentity: guarded.shelter.profile.updateIdentity.handler(({ context, input, errors }) =>
+        profileUpdateIdentity(context, writeScope(context.access), input, errors),
       ),
     },
     verification: {

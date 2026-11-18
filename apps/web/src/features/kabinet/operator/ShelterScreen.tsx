@@ -154,6 +154,18 @@ function EvidenceFacts({ item }: { item: EvidenceItem }) {
           <Fact label={f.label}>{item.label.uk}</Fact>
         </dl>
       );
+    // The full URL, never a label, so a misleading link can't hide (§11.3); never fetched by us.
+    case "public_link":
+      return (
+        <TextLink
+          href={item.url}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          className="break-all"
+        >
+          {item.url}
+        </TextLink>
+      );
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
     default: {
       const unreachable: never = item;

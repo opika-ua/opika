@@ -529,14 +529,144 @@ export const en = {
     howToStart: `${COPY_PENDING} 11. How to start – write to {contact}.`,
     signInLink: `Sign in to the cabinet`,
   },
+  registration: {
+    title: "Register your shelter",
+    lead: "It takes 3 minutes. Then I check your shelter, usually within 2 days.",
+    ctaScroll: "Register a shelter",
+    name: {
+      label: "Name of the shelter or initiative",
+      help: "This is how people will see you on the site.",
+    },
+    city: {
+      label: "City",
+      help: "You can change the city for individual animals in the cabinet.",
+    },
+    link: {
+      label: "Website or social media page",
+      placeholder: "instagram.com/your_shelter",
+      help: "I check the shelter through this link.",
+    },
+    contact: {
+      label: "Phone or Telegram for people",
+      placeholder: "+380… or @name",
+      help: "People who want to adopt will write here.",
+    },
+    email: {
+      label: "Email",
+      help: "For signing in to the cabinet. Not shown on the site.",
+    },
+    password: {
+      label: "Password",
+      help: "At least {min} characters.",
+    },
+    passwordRepeat: { label: "Repeat the password" },
+    consent: "By registering you accept the {rules} and the {privacy}.",
+    consentRules: "rules",
+    consentPrivacy: "privacy policy",
+    submit: "Register a shelter",
+    submitting: "Registering…",
+    help: "Want me to help? Write to me on Telegram {telegram} or at {email}",
+    errors: {
+      required: "Fill in this field.",
+      city: "Choose a city from the list.",
+      link: "That doesn't look like a link. For example: instagram.com/your_shelter",
+      contact: "Enter a phone (+380…) or a Telegram name (@name).",
+      email: "Check the email.",
+      passwordShort: "The password is too short: at least {min} characters.",
+      passwordMismatch: "The passwords don't match.",
+      summary: "Check these fields:",
+      rateLimited: "Too many attempts. Try again in a few minutes.",
+      emailTaken: "This email is already registered. Sign in or reset the password.",
+      generic: "Registration failed. Try again or write to me.",
+    },
+    signInPrompt: "No cabinet yet? Register a shelter",
+    whatToPrepareAccess:
+      "You create the cabinet yourself, with the form on this page. If you prefer, write to me and I'll create it for you.",
+    howToStart:
+      "Register the shelter with the form on this page – it takes 3 minutes. Then I check the shelter, usually within 2 days. If you prefer, write to {contact}: who you are and how many animals you have – and I'll create the shelter myself.",
+    rules: {
+      title: "Rules for shelters",
+      items: [
+        "Publish only animals that really are looking for a home.",
+        "Photos and descriptions are real and your own.",
+        "Opika is not for selling animals.",
+        "An animal found a home – remove its card.",
+        "Contacts must work: people are waiting for an answer.",
+        "Use the details of people who write to you only for the adoption.",
+      ],
+      enforcement: "If the rules are broken, I may suspend the shelter, and I'll write to you why.",
+    },
+    privacy:
+      "When a shelter registers, I receive its name, city, email, website or social media link and the contact for people. The email is for signing in and messages and is never shown on the site. Applications without a confirmed email are deleted after 14 days, rejected ones after 30.",
+    rejectionReasons: {
+      not_animal_welfare: "This isn't a shelter or an animal-welfare initiative",
+      duplicate_submission: "This shelter is already on Opika",
+      identity_unverifiable: "I couldn't check it through the link – write to me",
+      other: "Other: {text}",
+    },
+    emailConfirmed: "Email confirmed. I'll check the shelter, usually within 2 days.",
+    confirmLinkExpired: "The link has expired. Sign in to the cabinet and send the email again.",
+    notMeDone: "The application is deleted. If this is a mistake, write to me at {email}.",
+  },
   kabinet: {
+    application: {
+      pending:
+        "I'm checking your shelter, usually within 2 days. Meanwhile you can fill in the profile and add animals as drafts: they can be published after the check.",
+      confirmEmail:
+        "Confirm your email – I sent a message to {email}. Without it I can't approve the shelter.",
+      confirmEmailResend: "Send again",
+      approved: "The shelter is approved. You can publish animals now.",
+      publishBlocked: "You can publish after the shelter is checked.",
+      draftCap: "Before the check you can add at most 30 drafts.",
+      donationBlocked: "You can add a fundraising link after the shelter is checked.",
+      earlyListingDaysLeft: {
+        one: "Until the showing ends: {count} day",
+        few: "Until the showing ends: {count} days",
+        many: "Until the showing ends: {count} days",
+      },
+    },
+    location: {
+      title: "Where the animal is now",
+      shelter: "In the shelter's city ({city})",
+      other: "In another city",
+      shelterCities: "Animals in: {cities}",
+    },
+    applications: {
+      title: "Applications ({count})",
+      emailConfirmed: "Email confirmed",
+      emailUnconfirmed: "Email not confirmed",
+      duplicate: "Possible duplicate: {name} ({why})",
+      duplicateWhy: {
+        same_name_city: "same name and city",
+        same_email: "same email",
+        same_link: "same link",
+      },
+      drafts: "{animals}, {photos}",
+      draftsAnimals: { one: "{count} draft", few: "{count} drafts", many: "{count} drafts" },
+      draftsPhotos: { one: "{count} photo", few: "{count} photos", many: "{count} photos" },
+      waitingLong: "Waiting over 36 hours",
+      accept: "Approve",
+      reject: "Reject",
+      funnel: {
+        title: "Registrations in 30 days",
+        registered: "Registered",
+        email_confirmed: "Confirmed email",
+        first_draft: "Added a draft",
+        approved: "Approved",
+        first_published: "Published an animal",
+      },
+    },
     units: {
       hours: { one: "{count} hour", few: "{count} hours", many: "{count} hours" },
       minutes: { one: "{count} minute", few: "{count} minutes", many: "{count} minutes" },
       days: { one: "{count} day", few: "{count} days", many: "{count} days" },
       years: { one: "{count} year", few: "{count} years", many: "{count} years" },
     },
-    operatorStatus: { pending: "Waiting", under_review: "Under review" },
+    operatorStatus: {
+      application: "Application",
+      pending: "Waiting",
+      under_review: "Under review",
+    },
     cityPicker: {
       placeholder: "Start typing a name…",
       empty: "Nothing found",
@@ -677,6 +807,7 @@ export const en = {
       addressNote: "People looking for an animal don't see the exact address, only the city.",
     },
     profileStatus: {
+      application: "Under verification",
       pending: "Under verification",
       under_review: "Under verification",
       verified: "Verified",
@@ -1210,6 +1341,32 @@ export const en = {
     },
     /** The English sense of uk.ts's final Ukrainian (2026-10-14); both emails are signed `{operator}`. */
     email: {
+      applicationConfirm: {
+        subject: "Confirm your email for {site}",
+        body: "Hello. You registered the shelter «{name}» on {site}. Confirm your email so I can check and approve the shelter:",
+        action: "Confirm email",
+        notYou: "If this wasn't you, press «Not me» and I'll delete the application.",
+        notYouAction: "Not me",
+        signature: "{operator}, {site}",
+      },
+      applicationApproved: {
+        subject: "The shelter «{name}» is approved",
+        body: "I checked your shelter – all is well. You can publish animals now:",
+        action: "Open the cabinet",
+        pending:
+          "For now the shelter's name carries the «Under verification» label. Within 60 days I'll finish the check – I'll write to you to arrange a short video call.",
+      },
+      applicationRejected: {
+        subject: "The application of the shelter «{name}»",
+        body: "Thank you for the application. I can't approve it right now. Reason: {reason}.",
+        contact:
+          "If this is a mistake or you want to clarify something, write to me at {email} or on Telegram {telegram}.",
+        retention: "I'll delete the application's data after 30 days.",
+      },
+      operatorNewApplication: {
+        subject: "New application: {name}, {city}",
+        action: "Open applications",
+      },
       signIn: {
         subject: `A sign-in link for the shelter's cabinet`,
         intro: `Hello. A sign-in link for the shelter's cabinet was requested for this address.`,
@@ -1435,6 +1592,7 @@ export const en = {
           bank_account_holder: "Bank account holder",
           reference_contact: "Reference",
           site_visit: "Video call",
+          public_link: "Website or social media page",
           supporting_document: "Document",
         },
         added: "added {date}",
@@ -1504,9 +1662,11 @@ export const en = {
           operator: "site administrator",
         },
         shelter_created: "Shelter created",
+        shelter_registered: "Shelter registered",
         shelter_created_script: "Shelter added from a file",
         verification: {
           start_review: "Taken under review",
+          accept_application: "Application approved",
           approve: "Approved → «Verified»",
           reject: "Rejected: {code}. {note}",
           suspend: "Suspended: {code}. {note}",
@@ -1690,6 +1850,7 @@ export const en = {
           duplicate_submission: "Repeat application",
           out_of_service_area: "Outside the area the site works in",
           spam: "The application doesn't look like a shelter's",
+          not_animal_welfare: "This isn't a shelter or an animal-welfare initiative",
           other: "Other",
         },
         suspension: {
@@ -1775,6 +1936,7 @@ export const en = {
         temperament: "Temperament",
         colour: "Coat colour",
         medicalNotes: "Medical",
+        location: "Where the animal is now",
       },
     },
   },

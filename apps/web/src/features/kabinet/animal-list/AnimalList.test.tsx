@@ -92,6 +92,7 @@ const FIRST: AnimalListPageData = {
 /** The animal a call answers: the row's facts with a new listing. */
 const viewOf = (from: AnimalRow, listing: KabinetAnimalView["listing"]): KabinetAnimalView =>
   ({
+    location: { kind: "shelter_city" },
     id: from.id,
     name: from.name,
     species: from.species,
@@ -1387,7 +1388,7 @@ describe("when nobody can see the cards", () => {
   it("pending but allowed to show: no list line at all (the screen's banner says it once)", () => {
     renderList({
       verification: { status: "pending", since: NOW } as KabinetShelterView["verification"],
-      earlyListing: { kind: "running", expiresAt: new Date("2026-12-01T00:00:00Z") },
+      earlyListing: { kind: "running", expiresAt: new Date("2026-12-01T00:00:00Z"), daysLeft: 10 },
     });
     expect(screen.queryByText(/на перевірці/)).toBeNull();
     expect(

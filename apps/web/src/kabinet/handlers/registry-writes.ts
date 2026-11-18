@@ -12,6 +12,7 @@ import {
   type EvidenceItemInput,
   type ExactAddress,
   earlyListingOf,
+  isDecidedInQueue,
   keepsEarlyListing,
   type LocalizedText,
   type LocationPrivacyPolicy,
@@ -220,7 +221,7 @@ export const registryUpdateProfile = (
         plan.entries.push({
           kind: "display_name_changed",
           at: deps.now,
-          moderatorId,
+          actor,
           from: shelter.displayName,
           to: input.displayName,
         });
@@ -309,6 +310,11 @@ function verificationMove(
     shelterId,
     (shelter) => {
       const event = eventOf(shelter);
+      if (isDecidedInQueue(shelter.verification)) {
+        throw errors.ILLEGAL_TRANSITION({
+          data: { machine: "verification", from: shelter.verification.status, event: event.type },
+        });
+      }
       const result = transition(shelter.verification, event);
       if (result.kind === "illegal") {
         throw errors.ILLEGAL_TRANSITION({

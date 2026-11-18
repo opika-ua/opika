@@ -136,6 +136,7 @@ describe("kabinetHomeOf", () => {
       "legalEntity",
       "logo",
       "pendingDonation",
+      "registration",
       "verification",
       "version",
     ]);

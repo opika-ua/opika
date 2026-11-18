@@ -77,6 +77,18 @@ const ACCEPT_MODULE = "packages/db/src/repos/kabinet-invitation-accept-repo.ts";
 /** The one module allowed to call it: the app's accept wrapper, which only ever passes the session's user. */
 const ACCEPT_CALLER = "apps/web/src/kabinet/invitation-accept.ts";
 
+/**
+ * Self-registration (owner, 2026-11-18): the second and last module allowed to write `auth_member`,
+ * creating the registrant's membership of the shelter it registers, behind
+ * `SELF_REGISTRATION_ENABLED`. Named before it exists (Phase 0); the registration PR adds it, and
+ * from then on the writer list is exact again. /prytulkam §7 and §11 flip to
+ * `uk.registration.whatToPrepareAccess` / `howToStart` with the same flag (commitment #6).
+ */
+const REGISTRATION_MODULE = "packages/db/src/repos/self-registration-repo.ts";
+
+/** The registration module while it isn't written yet: it can't be required. The accept module always is. */
+const existing = (files: readonly string[]) => files.filter((file) => sourceFiles().includes(file));
+
 const COPY_GATE =
   "/prytulkam §7 whatToPrepare, §9 whenAnimalFindsHome, §10 whoIsBehindThis and §8 " +
   "whyHowOften describe this: see docs/standing-constraints.md, commitments 6 and 7";
@@ -87,13 +99,13 @@ describe(`a shelter membership is created by the automatic accept only – ${COP
     expect(sourceFiles().length).toBeGreaterThan(50);
   });
 
-  it("exactly the accept module writes auth_member", () => {
+  it("exactly the accept module and the registration module write auth_member", () => {
     expect(
       filesMatching(
         /\.(insert|update)\(\s*(?:\w+\.)*authMember\b|(INSERT\s+INTO|UPDATE)\s+(?:"?auth_member\b|\$\{\s*(?:\w+\.)*authMember\s*\})/i,
-      ),
-      `Only ${ACCEPT_MODULE} may write auth_member (IN-Q12/IN-Q13). ${COPY_GATE}`,
-    ).toEqual([ACCEPT_MODULE]);
+      ).sort(),
+      `Only ${ACCEPT_MODULE} (IN-Q12/IN-Q13) and ${REGISTRATION_MODULE} (self-registration) may write auth_member. ${COPY_GATE}`,
+    ).toEqual([ACCEPT_MODULE, ...existing([REGISTRATION_MODULE])].sort());
   });
 
   it("only the app's accept wrapper calls the accept module", () => {

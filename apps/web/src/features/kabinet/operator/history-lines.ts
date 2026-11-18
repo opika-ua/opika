@@ -93,6 +93,7 @@ const fieldLabel = (field: AnimalEditedField): string => {
     case "description":
     case "temperament":
     case "medicalNotes":
+    case "location":
     case "photos":
       return labels.field[field];
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled field; unreachable at runtime */
@@ -127,6 +128,8 @@ function verificationLine(
   switch (event.type) {
     case "start_review":
       return { text: v.start_review, actor: operatorActor(event.reviewerId, people) };
+    case "accept_application":
+      return { text: v.accept_application, actor: operatorActor(event.moderatorId, people) };
     case "approve":
       return { text: v.approve, actor: operatorActor(event.moderatorId, people) };
     case "reject":
@@ -186,6 +189,11 @@ function lineOf(
       return {
         text: entry.via === "script" ? t.shelter_created_script : t.shelter_created,
         actor: operatorActor(entry.moderatorId, people),
+      };
+    case "shelter_registered":
+      return {
+        text: t.shelter_registered,
+        actor: actorOf({ kind: "shelter_admin", shelterAdminId: entry.shelterAdminId }, people),
       };
     case "admin_invited":
       return {
@@ -274,7 +282,7 @@ function lineOf(
     case "display_name_changed":
       return {
         text: renameLine(entry.from, entry.to),
-        actor: operatorActor(entry.moderatorId, people),
+        actor: actorOf(entry.actor, people),
       };
     case "freshness_reminder_changed":
       return {

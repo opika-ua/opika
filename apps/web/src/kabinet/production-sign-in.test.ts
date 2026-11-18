@@ -229,9 +229,9 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   profile: 27,
 
-  profileStatus: 6,
+  profileStatus: 7,
 
-  operatorStatus: 2,
+  operatorStatus: 3,
 
   profileChannel: 9,
 
@@ -255,7 +255,7 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   support: 6,
 
-  email: 63,
+  email: 79,
 
   signInCard: 1,
 
@@ -267,11 +267,18 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   history: 2,
 
-  operator: 283,
+  operator: 287,
 
   verificationDecision: 8,
 
-  animalHistoryLabels: 16,
+  animalHistoryLabels: 17,
+
+  // Self-registration (2026-11-18): A3's banners and location lines, the operator's queue.
+  application: 10,
+
+  location: 4,
+
+  applications: 23,
 };
 
 /**

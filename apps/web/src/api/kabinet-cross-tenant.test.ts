@@ -285,6 +285,7 @@ describe("cross-tenant: a smuggled shelterId is BAD_REQUEST, and B is untouched"
       "shelter.profile.updateDescription",
       () => smuggle({ description: { uk: "Не Б", en: null }, expectedVersion: 0 }),
     ],
+    ["shelter.profile.updateIdentity", () => smuggle({ displayName: "Не Б", expectedVersion: 0 })],
     ["shelter.profile.proposeDonation", () => smuggle({ url: "https://send.monobank.ua/jar/x" })],
     ["shelter.profile.cancelDonationProposal", () => smuggle({})],
     ["shelter.profile.pause", () => smuggle({ reason: { code: "relocation", note: null } })],
@@ -430,6 +431,7 @@ describe("coverage", () => {
       "shelter.profile.get",
       "shelter.profile.updateContact",
       "shelter.profile.updateDescription",
+      "shelter.profile.updateIdentity",
       "shelter.profile.proposeDonation",
       "shelter.profile.cancelDonationProposal",
       "shelter.profile.pause",
@@ -441,7 +443,7 @@ describe("coverage", () => {
       "shelter.logo.set",
       "shelter.logo.remove",
     ];
-    expect(new Set(covered).size).toBe(23);
+    expect(new Set(covered).size).toBe(24);
     expect([...covered].sort()).toEqual(pathsOf(shelterKabinetContract.shelter, "shelter").sort());
   });
 });

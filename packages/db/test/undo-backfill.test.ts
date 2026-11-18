@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { makeCity, setupTestDatabase } from "../src/test-utils/index";
 import { TEST_DATABASE_URL } from "../src/test-utils/setup";
 import { insertLegacyAnimal, insertLegacyCity, insertLegacyShelter } from "./legacy-rows";
@@ -19,6 +19,11 @@ const MIGRATIONS_DIR = resolve(fileURLToPath(import.meta.url), "../../drizzle");
 const TAG = "0008_eager_rocket_racer";
 
 const client = postgres(TEST_DATABASE_URL, { max: 1, onnotice: () => {} });
+
+// Creates the run's test database if no earlier file has (it used to rely on one having done so).
+beforeAll(async () => {
+  await (await setupTestDatabase()).cleanup();
+});
 
 afterAll(async () => {
   await (await setupTestDatabase()).cleanup();

@@ -48,6 +48,7 @@ describe("the kabinet banner while cards are shown before verification", () => {
       shelterIn({ status: "pending", since: AT } as KabinetShelterView["verification"], {
         kind: "running",
         expiresAt: new Date("2026-12-01T09:00:00Z"),
+        daysLeft: 10,
       }),
     );
     expect(screen.queryAllByText(/на перевірці/)).toHaveLength(1);
@@ -58,6 +59,7 @@ describe("the kabinet banner while cards are shown before verification", () => {
       shelterIn({ status: "pending", since: AT } as KabinetShelterView["verification"], {
         kind: "running",
         expiresAt: new Date("2026-12-01T09:00:00Z"),
+        daysLeft: 10,
       }),
     );
     expect(

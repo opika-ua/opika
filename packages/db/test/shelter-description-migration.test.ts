@@ -79,6 +79,10 @@ describe("0026 shelter description nullable: the migration", () => {
       SELECT is_nullable FROM information_schema.columns
       WHERE table_name = 'shelters' AND column_name = 'description_uk'`;
     expect(before[0]?.is_nullable).toBe("NO");
+    // The repo insert names later columns (0028's); added here so a fixture row can be written.
+    await client.unsafe(
+      "ALTER TABLE shelters ADD COLUMN IF NOT EXISTS registration_source text DEFAULT 'operator', ADD COLUMN IF NOT EXISTS registrant_user_id text, ADD COLUMN IF NOT EXISTS applied_at timestamptz, ADD COLUMN IF NOT EXISTS application_rejected_at timestamptz",
+    );
     const shelter = await seedShelter();
     await applyMigration(TAG);
 

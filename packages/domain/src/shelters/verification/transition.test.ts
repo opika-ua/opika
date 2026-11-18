@@ -52,6 +52,8 @@ const stateFor = (status: VerificationStatus, at: Date = T0): ShelterVerificatio
   const EVIDENCE = evidenceFor(status);
   const T0 = at;
   switch (status) {
+    case "application":
+      return { status, appliedAt: T0, evidence: EVIDENCE };
     case "pending":
       return { status, submittedAt: T0, evidence: EVIDENCE };
     case "under_review":
@@ -64,6 +66,7 @@ const stateFor = (status: VerificationStatus, at: Date = T0): ShelterVerificatio
         rejectedAt: T0,
         rejectedBy: MODERATOR,
         reason: { code: "insufficient_evidence", note: null },
+        stage: "verification",
         evidence: EVIDENCE,
       };
     case "paused":
@@ -97,6 +100,8 @@ const eventFor = (type: VerificationEventType): VerificationEvent => {
   switch (type) {
     case "start_review":
       return { type, at: T1, reviewerId: REVIEWER };
+    case "accept_application":
+      return { type, at: T1, moderatorId: MODERATOR };
     case "approve":
       return { type, at: T1, moderatorId: MODERATOR };
     case "reject":
@@ -136,6 +141,7 @@ const eventFor = (type: VerificationEventType): VerificationEvent => {
 const LEGAL: Partial<
   Record<VerificationStatus, Partial<Record<VerificationEventType, VerificationStatus>>>
 > = {
+  application: { accept_application: "pending", reject: "rejected" },
   pending: { start_review: "under_review", reject: "rejected" },
   under_review: { approve: "verified", reject: "rejected" },
   verified: { suspend: "suspended", pause: "paused" },
@@ -151,7 +157,7 @@ describe("verification transition table", () => {
     // otherwise shrink the table silently.
     expect(VERIFICATION_STATUSES.length).toBe(ShelterVerificationSchema.options.length);
     expect(VERIFICATION_EVENT_TYPES.length).toBe(VerificationEventSchema.options.length);
-    expect(VERIFICATION_STATUSES.length * VERIFICATION_EVENT_TYPES.length).toBe(48);
+    expect(VERIFICATION_STATUSES.length * VERIFICATION_EVENT_TYPES.length).toBe(63);
   });
 
   for (const status of VERIFICATION_STATUSES) {
@@ -178,6 +184,8 @@ describe("verification transition table", () => {
 
 describe("evidence and actor survive every legal edge", () => {
   const legal: ReadonlyArray<[VerificationStatus, VerificationEventType]> = [
+    ["application", "accept_application"],
+    ["application", "reject"],
     ["pending", "start_review"],
     ["pending", "reject"],
     ["under_review", "approve"],
@@ -292,6 +300,7 @@ describe("event ordering, for every status", () => {
   // triggered. `enteredAt` could read the wrong field on four of five statuses
   // and the suite stayed green.
   const legalEventFor: Record<VerificationStatus, VerificationEventType> = {
+    application: "accept_application",
     pending: "start_review",
     under_review: "approve",
     verified: "suspend",
@@ -486,5 +495,60 @@ describe("pause and resume by the shelter's own administrator", () => {
     };
     expect(VerificationEventSchema.safeParse(suspend).success).toBe(false);
     expect([suspend.type, approve.type]).toEqual(["suspend", "approve"]);
+  });
+});
+
+/** Self-registration (2026-11-18): the approval gate in front of everything public. */
+describe("a self-registered application", () => {
+  it("is accepted into pending, keeping the evidence it applied with", () => {
+    const result = transition(stateFor("application"), eventFor("accept_application"));
+    expect(result).toEqual({
+      kind: "ok",
+      next: { status: "pending", submittedAt: T1, evidence: evidenceFor("application") },
+    });
+  });
+
+  it("can't be verified straight from the application in v1 (owner, P0-2 (iii))", () => {
+    expect(transition(stateFor("application"), eventFor("approve")).kind).toBe("illegal");
+  });
+
+  it("can't be accepted from any other status", () => {
+    for (const status of VERIFICATION_STATUSES) {
+      if (status === "application") continue;
+      expect(transition(stateFor(status), eventFor("accept_application")).kind).toBe("illegal");
+    }
+  });
+
+  it("records which step a rejection refused", () => {
+    const fromApplication = transition(stateFor("application"), eventFor("reject"));
+    const fromPending = transition(stateFor("pending"), eventFor("reject"));
+    const fromReview = transition(stateFor("under_review"), eventFor("reject"));
+    const fromSuspended = transition(stateFor("suspended"), eventFor("reject"));
+    expect(fromApplication.kind === "ok" && fromApplication.next).toMatchObject({
+      stage: "application",
+    });
+    for (const result of [fromPending, fromReview, fromSuspended]) {
+      expect(result.kind === "ok" && result.next).toMatchObject({ stage: "verification" });
+    }
+  });
+
+  it("returns a refused application to the application, never to pending", () => {
+    const rejected = transition(stateFor("application"), eventFor("reject"));
+    if (rejected.kind !== "ok") throw new Error("expected a rejection");
+    const event = eventFor("resubmit");
+    const result = transition(rejected.next, event);
+    expect(result).toEqual({
+      kind: "ok",
+      next: {
+        status: "application",
+        appliedAt: T1,
+        evidence: event.type === "resubmit" ? event.evidence : null,
+      },
+    });
+  });
+
+  it("returns a refused verification to pending, as before", () => {
+    const result = transition(stateFor("rejected"), eventFor("resubmit"));
+    expect(result.kind === "ok" && result.next.status).toBe("pending");
   });
 });

@@ -2,6 +2,7 @@ import {
   kabinetInvitationContract,
   kabinetSessionContract,
   registryAdminsContract,
+  registryApplicationsContract,
   registryCitiesContract,
   registryDonationContract,
   registryEarlyListingContract,
@@ -54,6 +55,7 @@ export const registryContract = {
     cities: registryCitiesContract,
     history: registryHistoryContract,
     support: registrySupportContract,
+    applications: registryApplicationsContract,
   },
   session: kabinetSessionContract,
 } as const;

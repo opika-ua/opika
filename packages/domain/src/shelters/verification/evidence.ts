@@ -49,6 +49,14 @@ export const EvidenceItemSchema = z.discriminatedUnion("kind", [
     visitedBy: ModeratorIdSchema,
     notes: z.string().min(1),
   }),
+  /**
+   * The site or social page a self-registered shelter submitted, normalised (`normalizePublicLink`).
+   * The operator opens it; the server never fetches it (SSRF).
+   */
+  z.object({
+    kind: z.literal("public_link"),
+    url: z.url({ protocol: /^https$/ }),
+  }),
   z.object({
     kind: z.literal("supporting_document"),
     label: LocalizedTextSchema,
@@ -63,6 +71,7 @@ export const EVIDENCE_KINDS = [
   "bank_account_holder",
   "reference_contact",
   "site_visit",
+  "public_link",
   "supporting_document",
 ] as const satisfies readonly EvidenceKind[];
 export const EvidenceKindSchema = z.enum(EVIDENCE_KINDS);
