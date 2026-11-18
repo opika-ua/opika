@@ -1,6 +1,7 @@
 /**
  * `invitations:legacy` (§14 Q1): the operator-created shelters whose invitation was never
- * accepted and that have no animals, the 12 invited before self-registration. The owner sends
+ * accepted and that have no animals, invited before self-registration (11 on production,
+ * 2026-11-18). The owner sends
  * each the registration link himself; this removes their pre-created records and revokes the old
  * invitation links. Selected on exactly that, never on verification status or early listing, so
  * an early listing can't hide one.

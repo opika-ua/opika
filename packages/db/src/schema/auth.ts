@@ -208,8 +208,8 @@ export const supportSessions = pgTable(
       .notNull()
       .references(() => authUser.id),
     /**
-     * Null once the shelter is gone (0029, owner 2026-11-18, Q4 (B)): a deleted application's
-     * support session still records who viewed and when, but no longer which shelter.
+     * Null once the shelter is gone (0029, owner 2026-11-18, Q4 (B)): a deleted application's or
+     * legacy invitation's support session still records who viewed and when, not which shelter.
      */
     shelterId: text("shelter_id").references(() => shelters.id, { onDelete: "set null" }),
     tokenHash: text("token_hash").notNull().unique(),

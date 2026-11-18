@@ -252,8 +252,11 @@ describe("deleteLegacyShelters", () => {
       startedAt: NOW,
       lastSeenAt: NOW,
     });
-    expect((await legacyInvitedShelters(db)).find((s) => s.id === a.id)?.hasSupportSession).toBe(
-      true,
+    const found = await legacyInvitedShelters(db);
+    expect(found.find((s) => s.id === a.id)?.hasSupportSession).toBe(true);
+    // The dry run says what --commit will do with it.
+    expect(formatLegacyList(found)).toContain(
+      `  Альфа | ${a.id} | ${maskEmail(`${a.invitationId?.slice(0, 6)}@example.org`)} | support session: kept, its shelter link nulled`,
     );
     expect(await deleteLegacyShelters(db, 2, NOW)).toEqual({
       kind: "deleted",
