@@ -149,6 +149,7 @@ export async function runEarlyListingSmoke(db: Database): Promise<Outcome[]> {
     rejectedAt: NOW,
     rejectedBy: moderator,
     reason: { code: "spam", note: null },
+    stage: "verification",
     evidence: pending.evidence,
   };
   const reject = await move(rejected, 1);

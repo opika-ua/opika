@@ -61,6 +61,7 @@ describe("«Дозволити показ до завершення переві
         rejectedAt: AT,
         rejectedBy: MOD,
         reason: { code: "spam", note: null },
+        stage: "verification",
         evidence,
       },
     ] as const) {

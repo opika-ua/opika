@@ -21,6 +21,7 @@ describe("retired rejection codes", () => {
       "identity_unverifiable",
       "duplicate_submission",
       "spam",
+      "not_animal_welfare",
       "other",
     ]);
     expect(OfferedRejectionCodeSchema.safeParse("out_of_service_area").success).toBe(false);

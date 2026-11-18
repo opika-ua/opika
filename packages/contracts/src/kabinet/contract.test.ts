@@ -89,6 +89,7 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "shelter.profile.get": READ,
   "shelter.profile.updateContact": WRITE,
   "shelter.profile.updateDescription": WRITE,
+  "shelter.profile.updateIdentity": WRITE,
   "shelter.profile.proposeDonation": WRITE,
   "shelter.profile.cancelDonationProposal": WRITE,
   "shelter.profile.pause": WRITE,
@@ -133,6 +134,9 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "registry.history.list": REGISTRY,
   "registry.cities.search": REGISTRY,
   "registry.support.enter": REGISTRY,
+  "registry.applications.list": REGISTRY,
+  "registry.applications.accept": REGISTRY,
+  "registry.applications.reject": REGISTRY,
   "session.exitSupport": { surface: "support_exit" },
 };
 
@@ -252,12 +256,12 @@ describe("FORBIDDEN is declared wherever an actor can be the wrong one", () => {
 describe("no procedure declares the retired SHELTER_WRITES_NOT_YET_AVAILABLE (P6-Q8)", () => {
   const RETIRED = ["SHELTER", "WRITES", "NOT", "YET", "AVAILABLE"].join("_");
 
-  it("sanity: the matrix still names the nineteen shelter writes", () => {
+  it("sanity: the matrix still names the twenty shelter writes", () => {
     expect(
       Object.values(EXPECTED_ACCESS).filter(
         (access) => access.surface === "shelter" && access.mode === "write",
       ),
-    ).toHaveLength(19);
+    ).toHaveLength(20);
   });
 
   it("is no API error any more", () => {
@@ -365,6 +369,7 @@ describe("kabinet views carry exactly their listed keys", () => {
         "lastUpdatedAt",
         "version",
         "photoCrops",
+        "location",
       ].sort(),
     );
   });
@@ -402,12 +407,13 @@ describe("kabinet views carry exactly their listed keys", () => {
         "version",
         "verification",
         "earlyListing",
+        "registration",
       ].sort(),
     );
     // The shelter may see when the period ends and nothing else about it (no period count, no note).
     expect(
       KabinetShelterViewSchema.shape.earlyListing.options.map((o) => Object.keys(o.shape).sort()),
-    ).toEqual([["kind"], ["expiresAt", "kind"], ["endedAt", "kind"]]);
+    ).toEqual([["kind"], ["daysLeft", "expiresAt", "kind"], ["endedAt", "kind"]]);
     // The operator's record carries evidence and moderator ids; this one must not parse it.
     const verification = KabinetShelterViewSchema.shape.verification;
     expect(
@@ -580,6 +586,7 @@ describe("every shelter-facing output carries exactly its listed keys", () => {
     "shelter.profile.get": SHELTER_VIEW_KEYS,
     "shelter.profile.updateContact": SHELTER_VIEW_KEYS,
     "shelter.profile.updateDescription": SHELTER_VIEW_KEYS,
+    "shelter.profile.updateIdentity": SHELTER_VIEW_KEYS,
     "shelter.profile.proposeDonation": SHELTER_VIEW_KEYS,
     "shelter.profile.cancelDonationProposal": SHELTER_VIEW_KEYS,
     "shelter.profile.pause": SHELTER_VIEW_KEYS,

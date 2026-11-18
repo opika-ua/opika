@@ -2,6 +2,7 @@ import { registryContract } from "@opika/contracts";
 import {
   DEFAULT_VERIFICATION_POLICY,
   type EvidenceItem,
+  isDecidedInQueue,
   ModeratorIdSchema,
   type ShelterLegalEntity,
   type ShelterVerification,
@@ -70,6 +71,8 @@ const statesFor = (status: VerificationStatus): ShelterVerification[] => {
   switch (status) {
     case "pending":
       return [{ status, submittedAt: STATE_AT, evidence: NONE }];
+    case "application":
+      return [{ status, appliedAt: STATE_AT, evidence: NONE }];
     case "under_review":
       return [{ status, startedAt: STATE_AT, reviewerId: MODERATOR, evidence: NONE }];
     case "verified":
@@ -81,6 +84,15 @@ const statesFor = (status: VerificationStatus): ShelterVerification[] => {
           rejectedAt: STATE_AT,
           rejectedBy: MODERATOR,
           reason: { code: "spam", note: "Ні" },
+          stage: "verification",
+          evidence: NONE,
+        },
+        {
+          status,
+          rejectedAt: STATE_AT,
+          rejectedBy: MODERATOR,
+          reason: { code: "not_animal_welfare", note: null },
+          stage: "application",
           evidence: NONE,
         },
       ];
@@ -161,7 +173,11 @@ const eventOf = (type: OperatorVerificationEvent): VerificationEvent => {
   }
 };
 
+/** An application, or a refused one, is decided in the «Заявки» block, so S4 accepts nothing. */
 const accepted = (state: ShelterVerification): OperatorVerificationEvent[] =>
+  isDecidedInQueue(state) ? [] : acceptedByTransition(state);
+
+const acceptedByTransition = (state: ShelterVerification): OperatorVerificationEvent[] =>
   OPERATOR_VERIFICATION_EVENTS.filter((type) => {
     const result = transition(state, eventOf(type));
     // Any other refusal would mean the sample is wrong, not the table.
@@ -173,9 +189,16 @@ const offered = (state: ShelterVerification): OperatorVerificationEvent[] =>
   offeredActionsOf(state, DATA).map((action) => action.event);
 
 describe("offered actions = the operator events transition() accepts (FSM parity)", () => {
-  it("covers all six statuses (not vacuous)", () => {
-    expect(VERIFICATION_STATUSES).toHaveLength(6);
-    expect(VERIFICATION_STATUSES.flatMap(statesFor)).toHaveLength(7);
+  it("covers all seven statuses (not vacuous)", () => {
+    expect(VERIFICATION_STATUSES).toHaveLength(7);
+    expect(VERIFICATION_STATUSES.flatMap(statesFor)).toHaveLength(9);
+  });
+
+  it("the queue-only states would otherwise accept a reject or a resubmit on S4", () => {
+    // Without the exclusion S4 would offer these, and their write would skip the clean-up clock.
+    expect(acceptedByTransition(statesFor("application")[0] as ShelterVerification)).toEqual([
+      "reject",
+    ]);
   });
 
   for (const status of VERIFICATION_STATUSES) {
@@ -195,6 +218,7 @@ describe("offered actions = the operator events transition() accepts (FSM parity
    */
   it("matches the lifecycle as written down, status by status", () => {
     const expected: Record<VerificationStatus, OperatorVerificationEvent[]> = {
+      application: [],
       pending: ["start_review", "reject"],
       under_review: ["approve", "reject"],
       verified: ["suspend"],
@@ -204,7 +228,8 @@ describe("offered actions = the operator events transition() accepts (FSM parity
     };
     for (const status of VERIFICATION_STATUSES) {
       for (const state of statesFor(status)) {
-        expect(offered(state), status).toEqual(expected[status]);
+        // A refused application is the queue's (its resubmit is not offered on S4).
+        expect(offered(state), status).toEqual(isDecidedInQueue(state) ? [] : expected[status]);
       }
     }
   });

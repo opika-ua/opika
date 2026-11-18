@@ -184,7 +184,15 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       // the city only (EM-Q10). 30 with earlyListingEnded (gap 6, 2026-11-10). 27 since the
       // shelter description replaced voiceTitle, voiceLabel and voiceNote.
       profile: 27,
-      profileStatus: ["paused", "pending", "rejected", "suspended", "under_review", "verified"],
+      profileStatus: [
+        "application",
+        "paused",
+        "pending",
+        "rejected",
+        "suspended",
+        "under_review",
+        "verified",
+      ],
       profileChannel: [
         "email",
         "facebook",
@@ -1072,6 +1080,18 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.donation.removeDialog.confirm": "Прибрати",
   };
   /** Owner-approved 2026-11-04 (listing before verification, copy table N7–N12). */
+  /**
+   * Self-registration (2026-11-18): the operator's labels for the new status, event, history line,
+   * evidence kind and rejection code. Appendix A (A1, A5) and the Phase 0 copy table, approved by
+   * Oleksii; «Заявку схвалено» is the builder's history line for «Схвалити».
+   */
+  const SELF_REGISTRATION_OPERATOR_COPY: Record<string, string> = {
+    "operator.evidence.kind.public_link": "Сайт або сторінка в соцмережі",
+    "operator.history.shelter_registered": "Притулок зареєстровано",
+    "operator.history.verification.accept_application": "Заявку схвалено",
+    "operator.codes.rejection.not_animal_welfare": "Це не притулок чи ініціатива допомоги тваринам",
+  };
+
   const EARLY_LISTING_OPERATOR_COPY: Record<string, string> = {
     "operator.earlyListing.title": "Показ до завершення перевірки",
     "operator.earlyListing.allow": "Дозволити показ до завершення перевірки",
@@ -1122,6 +1142,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(EVIDENCE_ADD_COPY),
         ...Object.keys(SITTING2_FOLLOWUP_COPY),
         ...Object.keys(EARLY_LISTING_OPERATOR_COPY),
+        ...Object.keys(SELF_REGISTRATION_OPERATOR_COPY),
         ...Object.keys(DONATION_SAFETY_OPERATOR_COPY),
         ...Object.keys(LIQPAY_SESSION_OPERATOR_COPY),
         ...Object.keys(VERIFIED_DATA_EDIT_COPY),
@@ -1197,6 +1218,13 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
 
   it.each(Object.entries(DONATION_SAFETY_OPERATOR_COPY))(
     "%s is the owner-approved text",
+    (path, text) => {
+      expect(valueAt(path)).toBe(text);
+    },
+  );
+
+  it.each(Object.entries(SELF_REGISTRATION_OPERATOR_COPY))(
+    "%s is the self-registration text",
     (path, text) => {
       expect(valueAt(path)).toBe(text);
     },
@@ -1328,6 +1356,8 @@ describe("kabinet animal history labels (his K3 words, 2026-10-17)", () => {
     "field.temperament": "Характер",
     "field.colour": "Забарвлення",
     "field.medicalNotes": "Медичний стан",
+    // A3 «kab.location.title», approved with Appendix A (2026-11-18).
+    "field.location": "Де зараз тварина",
   };
 
   it("holds exactly these words, as he wrote them", () => {

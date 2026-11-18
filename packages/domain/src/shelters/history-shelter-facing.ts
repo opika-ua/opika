@@ -48,6 +48,7 @@ export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
     to: VerificationStatusSchema,
     event: z.enum([
       "start_review",
+      "accept_application",
       "approve",
       "reject",
       "resubmit",
@@ -277,6 +278,7 @@ export function shelterFacingHistoryOf(
     // Operator-only (owner, 2026-11-04): the shelter learns nothing of it.
     case "evidence_added":
     case "freshness_reminder_changed":
+    case "shelter_registered":
       return null;
     case "early_listing_allowed":
     case "early_listing_revoked":
@@ -287,7 +289,7 @@ export function shelterFacingHistoryOf(
       return {
         kind: "display_name_changed",
         at: entry.at,
-        actor: operator,
+        actor: shelterActorView(entry.actor),
         from: entry.from,
         to: entry.to,
       };

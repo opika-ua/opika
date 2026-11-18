@@ -30,6 +30,7 @@ import {
   type AnimalListingState,
   type AnimalPhoto,
   ageDateProblem,
+  animalLocationOf,
   type CityId,
   DEFAULT_FRESHNESS_POLICY,
   type DraftAnimal,
@@ -89,6 +90,7 @@ export function kabinetAnimalViewOf(
 ): KabinetAnimalView {
   const core = {
     photoCrops,
+    location: animalLocationOf(animal.publicLocation),
     id: animal.id,
     name: animal.name,
     species: animal.species,
@@ -348,7 +350,13 @@ export const actorOf = (scope: ShelterWriteScope): ShelterActor => ({
  * literal the animal lacks fails to compile.
  */
 const changedFields = (before: Animal, after: Animal): AnimalEditedField[] =>
-  ANIMAL_EDITED_FIELDS.filter((field) => !isDeepStrictEqual(before[field], after[field]));
+  ANIMAL_EDITED_FIELDS.filter(
+    (field) => !isDeepStrictEqual(editedValueOf(before, field), editedValueOf(after, field)),
+  );
+
+/** `location` is read off `publicLocation` (P0-5); every other field is the animal's own. */
+const editedValueOf = (animal: Animal, field: AnimalEditedField): unknown =>
+  field === "location" ? animalLocationOf(animal.publicLocation) : animal[field];
 
 /** S1 (Oleksii: "no history for «Ще шукає» / undo"): the confirmation date is the record. */
 const CONFIRMATION_NOT_RECORDED: ListingMoveHistory = {
@@ -611,6 +619,9 @@ export async function animalsUpdate(
   const { animal, cityId } = await owned(deps, scope, input.animalId, errors);
   if (animal.version !== input.expectedVersion) throw errors.CONFLICT();
   const { patch } = input;
+  // The location write (and the effective `city_id` it maintains) lands with the location PR
+  // (Agent 4); until then a sent location is refused loudly, never dropped.
+  if (patch.location !== undefined) throw new Error("location edits are not served yet");
   const vaccination = declared(animal.vaccination, patch.vaccination, deps.now);
   const spayNeuter = declared(animal.spayNeuter, patch.spayNeuter, deps.now);
   if (vaccination === "refused" || spayNeuter === "refused") throw errors.REGISTRY_CONFIRMED();

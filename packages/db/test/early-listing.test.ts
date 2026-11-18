@@ -48,6 +48,8 @@ const pausedFacts = {
 
 const stateOf = (status: (typeof VERIFICATION_STATUSES)[number]): ShelterVerification => {
   switch (status) {
+    case "application":
+      return { status, appliedAt: AT, evidence: EVIDENCE };
     case "pending":
       return { status, submittedAt: AT, evidence: EVIDENCE };
     case "under_review":
@@ -60,6 +62,7 @@ const stateOf = (status: (typeof VERIFICATION_STATUSES)[number]): ShelterVerific
         rejectedAt: AT,
         rejectedBy: MOD,
         reason: { code: "spam", note: null },
+        stage: "verification",
         evidence: EVIDENCE,
       };
     case "paused":

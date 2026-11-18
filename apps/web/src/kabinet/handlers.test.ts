@@ -406,6 +406,7 @@ describe("shelter.profile", () => {
         rejectedAt: new Date("2026-09-10T00:00:00Z"),
         rejectedBy: "0ec0ec0e-0000-4000-8000-0000000000aa" as never,
         reason: { code: "insufficient_evidence", note: null },
+        stage: "verification",
         evidence,
       },
     });
@@ -420,6 +421,35 @@ describe("shelter.profile", () => {
     expect(entries.map((e) => (e.kind === "verification" ? `${e.from}->${e.to}` : e.kind))).toEqual(
       ["rejected->pending"],
     );
+  });
+
+  it("requestReview on a refused application is ILLEGAL_TRANSITION: the queue decides it", async () => {
+    await truncateAll(db);
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    shelter = makeShelter({
+      id: shelter.id,
+      publicLocation: { ...makeShelter().publicLocation, cityId: city.id },
+      verification: {
+        status: "rejected",
+        rejectedAt: new Date("2026-09-10T00:00:00Z"),
+        rejectedBy: "0ec0ec0e-0000-4000-8000-0000000000aa" as never,
+        reason: { code: "not_animal_welfare", note: null },
+        stage: "application",
+        evidence: { items: [], submittedAt: new Date("2026-09-01T00:00:00Z") },
+      },
+    });
+    await shelterRepo(db).insert(shelter);
+
+    const result = await call("shelter.verification.requestReview", {});
+    expect(result.status).toBe(409);
+    expect(result.body.data).toEqual({
+      machine: "verification",
+      from: "rejected",
+      event: "resubmit",
+    });
+    expect((await shelterRepo(db).findById(shelter.id))?.verification.status).toBe("rejected");
+    expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual([]);
   });
 
   it("requestReview on a verified shelter is ILLEGAL_TRANSITION and writes nothing", async () => {

@@ -199,7 +199,163 @@ export const uk = {
     /** PW-2: the link to the kabinet's sign-in, `/kabinet/vkhid` (his scope item 1, verbatim). */
     signInLink: "Увійти в кабінет",
   },
+  /**
+   * Self-registration (2026-11-18). Appendix A of the parallel plan, approved as written by Oleksii
+   * (2026-11-18), with his Phase 0 changes: the donation line, the approval email's last line, no
+   * «(Appendix B, Q-B1)» annotation. `{telegram}`, `{email}`, `{site}` and `{operator}` come from app
+   * config. Shown only while `SELF_REGISTRATION_ENABLED` is on.
+   */
+  registration: {
+    /** A1, the form. */
+    title: "Зареєструйте притулок",
+    lead: "Займає 3 хвилини. Потім я перевірю ваш притулок – зазвичай до 2 днів.",
+    ctaScroll: "Зареєструвати притулок",
+    name: {
+      label: "Назва притулку чи ініціативи",
+      help: "Так вас бачитимуть люди на сайті.",
+    },
+    city: {
+      label: "Місто",
+      help: "Для окремих тварин місто можна буде змінити в кабінеті.",
+    },
+    link: {
+      label: "Сайт або сторінка в соцмережі",
+      placeholder: "instagram.com/vash_prytulok",
+      help: "За цим посиланням я перевірю притулок.",
+    },
+    contact: {
+      label: "Телефон або Telegram для людей",
+      placeholder: "+380… або @imia",
+      help: "Сюди писатимуть ті, хто хоче взяти тварину.",
+    },
+    email: {
+      label: "Email",
+      help: "Для входу в кабінет. На сайті не показується.",
+    },
+    password: {
+      label: "Пароль",
+      help: "Щонайменше {min} символів.",
+    },
+    passwordRepeat: { label: "Повторіть пароль" },
+    /** `{rules}` links to /prytulkam#pravyla, `{privacy}` to the data section of /pro. */
+    consent: "Реєструючись, ви погоджуєтесь із {rules} й {privacy}.",
+    consentRules: "правилами",
+    consentPrivacy: "політикою приватності",
+    submit: "Зареєструвати притулок",
+    submitting: "Реєструю…",
+    help: "Хочете, щоб я допоміг? Напишіть мені в Telegram {telegram} або на {email}",
+    /**
+     * A2. The password's long, personal and common refusals reuse `kabinet.password.*`, shared by
+     * every password form; a name over the cap reuses the profile editor's.
+     */
+    errors: {
+      required: "Заповніть це поле.",
+      city: "Оберіть місто зі списку.",
+      link: "Не схоже на посилання. Наприклад: instagram.com/vash_prytulok",
+      contact: "Вкажіть телефон (+380…) або Telegram (@імʼя).",
+      email: "Перевірте email.",
+      passwordShort: "Пароль закороткий: щонайменше {min} символів.",
+      passwordMismatch: "Паролі не збігаються.",
+      summary: "Перевірте кілька полів:",
+      rateLimited: "Забагато спроб. Спробуйте за кілька хвилин.",
+      emailTaken: "Цей email уже зареєстровано. Увійдіть або відновіть пароль.",
+      generic: "Не вдалося зареєструвати. Спробуйте ще раз або напишіть мені.",
+    },
+    /** On /kabinet/vkhid, linking to /prytulkam#reyestratsiia (§13.1; Phase 0 copy table). */
+    signInPrompt: "Ще немає кабінету? Зареєструйте притулок",
+    /**
+     * /prytulkam with the flag on (Phase 0 copy table): A1's sentence in §7 and §11 become these.
+     * The flag-off page keeps `forShelters.whatToPrepare` and `forShelters.howToStart` unchanged.
+     */
+    whatToPrepareAccess:
+      "Кабінет ви створюєте самі – формою на цій сторінці. Якщо зручніше, напишіть мені, і я створю його для вас.",
+    howToStart:
+      "Зареєструйте притулок формою на цій сторінці – це займає 3 хвилини. Потім я перевірю притулок, зазвичай до 2 днів. Якщо зручніше, напишіть на {contact}: хто ви і скільки у вас тварин – і я створю притулок сам.",
+    /** A6, the «Правила» section (`#pravyla`). */
+    rules: {
+      title: "Правила для притулків",
+      items: [
+        "Публікуйте лише тварин, які справді шукають дім.",
+        "Фото й описи – справжні й ваші.",
+        "Opika – не для продажу тварин.",
+        "Тварина знайшла дім – приберіть картку.",
+        "Контакти мають працювати: люди чекають на відповідь.",
+        "Дані людей, які вам пишуть, використовуйте лише для прилаштування.",
+      ],
+      enforcement: "Якщо правила порушуються, я можу призупинити притулок і напишу вам чому.",
+    },
+    /** A7, appended to the data section of /pro. */
+    privacy:
+      "Коли притулок реєструється, я отримую назву, місто, email, посилання на сайт чи соцмережу і контакт для людей. Email потрібен для входу й листів і на сайті не показується. Заявки без підтвердженого email я видаляю через 14 днів, відхилені – через 30.",
+    /** A5, the reason as the rejection email states it (`{reason}`). */
+    rejectionReasons: {
+      not_animal_welfare: "Це не притулок чи ініціатива допомоги тваринам",
+      duplicate_submission: "Такий притулок уже є на Opika",
+      identity_unverifiable: "Не вдалося перевірити за посиланням – напишіть мені",
+      other: "Інше: {text}",
+    },
+    /** The landing pages of the confirmation email's two links (Phase 0 copy table). */
+    emailConfirmed: "Email підтверджено. Я перевірю притулок, зазвичай до 2 днів.",
+    confirmLinkExpired: "Посилання застаріло. Увійдіть у кабінет і надішліть лист ще раз.",
+    notMeDone: "Заявку видалено. Якщо це помилка – напишіть мені на {email}.",
+  },
   kabinet: {
+    /**
+     * Self-registration (2026-11-18): A3 (approved) plus the Phase 0 copy table. `earlyListingDaysLeft`
+     * is the 60-day reminder (P0-1) in the operator's approved words (`operator.earlyListing.daysLeft`).
+     */
+    application: {
+      pending:
+        "Перевіряю ваш притулок – зазвичай до 2 днів. Поки можете заповнити профіль і додати тварин як чернетки: опублікувати їх можна буде після перевірки.",
+      confirmEmail:
+        "Підтвердіть email – я надіслав лист на {email}. Без цього я не зможу схвалити притулок.",
+      confirmEmailResend: "Надіслати ще раз",
+      approved: "Притулок схвалено. Тепер можна публікувати тварин.",
+      publishBlocked: "Опублікувати можна після перевірки притулку.",
+      draftCap: "До перевірки можна додати не більше 30 чернеток.",
+      donationBlocked: "Посилання на збір можна додати після перевірки притулку.",
+      earlyListingDaysLeft: {
+        one: "До кінця показу: {count} день",
+        few: "До кінця показу: {count} дні",
+        many: "До кінця показу: {count} днів",
+      },
+    },
+    /** A3, the animal form's «Де зараз тварина» and the shelter page's cities line. */
+    location: {
+      title: "Де зараз тварина",
+      shelter: "У місті притулку ({city})",
+      other: "В іншому місті",
+      shelterCities: "Тварини в: {cities}",
+    },
+    /**
+     * The operator's «Заявки» block (operator only; Phase 0 copy table). Days left on an accepted
+     * application reuse `operator.earlyListing.daysLeft`.
+     */
+    applications: {
+      title: "Заявки ({count})",
+      emailConfirmed: "Email підтверджено",
+      emailUnconfirmed: "Email не підтверджено",
+      duplicate: "Можливий дублікат: {name} ({why})",
+      duplicateWhy: {
+        same_name_city: "та сама назва й місто",
+        same_email: "той самий email",
+        same_link: "те саме посилання",
+      },
+      drafts: "{animals}, {photos}",
+      draftsAnimals: { one: "{count} чернетка", few: "{count} чернетки", many: "{count} чернеток" },
+      draftsPhotos: { one: "{count} фото", few: "{count} фото", many: "{count} фото" },
+      waitingLong: "Чекає понад 36 годин",
+      accept: "Схвалити",
+      reject: "Відхилити",
+      funnel: {
+        title: "Реєстрації за 30 днів",
+        registered: "Зареєструвалися",
+        email_confirmed: "Підтвердили email",
+        first_draft: "Додали чернетку",
+        approved: "Схвалено",
+        first_published: "Опублікували тварину",
+      },
+    },
     /**
      * A count with its noun, for the slots that carry a time span (`{hours}`, `{minutes}`, `{days}`,
      * `{years}`): the noun is picked by `pluralizeUk`, never typed after a placeholder.
@@ -478,6 +634,8 @@ export const uk = {
     },
     /** N12's verification chip labels, as KABINET.md drafts them. */
     profileStatus: {
+      /** Self-registration: the shelter is told «на перевірці», like pending (the banner says the rest). */
+      application: "На перевірці",
       pending: "На перевірці",
       under_review: "На перевірці",
       verified: "Перевірено",
@@ -490,6 +648,7 @@ export const uk = {
      * from «На розгляді»; shelter and public surfaces say «На перевірці» for both (`profileStatus`).
      */
     operatorStatus: {
+      application: "Заявка",
       pending: "Очікує перевірки",
       under_review: "На розгляді",
     },
@@ -1277,6 +1436,37 @@ export const uk = {
      * PR 6's.
      */
     email: {
+      /**
+       * Self-registration emails (A4, approved; `applicationApproved.pending` is his Phase 0 text).
+       * Subjects are filled with applicant text, so the sender strips CR, LF and control characters.
+       */
+      applicationConfirm: {
+        subject: "Підтвердіть email для {site}",
+        body: "Вітаю. Ви зареєстрували притулок «{name}» на {site}. Підтвердіть email, щоб я міг перевірити й схвалити притулок:",
+        action: "Підтвердити email",
+        notYou: "Якщо це були не ви, натисніть «Це не я», і я видалю заявку.",
+        notYouAction: "Це не я",
+        signature: "{operator}, {site}",
+      },
+      applicationApproved: {
+        subject: "Притулок «{name}» схвалено",
+        body: "Я перевірив ваш притулок – усе гаразд. Тепер можна публікувати тварин:",
+        action: "Відкрити кабінет",
+        pending:
+          "Поки біля назви притулку стоїть позначка «На перевірці». Протягом 60 днів я завершу перевірку – напишу вам, щоб домовитися про короткий відеодзвінок.",
+      },
+      applicationRejected: {
+        subject: "Заявка притулку «{name}»",
+        body: "Дякую за заявку. Зараз я не можу її схвалити. Причина: {reason}.",
+        contact:
+          "Якщо це помилка або хочете щось уточнити, напишіть мені на {email} або в Telegram {telegram}.",
+        retention: "Дані заявки я видалю через 30 днів.",
+      },
+      /** Operator only, plain. */
+      operatorNewApplication: {
+        subject: "Нова заявка: {name}, {city}",
+        action: "Відкрити заявки",
+      },
       signIn: {
         subject: "Посилання для входу до кабінету притулку",
         intro: "Добрий день. На цю адресу запитали посилання для входу до кабінету притулку.",
@@ -1626,6 +1816,7 @@ export const uk = {
           bank_account_holder: "Власник банківського рахунку",
           reference_contact: "Рекомендація",
           site_visit: "Відеодзвінок",
+          public_link: "Сайт або сторінка в соцмережі",
           supporting_document: "Документ",
         },
         added: "додано {date}",
@@ -1702,9 +1893,11 @@ export const uk = {
           operator: "адміністратор сайту",
         },
         shelter_created: "Притулок створено",
+        shelter_registered: "Притулок зареєстровано",
         shelter_created_script: "Притулок додано з файлу",
         verification: {
           start_review: "Взято на розгляд",
+          accept_application: "Заявку схвалено",
           approve: "Схвалено → «Перевірено»",
           reject: "Відхилено: {code}. {note}",
           suspend: "Призупинено: {code}. {note}",
@@ -1916,6 +2109,7 @@ export const uk = {
           duplicate_submission: "Повторна заявка",
           out_of_service_area: "Поза територією, де працює сайт",
           spam: "Заявка не схожа на звернення притулку",
+          not_animal_welfare: "Це не притулок чи ініціатива допомоги тваринам",
           other: "Інше",
         },
         suspension: {
@@ -2046,6 +2240,7 @@ export const uk = {
          * is written, and `shelter.animals.update` already takes it.
          */
         medicalNotes: "Медичний стан",
+        location: "Де зараз тварина",
       },
     },
   },

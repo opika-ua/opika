@@ -68,6 +68,7 @@ export const shelterVisibilityOf = (
     case "under_review":
       // The view says `running` only inside the open statuses and the period (server-derived).
       return earlyListing.kind === "running" ? "listed_unverified" : "awaiting_verification";
+    case "application":
     case "rejected":
       return "awaiting_verification";
     case "verified":

@@ -49,6 +49,7 @@ export const ANIMAL_EDITED_FIELDS = [
   "vaccination",
   "spayNeuter",
   "medicalNotes",
+  "location",
   "photos",
 ] as const;
 export type AnimalEditedField = (typeof ANIMAL_EDITED_FIELDS)[number];
@@ -271,15 +272,16 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
    * The operator renamed the shelter on S4 (R-UI 4; Oleksii, R-UI answer 8,
    * verbatim: "Yes: rename as R-UI 4, with a history line."). The display
    * name is public (every card names the shelter by it), so a change is
-   * recorded like the other operator edits. Operator only, hence
-   * `moderatorId` rather than an actor: no shelter-side procedure renames.
+   * recorded like the other operator edits. An actor since self-registration
+   * (D4: a shelter renames itself instantly and the line is the record);
+   * migration 0028 rewrote the older operator-only rows to the moderator actor.
    * Both names are kept, as the other changes keep both values: the line
    * still says what the shelter was called after any later rename.
    */
   z.object({
     kind: z.literal("display_name_changed"),
     at: z.date(),
-    moderatorId: ModeratorIdSchema,
+    actor: ShelterActorSchema,
     from: z.string().min(1),
     to: z.string().min(1),
   }),
@@ -303,6 +305,15 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     at: z.date(),
     moderatorId: ModeratorIdSchema,
     via: z.enum(["registry", "script"]),
+  }),
+  /**
+   * The shelter registered itself (2026-11-18): the registrant is its first admin. Operator-only,
+   * like `shelter_created`, which stays the record for operator-created shelters.
+   */
+  z.object({
+    kind: z.literal("shelter_registered"),
+    at: z.date(),
+    shelterAdminId: ShelterAdminIdSchema,
   }),
   /** The operator invited an admin (registry.admins.invite). */
   z.object({
@@ -420,6 +431,7 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
     case "display_name_changed":
     case "freshness_reminder_changed":
     case "shelter_created":
+    case "shelter_registered":
     case "admin_invited":
     case "admin_invitation_resent":
     case "admin_joined":

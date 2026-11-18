@@ -22,6 +22,7 @@ export const shelterAvailabilityOf = (state: ShelterVerification): ShelterAvaila
       return { kind: "open" };
     case "paused":
       return { kind: "paused", reason: state.reason.code satisfies PauseCode };
+    case "application":
     case "pending":
     case "under_review":
     case "rejected":

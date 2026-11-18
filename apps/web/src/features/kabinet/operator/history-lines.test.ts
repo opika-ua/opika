@@ -357,7 +357,7 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
     {
       kind: "display_name_changed",
       at: AT,
-      moderatorId: ME,
+      actor: { kind: "moderator", moderatorId: ME },
       from: "Лапа",
       to: "Притулок «Лапа допомоги»",
     },

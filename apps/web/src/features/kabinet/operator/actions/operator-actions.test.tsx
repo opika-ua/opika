@@ -147,6 +147,7 @@ describe("whose record is shown", () => {
       rejectedAt: new Date("2026-10-02T09:00:00Z"),
       rejectedBy: MODERATOR,
       reason: { code: "spam", note: "Ні." },
+      stage: "verification",
       evidence: { items: [], submittedAt: AT },
     });
     rerender(

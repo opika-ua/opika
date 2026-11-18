@@ -72,6 +72,25 @@ const nextState = (
   event: VerificationEvent,
 ): ShelterVerification | null => {
   switch (current.status) {
+    // No `approve` from here in v1 (owner, 2026-11-18): verifying straight from an application
+    // needs its own basis and copy, so an accepted application goes through `pending` like any other.
+    case "application":
+      switch (event.type) {
+        case "accept_application":
+          return { status: "pending", submittedAt: event.at, evidence: current.evidence };
+        case "reject":
+          return {
+            status: "rejected",
+            rejectedAt: event.at,
+            rejectedBy: event.moderatorId,
+            reason: event.reason,
+            stage: "application",
+            evidence: current.evidence,
+          };
+        default:
+          return null;
+      }
+
     case "pending":
       switch (event.type) {
         case "start_review":
@@ -87,6 +106,7 @@ const nextState = (
             rejectedAt: event.at,
             rejectedBy: event.moderatorId,
             reason: event.reason,
+            stage: "verification",
             evidence: current.evidence,
           };
         default:
@@ -108,6 +128,7 @@ const nextState = (
             rejectedAt: event.at,
             rejectedBy: event.moderatorId,
             reason: event.reason,
+            stage: "verification",
             evidence: current.evidence,
           };
         default:
@@ -179,11 +200,9 @@ const nextState = (
     case "rejected":
       switch (event.type) {
         case "resubmit":
-          return {
-            status: "pending",
-            submittedAt: event.at,
-            evidence: event.evidence,
-          };
+          return current.stage === "application"
+            ? { status: "application", appliedAt: event.at, evidence: event.evidence }
+            : { status: "pending", submittedAt: event.at, evidence: event.evidence };
         default:
           return null;
       }
@@ -216,6 +235,7 @@ const nextState = (
             rejectedAt: event.at,
             rejectedBy: event.moderatorId,
             reason: event.reason,
+            stage: "verification",
             evidence: current.evidence,
           };
         default:

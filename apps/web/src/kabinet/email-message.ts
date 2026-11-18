@@ -25,6 +25,8 @@ export type EmailParts = {
   /** Null for an email that carries no link at all (the «пароль змінено» notice). */
   link: EmailLink | null;
   after: readonly string[];
+  /** A second link after `after` (self-registration's «Це не я»); a label like the first. */
+  trailingLink?: EmailLink;
 };
 
 /**
@@ -56,20 +58,29 @@ const escapeHtml = (text: string) =>
 
 export function emailBody(to: string, parts: EmailParts): OutgoingEmail {
   const link = parts.link;
-  if (link !== null && looksLikeUrl(link.label)) {
-    throw new Error("An email link's text must be a label, never a URL (IN-E8).");
+  const trailing = parts.trailingLink ?? null;
+  for (const each of [link, trailing]) {
+    if (each !== null && looksLikeUrl(each.label)) {
+      throw new Error("An email link's text must be a label, never a URL (IN-E8).");
+    }
   }
   // A line break inside one paragraph (the invite's `{operator}` signature
   // under its last sentence) stays a line break in HTML, not a collapsed space.
   const paragraph = (text: string) => `<p>${escapeHtml(text).replaceAll("\n", "<br>")}</p>`;
+  const anchor = (each: EmailLink) =>
+    `<p><a href="${escapeHtml(each.url)}">${escapeHtml(each.label)}</a></p>`;
   const html = [
     ...parts.before.map(paragraph),
-    ...(link === null
-      ? []
-      : [`<p><a href="${escapeHtml(link.url)}">${escapeHtml(link.label)}</a></p>`]),
+    ...(link === null ? [] : [anchor(link)]),
     ...parts.after.map(paragraph),
+    ...(trailing === null ? [] : [anchor(trailing)]),
   ].join("");
-  const text = [...parts.before, ...(link === null ? [] : [link.url]), ...parts.after].join("\n\n");
+  const text = [
+    ...parts.before,
+    ...(link === null ? [] : [link.url]),
+    ...parts.after,
+    ...(trailing === null ? [] : [`${trailing.label}: ${trailing.url}`]),
+  ].join("\n\n");
   return { to, subject: parts.subject, html, text };
 }
 

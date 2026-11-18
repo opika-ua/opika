@@ -12,7 +12,11 @@ const MOD = "11111111-1111-4111-8111-111111111111" as never;
 const evidence = { items: [], submittedAt: AT };
 
 const viewAt = (verification: ShelterVerification, since: Date | null, now: Date) =>
-  kabinetShelterViewOf(makeShelter({ verification, earlyListingSince: since }), now).earlyListing;
+  kabinetShelterViewOf(
+    makeShelter({ verification, earlyListingSince: since }),
+    { source: "operator" },
+    now,
+  ).earlyListing;
 
 const pending: ShelterVerification = { status: "pending", submittedAt: AT, evidence };
 
@@ -50,6 +54,7 @@ describe("kabinetShelterViewOf: earlyListing", () => {
       rejectedAt: AT,
       rejectedBy: MOD,
       reason: { code: "spam", note: null },
+      stage: "verification",
       evidence,
     };
     const paused: ShelterVerification = {

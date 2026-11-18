@@ -326,6 +326,11 @@ describe("why nobody sees the cards (his answer 5)", () => {
       kind: "paused",
       line: "Прийом звернень на паузі з 10 жовтня 2026 р. · Переїзд",
     },
+    // Pending's line until the application banner lands (Agent 3, A3 «kab.pending»).
+    application: {
+      kind: "line",
+      text: "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",
+    },
     pending: {
       kind: "line",
       text: "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",

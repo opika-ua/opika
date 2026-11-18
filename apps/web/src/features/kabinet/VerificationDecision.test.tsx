@@ -23,6 +23,7 @@ const view = (verification: KabinetShelterView["verification"]): KabinetShelterV
   id: "51000000-0000-4000-8000-000000000001" as KabinetShelterView["id"],
   displayName: "Притулок «Домівка»",
   earlyListing: { kind: "none" },
+  registration: { source: "operator" },
   description: { uk: "Опис", en: null },
   legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена Коваль" },
   cityId: "c1000000-0000-4000-8000-000000000001" as never,

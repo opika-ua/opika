@@ -58,6 +58,7 @@ const channelKey = (channel: ContactChannel): string => {
  * - bank_account_holder: the holder name (trimmed, case-insensitive)
  * - reference_contact: the contact channel, kind and value (name and relationship ignored)
  * - site_visit: the visit date (notes and who recorded it are ignored)
+ * - public_link: the normalised URL
  * - supporting_document: the document key
  */
 export function evidenceDuplicateKey(item: EvidenceItem): string {
@@ -70,6 +71,8 @@ export function evidenceDuplicateKey(item: EvidenceItem): string {
       return `${item.kind}|${channelKey(item.channel)}`;
     case "site_visit":
       return `${item.kind}|${item.visitedAt.toISOString()}`;
+    case "public_link":
+      return `${item.kind}|${item.url}`;
     case "supporting_document":
       return `${item.kind}|${item.documentKey}`;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */

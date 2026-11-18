@@ -94,6 +94,7 @@ const rejected = withVerification(pending, {
   rejectedAt: AT,
   rejectedBy: MODERATOR,
   reason: { code: "spam", note: "Це не притулок." },
+  stage: "verification",
   evidence: NONE,
 });
 

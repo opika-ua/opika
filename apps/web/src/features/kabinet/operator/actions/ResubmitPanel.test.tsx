@@ -28,6 +28,7 @@ const rejectedWith = (items: RegistryShelterView["verification"]["evidence"]["it
     rejectedAt: AT,
     rejectedBy: MODERATOR,
     reason: { code: "insufficient_evidence", note: "Бракує другої рекомендації." },
+    stage: "verification",
     evidence: { items, submittedAt: AT },
   });
 

@@ -101,6 +101,11 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     moderatorId: MOD,
     via: "registry",
   },
+  shelter_registered: {
+    kind: "shelter_registered",
+    at: new Date("2026-10-09T00:00:00.000Z"),
+    shelterAdminId: ADMIN.shelterAdminId,
+  },
   admin_invited: {
     kind: "admin_invited",
     at: new Date("2026-10-10T00:00:00.000Z"),
@@ -168,7 +173,7 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
   display_name_changed: {
     kind: "display_name_changed",
     at: new Date("2026-10-19T00:00:00.000Z"),
-    moderatorId: MOD,
+    actor: { kind: "moderator", moderatorId: MOD },
     from: "Лапа",
     to: "Лапа допомоги",
   },
@@ -306,10 +311,16 @@ describe("display_name_changed (R-UI 4)", () => {
   const renamed = ENTRIES.display_name_changed;
 
   /** Only the operator renames: a line naming a shelter admin is a shape history never holds. */
-  it("refuses an actor-shaped author: a rename is recorded with a moderator id only", () => {
-    expect(ShelterHistoryEntrySchema.safeParse({ ...renamed, moderatorId: ADMIN }).success).toBe(
-      false,
-    );
+  it("records who renamed: the operator or, since self-registration, the shelter's own admin (D4)", () => {
+    expect(ShelterHistoryEntrySchema.safeParse({ ...renamed, actor: ADMIN }).success).toBe(true);
+  });
+
+  it("refuses the pre-0028 shape, a bare moderator id with no actor", () => {
+    const { actor: _a, ...bare } = renamed as Extract<
+      ShelterHistoryEntry,
+      { kind: "display_name_changed" }
+    >;
+    expect(ShelterHistoryEntrySchema.safeParse({ ...bare, moderatorId: MOD }).success).toBe(false);
   });
 
   it("refuses a line missing either name, or with an empty one", () => {
@@ -421,6 +432,7 @@ describe("historyEntryAt", () => {
         "2026-10-07",
         "2026-10-07",
         "2026-10-08",
+        "2026-10-09",
         "2026-10-09",
         "2026-10-10",
         "2026-10-11",

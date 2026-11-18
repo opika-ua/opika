@@ -1,9 +1,16 @@
 import type { apiErrors, KabinetEarlyListing, KabinetShelterView } from "@opika/contracts";
-import { type AuditedShelterChange, kabinetShelterRepo, shelterRepo } from "@opika/db/repos";
+import {
+  type AuditedShelterChange,
+  kabinetShelterRepo,
+  registrationFactsRepo,
+  type ShelterRegistrationFacts,
+  shelterRepo,
+} from "@opika/db/repos";
 import {
   donationProviderOf,
   earlyListingOf,
   earlyListingRemaining,
+  isDecidedInQueue,
   type LocalizedText,
   type PauseReason,
   type Shelter,
@@ -38,7 +45,11 @@ type TransitionErrors = ORPCErrorConstructorMap<{
  * and no moderator ids. `earlyListing` carries the end date while the permission runs (N13)
  * and the date it ended while the review is still open; the public never gets a date.
  */
-export function kabinetShelterViewOf(shelter: Shelter, now: Date): KabinetShelterView {
+export function kabinetShelterViewOf(
+  shelter: Shelter,
+  registration: ShelterRegistrationFacts,
+  now: Date,
+): KabinetShelterView {
   return {
     id: shelter.id,
     displayName: shelter.displayName,
@@ -53,6 +64,7 @@ export function kabinetShelterViewOf(shelter: Shelter, now: Date): KabinetShelte
     version: shelter.version,
     verification: shelterFacingVerificationOf(shelter.verification),
     earlyListing: kabinetEarlyListingOf(shelter, now),
+    registration,
   };
 }
 
@@ -67,7 +79,7 @@ function kabinetEarlyListingOf(shelter: Shelter, now: Date): KabinetEarlyListing
     case "none":
       return { kind: "none" };
     case "running":
-      return { kind: "running", expiresAt: remaining.expiresAt };
+      return { kind: "running", expiresAt: remaining.expiresAt, daysLeft: remaining.daysLeft };
     case "lapsed":
       return { kind: "ended", endedAt: remaining.expiredAt };
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
@@ -88,6 +100,16 @@ async function load(deps: ProfileDeps, shelterId: ShelterId): Promise<Shelter> {
   const shelter = await shelterRepo(deps.db).findById(shelterId);
   if (shelter === null) throw new Error(`Scope names missing shelter ${shelterId}`);
   return shelter;
+}
+
+/** The view as it stands now: the shelter re-read after any write, with how it came to be. */
+async function viewOf(deps: ProfileDeps, shelterId: ShelterId): Promise<KabinetShelterView> {
+  const [shelter, registration] = await Promise.all([
+    load(deps, shelterId),
+    registrationFactsRepo(deps.db).of(shelterId),
+  ]);
+  if (registration === null) throw new Error(`Scope names missing shelter ${shelterId}`);
+  return kabinetShelterViewOf(shelter, registration, deps.now);
 }
 
 const actorOf = (scope: ShelterWriteScope): ShelterActor => ({
@@ -139,7 +161,7 @@ async function editFromForm(
   if (shelter.version !== expectedVersion) throw errors.CONFLICT();
   const result = await write(deps, shelter, expectedVersion, plan(shelter));
   if (result.kind === "conflict") throw errors.CONFLICT();
-  return kabinetShelterViewOf(await load(deps, scope.shelterId), deps.now);
+  return viewOf(deps, scope.shelterId);
 }
 
 /**
@@ -159,8 +181,7 @@ async function tapWithRetry(
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     const shelter = await load(deps, scope.shelterId);
     const result = await write(deps, shelter, shelter.version, plan(shelter));
-    if (result.kind === "ok")
-      return kabinetShelterViewOf(await load(deps, scope.shelterId), deps.now);
+    if (result.kind === "ok") return viewOf(deps, scope.shelterId);
   }
   throw new Error(`Shelter ${scope.shelterId}: lost ${MAX_ATTEMPTS} races in a row`);
 }
@@ -169,7 +190,7 @@ export async function profileGet(
   deps: ProfileDeps,
   scope: ShelterReadScope,
 ): Promise<KabinetShelterView> {
-  return kabinetShelterViewOf(await load(deps, scope.shelterId), deps.now);
+  return viewOf(deps, scope.shelterId);
 }
 
 export const profileUpdateContact = (
@@ -367,6 +388,11 @@ function verificationMove(
 ): Promise<KabinetShelterView> {
   return tapWithRetry(deps, scope, (shelter) => {
     const event = eventOf(shelter);
+    if (isDecidedInQueue(shelter.verification)) {
+      throw errors.ILLEGAL_TRANSITION({
+        data: { machine: "verification", from: shelter.verification.status, event: event.type },
+      });
+    }
     const result = transition(shelter.verification, event);
     if (result.kind === "illegal") {
       throw errors.ILLEGAL_TRANSITION({

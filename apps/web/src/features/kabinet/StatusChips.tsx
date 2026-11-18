@@ -22,6 +22,7 @@ const LISTING_LOOK: Record<ListingKind, Look> = {
 
 const VERIFICATION_LOOK: Record<ShelterVerification["status"], Look> = {
   verified: { kind: "status", tone: "published" },
+  application: { kind: "status", tone: "reserved" },
   pending: { kind: "status", tone: "reserved" },
   under_review: { kind: "status", tone: "reserved" },
   paused: { kind: "status", tone: "withdrawn" },

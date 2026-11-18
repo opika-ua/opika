@@ -39,6 +39,7 @@ const rejectedWith = (note: string): RegistryShelterView =>
     rejectedAt: AT,
     rejectedBy: MODERATOR,
     reason: { code: "spam", note },
+    stage: "verification",
     evidence: NONE,
   });
 const suspendedWith = (note: string): RegistryShelterView =>

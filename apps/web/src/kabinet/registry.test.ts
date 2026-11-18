@@ -831,7 +831,7 @@ describe("registry.shelters.updateProfile: the rename (R-UI 4)", () => {
       {
         kind: "display_name_changed",
         at: NOW,
-        moderatorId: OPERATOR,
+        actor: { kind: "moderator", moderatorId: OPERATOR },
         from: "Лапа",
         to: "Притулок «Лапа допомоги»",
       },
@@ -1205,6 +1205,41 @@ describe("registry.verification.*", () => {
     expect(reinstated.body.verification.status).toBe("verified");
   });
 
+  /** Self-registration: an application, or a refused one, is decided in the «Заявки» block only. */
+  it("S4's moves can't decide an application or resubmit a refused one", async () => {
+    const applied = await shelter({
+      verification: { status: "application", appliedAt: NOW, evidence },
+    });
+    const rejectedApplication = await call<{ data: unknown }>("registry.verification.reject", {
+      shelterId: applied.id,
+      reason: { code: "spam", note: "Не притулок" },
+    });
+    expect(rejectedApplication.status).toBe(409);
+    expect(rejectedApplication.body.data).toEqual({
+      machine: "verification",
+      from: "application",
+      event: "reject",
+    });
+
+    const refused = await shelter({
+      verification: {
+        status: "rejected",
+        rejectedAt: NOW,
+        rejectedBy: OPERATOR as ModeratorId,
+        reason: { code: "not_animal_welfare", note: null },
+        stage: "application",
+        evidence,
+      },
+    });
+    const resubmitted = await call<{ data: unknown }>("registry.verification.resubmit", {
+      shelterId: refused.id,
+      evidence: createInput().evidence,
+    });
+    expect(resubmitted.status).toBe(409);
+    expect((await shelterRepo(db).findById(applied.id))?.verification.status).toBe("application");
+    expect((await shelterRepo(db).findById(refused.id))?.verification.status).toBe("rejected");
+  });
+
   it("rejects with a required note, and resubmits amended evidence back to pending", async () => {
     const s = await shelter({ verification: STATES.under_review });
     expect(
@@ -1278,6 +1313,7 @@ describe("registry.verification.resubmit keeps what its input can't carry", () =
         rejectedAt: NOW,
         rejectedBy: OPERATOR as ModeratorId,
         reason: { code: "spam", note: "Немає документів" },
+        stage: "verification",
         evidence: { items: [REFERENCE, DOCUMENT, VISIT], submittedAt: new Date("2026-10-04") },
       },
     });
@@ -1444,6 +1480,7 @@ describe("registry.verification.addEvidence", () => {
               rejectedAt: NOW,
               rejectedBy: OPERATOR as ModeratorId,
               reason: { code: "spam", note: "Ні" },
+              stage: "verification",
               evidence,
             };
       const s = await shelter({ verification });
@@ -1551,6 +1588,7 @@ describe("registry.verification.addEvidence", () => {
         rejectedAt: NOW,
         rejectedBy: OPERATOR as ModeratorId,
         reason: { code: "spam", note: "Ні" },
+        stage: "verification",
         evidence,
       },
     });
@@ -2389,6 +2427,7 @@ describe("invitation emails: every write that makes an invitation live sends one
     rejectedAt: NOW,
     rejectedBy: OPERATOR as ModeratorId,
     reason: { code: "spam", note: null },
+    stage: "verification",
     evidence,
   };
   /** His decision (PC-T10), written out per status, never derived from the code under test. */

@@ -2,9 +2,11 @@ import {
   AgeBucketSchema,
   AnimalColourSchema,
   AnimalIdSchema,
+  AnimalLocationSchema,
   AnimalNameInputSchema,
   AnimalSexSchema,
   AnimalSpeciesSchema,
+  ApplicationRejectionReasonSchema,
   animalDescriptionProblem,
   animalDescriptionProblemMessage,
   CalendarDateSchema,
@@ -58,6 +60,8 @@ import {
   supportExit,
 } from "./access";
 import {
+  ApplicationDecisionResultSchema,
+  ApplicationsQueueViewSchema,
   BlockedAddressesViewSchema,
   CreatedShelterViewSchema,
   EmailSendOutcomeSchema,
@@ -333,9 +337,28 @@ export const shelterProfileContract = {
     .input(z.strictObject({ description: ShelterDescriptionInputSchema, expectedVersion }))
     .errors(shelterCasErrors),
   /** The provider is derived from the URL on the server (`donationProviderOf`), never sent. */
+  /**
+   * Name and base city, the two fields adopters see that a shelter could not change itself
+   * before self-registration (§4). A rename is instant and logged (D4); a city change moves the
+   * animals that follow the shelter's city, as the operator's address change does (P0-5).
+   */
+  updateIdentity: shelterProfileWrite
+    .input(
+      z
+        .strictObject({
+          displayName: ShelterDisplayNameInputSchema.optional(),
+          cityId: CityIdSchema.optional(),
+          expectedVersion,
+        })
+        .refine((input) => input.displayName !== undefined || input.cityId !== undefined, {
+          message: "Empty update",
+        }),
+    )
+    .errors(shelterCasErrors),
+  /** The provider is derived from the URL on the server (`donationProviderOf`), never sent. */
   proposeDonation: shelterProfileWrite
     .input(z.strictObject({ url: DonationProposalUrlSchema }))
-    .errors(shelterScopedErrors),
+    .errors({ ...shelterScopedErrors, AWAITING_APPROVAL: apiErrors.AWAITING_APPROVAL }),
   cancelDonationProposal: shelterProfileWrite.input(empty).errors(shelterScopedErrors),
   pause: shelterProfileWrite
     .input(z.strictObject({ reason: PauseReasonInputSchema }))
@@ -428,6 +451,8 @@ export const AnimalPatchSchema = z
     vaccination: MedicalDeclarationInputSchema,
     spayNeuter: MedicalDeclarationInputSchema,
     medicalNotes: MedicalNotesInputSchema.nullable(),
+    /** «Де зараз тварина» (§12.2). */
+    location: AnimalLocationSchema,
   })
   .partial()
   .refine((patch) => Object.keys(patch).length > 0, { message: "Empty patch" });
@@ -505,7 +530,7 @@ export const shelterAnimalsContract = {
    */
   createDraft: animalWrite
     .input(z.strictObject({ name: AnimalNameInputSchema, species: AnimalSpeciesSchema }))
-    .errors(shelterScopedErrors),
+    .errors({ ...shelterScopedErrors, DRAFT_LIMIT_REACHED: apiErrors.DRAFT_LIMIT_REACHED }),
   /**
    * Compare-and-set on `version` (S3-T6); bumps `lastUpdatedAt` and `version`,
    * never `confirmedAt` (commitment #7) and never `photos` (RH-B3).
@@ -535,6 +560,7 @@ export const shelterAnimalsContract = {
     .errors({
       ...animalMoveErrors,
       PUBLISH_REQUIREMENTS_UNMET: apiErrors.PUBLISH_REQUIREMENTS_UNMET,
+      AWAITING_APPROVAL: apiErrors.AWAITING_APPROVAL,
     }),
   /** «Ще шукає»: one animal per call, never bulk (commitment #7). */
   confirm: shelterWriteProcedure
@@ -1095,4 +1121,33 @@ export const registryCitiesContract = {
     )
     .output(PlaceSearchResultSchema)
     .errors({ UNAUTHENTICATED: apiErrors.UNAUTHENTICATED, FORBIDDEN: apiErrors.FORBIDDEN }),
+};
+
+// ─── registry.applications (self-registration, 2026-11-18) ──────────────────
+
+const applicationDecision = { shelterId: ShelterIdSchema, expectedVersion };
+
+/**
+ * The operator's queue (§3). Decisions are conditional on the status read (`WHERE status =
+ * 'application'`), so a second tab or a double click answers `already_decided`; the version
+ * travels with the decision like every S4 form, so an applicant's edit since is CONFLICT.
+ */
+export const registryApplicationsContract = {
+  list: kabinet
+    .$meta(registry)
+    .input(empty)
+    .output(ApplicationsQueueViewSchema)
+    .errors(registryErrors),
+  /** «Схвалити»: to `pending` with the first early-listing period (P0-1 (A)). */
+  accept: kabinet
+    .$meta(registry)
+    .input(z.strictObject(applicationDecision))
+    .output(ApplicationDecisionResultSchema)
+    .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
+  /** «Відхилити» with a preset reason (A5); «Інше» needs its text. */
+  reject: kabinet
+    .$meta(registry)
+    .input(z.strictObject({ ...applicationDecision, reason: ApplicationRejectionReasonSchema }))
+    .output(ApplicationDecisionResultSchema)
+    .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
 };

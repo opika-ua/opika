@@ -57,6 +57,8 @@ const rowOf = (item: EvidenceItem, id: string): EvidenceRow | null => {
         visitedOn: dateValue(kyivCalendarDateOf(item.visitedAt)),
         notes: item.notes,
       };
+    // The applicant's own link: kept on file, not re-entered in the operator's form.
+    case "public_link":
     case "supporting_document":
       return null;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */

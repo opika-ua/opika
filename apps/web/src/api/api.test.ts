@@ -1086,7 +1086,7 @@ describe("reveal views name the shelter from the same moment as its contacts (RU
       entry: {
         kind: "display_name_changed",
         at: new Date(),
-        moderatorId: OPERATOR as never,
+        actor: { kind: "moderator", moderatorId: OPERATOR as never },
         from,
         to,
       },

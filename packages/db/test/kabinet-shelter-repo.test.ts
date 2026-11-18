@@ -196,7 +196,7 @@ describe("kabinetShelterRepo.applyAudited", () => {
     const renamed = (from: string, to: string): ShelterHistoryEntry => ({
       kind: "display_name_changed",
       at: NOW,
-      moderatorId: MODERATOR,
+      actor: { kind: "moderator", moderatorId: MODERATOR },
       from,
       to,
     });

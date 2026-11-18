@@ -11,6 +11,7 @@ import {
 } from "../api/cursor";
 import type { AccessDecision } from "./access";
 import type { KabinetContext } from "./context";
+import { applicationsAccept, applicationsList, applicationsReject } from "./handlers/applications";
 import { registryCitiesSearch } from "./handlers/registry-cities";
 import { registryAdminsBlockedAddresses } from "./handlers/registry-email-status";
 import {
@@ -221,6 +222,17 @@ export const registryRouter = guarded.router({
         await enterSupport(context, moderatorId, input.shelterId);
         return {};
       }),
+    },
+    applications: {
+      list: guarded.registry.applications.list.handler(({ context }) =>
+        applicationsList(context, operator(context.access)),
+      ),
+      accept: guarded.registry.applications.accept.handler(({ context, input, errors }) =>
+        applicationsAccept(context, operator(context.access), input, errors),
+      ),
+      reject: guarded.registry.applications.reject.handler(({ context, input, errors }) =>
+        applicationsReject(context, operator(context.access), input, errors),
+      ),
     },
   },
   session: {

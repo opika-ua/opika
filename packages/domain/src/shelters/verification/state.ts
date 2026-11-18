@@ -61,7 +61,25 @@ export type InterruptedState = z.infer<typeof InterruptedStateSchema>;
  * call. A reason code cannot carry a permission, so encoding the difference in
  * one would push that rule out to every call site.
  */
+/**
+ * Which step a rejection refused: a self-registered application (before anything was public) or a
+ * verification. `resubmit` returns each to where it came from, so a refused applicant can't skip
+ * the approval gate by resubmitting into `pending`.
+ */
+export const REJECTION_STAGES = ["application", "verification"] as const;
+export const RejectionStageSchema = z.enum(REJECTION_STAGES);
+export type RejectionStage = z.infer<typeof RejectionStageSchema>;
+
 export const ShelterVerificationSchema = z.discriminatedUnion("status", [
+  /**
+   * A self-registered shelter awaiting the operator's approval: nothing of it is public, and it
+   * cannot publish. Operator-created shelters never pass through it (they start in `pending`).
+   */
+  z.object({
+    status: z.literal("application"),
+    appliedAt: z.date(),
+    evidence: VerificationEvidenceSchema,
+  }),
   z.object({
     status: z.literal("pending"),
     submittedAt: z.date(),
@@ -83,6 +101,7 @@ export const ShelterVerificationSchema = z.discriminatedUnion("status", [
     rejectedAt: z.date(),
     rejectedBy: ModeratorIdSchema,
     reason: RejectionReasonSchema,
+    stage: RejectionStageSchema,
     evidence: VerificationEvidenceSchema,
   }),
   z.object({
@@ -104,6 +123,7 @@ export type ShelterVerification = z.infer<typeof ShelterVerificationSchema>;
 export type VerificationStatus = ShelterVerification["status"];
 
 export const VERIFICATION_STATUSES = [
+  "application",
   "pending",
   "under_review",
   "verified",
@@ -118,6 +138,8 @@ export const VerificationStatusSchema = z.enum(VERIFICATION_STATUSES);
 /** The instant the current state was entered. Used to reject out-of-order events. */
 export const enteredAt = (state: ShelterVerification): Date => {
   switch (state.status) {
+    case "application":
+      return state.appliedAt;
     case "pending":
       return state.submittedAt;
     case "under_review":

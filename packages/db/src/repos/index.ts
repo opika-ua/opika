@@ -2,6 +2,10 @@ export { erasableIf, eraseUsersAndScrubHistory } from "./admin-erasure-repo";
 export { adopterRepo, ORPHAN_ADOPTER_MIN_AGE_MS } from "./adopter-repo";
 export { animalRepo } from "./animal-repo";
 export {
+  type ApplicationDeletionOutcome,
+  applicationDeletionRepo,
+} from "./application-deletion-repo";
+export {
   type AuthExpiryCounts,
   authExpiryRepo,
   KABINET_SESSION_LIMITS,
@@ -11,6 +15,7 @@ export { authResetLinkRepo } from "./auth-reset-link-repo";
 export type { CardCity, CardShelter } from "./card-places";
 export { cityRepo } from "./city-repo";
 export { citySearchRepo } from "./city-search-repo";
+export { type FunnelRecordOutcome, funnelRepo } from "./funnel-repo";
 export {
   type GalleryCardPage,
   type GalleryPage,
@@ -88,6 +93,7 @@ export {
   stillUnreferenced,
   trackedUnreferencedObjects,
 } from "./r2-cleanup-repo";
+export { registrationFactsRepo, type ShelterRegistrationFacts } from "./registration-facts-repo";
 export { type RevealBudget, type RevealInsertOutcome, revealRepo } from "./reveal-repo";
 export {
   ADOPTER_CLEANUP_BATCH,

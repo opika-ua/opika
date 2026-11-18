@@ -201,10 +201,20 @@ export function shelterToRow(shelter: Shelter): ShelterInsert {
     freshnessReminderOffAt: shelter.freshnessReminderOffAt,
     cityId: shelter.publicLocation.cityId,
     ...exactPointColumns(shelter.exactAddress),
+    ...registrationColumns(shelter.verification),
     createdAt: shelter.createdAt,
     lastUpdatedAt: shelter.lastUpdatedAt,
   };
 }
+
+/**
+ * A shelter inserted as an application is self-registered by definition (the CHECKs hold the two
+ * together); its registrant is set by the registration write itself, never here.
+ */
+const registrationColumns = (verification: Shelter["verification"]) =>
+  verification.status === "application"
+    ? { registrationSource: "self_registration" as const, appliedAt: verification.appliedAt }
+    : { registrationSource: "operator" as const, appliedAt: null };
 
 /** The write-only point columns: both null when the address, or just its point, is not known. */
 export const exactPointColumns = (

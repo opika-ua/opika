@@ -96,7 +96,11 @@ export function offeredActionsOf(
     case "paused":
       return [{ event: "suspend" }];
     case "rejected":
-      return [{ event: "resubmit" }];
+      // A refused application is decided in the «Заявки» block only (`isDecidedInQueue`).
+      return verification.stage === "application" ? [] : [{ event: "resubmit" }];
+    // Decided in the «Заявки» block (registry.applications.*), not on S4.
+    case "application":
+      return [];
     case "suspended":
       return [{ event: "reinstate", to: verification.priorState }, { event: "reject" }];
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled status; unreachable at runtime */

@@ -87,6 +87,7 @@ function sameTypedFacts(onFile: EvidenceItem, sent: EvidenceItem): boolean {
     case "bank_account_holder":
       return sent.kind === "bank_account_holder" && sameText(sent.holderName, onFile.holderName);
     case "reference_contact":
+    case "public_link":
     case "supporting_document":
       return false;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */

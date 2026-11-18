@@ -24,6 +24,7 @@ const baseView = (overrides: Partial<KabinetShelterView> = {}): KabinetShelterVi
   id: "51000000-0000-4000-8000-000000000001" as KabinetShelterView["id"],
   displayName: "Притулок «Домівка»",
   earlyListing: { kind: "none" },
+  registration: { source: "operator" },
   description: { uk: "Опис", en: null },
   legalEntity: {
     kind: "registered_ngo",

@@ -51,6 +51,8 @@ const stateOf = (
 ): ShelterVerification => {
   const evidence = { items, submittedAt: AT };
   switch (status) {
+    case "application":
+      return { status, appliedAt: AT, evidence };
     case "pending":
       return { status, submittedAt: AT, evidence };
     case "under_review":
@@ -63,6 +65,7 @@ const stateOf = (
         rejectedAt: AT,
         rejectedBy: MOD,
         reason: { code: "spam", note: null },
+        stage: "verification",
         evidence,
       };
     case "paused":

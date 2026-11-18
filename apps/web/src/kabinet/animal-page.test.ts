@@ -203,6 +203,7 @@ const EVIDENCE = { items: [], submittedAt: AT };
 const VERIFIED_FACTS = { verifiedAt: AT, verifiedBy: OPERATOR };
 const VERIFICATION_IN: { [S in VerificationStatus]: Extract<ShelterVerification, { status: S }> } =
   {
+    application: { status: "application", appliedAt: AT, evidence: EVIDENCE },
     pending: { status: "pending", submittedAt: AT, evidence: EVIDENCE },
     under_review: {
       status: "under_review",
@@ -216,6 +217,7 @@ const VERIFICATION_IN: { [S in VerificationStatus]: Extract<ShelterVerification,
       rejectedAt: AT,
       rejectedBy: OPERATOR,
       reason: { code: "insufficient_evidence", note: null },
+      stage: "verification",
       evidence: EVIDENCE,
     },
     paused: {
@@ -243,6 +245,7 @@ const VERIFICATION_IN: { [S in VerificationStatus]: Extract<ShelterVerification,
  * sentence is false (docs review of #116).
  */
 const EXPECTED_VISIBILITY: Record<VerificationStatus, ShelterVisibility> = {
+  application: "awaiting_verification",
   pending: "awaiting_verification",
   under_review: "awaiting_verification",
   verified: "visible",
@@ -257,6 +260,8 @@ const PUBLISHED_NOT_SHOWN =
   "Опубліковано. Ті, хто шукає тварину, побачать картку, щойно притулок пройде перевірку.";
 const PUBLISHED_HIDDEN = "Опубліковано. Цю картку зараз ніхто не бачить.";
 const ANNOUNCED: Record<VerificationStatus, string> = {
+  // Until the publish gate lands (Agent 3: AWAITING_APPROVAL), an application publishes like pending.
+  application: PUBLISHED_NOT_SHOWN,
   pending: PUBLISHED_NOT_SHOWN,
   under_review: PUBLISHED_NOT_SHOWN,
   verified: PUBLISH_DONE,
@@ -281,7 +286,11 @@ describe("shelterVisibilityOf: every verification status, and what publishing th
   });
 
   it("a running early listing makes pending and under_review listed, with its own announcement; nothing else changes", () => {
-    const running = { kind: "running", expiresAt: new Date("2026-12-01T00:00:00Z") } as const;
+    const running = {
+      kind: "running",
+      expiresAt: new Date("2026-12-01T00:00:00Z"),
+      daysLeft: 10,
+    } as const;
     for (const status of VERIFICATION_STATUSES) {
       const visibility = shelterVisibilityOf(status, running);
       const open = status === "pending" || status === "under_review";

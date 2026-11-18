@@ -20,6 +20,7 @@ const EVIDENCE = {
 };
 
 const STATES: ShelterVerification[] = [
+  { status: "application", appliedAt: AT, evidence: EVIDENCE },
   { status: "pending", submittedAt: AT, evidence: EVIDENCE },
   { status: "under_review", startedAt: AT, reviewerId: MOD, evidence: EVIDENCE },
   { status: "verified", verifiedAt: AT, verifiedBy: MOD, evidence: EVIDENCE },
@@ -37,6 +38,7 @@ const STATES: ShelterVerification[] = [
     rejectedAt: AT,
     rejectedBy: MOD,
     reason: { code: "insufficient_evidence", note: "Бракує другої рекомендації" },
+    stage: "verification",
     evidence: EVIDENCE,
   },
   {

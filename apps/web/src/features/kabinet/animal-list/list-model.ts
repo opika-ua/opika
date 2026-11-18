@@ -344,6 +344,8 @@ export const visibilityNoticeOf = (
         }),
       };
     }
+    // Agent 3 gives the application its own banner (A3 «kab.pending»); until then, pending's line.
+    case "application":
     case "pending":
     case "under_review":
       // While the dated banner shows, it says it (the label is said once on the page).
