@@ -159,7 +159,6 @@ function streetAddressOf(
       line2: trimmedOrNull(form.line2),
       postalCode: trimmedOrNull(form.postalCode),
       district: null,
-      coordinates: null,
     },
   };
 }

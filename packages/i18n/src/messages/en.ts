@@ -1751,9 +1751,6 @@ export const en = {
           line2: "Block, premises · optional",
           postalCode: "Postcode · optional",
         },
-        coordinates: "Coordinates",
-        coordinatesHint:
-          "Copy them from a map as «latitude, longitude». Never shown: people see the city only.",
         legalTitle: "Legal details",
         laterHint: "Can be filled in later. The shelter can't be approved without it.",
         legalKind: {
@@ -1799,8 +1796,6 @@ export const en = {
           required: "This field is required.",
           nameTooLong: "The name is longer than {max} characters.",
           edrpouFormat: "An EDRPOU code is 8 digits.",
-          coordinatesFormat:
-            "Enter the coordinates as «latitude, longitude», for example «50.4501, 30.5234».",
         },
       },
       email: {

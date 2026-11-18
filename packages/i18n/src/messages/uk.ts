@@ -2014,9 +2014,6 @@ export const uk = {
           line2: "Корпус, приміщення · необовʼязково",
           postalCode: "Індекс · необовʼязково",
         },
-        coordinates: "Координати",
-        coordinatesHint:
-          "Скопіюйте з карти у форматі «широта, довгота». Ніде не показуються: люди бачать лише місто.",
         legalTitle: "Юридичні дані",
         /** Under «Юридичні дані» and the address block: both are optional at create. */
         laterHint: "Можна заповнити пізніше. Без цього притулок не схвалити.",
@@ -2070,8 +2067,6 @@ export const uk = {
            */
           nameTooLong: "Назва довша за {max} символів.",
           edrpouFormat: "Код ЄДРПОУ – 8 цифр.",
-          coordinatesFormat:
-            "Вкажіть координати як «широта, довгота», наприклад «50.4501, 30.5234».",
         },
       },
       email: {

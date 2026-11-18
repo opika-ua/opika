@@ -796,8 +796,11 @@ export const registrySheltersContract = {
         description: ShelterDescriptionInputSchema.optional(),
         /** Null: added later through `updateVerifiedData`; approval waits for it. */
         legalEntity: ShelterLegalEntitySchema.nullable(),
-        /** Without `cityId`: the address is in the shelter's city by construction. */
-        exactAddress: ExactAddressSchema.omit({ cityId: true }).nullable(),
+        /**
+         * Without `cityId`: the address is in the shelter's city by construction. No point either
+         * (P0-6): nothing reads one, so the handler stores null.
+         */
+        exactAddress: ExactAddressSchema.omit({ cityId: true, coordinates: true }).nullable(),
         contact: ShelterContactInputSchema,
         evidence: z.array(EvidenceItemInputSchema).readonly(),
         firstAdmin: z.strictObject({ name: humanName, email: z.email() }),
@@ -819,7 +822,11 @@ export const registrySheltersContract = {
         expectedVersion,
         change: z.discriminatedUnion("field", [
           z.strictObject({ field: z.literal("legal_entity"), next: ShelterLegalEntitySchema }),
-          z.strictObject({ field: z.literal("exact_address"), next: ExactAddressSchema }),
+          // No point (P0-6): the handler stores null, so a stored one goes on the next save.
+          z.strictObject({
+            field: z.literal("exact_address"),
+            next: ExactAddressSchema.omit({ coordinates: true }),
+          }),
         ]),
       }),
     )

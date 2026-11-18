@@ -32,8 +32,8 @@ Never paste a connection string into a command line, a file or a chat.
 - **Legal shape**: registered NGO (legal name + EDRPOU), sole proprietor
   (legal name + EDRPOU), or an unregistered volunteer group (just a contact
   person's name).
-- **Exact address** - street, city, coordinates. Never shown to an adopter
-  directly; this is what gets fuzzed.
+- **Exact address** - street and city, no coordinates (P0-6, 2026-11-18). Never shown to an
+  adopter; the public location is the city.
 - **A contact channel** they actually answer on - phone, Telegram, or both.
 - **A donation link**, if they have one (their own page - this platform
   never touches money).
@@ -80,8 +80,7 @@ before anything is computed):
       "line2": null,
       "postalCode": null,
       "citySlug": "<the settlement's slug, as in its address on the site, e.g. brovary-kyivska; a former slug works too. Or give \"cityId\" (a CityId) instead, never both>",
-      "district": null,
-      "coordinates": { "lat": 50.5111, "lng": 30.7903 }
+      "district": null
     },
     "contact": {
       "primary": { "kind": "telegram", "handle": "domivka_brovary" },
@@ -256,18 +255,10 @@ non-local target without `--prod`: it fails closed. The same rule applies to
 Neon compute for any non-local target (AW-F1), so a migration can't land on a database the shell
 happens to point at.
 
-This is a **dry run** - nothing is written. Read the printed output
-carefully: it shows the *computed* public location (the fuzzed
-coordinates), not the address you typed in - that's the actual proof
-`productionLocationPolicy` ran with your secret before anything real was
-at stake. Check the **offset line** specifically: `Offset from the real
-address: 743m (radius: 1000m) - looks right`. At a 1km fuzz radius the
-raw coordinates always share their first two decimal digits with the real
-address - that's what the radius means, and eyeballing them tells you
-nothing. The offset figure is the actual check: it should read "looks
-right," a non-zero number inside the stated radius. If it says "CHECK
-THIS" or reads suspiciously close to 0m, stop and check
-`LOCATION_HMAC_SECRET` is set correctly - don't proceed to `--commit`.
+This is a **dry run** - nothing is written. Read the printed output: the
+public location it computed is the city alone (no point is taken since P0-6),
+and the animals it found. An input file that still has `"coordinates"` is
+refused by name: delete that key.
 
 Once it looks right, `--commit` additionally needs the R2 write
 credentials (below):

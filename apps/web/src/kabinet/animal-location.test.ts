@@ -229,7 +229,7 @@ describe("a shelter city change (the operator's path) moves only the animals tha
         expectedVersion: shelter.version,
         change: {
           field: "exact_address",
-          next: { ...address, cityId: movedCity, coordinates: null },
+          next: { ...address, cityId: movedCity },
         },
       },
       { kind: "super_admin", moderatorId: OPERATOR },

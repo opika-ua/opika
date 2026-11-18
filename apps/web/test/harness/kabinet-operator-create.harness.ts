@@ -125,7 +125,6 @@ test.describe("/kabinet/prytulky/novyi, the operator", () => {
       .first()
       .click();
     await page.getByLabel("Вулиця, будинок").fill("вул. Мечникова, 4");
-    await page.getByLabel("Координати").fill("50.5843, 30.4890");
     await page.getByRole("radio", { name: "Ініціатива без реєстрації" }).check();
     await page.getByLabel("Контактна особа").fill("Ірина Коваль");
     await page

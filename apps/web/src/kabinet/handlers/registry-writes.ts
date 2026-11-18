@@ -134,7 +134,7 @@ export async function registryUpdateVerifiedData(
     expectedVersion: number;
     change:
       | { field: "legal_entity"; next: ShelterLegalEntity }
-      | { field: "exact_address"; next: ExactAddress };
+      | { field: "exact_address"; next: Omit<ExactAddress, "coordinates"> };
   },
   errors: E<"CONFLICT">,
 ): Promise<RegistryShelterView> {
@@ -165,13 +165,15 @@ export async function registryUpdateVerifiedData(
           ],
         };
       }
-      if (same(shelter.exactAddress, change.next)) return { changes: [], entries: [] };
+      // Never a point (P0-6): a stored one is nulled by this save.
+      const next: ExactAddress = { ...change.next, coordinates: null };
+      if (same(shelter.exactAddress, next)) return { changes: [], entries: [] };
       return {
         changes: [
           {
             kind: "exact_address",
-            exactAddress: change.next,
-            publicLocation: publicLocationOf(shelter.id, change.next, policy),
+            exactAddress: next,
+            publicLocation: publicLocationOf(shelter.id, next, policy),
           },
         ],
         entries: [
@@ -179,7 +181,7 @@ export async function registryUpdateVerifiedData(
             kind: "verified_data_changed",
             at: deps.now,
             moderatorId,
-            change: { field: "exact_address", previous: shelter.exactAddress, next: change.next },
+            change: { field: "exact_address", previous: shelter.exactAddress, next },
           },
         ],
       };

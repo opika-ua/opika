@@ -84,7 +84,6 @@ describe("the form as registry.shelters.create's input", () => {
         line2: null,
         postalCode: null,
         district: null,
-        coordinates: null,
       },
       contact: { primary: { kind: "phone", e164: "+380501112233" }, additional: [] },
       evidence: [
@@ -262,7 +261,6 @@ describe("the minimal shelter: legal data and address left for later", () => {
       line2: null,
       postalCode: null,
       district: null,
-      coordinates: null,
     });
     expect(parse(input).success).toBe(true);
   });

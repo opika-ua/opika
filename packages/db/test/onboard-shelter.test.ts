@@ -14,7 +14,6 @@ import {
 } from "../src/onboard-shelter";
 
 const SECRET_A = "a".repeat(32);
-const SECRET_B = "b".repeat(32);
 
 const EXACT_ADDRESS = {
   line1: "вул. Незалежності, 12",
@@ -22,7 +21,6 @@ const EXACT_ADDRESS = {
   postalCode: null,
   cityId: CityIdSchema.parse(deterministicId("city:brovary")),
   district: null,
-  coordinates: { lat: 50.5111, lng: 30.7903 },
 };
 
 /** Satisfies DEFAULT_VERIFICATION_POLICY's unregistered_initiative row (one site_visit, one reference_contact); the second reference is extra. */
@@ -62,30 +60,26 @@ const SHELTER_INPUT = {
 
 const now = new Date("2026-09-06T12:00:00Z");
 
-/**
- * The whole point of `onboard-shelter.ts`, verified directly rather than
- * trusted: a real exact address must never be recoverable from what gets
- * stored, and the offset must actually depend on the secret - not just be
- * "some fixed transform" that happens to differ numerically.
- */
+/** P0-6: an onboarded shelter is located by its city; the production policy still runs. */
 describe("buildShelter's public location", () => {
-  it("does not equal the exact coordinates", () => {
+  it("is the city alone: the input takes no point (P0-6)", () => {
     const shelter = buildShelter(SHELTER_INPUT, now, SECRET_A);
-    expect(shelter.publicLocation.precision).toBe("fuzzed_address");
-    if (shelter.publicLocation.precision !== "fuzzed_address") throw new Error("unreachable");
-    expect(shelter.publicLocation.approximate.center).not.toEqual(EXACT_ADDRESS.coordinates);
+    expect(shelter.publicLocation).toEqual({
+      precision: "city",
+      cityId: EXACT_ADDRESS.cityId,
+      district: null,
+    });
+    expect(shelter.exactAddress?.coordinates).toBeNull();
   });
 
-  it("differs between two different secrets - proof the offset is actually keyed, not just non-zero", () => {
-    const a = buildShelter(SHELTER_INPUT, now, SECRET_A);
-    const b = buildShelter(SHELTER_INPUT, now, SECRET_B);
-    if (
-      a.publicLocation.precision !== "fuzzed_address" ||
-      b.publicLocation.precision !== "fuzzed_address"
-    ) {
-      throw new Error("unreachable");
-    }
-    expect(a.publicLocation.approximate.center).not.toEqual(b.publicLocation.approximate.center);
+  it("refuses an input that still carries a point, by name", () => {
+    const withPoint = {
+      ...SHELTER_INPUT,
+      exactAddress: { ...EXACT_ADDRESS, coordinates: { lat: 50.5111, lng: 30.7903 } },
+    };
+    const parsed = OnboardInputSchema.shape.shelter.safeParse(withPoint);
+    expect(parsed.success).toBe(false);
+    expect(JSON.stringify(parsed.error?.issues)).toContain("coordinates");
   });
 
   it("throws on a secret shorter than 32 characters - productionLocationPolicy's own guard, exercised through this caller", () => {

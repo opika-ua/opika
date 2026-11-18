@@ -795,9 +795,6 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.create.address.line1": "Вулиця, будинок",
     "operator.create.address.line2": "Корпус, приміщення · необовʼязково",
     "operator.create.address.postalCode": "Індекс · необовʼязково",
-    "operator.create.coordinates": "Координати",
-    "operator.create.coordinatesHint":
-      "Скопіюйте з карти у форматі «широта, довгота». Ніде не показуються: люди бачать лише місто.",
     "operator.create.legalTitle": "Юридичні дані",
     "operator.create.legalKind.registered_ngo": "Громадська організація чи фонд",
     "operator.create.legalKind.sole_proprietor": "ФОП",
@@ -859,8 +856,6 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.create.errors.failed": "Не вдалося створити притулок. Спробуйте ще раз.",
     "operator.create.errors.required": "Це поле потрібне.",
     "operator.create.errors.edrpouFormat": "Код ЄДРПОУ – 8 цифр.",
-    "operator.create.errors.coordinatesFormat":
-      "Вкажіть координати як «широта, довгота», наприклад «50.4501, 30.5234».",
     "operator.verification.decisionTitle": "Рішення",
     "operator.verification.decisionCaption":
       "Притулок побачить рішення і пояснення дослівно у своєму кабінеті.",
@@ -1162,8 +1157,9 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   });
 
   it("sanity: his file's 220 strings (216 as written, 3 replaced in round 2, 1 in round 3) and 4 later keys", () => {
-    // 216 since approveBlocked's wording moved to MINIMAL_CREATE_COPY.
-    expect(Object.keys(RUI_FINAL).length).toBe(216);
+    // 216 since approveBlocked's wording moved to MINIMAL_CREATE_COPY; 213 since P0-6 retired
+    // the three coordinate strings (owner, 2026-11-18).
+    expect(Object.keys(RUI_FINAL).length).toBe(213);
     expect(Object.keys(ROUND_3_N7)).toHaveLength(2);
     expect(Object.keys(ROUND_4C_RUI4_F2)).toHaveLength(1);
     expect(Object.keys(PET_CARD_PR3B_LOGO_CHANGED)).toHaveLength(1);

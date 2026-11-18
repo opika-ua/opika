@@ -208,7 +208,7 @@ export async function registrySheltersCreate(
     cityId: CityId;
     description?: LocalizedText | null | undefined;
     legalEntity: ShelterLegalEntity | null;
-    exactAddress: Omit<ExactAddress, "cityId"> | null;
+    exactAddress: Omit<ExactAddress, "cityId" | "coordinates"> | null;
     contact: ShelterContact;
     evidence: readonly EvidenceItemInput[];
     firstAdmin: { name: string; email: string };
@@ -240,7 +240,9 @@ export async function registrySheltersCreate(
 
   const id = deps.newId() as ShelterId;
   const exactAddress: ExactAddress | null =
-    input.exactAddress === null ? null : { ...input.exactAddress, cityId: input.cityId };
+    input.exactAddress === null
+      ? null
+      : { ...input.exactAddress, cityId: input.cityId, coordinates: null };
   const shelter: Shelter = {
     id,
     displayName: input.displayName,

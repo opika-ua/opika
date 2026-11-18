@@ -102,7 +102,13 @@ describe("AddressEdit", () => {
       expectedVersion: 3,
       change: {
         field: "exact_address",
-        next: { ...view.exactAddress, line1: "вул. Нова, 1", coordinates: null },
+        next: {
+          line1: "вул. Нова, 1",
+          line2: FIXTURE_ADDRESS.line2,
+          postalCode: FIXTURE_ADDRESS.postalCode,
+          cityId: FIXTURE_ADDRESS.cityId,
+          district: { uk: "Центральний", en: null },
+        },
       },
     });
   });
@@ -152,7 +158,6 @@ describe("adding verified data a minimal create left out", () => {
           postalCode: null,
           cityId: empty.publicLocation.cityId,
           district: null,
-          coordinates: null,
         },
       },
     });

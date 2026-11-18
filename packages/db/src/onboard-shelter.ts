@@ -17,7 +17,6 @@ import {
   animalDescriptionProblemMessage,
   CalendarDateSchema,
   CONTACT_INPUT_MAX_LENGTH,
-  type Coordinates,
   DEFAULT_VERIFICATION_POLICY,
   DeclaredAgeRangeSchema,
   DonationLinkSchema,
@@ -127,18 +126,6 @@ function canonicalPath(input: string): string {
 }
 
 const REPO_ROOT = canonicalPath(fileURLToPath(new URL("../../..", import.meta.url)));
-
-/** Great-circle distance, for the dry-run printout's "is the offset actually inside the radius" check. */
-function haversineMetres(a: Coordinates, b: Coordinates): number {
-  const EARTH_RADIUS_METRES = 6_371_000;
-  const toRadians = (deg: number) => (deg * Math.PI) / 180;
-  const deltaLat = toRadians(b.lat - a.lat);
-  const deltaLng = toRadians(b.lng - a.lng);
-  const h =
-    Math.sin(deltaLat / 2) ** 2 +
-    Math.cos(toRadians(a.lat)) * Math.cos(toRadians(b.lat)) * Math.sin(deltaLng / 2) ** 2;
-  return 2 * EARTH_RADIUS_METRES * Math.asin(Math.sqrt(h));
-}
 
 /**
  * Deterministic, not random: re-running this script against the same input
@@ -328,7 +315,8 @@ export const OnboardInputSchema = z.object({
     displayName: z.string().min(1),
     descriptionUk: OnboardShelterDescriptionUkSchema,
     legalEntity: ShelterLegalEntitySchema,
-    exactAddress: ExactAddressSchema,
+    /** No point (P0-6): nothing reads one; strict, so a leftover `coordinates` is refused by name. */
+    exactAddress: ExactAddressSchema.omit({ coordinates: true }).strict(),
     contact: ShelterContactInputSchema,
     // Live at once, with no operator approval after it: a new proposal's rules apply.
     donation: DonationLinkSchema.extend({ url: DonationProposalUrlSchema }).nullable(),
@@ -504,6 +492,7 @@ export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: 
     );
   }
   const evidence = recorded.evidence;
+  const exactAddress = { ...input.exactAddress, coordinates: null };
 
   const meetsPolicy = meetsEvidenceRequirements(
     input.legalEntity,
@@ -522,8 +511,8 @@ export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: 
     displayName: input.displayName,
     description: { uk: input.descriptionUk, en: null },
     legalEntity: input.legalEntity,
-    publicLocation: publicLocationOf(id, input.exactAddress, policy),
-    exactAddress: input.exactAddress,
+    publicLocation: publicLocationOf(id, exactAddress, policy),
+    exactAddress,
     contact: input.contact,
     donation: input.donation,
     logo: null,
@@ -805,28 +794,10 @@ async function main(): Promise<void> {
     return validated;
   }
 
-  // The whole point of this gate: prove productionLocationPolicy actually
-  // ran before anything touches the database. Every animal below inherits
-  // this one computed value (publicLocation: null → the shelter's), so
-  // there is one fuzzed location to show, not one per animal.
-  //
-  // The offset in metres, not "does this coordinate look like the real
-  // one" — at a 1km radius the fuzzed point's first two decimal digits
-  // always resemble the real address (that's what a 1km radius means), so
-  // eyeballing the raw coordinates was never actually checkable. A metres
-  // figure inside the configured radius is.
+  // The public location as computed: with no point taken (P0-6), the shelter's city alone.
   console.log(`\n${commit ? "COMMIT" : "DRY RUN"} - ${input.shelter.displayName}\n`);
   console.log("Computed public location (productionLocationPolicy output, not the input address):");
   console.log(JSON.stringify(shelter.publicLocation, null, 2));
-  const point = input.shelter.exactAddress.coordinates;
-  if (shelter.publicLocation.precision === "fuzzed_address" && point !== null) {
-    const offset = haversineMetres(point, shelter.publicLocation.approximate.center);
-    console.log(
-      `Offset from the real address: ${Math.round(offset)}m ` +
-        `(radius: ${shelter.publicLocation.approximate.precisionMetres}m) - ` +
-        `${offset > 0 && offset <= shelter.publicLocation.approximate.precisionMetres * 1.05 ? "looks right" : "CHECK THIS - outside the expected radius"}`,
-    );
-  }
   console.log(`\nShelter id:  ${shelter.id}`);
   console.log(`Animals (${input.animals.length}):`);
   for (const [i, animalInput] of input.animals.entries()) {
