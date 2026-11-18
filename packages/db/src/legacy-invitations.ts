@@ -1,6 +1,7 @@
 /**
  * `invitations:legacy` (§14 Q1): the operator-created shelters whose invitation was never
- * accepted and that have no animals, the 12 invited before self-registration. The owner sends
+ * accepted and that have no animals, invited before self-registration (11 on production,
+ * 2026-11-18). The owner sends
  * each the registration link himself; this removes their pre-created records and revokes the old
  * invitation links. Selected on exactly that, never on verification status or early listing, so
  * an early listing can't hide one.
@@ -12,8 +13,8 @@
  *
  * `--expect` takes the target's Neon endpoint (`ep-…`, required for any non-local target) and, for
  * `--commit`, the number of shelters to delete: a different count aborts, writing nothing. A
- * shelter with a support session refuses the run (RS-Q0: those rows are never deleted). No R2
- * object is touched: these shelters have no animals, and only the clean-up job deletes objects.
+ * support session is kept with its shelter link nulled (0029, decision Q4 (B)), as for applications.
+ * No R2 object is touched: these shelters have no animals, and only the clean-up job deletes objects.
  */
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -131,8 +132,7 @@ export type LegacyDeletion =
   | { kind: "deleted"; count: number; inviteesErased: number }
   | { kind: "count_differs"; found: number; expected: number }
   /** One stopped qualifying between the count and the lock: rolled back, nothing written. */
-  | { kind: "changed_meanwhile" }
-  | { kind: "support_session"; shelterIds: readonly ShelterId[] };
+  | { kind: "changed_meanwhile" };
 
 /** Thrown inside the transaction so it rolls back whole; never a partial deletion. */
 class LegacySetChanged extends Error {
@@ -155,8 +155,6 @@ export async function deleteLegacyShelters(
   if (found.length !== expected) {
     return { kind: "count_differs", found: found.length, expected };
   }
-  const supported = found.filter((shelter) => shelter.hasSupportSession).map((s) => s.id);
-  if (supported.length > 0) return { kind: "support_session", shelterIds: supported };
   if (found.length === 0) return { kind: "deleted", count: 0, inviteesErased: 0 };
   const ids = found.map((shelter) => shelter.id);
   const organizationIds = found.map((shelter) => shelter.organizationId);
@@ -314,7 +312,7 @@ export function parseLegacyArgs(argv: readonly string[]): LegacyArgs {
 export function formatLegacyList(found: readonly LegacyShelter[]): string[] {
   const lines = found.map(
     (shelter) =>
-      `  ${shelter.name} | ${shelter.id} | ${shelter.invitedEmails.map(maskEmail).join(", ")}${shelter.hasSupportSession ? " | HAS A SUPPORT SESSION (blocks --commit)" : ""}`,
+      `  ${shelter.name} | ${shelter.id} | ${shelter.invitedEmails.map(maskEmail).join(", ")}${shelter.hasSupportSession ? " | support session: kept, its shelter link nulled" : ""}`,
   );
   return [
     ...lines,
@@ -370,11 +368,6 @@ async function main(): Promise<void> {
       } else if (result.kind === "count_differs") {
         err(
           `REFUSED: found ${result.found}, --expect says ${result.expected}. Nothing was deleted.`,
-        );
-        exitCode = 1;
-      } else {
-        err(
-          `REFUSED: ${result.shelterIds.length} of them have a support session, which is never deleted. Nothing was deleted.`,
         );
         exitCode = 1;
       }
