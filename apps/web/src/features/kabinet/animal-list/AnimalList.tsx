@@ -20,7 +20,7 @@ import { Text } from "../../../ui/Text";
 import { type ToastHandle, ToastProvider, useToast } from "../../../ui/Toast";
 import type { AnimalFormEditing } from "../animal-form/AnimalForm";
 import { cardsArePublic, missingSentence, shelterVisibilityOf } from "../animal-form/labels";
-import { publishGateFor } from "../application/application-banners";
+import { PUBLISH_BLOCKED_SENTENCE, publishGateFor } from "../application/application-banners";
 import { NEW_ANIMAL_PATH } from "../routes";
 import {
   AnimalManageCard,
@@ -124,9 +124,9 @@ const refusalOf = (failure: ActionFailure, otherwise: string): string => {
     case "was_published":
       return uk.kabinet.deleteDraft.refused.wasPublished;
     case "awaiting_approval":
-      return uk.kabinet.application.publishBlocked;
+      return PUBLISH_BLOCKED_SENTENCE.application;
     case "contact_required":
-      return uk.kabinet.application.publishNoContact;
+      return PUBLISH_BLOCKED_SENTENCE.no_contact;
     case "rate_limited":
       return t.errors.rateLimited;
     case "no_answer":

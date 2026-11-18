@@ -1,5 +1,6 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import type { ListingKind, PublishGate } from "@opika/domain";
+import { uk } from "@opika/i18n";
 
 /**
  * What a self-registered shelter is told at the top of its list (spec §2, Q3, P0-1). Pure: the
@@ -62,3 +63,11 @@ export const publishGateFor = (
     : shelter.contact === null
       ? { kind: "blocked", why: "no_contact" }
       : { kind: "open" };
+
+export type PublishBlock = Extract<PublishGate, { kind: "blocked" }>["why"];
+
+/** Why «Опублікувати» is held, one sentence per reason: the K3 form and the K2 card both read it. */
+export const PUBLISH_BLOCKED_SENTENCE: Record<PublishBlock, string> = {
+  application: uk.kabinet.application.publishBlocked,
+  no_contact: uk.kabinet.application.publishNoContact,
+};

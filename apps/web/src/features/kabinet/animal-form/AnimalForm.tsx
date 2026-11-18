@@ -25,6 +25,7 @@ import { StickyActionBar } from "../../../ui/StickyActionBar";
 import { Tabs } from "../../../ui/Tabs";
 import { Text } from "../../../ui/Text";
 import { TextLink } from "../../../ui/TextLink";
+import { PUBLISH_BLOCKED_SENTENCE, type PublishBlock } from "../application/application-banners";
 import type { CompressedPhoto } from "../photos/compress-photo";
 import { publicAnimalPath, SHELTER_CONTACTS_PATH } from "../routes";
 import { ListingStatusChip } from "../StatusChips";
@@ -526,7 +527,7 @@ export function AnimalForm({
   const publish = async () => {
     if (!editable || publishing) return;
     if (blockedBy !== null) {
-      setAnnouncement(blockedSentence[blockedBy]);
+      setAnnouncement(PUBLISH_BLOCKED_SENTENCE[blockedBy]);
       return;
     }
     if (gaps.length > 0) {
@@ -557,10 +558,10 @@ export function AnimalForm({
           setAnnouncement(t.publish.stateChanged);
           break;
         case "AWAITING_APPROVAL":
-          setAnnouncement(uk.kabinet.application.publishBlocked);
+          setAnnouncement(PUBLISH_BLOCKED_SENTENCE.application);
           break;
         case "CONTACT_REQUIRED":
-          setAnnouncement(uk.kabinet.application.publishNoContact);
+          setAnnouncement(PUBLISH_BLOCKED_SENTENCE.no_contact);
           break;
         default:
           // The save before it went through (a failed save returns above),
@@ -805,13 +806,6 @@ const fieldOfTarget = (target: EventTarget | null): FieldProblem["field"] | null
   return null;
 };
 
-type PublishBlock = Extract<PublishGate, { kind: "blocked" }>["why"];
-
-const blockedSentence: Record<PublishBlock, string> = {
-  application: uk.kabinet.application.publishBlocked,
-  no_contact: uk.kabinet.application.publishNoContact,
-};
-
 /**
  * «Публікація» on a draft: who sees it (nobody yet) and what is still missing, the way the
  * disabled «Опублікувати» is described. Each gap is a link that switches to its tab and focuses
@@ -831,7 +825,7 @@ function DraftPublication({
       <Text look="hint">{t.draft.notVisible}</Text>
       {blockedBy !== null ? (
         <Text look="label" id="publish-blocked">
-          {blockedSentence[blockedBy]}
+          {PUBLISH_BLOCKED_SENTENCE[blockedBy]}
         </Text>
       ) : null}
       {blockedBy === "no_contact" ? (

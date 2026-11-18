@@ -318,13 +318,14 @@ describe("undoing a confirmation", () => {
 describe("what puts an animal on the site", () => {
   // The no-contact publish gate (owner, 2026-11-19) guards `publish` alone; this pins why that's enough.
   it("is a publish only: no other legal event moves a hidden listing to a discoverable one", () => {
-    const listed = (kind: ListingKind) => isDiscoverable(stateFor(kind));
+    const listing: ListingEventType[] = [];
     for (const kind of LISTING_KINDS) {
       for (const type of LISTING_EVENT_TYPES) {
         const result = transitionListing(stateFor(kind), eventFor(type));
-        if (result.kind !== "ok" || listed(kind) || !isDiscoverable(result.next)) continue;
-        expect(type).toBe("publish");
+        const hidden = !isDiscoverable(stateFor(kind));
+        if (result.kind === "ok" && hidden && isDiscoverable(result.next)) listing.push(type);
       }
     }
+    expect(listing).toEqual(["publish"]);
   });
 });

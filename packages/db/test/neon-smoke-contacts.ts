@@ -12,8 +12,8 @@ import {
 import { sql } from "drizzle-orm";
 import type { Database } from "../src/client";
 import { executeRows } from "../src/raw-rows";
+import { applicationsRepo } from "../src/repos/applications-repo";
 import { cityRepo } from "../src/repos/city-repo";
-import { kabinetShelterRepo } from "../src/repos/kabinet-shelter-repo";
 import { registrationFactsRepo } from "../src/repos/registration-facts-repo";
 import { selfRegistrationRepo } from "../src/repos/self-registration-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
@@ -29,7 +29,8 @@ const MOD = "11111111-1111-4111-8111-111111111111" as ModeratorId;
 /**
  * Migration 0030 on Neon's driver: `shelters.contact` nullable for a self-registered shelter only
  * (`shelters_contact_check`), a registration with no contact, and the publish gate's read path
- * (`shelterStageOf`'s two reads, then `publishGateOf`). Fresh fixtures; rows stay on the child branch.
+ * (`shelterStageOf`'s two reads, then `publishGateOf`) before and after the queue's accept.
+ * Fresh fixtures; rows stay on the child branch.
  */
 export async function runContactsSmoke(db: Database): Promise<Outcome[]> {
   const out: Outcome[] = [];
@@ -156,24 +157,39 @@ export async function runContactsSmoke(db: Database): Promise<Outcome[]> {
     asApplication,
   );
 
+  // Accepted the way the operator's queue does it: one `decide` statement, early listing on.
   const event = { type: "accept_application", at: NOW, moderatorId: MOD } as const;
   const moved = transition(bare.verification, event);
   const accepted =
     moved.kind === "ok"
-      ? await kabinetShelterRepo(db).applyAudited({
+      ? await applicationsRepo(db).decide({
           shelterId: bare.id,
           expectedVersion: bare.version,
-          change: { kind: "verification", verification: moved.next },
-          entry: { kind: "verification", event, from: "application", to: moved.next.status },
-          historyId: randomUUID(),
+          decision: { kind: "accept", verification: moved.next, earlyListingSince: NOW },
+          entries: [
+            {
+              id: randomUUID(),
+              entry: { kind: "verification", event, from: "application", to: moved.next.status },
+            },
+            {
+              id: randomUUID(),
+              entry: {
+                kind: "early_listing_allowed",
+                at: NOW,
+                moderatorId: MOD,
+                period: 1,
+                note: null,
+              },
+            },
+          ],
           now: NOW,
         })
-      : null;
+      : moved.kind;
   const afterAccept = await gateOf(bare.id);
   check(
     "publish gate read path: once accepted, still blocked for want of a contact",
-    accepted?.kind === "ok" && afterAccept === "no_contact",
-    `${accepted?.kind ?? moved.kind}, ${afterAccept}`,
+    accepted === "ok" && afterAccept === "no_contact",
+    `${accepted}, ${afterAccept}`,
   );
 
   const withContact = makeShelter({

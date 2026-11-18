@@ -10,6 +10,7 @@ import {
 import { fillTemplate, uk } from "@opika/i18n";
 import { freshnessLabel } from "@opika/ui";
 import { missingSentence } from "../animal-form/labels";
+import { PUBLISH_BLOCKED_SENTENCE } from "../application/application-banners";
 import { animalPath, publicAnimalPath, SHELTER_CONTACTS_PATH } from "../routes";
 import { type AnimalRow, metaPartsOf, statusLineOf } from "./list-model";
 
@@ -133,11 +134,12 @@ export type AnimalManageCard =
 
 const publishOfferOf = (gaps: readonly PublishGap[], gate: PublishGate): PublishOffer => {
   if (gate.kind === "blocked") {
+    const sentence = PUBLISH_BLOCKED_SENTENCE[gate.why];
     return gate.why === "application"
-      ? { kind: "awaiting_approval", sentence: uk.kabinet.application.publishBlocked }
+      ? { kind: "awaiting_approval", sentence }
       : {
           kind: "no_contact",
-          sentence: uk.kabinet.application.publishNoContact,
+          sentence,
           link: { href: SHELTER_CONTACTS_PATH, label: uk.kabinet.application.publishNoContactLink },
         };
   }

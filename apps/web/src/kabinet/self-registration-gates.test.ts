@@ -265,14 +265,19 @@ describe("a shelter with no adopter contact publishes nothing (owner, 2026-11-19
     expect(await listingOf(animal)).toBe("published");
   });
 
-  it("the editor can't take the shelter back to no contact: an empty one is BAD_REQUEST", async () => {
-    const shelter = await shelterAt("operator");
-    const cleared = await call(shelter, "shelter.profile.updateContact", {
-      contact: null,
-      expectedVersion: shelter.version,
-    });
-    expect(cleared.status).toBe(400);
-    expect((await shelterRepo(db).findById(shelter.id))?.contact).toEqual(shelter.contact);
+  it("the editor can't take a shelter back to no contact: an empty one is BAD_REQUEST", async () => {
+    // Operator-created, and self-registered with a contact given: neither may clear it.
+    for (const shelter of [await shelterAt("operator"), await shelterAt("accepted")]) {
+      expect(shelter.contact).not.toBeNull();
+      for (const contact of [null, { primary: null, additional: [] }]) {
+        const cleared = await call(shelter, "shelter.profile.updateContact", {
+          contact,
+          expectedVersion: shelter.version,
+        });
+        expect(cleared.status).toBe(400);
+      }
+      expect((await shelterRepo(db).findById(shelter.id))?.contact).toEqual(shelter.contact);
+    }
   });
 });
 
