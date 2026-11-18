@@ -1,9 +1,10 @@
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AnimalPhotoSchema } from "@opika/domain";
 import { describe, expect, it } from "vitest";
+import { type Anchor, compareSites, type Site, scanSites } from "./source-sites";
 
 /**
  * GDPR photo retention (`docs/gdpr-analysis.md`). `r2-cleanup-repo.ts`'s
@@ -19,12 +20,13 @@ import { describe, expect, it } from "vitest";
  * it in an import) or by declaring a bare `z.string()` field whose name reads
  * like a storage key - and requires each to be a classified, reasoned entry
  * below. A new one (a second durable field, a bare string that bypasses
- * `AnimalPhotoSchema`) fails this test by file and line, forcing a decision
+ * `AnimalPhotoSchema`) fails this test by file, line and enclosing symbol
+ * (anchored by symbol, not line, in `source-sites.ts`), forcing a decision
  * about whether `r2-cleanup-repo.ts`'s reference set needs to widen too,
  * rather than letting a photo quietly become unaccounted for.
  *
  * "Can hold a storage key" is a schema-shape question, not a "where is this
- * actually persisted" one — a view/projection schema counts here even though
+ * actually persisted" one – a view/projection schema counts here even though
  * it carries no second copy of the data, because the point is to catch every
  * place the *type* could carry a key, before anyone asks whether a given
  * occurrence is durable.
@@ -38,41 +40,19 @@ const CONTRACTS_ROOT = resolve(
   "src",
 );
 
-function* walk(dir: string): Generator<string> {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) yield* walk(path);
-    // .tsx too: a page reading a repository is code like any other (review of #490).
-    else if (entry.isFile() && /\.tsx?$/.test(path) && !/\.test\.tsx?$/.test(path)) yield path;
-  }
-}
-
-interface Hit {
-  file: string;
-  line: number;
-  text: string;
-}
-
-function scan(root: string, pattern: RegExp): Hit[] {
-  const hits: Hit[] = [];
-  for (const path of walk(root)) {
-    const lines = readFileSync(path, "utf8").split("\n");
-    lines.forEach((lineText, index) => {
-      if (pattern.test(lineText)) {
-        hits.push({
-          file: relative(resolve(root, "..", ".."), path).replaceAll("\\", "/"),
-          line: index + 1,
-          text: lineText.trim(),
-        });
-      }
-    });
-  }
-  return hits.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+function scan(root: string, pattern: RegExp): Site[] {
+  // .tsx too: a page reading a repository is code like any other (review of #490).
+  return scanSites(
+    root,
+    pattern,
+    (path) => relative(resolve(root, "..", ".."), path).replaceAll("\\", "/"),
+    /\.tsx?$/,
+  );
 }
 
 /** Every real reference to `AnimalPhotoSchema` that is not its own import. */
 const ANIMAL_PHOTO_SCHEMA_IMPORT = /^\s*import\b|^\s*\w+,?\s*$|^\s*AnimalPhotoSchema,?\s*$/;
-function animalPhotoSchemaEmbeddings(): Hit[] {
+function animalPhotoSchemaEmbeddings(): Site[] {
   const domain = scan(DOMAIN_ROOT, /AnimalPhotoSchema/).filter(
     (hit) =>
       !ANIMAL_PHOTO_SCHEMA_IMPORT.test(hit.text) &&
@@ -82,7 +62,7 @@ function animalPhotoSchemaEmbeddings(): Hit[] {
   const contracts = scan(CONTRACTS_ROOT, /AnimalPhotoSchema/).filter(
     (hit) => !ANIMAL_PHOTO_SCHEMA_IMPORT.test(hit.text),
   );
-  return [...domain, ...contracts].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+  return [...domain, ...contracts];
 }
 
 /**
@@ -94,7 +74,7 @@ function animalPhotoSchemaEmbeddings(): Hit[] {
  * keeping them apart keeps each failure's "which schema, which site" obvious.
  */
 const SHELTER_LOGO_SCHEMA_IMPORT = /^\s*import\b|^\s*\w+,?\s*$|^\s*ShelterLogoSchema,?\s*$/;
-function shelterLogoSchemaEmbeddings(): Hit[] {
+function shelterLogoSchemaEmbeddings(): Site[] {
   const domain = scan(DOMAIN_ROOT, /ShelterLogoSchema/).filter(
     (hit) =>
       !SHELTER_LOGO_SCHEMA_IMPORT.test(hit.text) &&
@@ -104,7 +84,7 @@ function shelterLogoSchemaEmbeddings(): Hit[] {
   const contracts = scan(CONTRACTS_ROOT, /ShelterLogoSchema/).filter(
     (hit) => !SHELTER_LOGO_SCHEMA_IMPORT.test(hit.text),
   );
-  return [...domain, ...contracts].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+  return [...domain, ...contracts];
 }
 
 /**
@@ -115,19 +95,14 @@ function shelterLogoSchemaEmbeddings(): Hit[] {
  * `pick` just selects an existing field by name.
  */
 const PICKED_PHOTOS_FIELD = /\bphotos\s*:\s*true\b/;
-function pickedPhotosFields(): Hit[] {
-  return [
-    ...scan(DOMAIN_ROOT, PICKED_PHOTOS_FIELD),
-    ...scan(CONTRACTS_ROOT, PICKED_PHOTOS_FIELD),
-  ].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+function pickedPhotosFields(): Site[] {
+  return [...scan(DOMAIN_ROOT, PICKED_PHOTOS_FIELD), ...scan(CONTRACTS_ROOT, PICKED_PHOTOS_FIELD)];
 }
 
 /** The same `.pick` blind spot, for `logo` (pet card PR 4 widening - see `pickedPhotosFields` above). */
 const PICKED_LOGO_FIELD = /\blogo\s*:\s*true\b/;
-function pickedLogoFields(): Hit[] {
-  return [...scan(DOMAIN_ROOT, PICKED_LOGO_FIELD), ...scan(CONTRACTS_ROOT, PICKED_LOGO_FIELD)].sort(
-    (a, b) => a.file.localeCompare(b.file) || a.line - b.line,
-  );
+function pickedLogoFields(): Site[] {
+  return [...scan(DOMAIN_ROOT, PICKED_LOGO_FIELD), ...scan(CONTRACTS_ROOT, PICKED_LOGO_FIELD)];
 }
 
 /**
@@ -137,16 +112,13 @@ function pickedLogoFields(): Hit[] {
  * photos: true })` was, by a different route (round 3 Tier 1 delta review,
  * finding 5). Today's one real occurrence is in a `.test.ts` file
  * (`photo.test.ts`, reading `DraftAnimalSchema.shape.photos` to build a
- * fixture), which `walk()` already excludes from every scan in this file -
+ * fixture), which `sourceFiles()` already excludes from every scan in this file -
  * so this is expected to find nothing live outside a test, and a new
  * non-test site needs a new entry below, same as the other three scans.
  */
 const SHAPE_PHOTOS_ACCESS = /\.shape\.photos\b/;
-function shapePhotosAccesses(): Hit[] {
-  return [
-    ...scan(DOMAIN_ROOT, SHAPE_PHOTOS_ACCESS),
-    ...scan(CONTRACTS_ROOT, SHAPE_PHOTOS_ACCESS),
-  ].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+function shapePhotosAccesses(): Site[] {
+  return [...scan(DOMAIN_ROOT, SHAPE_PHOTOS_ACCESS), ...scan(CONTRACTS_ROOT, SHAPE_PHOTOS_ACCESS)];
 }
 
 /** A bare `z.string()` field whose name reads like a storage key, wherever it is declared. */
@@ -157,18 +129,18 @@ function shapePhotosAccesses(): Hit[] {
 // storage key just as much as the bare names do, and a suffix check costs
 // nothing against today's one real site (`photo.ts`'s own `storageKey`).
 const BARE_STORAGE_KEY_FIELD = /\b\w*(?:storageKey|photoKey|imageKey|objectKey)\s*:\s*z\.string\(/i;
-function bareStorageKeyFields(): Hit[] {
+function bareStorageKeyFields(): Site[] {
   return [
     ...scan(DOMAIN_ROOT, BARE_STORAGE_KEY_FIELD),
     ...scan(CONTRACTS_ROOT, BARE_STORAGE_KEY_FIELD),
-  ].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+  ];
 }
 
 type Kind = "storage" | "view" | "definition";
-const EXPECTED_EMBEDDINGS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
+const EXPECTED_EMBEDDINGS: ReadonlyArray<Anchor & { kind: Kind; why: string }> = [
   {
     file: "domain/src/animals/animal.ts",
-    line: 75,
+    symbol: "animalCoreShape",
     text: "photos: z.array(AnimalPhotoSchema).max(MAX_ANIMAL_PHOTOS).readonly(),",
     kind: "storage",
     why:
@@ -177,7 +149,7 @@ const EXPECTED_EMBEDDINGS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
   },
   {
     file: "domain/src/reveals/contact-reveal.ts",
-    line: 44,
+    symbol: "AnimalRevealSnapshotSchema",
     text: "primaryPhoto: AnimalPhotoSchema.nullable(),",
     kind: "storage",
     why:
@@ -189,7 +161,7 @@ const EXPECTED_EMBEDDINGS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
   },
   {
     file: "contracts/src/kabinet/views.ts",
-    line: 51,
+    symbol: "animalRowExtras",
     text: "coverPhoto: AnimalPhotoSchema.nullable(),",
     kind: "view",
     why:
@@ -199,7 +171,7 @@ const EXPECTED_EMBEDDINGS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
   },
   {
     file: "contracts/src/views/animal.ts",
-    line: 69,
+    symbol: "FeedCardViewSchema",
     text: "primaryPhoto: AnimalPhotoSchema.nullable(),",
     kind: "view",
     why:
@@ -208,10 +180,10 @@ const EXPECTED_EMBEDDINGS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
   },
 ];
 
-const EXPECTED_PICKED_PHOTOS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
+const EXPECTED_PICKED_PHOTOS: ReadonlyArray<Anchor & { kind: Kind; why: string }> = [
   {
     file: "contracts/src/kabinet/views.ts",
-    line: 71,
+    symbol: "ANIMAL_VIEW_FIELDS",
     text: "photos: true,",
     kind: "view",
     why:
@@ -221,7 +193,7 @@ const EXPECTED_PICKED_PHOTOS: ReadonlyArray<Hit & { kind: Kind; why: string }> =
   },
   {
     file: "contracts/src/views/animal.ts",
-    line: 83,
+    symbol: "AnimalDetailViewSchema",
     text: "photos: true,",
     kind: "view",
     why:
@@ -230,10 +202,10 @@ const EXPECTED_PICKED_PHOTOS: ReadonlyArray<Hit & { kind: Kind; why: string }> =
   },
 ];
 
-const EXPECTED_LOGO_EMBEDDINGS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
+const EXPECTED_LOGO_EMBEDDINGS: ReadonlyArray<Anchor & { kind: Kind; why: string }> = [
   {
     file: "domain/src/shelters/shelter.ts",
-    line: 44,
+    symbol: "ShelterSchema",
     text: "logo: ShelterLogoSchema.nullable(),",
     kind: "storage",
     why:
@@ -243,7 +215,7 @@ const EXPECTED_LOGO_EMBEDDINGS: ReadonlyArray<Hit & { kind: Kind; why: string }>
   },
   {
     file: "domain/src/shelters/history.ts",
-    line: 154,
+    symbol: "ShelterHistoryEntrySchema",
     text: "previous: ShelterLogoSchema.nullable(),",
     kind: "storage",
     why:
@@ -254,14 +226,14 @@ const EXPECTED_LOGO_EMBEDDINGS: ReadonlyArray<Hit & { kind: Kind; why: string }>
   },
   {
     file: "domain/src/shelters/history.ts",
-    line: 155,
+    symbol: "ShelterHistoryEntrySchema",
     text: "next: ShelterLogoSchema.nullable(),",
     kind: "storage",
     why: "logo_changed's own next field - same durable-but-not-a-reference reasoning as previous above.",
   },
   {
     file: "domain/src/shelters/history-shelter-facing.ts",
-    line: 82,
+    symbol: "ShelterFacingHistoryItemSchema",
     text: "previous: ShelterLogoSchema.nullable(),",
     kind: "view",
     why:
@@ -270,17 +242,17 @@ const EXPECTED_LOGO_EMBEDDINGS: ReadonlyArray<Hit & { kind: Kind; why: string }>
   },
   {
     file: "domain/src/shelters/history-shelter-facing.ts",
-    line: 83,
+    symbol: "ShelterFacingHistoryItemSchema",
     text: "next: ShelterLogoSchema.nullable(),",
     kind: "view",
     why: "The same projection's next field - same reasoning as previous above.",
   },
 ];
 
-const EXPECTED_PICKED_LOGO: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
+const EXPECTED_PICKED_LOGO: ReadonlyArray<Anchor & { kind: Kind; why: string }> = [
   {
     file: "contracts/src/views/shelter.ts",
-    line: 34,
+    symbol: "PublicShelterViewSchema",
     text: "logo: true,",
     kind: "view",
     why:
@@ -289,7 +261,7 @@ const EXPECTED_PICKED_LOGO: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
   },
   {
     file: "contracts/src/views/shelter.ts",
-    line: 51,
+    symbol: "ShelterSummaryViewSchema",
     text: "logo: true,",
     kind: "view",
     why:
@@ -298,7 +270,7 @@ const EXPECTED_PICKED_LOGO: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
   },
   {
     file: "contracts/src/kabinet/views.ts",
-    line: 110,
+    symbol: "KabinetShelterViewSchema",
     text: "logo: true,",
     kind: "view",
     why:
@@ -307,10 +279,10 @@ const EXPECTED_PICKED_LOGO: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
   },
 ];
 
-const EXPECTED_BARE_FIELDS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
+const EXPECTED_BARE_FIELDS: ReadonlyArray<Anchor & { kind: Kind; why: string }> = [
   {
     file: "domain/src/animals/photo.ts",
-    line: 26,
+    symbol: "AnimalPhotoSchema",
     text: "storageKey: z.string().min(1),",
     kind: "definition",
     why:
@@ -319,7 +291,7 @@ const EXPECTED_BARE_FIELDS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
   },
   {
     file: "domain/src/shelters/logo.ts",
-    line: 10,
+    symbol: "ShelterLogoSchema",
     text: "storageKey: z.string().min(1),",
     kind: "definition",
     why:
@@ -333,7 +305,7 @@ const EXPECTED_BARE_FIELDS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
   },
   {
     file: "contracts/src/kabinet/views.ts",
-    line: 116,
+    symbol: "PhotoCropSourceViewSchema",
     text: "objectKey: z.string().min(1),",
     kind: "view",
     why:
@@ -344,7 +316,7 @@ const EXPECTED_BARE_FIELDS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
   },
   {
     file: "contracts/src/kabinet/views.ts",
-    line: 128,
+    symbol: "KabinetPhotoCropViewSchema",
     text: "storageKey: z.string().min(1),",
     kind: "view",
     why:
@@ -353,41 +325,27 @@ const EXPECTED_BARE_FIELDS: ReadonlyArray<Hit & { kind: Kind; why: string }> = [
   },
 ];
 
-/**
- * Matches by `file` + `text`, not `line` (two Tier 1 reviews, 2026-10-28): the
- * text is what the GDPR scan actually cares about, and a line number drifts
- * on any unrelated edit above the site - an unrecorded comment addition
- * broke this exact check once already. `scan()`'s own failure-mode comment
- * ("fails this test by file and line") still gets a line number for a
- * genuinely new site, from the raw scan output in the thrown diff; it just
- * isn't part of what equality checks.
- */
-const byFileThenText = (a: Hit, b: Hit): number =>
-  a.file.localeCompare(b.file) || a.text.localeCompare(b.text);
-const withoutLine = (hits: ReadonlyArray<Hit>): ReadonlyArray<Omit<Hit, "line">> =>
-  [...hits].sort(byFileThenText).map(({ file, text }) => ({ file, text }));
+const exact = { unexpected: [], missing: [] };
 
 describe("every schema field that can hold a photo's storage key is classified (GDPR photo retention)", () => {
   it("AnimalPhotoSchema is embedded in exactly the classified places - a new site needs a new entry here", () => {
-    expect(withoutLine(animalPhotoSchemaEmbeddings())).toEqual(withoutLine(EXPECTED_EMBEDDINGS));
+    expect(compareSites(animalPhotoSchemaEmbeddings(), EXPECTED_EMBEDDINGS)).toEqual(exact);
   });
 
   it("ShelterLogoSchema is embedded in exactly the classified places - a new site needs a new entry here", () => {
-    expect(withoutLine(shelterLogoSchemaEmbeddings())).toEqual(
-      withoutLine(EXPECTED_LOGO_EMBEDDINGS),
-    );
+    expect(compareSites(shelterLogoSchemaEmbeddings(), EXPECTED_LOGO_EMBEDDINGS)).toEqual(exact);
   });
 
   it("every bare-string storage-key field is one of the classified ones - a new one needs a new entry here", () => {
-    expect(withoutLine(bareStorageKeyFields())).toEqual(withoutLine(EXPECTED_BARE_FIELDS));
+    expect(compareSites(bareStorageKeyFields(), EXPECTED_BARE_FIELDS)).toEqual(exact);
   });
 
   it("every .pick({ photos: true }) site is classified - a new one needs a new entry here", () => {
-    expect(withoutLine(pickedPhotosFields())).toEqual(withoutLine(EXPECTED_PICKED_PHOTOS));
+    expect(compareSites(pickedPhotosFields(), EXPECTED_PICKED_PHOTOS)).toEqual(exact);
   });
 
   it("every .pick({ logo: true }) site is classified - a new one needs a new entry here", () => {
-    expect(withoutLine(pickedLogoFields())).toEqual(withoutLine(EXPECTED_PICKED_LOGO));
+    expect(compareSites(pickedLogoFields(), EXPECTED_PICKED_LOGO)).toEqual(exact);
   });
 
   it("no non-test .shape.photos access exists outside this scan's own awareness of it", () => {
