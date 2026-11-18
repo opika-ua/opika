@@ -1,11 +1,10 @@
 import type { RegistrationTokenPurpose } from "@opika/db/repos";
 import { applicationDeletionRepo, funnelRepo, selfRegistrationRepo } from "@opika/db/repos";
-import { after } from "next/server";
 import { isSelfRegistrationEnabled } from "../../features/registration/flag";
 import { kabinetAuthAvailability } from "../auth-route";
 import { kabinetDb } from "../kabinet-db";
 import { handleRegistrationLink, registrationLinkNotFound } from "./email-link-route";
-import { registrationMailOf, sendOperatorNotification } from "./registration-mail";
+import { sendOperatorNotification, servedTransactionalMail } from "./registration-mail";
 
 /** Both links' route handlers, on the served database, mail and flag. */
 export function registrationLinkHandler(purpose: RegistrationTokenPurpose) {
@@ -25,11 +24,11 @@ export function registrationLinkHandler(purpose: RegistrationTokenPurpose) {
       afterConfirm: async ({ application }) => {
         if (application === null) return;
         await funnelRepo(db).record("email_confirmed", application.shelterId, now);
-        const mail = registrationMailOf(process.env, db);
-        if (mail === null) return;
-        // D6: hello@ hears of the application once its address is confirmed, after the answer.
-        after(async () => {
-          await sendOperatorNotification(mail, application);
+        const transactional = servedTransactionalMail(process.env, db);
+        if (transactional === null) return;
+        // D6: the operator hears of the application once its address is confirmed, after the answer.
+        transactional.schedule(async () => {
+          await sendOperatorNotification(transactional.mail, application);
         });
       },
       deleteApplication: (shelterId, at) =>

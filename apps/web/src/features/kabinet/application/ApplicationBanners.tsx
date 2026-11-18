@@ -1,27 +1,21 @@
 import { pluralizeUk } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
-import type { ReactNode } from "react";
 import { Button } from "../../../ui/Button";
 import { Heading } from "../../../ui/Heading";
 import { Icon } from "../../../ui/Icon";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
+import { ResendConfirmation } from "../registration/ResendConfirmation";
 import type { ApplicationBanner } from "./application-banners";
 import { dismissApprovedBanner } from "./dismiss-approved";
 
 const t = uk.kabinet.application;
 
 /**
- * The banners `applicationBannersOf` chose, in its order. `resendConfirmation` is the slot for the
- * registration PR's resend button; until it lands the «Підтвердіть email» banner shows without it.
+ * The banners `applicationBannersOf` chose, in its order. «Підтвердіть email» carries the resend
+ * button, so it shows exactly when the banner does (never in the support view).
  */
-export function ApplicationBanners({
-  banners,
-  resendConfirmation = null,
-}: {
-  banners: readonly ApplicationBanner[];
-  resendConfirmation?: ReactNode;
-}) {
+export function ApplicationBanners({ banners }: { banners: readonly ApplicationBanner[] }) {
   return banners.map((banner) => {
     switch (banner.kind) {
       case "pending":
@@ -48,7 +42,7 @@ export function ApplicationBanners({
             className="flex flex-col items-start gap-3"
           >
             <Text look="label">{fillTemplate(t.confirmEmail, { email: banner.email })}</Text>
-            {resendConfirmation}
+            <ResendConfirmation />
           </Panel>
         );
       case "approved":

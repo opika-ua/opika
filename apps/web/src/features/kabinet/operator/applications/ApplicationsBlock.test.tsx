@@ -37,6 +37,7 @@ const card = (overrides: Partial<ApplicationQueueItemView> = {}): ApplicationQue
 
 const view = (overrides: Partial<ApplicationsQueueView> = {}): ApplicationsQueueView => ({
   applications: [card()],
+  unreadable: [],
   listedUnverified: [],
   pendingDonations: [],
   funnel: {
@@ -85,6 +86,67 @@ describe("ApplicationsBlock", () => {
     expect(screen.queryByText("Чекає понад 36 годин")).toBeNull();
   });
 
+  it("a card without its link says so, and the cards beside it render as usual", () => {
+    const linkless = card({ shelterId: OTHER, name: "Без посилання", link: null });
+    render(
+      <ApplicationsBlock
+        view={view({ applications: [card(), linkless] })}
+        cityNames={{}}
+        now={NOW}
+      />,
+    );
+    const cardOf = (name: string) =>
+      within(screen.getByRole("heading", { level: 3, name }).closest("li") as HTMLElement);
+    expect(cardOf("Лапа допомоги").getByRole("link", { name: LINK })).toBeTruthy();
+    const missing = cardOf("Без посилання");
+    expect(missing.getByText("Сайт або сторінка в соцмережі: Не записано")).toBeTruthy();
+    expect(missing.getByRole("button", { name: "Схвалити" })).toBeTruthy();
+  });
+
+  it("a row the server couldn't read gets its own card with the shelter id, and counts", () => {
+    render(
+      <ApplicationsBlock
+        view={view({ unreadable: [{ shelterId: OTHER, appliedAt: NOW }] })}
+        cityNames={{}}
+        now={NOW}
+      />,
+    );
+    expect(screen.getByRole("heading", { level: 2, name: "Заявки (2)" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: LINK })).toBeTruthy();
+    const broken = within(screen.getByText(OTHER).closest("li") as HTMLElement);
+    expect(
+      broken.getByText(
+        "Цю заявку не вдалося показати. Відкрийте притулок у списку, щоб переглянути її.",
+      ),
+    ).toBeTruthy();
+    expect(broken.getByText(OTHER)).toBeTruthy();
+    expect(broken.queryByRole("button")).toBeNull();
+  });
+
+  it("unreadable rows keep the oldest-first order and the 36-hour mark; an undated one goes last", () => {
+    const UNDATED = "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as ShelterId;
+    render(
+      <ApplicationsBlock
+        view={view({
+          applications: [card({ appliedAt: new Date(NOW.getTime() - HOUR) })],
+          unreadable: [
+            { shelterId: UNDATED, appliedAt: null },
+            { shelterId: OTHER, appliedAt: new Date(NOW.getTime() - 40 * HOUR) },
+          ],
+        })}
+        cityNames={{}}
+        now={NOW}
+      />,
+    );
+    const items = [OTHER, "Лапа допомоги", UNDATED].map(
+      (text) => screen.getByText(text).closest("li") as HTMLElement,
+    );
+    const order = items.map((item) => [...(item.parentElement?.children ?? [])].indexOf(item));
+    expect(order).toEqual([0, 1, 2]);
+    expect(within(items[0] as HTMLElement).getByText("Чекає понад 36 годин")).toBeTruthy();
+    expect(within(items[2] as HTMLElement).queryByText("Чекає понад 36 годин")).toBeNull();
+  });
+
   it("marks an application waiting longer than 36 hours", () => {
     const old = card({ appliedAt: new Date(NOW.getTime() - 37 * HOUR) });
     render(<ApplicationsBlock view={view({ applications: [old] })} cityNames={{}} now={NOW} />);
@@ -130,12 +192,12 @@ describe("ApplicationsBlock", () => {
   /** D3: money never goes live unchecked, so the queue shows S4's holder check beside «Схвалити». */
   it.each([
     [
-      { kind: "registered_ngo", legalName: "ГО «Лапа»", edrpou: "12345678", registeredAt: NOW },
+      { kind: "registered_ngo", name: "ГО «Лапа»" },
       "Перевірте, що власник рахунку збігається з організацією",
       "Юридична особа: ГО «Лапа»",
     ],
     [
-      { kind: "unregistered_initiative", contactPersonName: "Олена К." },
+      { kind: "unregistered_initiative", name: "Олена К." },
       "Перевірте, що власник рахунку – контактна особа ініціативи",
       "Контактна особа: Олена К.",
     ],
@@ -157,7 +219,7 @@ describe("ApplicationsBlock", () => {
                 name: "Лапа",
                 version: 2,
                 proposedUrl: "https://send.monobank.ua/jar/abc",
-                legalEntity: legalEntity as never,
+                legalEntity,
               },
             ],
           })}

@@ -92,6 +92,7 @@ async function search(
       production: false,
       shelterWrites: SHELTER_WRITE_POLICY,
       citySearch: opts.citySearch ?? inMemoryRateLimiter(CITY_SEARCH_RATE_LIMITS.perUser),
+      transactionalMail: null,
     },
   );
   const text = await response.text();

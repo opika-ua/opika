@@ -23,6 +23,7 @@ export function AnimalListScreen({
   operatorName,
   person,
   approvedDismissed = false,
+  selfRegistration,
 }: {
   page: Extract<KabinetAnimalListPage, { kind: "list" }>;
   /** Who signs a rejection or suspension note (`standaloneOperatorName`). */
@@ -30,18 +31,18 @@ export function AnimalListScreen({
   person: SignedInPerson | null;
   /** This browser closed «Притулок схвалено» for this shelter. */
   approvedDismissed?: boolean;
+  /** `SELF_REGISTRATION_ENABLED`, read by the page. */
+  selfRegistration: boolean;
 }) {
   const support = page.viewer === "support";
   const status = page.shelter.verification.status;
   const pending = status === "pending" || status === "under_review";
   const early = page.shelter.earlyListing;
-  const banners = applicationBannersOf(
-    page.shelter,
-    page.first.counts,
-    page.viewer,
-    person?.email ?? null,
+  const banners = applicationBannersOf(page.shelter, page.first.counts, page.viewer, {
+    email: person?.email ?? null,
     approvedDismissed,
-  );
+    selfRegistration,
+  });
   // A self-registered shelter reads the days left instead of the date (P0-1).
   const selfRegistered = page.shelter.registration.source === "self_registration";
   const listedUntil = pending && early.kind === "running" ? early.expiresAt : null;
@@ -67,7 +68,6 @@ export function AnimalListScreen({
               verification={page.shelter.verification}
               operatorName={operatorName}
             />
-            {/* `resendConfirmation`: the registration PR's resend button goes in this slot. */}
             <ApplicationBanners banners={banners} />
             {/* Not for the support view, where «я» would be the operator speaking to themselves. */}
             {!support && pending ? (

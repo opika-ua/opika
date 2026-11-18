@@ -1,6 +1,6 @@
 import { fillTemplate, uk } from "@opika/i18n";
 import type { Metadata } from "next";
-import { WORDMARK } from "../../brand";
+import { OPERATOR_CONTACT, WORDMARK } from "../../brand";
 import { ContentPageLayout } from "../../features/chrome/ContentPageLayout";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { isSelfRegistrationEnabled } from "../../features/registration/flag";
@@ -34,18 +34,8 @@ export const metadata: Metadata = {
  * `dynamic = "force-dynamic"`, since there's nothing here that can go
  * stale between builds.
  *
- * `hello@opika.org.ua` below is live and receives mail - Cloudflare Email
- * Routing, delivery tested by the owner on 2026-09-02. It is no longer a
- * placeholder and no longer a launch gate.
- *
- * The history is worth keeping, because this comment was wrong twice in
- * different directions: it first claimed no default address was shipped,
- * which stopped being true the moment the string was filled in, and then
- * claimed the address was a placeholder that would bounce, which stopped
- * being true when the mailbox was set up. A page whose whole purpose is
- * "here is who is behind this, get in touch" is worse than absent if the
- * address bounces - that reasoning still holds, it just no longer describes
- * this address.
+ * The contact address (`OPERATOR_CONTACT.email`) is live: Cloudflare Email Routing, delivery
+ * tested by the owner on 2026-09-02. A "get in touch" page is worse than absent if it bounces.
  *
  * `uk.about.analytics` discloses @vercel/analytics + @vercel/speed-insights
  * (mounted in the root layout) - the disclosure ships in the same phase as
@@ -142,7 +132,7 @@ export function renderAboutPage(
         </Text>
       </section>
       <Text look="lead" className="border-t border-line pt-6 text-ink-2">
-        {uk.about.contact.replace("{contact}", "hello@opika.org.ua")}
+        {uk.about.contact.replace("{contact}", OPERATOR_CONTACT.email)}
       </Text>
     </ContentPageLayout>
   );

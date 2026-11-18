@@ -652,6 +652,7 @@ export const en = {
       draftsAnimals: { one: "{count} draft", few: "{count} drafts", many: "{count} drafts" },
       draftsPhotos: { one: "{count} photo", few: "{count} photos", many: "{count} photos" },
       waitingLong: "Waiting over 36 hours",
+      cardUnreadable: "This application couldn't be shown. Open the shelter in the list to see it.",
       accept: "Approve",
       reject: "Reject",
       funnel: {

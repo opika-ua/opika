@@ -156,6 +156,7 @@ async function call<T = Record<string, unknown>>(
     production: false,
     shelterWrites: SHELTER_WRITE_POLICY,
     citySearch: roomyCitySearch(),
+    transactionalMail: null,
   });
   const text = await response.text();
   let body: unknown = null;

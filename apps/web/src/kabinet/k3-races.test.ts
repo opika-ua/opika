@@ -130,6 +130,7 @@ async function call(path: string, input: unknown) {
       production: false,
       shelterWrites: SHELTER_WRITE_POLICY,
       citySearch: roomyCitySearch(),
+      transactionalMail: null,
       photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
     },
   );

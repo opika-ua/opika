@@ -137,6 +137,7 @@ async function call(path: string, input: unknown): Promise<{ status: number; bod
     // The served policy: every shelter's own admins write (PR 6).
     shelterWrites: SHELTER_WRITE_POLICY,
     citySearch: roomyCitySearch(),
+    transactionalMail: null,
     // On, so an upload reaches the ownership check rather than stopping at
     // "uploads unavailable" (which would pass this suite for the wrong reason).
     photoUploads: {

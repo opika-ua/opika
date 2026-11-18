@@ -79,6 +79,7 @@ function deps(lookup: "throws" | "signedIn" = "throws") {
         },
         processingBudgetMs: PHOTO_PROCESSING_BUDGET_MS,
       },
+      transactionalMail: null,
     } as unknown as Parameters<typeof handleKabinetRpc>[1],
   };
 }

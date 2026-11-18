@@ -24,7 +24,7 @@ import {
   ShelterFacingVerificationSchema,
   ShelterHistoryEntrySchema,
   ShelterIdSchema,
-  ShelterLegalEntitySchema,
+  type ShelterLegalEntity,
   ShelterSchema,
   VerificationStatusSchema,
 } from "@opika/domain";
@@ -451,7 +451,8 @@ export const ReportGroupViewSchema = z.object({
 
 /**
  * One application card, everything on the card itself (operator only). `link` is shown in full
- * with `rel="noopener noreferrer nofollow"` and never fetched by the server (§11.3).
+ * with `rel="noopener noreferrer nofollow"` and never fetched by the server (§11.3); null when the
+ * row has none, so that card says so instead of failing the whole queue.
  */
 export const ApplicationQueueItemViewSchema = z.object({
   shelterId: ShelterIdSchema,
@@ -459,7 +460,7 @@ export const ApplicationQueueItemViewSchema = z.object({
   name: z.string().min(1),
   cityId: CityIdSchema,
   appliedAt: z.date(),
-  link: z.url({ protocol: /^https$/ }),
+  link: z.url({ protocol: /^https$/ }).nullable(),
   contact: ContactChannelSchema,
   email: z.email(),
   emailStatus: EmailStatusSchema,
@@ -487,14 +488,23 @@ export const ListedUnverifiedItemViewSchema = z.object({
 });
 export type ListedUnverifiedItemView = z.infer<typeof ListedUnverifiedItemViewSchema>;
 
+const LEGAL_ENTITY_KINDS = [
+  "registered_ngo",
+  "sole_proprietor",
+  "unregistered_initiative",
+] as const satisfies readonly ShelterLegalEntity["kind"][];
+
 /** A proposed donation link waiting in the same block; decided with `registry.donation.*`. */
 export const PendingDonationItemViewSchema = z.object({
   shelterId: ShelterIdSchema,
   name: z.string().min(1),
   version: z.int().nonnegative(),
   proposedUrl: z.url(),
-  /** The holder check S4 shows beside «Схвалити» (D3): who the account should belong to. Null until recorded. */
-  legalEntity: ShelterLegalEntitySchema.nullable(),
+  /**
+   * The holder check S4 shows beside «Схвалити» (D3): who the account should belong to, and only
+   * that (the legal or contact person's name). Null until recorded.
+   */
+  legalEntity: z.object({ kind: z.enum(LEGAL_ENTITY_KINDS), name: z.string().min(1) }).nullable(),
 });
 export type PendingDonationItemView = z.infer<typeof PendingDonationItemViewSchema>;
 
@@ -507,9 +517,13 @@ export const FunnelCountsViewSchema = z.object({
 });
 export type FunnelCountsView = z.infer<typeof FunnelCountsViewSchema>;
 
-/** «Заявки (N)»: oldest application first. */
+/** «Заявки (N)»: oldest application first; a row that can't make a card is named by id only. */
 export const ApplicationsQueueViewSchema = z.object({
   applications: z.array(ApplicationQueueItemViewSchema).readonly(),
+  /** In the same oldest-first order; `appliedAt` null only if even that column can't be read. */
+  unreadable: z
+    .array(z.object({ shelterId: ShelterIdSchema, appliedAt: z.date().nullable() }))
+    .readonly(),
   listedUnverified: z.array(ListedUnverifiedItemViewSchema).readonly(),
   pendingDonations: z.array(PendingDonationItemViewSchema).readonly(),
   funnel: FunnelCountsViewSchema,

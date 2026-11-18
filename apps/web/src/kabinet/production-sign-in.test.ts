@@ -278,7 +278,7 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   location: 4,
 
-  applications: 23,
+  applications: 24,
 };
 
 /**

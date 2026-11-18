@@ -35,6 +35,7 @@ export async function operatorQueueOf(
       cookieHeader: null,
       photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
       invitePasswords: INVITE_PASSWORDS_OFF,
+      transactionalMail: null,
     }),
   });
   let view: ApplicationsQueueView;

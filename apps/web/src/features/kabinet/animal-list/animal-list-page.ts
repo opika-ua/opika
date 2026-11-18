@@ -73,6 +73,7 @@ export async function kabinetAnimalListPageOf(
       // Reads only; the served route carries the real upload config.
       photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
       invitePasswords: INVITE_PASSWORDS_OFF,
+      transactionalMail: null,
     }),
   });
   try {

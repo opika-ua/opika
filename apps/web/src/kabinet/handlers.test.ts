@@ -115,6 +115,7 @@ async function call<T = Record<string, unknown>>(
     // The served policy: every shelter's own admins write (PR 6).
     shelterWrites: SHELTER_WRITE_POLICY,
     citySearch: roomyCitySearch(),
+    transactionalMail: null,
   });
   const text = await response.text();
   return { status: response.status, body: parsed(text) as T };

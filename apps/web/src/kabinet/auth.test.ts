@@ -1406,6 +1406,7 @@ describe("verify, get-session and sign-out on the kabinet limiters", () => {
         production: false,
         shelterWrites: SHELTER_WRITE_POLICY,
         citySearch: roomyCitySearch(),
+        transactionalMail: null,
       },
     );
     expect(rpc.status).toBe(429);

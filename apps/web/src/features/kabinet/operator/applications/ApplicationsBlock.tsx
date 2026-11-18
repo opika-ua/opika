@@ -39,6 +39,28 @@ function SubmittedLink({ url }: { url: string }) {
 const countOf = (count: number, forms: { one: string; few: string; many: string }): string =>
   fillTemplate(pluralizeUk(count, forms), { count: String(count) });
 
+const waitedLong = (appliedAt: Date | null, now: Date): boolean =>
+  appliedAt !== null && now.getTime() - appliedAt.getTime() > WAITING_LONG_MS;
+
+type QueueEntry =
+  | { kind: "card"; item: ApplicationQueueItemView }
+  | { kind: "unreadable"; row: ApplicationsQueueView["unreadable"][number] };
+
+const appliedAtOf = (entry: QueueEntry): number | null =>
+  (entry.kind === "card" ? entry.item.appliedAt : entry.row.appliedAt)?.getTime() ?? null;
+
+/** Oldest first across both kinds; an unreadable row with no date goes last. */
+function queueOrderOf(view: ApplicationsQueueView): QueueEntry[] {
+  return [
+    ...view.applications.map((item): QueueEntry => ({ kind: "card", item })),
+    ...view.unreadable.map((row): QueueEntry => ({ kind: "unreadable", row })),
+  ].sort((a, b) => {
+    const [at, bt] = [appliedAtOf(a), appliedAtOf(b)];
+    if (at === null || bt === null) return at === bt ? 0 : at === null ? 1 : -1;
+    return at - bt;
+  });
+}
+
 function ApplicationCard({
   item,
   cityName,
@@ -48,7 +70,7 @@ function ApplicationCard({
   cityName: string | null;
   now: Date;
 }) {
-  const waitingLong = now.getTime() - item.appliedAt.getTime() > WAITING_LONG_MS;
+  const waitingLong = waitedLong(item.appliedAt, now);
   return (
     <Card as="li" tone="outline" className="flex flex-col gap-3 p-4">
       <div className="flex flex-col gap-1">
@@ -66,7 +88,14 @@ function ApplicationCard({
         {waitingLong ? <Text look="label">{t.waitingLong}</Text> : null}
       </div>
       <div className="flex flex-col gap-1">
-        <SubmittedLink url={item.link} />
+        {item.link === null ? (
+          // A row without its link still gets its card; it says what's missing (unknown field rule).
+          <Text look="label">
+            {uk.registration.link.label}: {uk.kabinet.profileNotRecorded}
+          </Text>
+        ) : (
+          <SubmittedLink url={item.link} />
+        )}
         <Text className="break-words">{channelValue(item.contact)}</Text>
         <Text className="break-all">{item.email}</Text>
         <Text
@@ -105,6 +134,25 @@ function ApplicationCard({
         name={item.name}
         emailStatus={item.emailStatus}
       />
+    </Card>
+  );
+}
+
+/** A row the server couldn't make a card of: said plainly, with the id to find it by. */
+function UnreadableCard({
+  row,
+  now,
+}: {
+  row: ApplicationsQueueView["unreadable"][number];
+  now: Date;
+}) {
+  return (
+    <Card as="li" tone="outline" className="flex flex-col gap-1 p-4">
+      <Text>{t.cardUnreadable}</Text>
+      <Text look="hint" className="break-all">
+        {row.shelterId}
+      </Text>
+      {waitedLong(row.appliedAt, now) ? <Text look="label">{t.waitingLong}</Text> : null}
     </Card>
   );
 }
@@ -155,11 +203,7 @@ function HolderCheck({ legalEntity }: { legalEntity: PendingDonationItemView["le
       </Text>
       <Text look="body">
         {initiative ? uk.kabinet.profile.contactPerson : uk.kabinet.profile.legalName}:{" "}
-        {legalEntity === null
-          ? uk.kabinet.profileNotRecorded
-          : legalEntity.kind === "unregistered_initiative"
-            ? legalEntity.contactPersonName
-            : legalEntity.legalName}
+        {legalEntity === null ? uk.kabinet.profileNotRecorded : legalEntity.name}
       </Text>
     </div>
   );
@@ -227,18 +271,24 @@ export function ApplicationsBlock({
   return (
     <section aria-labelledby="queue-title" className="flex flex-col gap-4">
       <Heading level={2} look="section" id="queue-title">
-        {fillTemplate(t.title, { count: String(view.applications.length) })}
+        {fillTemplate(t.title, {
+          count: String(view.applications.length + view.unreadable.length),
+        })}
       </Heading>
-      {view.applications.length > 0 ? (
+      {view.applications.length + view.unreadable.length > 0 ? (
         <ul className="flex flex-col gap-3">
-          {view.applications.map((item) => (
-            <ApplicationCard
-              key={item.shelterId}
-              item={item}
-              cityName={cityNames[item.cityId] ?? null}
-              now={now}
-            />
-          ))}
+          {queueOrderOf(view).map((entry) =>
+            entry.kind === "card" ? (
+              <ApplicationCard
+                key={entry.item.shelterId}
+                item={entry.item}
+                cityName={cityNames[entry.item.cityId] ?? null}
+                now={now}
+              />
+            ) : (
+              <UnreadableCard key={entry.row.shelterId} row={entry.row} now={now} />
+            ),
+          )}
         </ul>
       ) : null}
       {view.listedUnverified.length > 0 ? (

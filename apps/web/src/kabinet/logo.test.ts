@@ -135,6 +135,7 @@ async function call<T = KabinetShelterView>(
     production: false,
     shelterWrites: SHELTER_WRITE_POLICY,
     citySearch: roomyCitySearch(),
+    transactionalMail: null,
     photoUploads: opts.uploads,
   });
   const text = await response.text();

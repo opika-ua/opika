@@ -1,13 +1,13 @@
 import { fillTemplate, uk } from "@opika/i18n";
 import type { Metadata } from "next";
-import { WORDMARK } from "../../brand";
+import { OPERATOR_CONTACT, WORDMARK } from "../../brand";
 import { ContentPageLayout } from "../../features/chrome/ContentPageLayout";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { KabinetEntryLink } from "../../features/kabinet/KabinetEntryLink";
 import { isSelfRegistrationEnabled } from "../../features/registration/flag";
+import { RegistrationAnchorButton } from "../../features/registration/RegistrationAnchorButton";
 import { RegistrationSection } from "../../features/registration/RegistrationSection";
 import { seoMetadata, withSite } from "../../seo/page-metadata";
-import { buttonClass } from "../../ui/Button";
 import { Heading } from "../../ui/Heading";
 import { Panel } from "../../ui/Panel";
 import { Text } from "../../ui/Text";
@@ -16,7 +16,6 @@ const INDEPENDENT = fillTemplate(uk.about.independent, { site: WORDMARK });
 const WHAT_THIS_IS = fillTemplate(uk.forShelters.whatThisIs, { site: WORDMARK });
 const WHO_CONTACTS_WHOM = fillTemplate(uk.forShelters.whoContactsWhom, { site: WORDMARK });
 const WHO_IS_BEHIND_THIS = fillTemplate(uk.forShelters.whoIsBehindThis, { site: WORDMARK });
-const CONTACT = "hello@opika.org.ua";
 
 /**
  * SEO handoff B2's title and description, the same in every preview; this is the link Oleksii sends
@@ -66,7 +65,7 @@ export function whatToPrepareFor(selfRegistration: boolean): string {
 /** §11: the form, or the operator's own path with the flag off. */
 const howToStartFor = (selfRegistration: boolean): string =>
   fillTemplate(selfRegistration ? uk.registration.howToStart : uk.forShelters.howToStart, {
-    contact: CONTACT,
+    contact: OPERATOR_CONTACT.email,
   });
 
 /**
@@ -249,20 +248,14 @@ export function renderForSheltersPage(
       {selfRegistration ? <RulesSection /> : null}
 
       {/*
-          `hello@opika.org.ua` is live and receives mail (Cloudflare Email
-          Routing, delivery tested 2026-09-02) - the same address
-          `app/pro/page.tsx` renders. It mattered more here than there: a
-          shelter is *sent* to this page rather than stumbling on it, and a
-          page whose entire purpose is "write to us" is worse than absent if
-          the address bounces. That gate is satisfied, not outstanding.
+          `OPERATOR_CONTACT.email` is live (Cloudflare Email Routing, tested 2026-09-02): a
+          shelter is sent to this page, so a bouncing address would be worse than none.
         */}
       <Section heading={h.howToStart}>
         <Body>{howToStartFor(selfRegistration)}</Body>
-        {/* §13.1: the end of the page repeats the button, to the form's anchor (no page load). */}
+        {/* §13.1: the end of the page repeats the button; it scrolls smoothly unless motion is reduced. */}
         {selfRegistration ? (
-          <a href="#reyestratsiia" className={`self-start ${buttonClass("primary")}`}>
-            {uk.registration.ctaScroll}
-          </a>
+          <RegistrationAnchorButton label={uk.registration.ctaScroll} className="self-start" />
         ) : null}
       </Section>
     </ContentPageLayout>

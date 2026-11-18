@@ -25,7 +25,7 @@ import {
   testOnlyLocationPolicy,
 } from "@opika/domain";
 import { createORPCErrorConstructorMap, ORPCError } from "@orpc/server";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { inMemoryRateLimiter } from "../../api/rate-limit";
 import { fromRpcBody, toRpcBody } from "../../api/test-harness";
 import { SHELTER_WRITE_POLICY } from "../access";
@@ -33,6 +33,7 @@ import type { KabinetPrincipal } from "../actor";
 import { capturingInvitationSender } from "../email-senders";
 import { fakeMail } from "../notify/test-utils/fixtures";
 import { capturingPasswordMail } from "../password-mail";
+import type { TransactionalMail } from "../registration/registration-mail";
 import { handleKabinetRpc } from "../rpc-route";
 import { roomyCitySearch } from "../test-city-search";
 import { TEST_SESSION_COOKIE } from "../test-session-cookie";
@@ -42,11 +43,7 @@ import {
   applicationsList,
   applicationsReject,
 } from "./applications";
-import {
-  type ApplicationMailer,
-  OPERATOR_CONTACT,
-  sendApplicationDecision,
-} from "./applications-mail";
+import { sendApplicationDecision } from "./applications-mail";
 
 /** The operator's queue (Agent 2): what each decision writes, mails and refuses. */
 
@@ -80,23 +77,24 @@ beforeEach(async () => {
   sends = [];
 });
 
-/** The real send-once path over a fake provider, awaited by `settled()` in place of `after()`. */
-const mailer: ApplicationMailer = (mail) => {
-  sends.push(
-    sendApplicationDecision(
-      { db, mail: provider.mail, now: () => NOW, log: () => {} },
-      { baseURL: "https://example.org", ...OPERATOR_CONTACT },
-      mail,
-    ),
-  );
-};
+/** The real send-once path over a fake provider; `settled()` awaits what `after()` would run. */
+const transactional = (): TransactionalMail => ({
+  mail: {
+    deps: { db, mail: provider.mail, now: () => NOW, log: () => {} },
+    baseURL: "https://example.org",
+    operatorName: "Олексій",
+  },
+  schedule: (work) => {
+    sends.push(work());
+  },
+});
 const settled = () => Promise.all(sends);
 
 const deps = (now = NOW): ApplicationsDeps => ({
   db,
   now,
   newId: () => randomUUID(),
-  applicationMail: mailer,
+  transactionalMail: transactional(),
 });
 
 async function user(email: string, emailVerified: boolean): Promise<string> {
@@ -114,16 +112,19 @@ const inCity = (overrides: Partial<Shelter> = {}) =>
   } as never);
 
 async function application(
-  input: { email?: string; confirmed?: boolean; name?: string; appliedAt?: Date } = {},
+  input: {
+    email?: string;
+    confirmed?: boolean;
+    name?: string;
+    appliedAt?: Date;
+    withLink?: boolean;
+  } = {},
 ): Promise<{ id: ShelterId; version: number; registrant: string }> {
   const appliedAt = input.appliedAt ?? new Date(NOW.getTime() - HOUR);
+  const items = input.withLink === false ? [] : [{ kind: "public_link" as const, url: LINK }];
   const shelter = inCity({
     displayName: input.name ?? "Лапа допомоги",
-    verification: {
-      status: "application",
-      appliedAt,
-      evidence: { items: [{ kind: "public_link", url: LINK }], submittedAt: appliedAt },
-    },
+    verification: { status: "application", appliedAt, evidence: { items, submittedAt: appliedAt } },
   });
   await shelterRepo(db).insert(shelter);
   const registrant = await user(input.email ?? "lapa@example.org", input.confirmed ?? true);
@@ -220,7 +221,7 @@ describe("registry.applications.accept", () => {
       { shelterId: app.id, expectedVersion: app.version },
       errors,
     );
-    mailer({
+    await sendApplicationDecision(transactional().mail, {
       kind: "approved",
       shelterId: app.id,
       name: "Лапа допомоги",
@@ -374,6 +375,44 @@ describe("registry.applications.list", () => {
     ]);
   });
 
+  it("a donation card carries only the holder's kind and name, never the EDRPOU or dates", async () => {
+    const donation = {
+      link: { url: "https://send.monobank.ua/jar/abc", provider: "monobank_jar" },
+      proposedAt: NOW,
+      proposedBy: null,
+    };
+    const ngo = inCity({
+      displayName: "ГО",
+      pendingDonation: donation,
+      legalEntity: {
+        kind: "registered_ngo",
+        legalName: "ГО «Лапа»",
+        edrpou: "12345678",
+        registeredAt: NOW,
+      },
+    } as Partial<Shelter>);
+    const fop = inCity({
+      displayName: "ФОП",
+      pendingDonation: donation,
+      legalEntity: { kind: "sole_proprietor", legalName: "ФОП Петренко", edrpou: "1234567890" },
+    } as Partial<Shelter>);
+    const initiative = inCity({
+      displayName: "Ініціатива",
+      pendingDonation: donation,
+      legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена К." },
+    } as Partial<Shelter>);
+    for (const shelter of [ngo, fop, initiative]) await shelterRepo(db).insert(shelter);
+    const { pendingDonations } = await applicationsList(deps(), OPERATOR);
+    const holders = Object.fromEntries(
+      pendingDonations.map((row) => [row.shelterId, row.legalEntity]),
+    );
+    expect(holders).toEqual({
+      [ngo.id]: { kind: "registered_ngo", name: "ГО «Лапа»" },
+      [fop.id]: { kind: "sole_proprietor", name: "ФОП Петренко" },
+      [initiative.id]: { kind: "unregistered_initiative", name: "Олена К." },
+    });
+  });
+
   it("counts the funnel's steps over the last 30 days only", async () => {
     const a = await application({ email: "a@example.org" });
     const b = await application({ email: "b@example.org" });
@@ -395,13 +434,64 @@ describe("registry.applications.list", () => {
   });
 });
 
+describe("a card the queue can't fully read (one bad row never fails the block)", () => {
+  let warnings: string[];
+  beforeEach(() => {
+    warnings = [];
+    vi.spyOn(console, "warn").mockImplementation((line: string) => {
+      warnings.push(line);
+    });
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("an application with no submitted link keeps its own card, saying so, beside the others", async () => {
+    const good = await application({ email: "good@example.org" });
+    const linkless = await application({ email: "nolink@example.org", withLink: false });
+    await funnelRepo(db).record("registered", good.id, NOW);
+    const view = await applicationsList(deps(), OPERATOR);
+    expect(() => ApplicationsQueueViewSchema.parse(view)).not.toThrow();
+    const cards = new Map(view.applications.map((card) => [card.shelterId, card]));
+    expect(cards.get(good.id)?.link).toBe(LINK);
+    expect(cards.get(linkless.id)).toMatchObject({ link: null, email: "nolink@example.org" });
+    expect(view.unreadable).toEqual([]);
+    expect(view.funnel.counts.find((row) => row.kind === "registered")?.count).toBe(1);
+    expect(warnings).toEqual([`[applications] ${linkless.id}: application_link_missing`]);
+    // Every queue load reads it again; the line is written once per process per shelter.
+    await applicationsList(deps(), OPERATOR);
+    expect(warnings).toHaveLength(1);
+  });
+
+  it("a row that can't make a valid card is named by id alone and logged by reason only", async () => {
+    const good = await application({ email: "good@example.org" });
+    const broken = await application({ email: "not-an-address", name: "Зламана заявка" });
+    const view = await applicationsList(deps(), OPERATOR);
+    expect(() => ApplicationsQueueViewSchema.parse(view)).not.toThrow();
+    expect(view.applications.map((card) => card.shelterId)).toEqual([good.id]);
+    // Its own `applied_at`, so the block keeps it in the oldest-first order.
+    expect(view.unreadable).toEqual([
+      { shelterId: broken.id, appliedAt: new Date(NOW.getTime() - HOUR) },
+    ]);
+    // The field and the issue, never the value («not-an-address») or the name.
+    expect(warnings).toEqual([
+      `[applications] ${broken.id}: application_unreadable (email:invalid_format)`,
+    ]);
+  });
+});
+
 describe("through the served route", () => {
   const limiters = {
     perUser: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
     perIp: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
   };
 
-  async function call(path: string, input: unknown, principal: KabinetPrincipal) {
+  async function call(
+    path: string,
+    input: unknown,
+    principal: KabinetPrincipal,
+    extra: Partial<Parameters<typeof handleKabinetRpc>[1]> = {},
+  ) {
     const response = await handleKabinetRpc(
       new Request(`http://localhost/api/kabinet/${path.replaceAll(".", "/")}`, {
         method: "POST",
@@ -431,6 +521,8 @@ describe("through the served route", () => {
         production: false,
         shelterWrites: SHELTER_WRITE_POLICY,
         citySearch: roomyCitySearch(),
+        transactionalMail: null,
+        ...extra,
       },
     );
     const text = await response.text();
@@ -453,5 +545,34 @@ describe("through the served route", () => {
     expect(await statusOf(app.id)).toBe("application");
     const accepted = await call("registry.applications.accept", input, asOperator);
     expect(accepted).toEqual({ status: 200, body: { kind: "decided", status: "pending" } });
+  });
+
+  const asOperator: KabinetPrincipal = { kind: "super_admin", moderatorId: OPERATOR };
+
+  it("a decision is mailed through the context's transactional mail, with no notifier set", async () => {
+    const app = await application();
+    const accepted = await call(
+      "registry.applications.accept",
+      { shelterId: app.id, expectedVersion: app.version },
+      asOperator,
+      { transactionalMail: () => transactional() },
+    );
+    expect(accepted.body).toEqual({ kind: "decided", status: "pending" });
+    await settled();
+    expect(provider.sent.map((email) => email.to)).toEqual(["lapa@example.org"]);
+  });
+
+  it("without one (a non-served context) no decision email goes, even with a notifier set", async () => {
+    const app = await application();
+    const rejected = await call(
+      "registry.applications.reject",
+      { shelterId: app.id, expectedVersion: app.version, reason: REASON },
+      asOperator,
+      { notify: () => {} },
+    );
+    expect(rejected.body).toEqual({ kind: "decided", status: "rejected" });
+    await settled();
+    expect(sends).toEqual([]);
+    expect(provider.sent).toEqual([]);
   });
 });

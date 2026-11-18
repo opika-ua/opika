@@ -7,6 +7,7 @@ import {
   APPROVED_DISMISSED_COOKIE,
   approvedDismissedFor,
 } from "../../../features/kabinet/application/approved-dismissal";
+import { isSelfRegistrationEnabled } from "../../../features/registration/flag";
 import { operatorNameOf, standaloneOperatorName } from "../../../kabinet/operator";
 import { signedInPerson } from "../signed-in-person";
 import { loadKabinetAnimalListPage } from "./load";
@@ -33,6 +34,7 @@ export default async function AnimalListPage() {
         <AnimalListScreen
           page={page}
           person={await signedInPerson()}
+          selfRegistration={isSelfRegistrationEnabled()}
           approvedDismissed={approvedDismissedFor(
             page.shelter.id,
             (await cookies()).get(APPROVED_DISMISSED_COOKIE)?.value,

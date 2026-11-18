@@ -23,7 +23,7 @@ const STATUS: Record<
 };
 
 /**
- * «Надіслати ще раз» in the «Підтвердіть email» banner (Agent 3 places it through
+ * «Надіслати ще раз» in the «Підтвердіть email» banner (placed there through
  * `ResendConfirmation`). One press at a time; the answer is announced beside the button.
  */
 export function ResendConfirmationButton({ action }: { action: () => Promise<ResendResult> }) {

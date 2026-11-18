@@ -2,7 +2,6 @@
 
 import { selfRegistrationRepo } from "@opika/db/repos";
 import { headers } from "next/headers";
-import { after } from "next/server";
 import { isSelfRegistrationEnabled } from "../../features/registration/flag";
 import { firstRefusal, registrationLimiters } from "../../features/registration/limits";
 import { kabinetAuthAvailability } from "../auth-route";
@@ -12,8 +11,8 @@ import { kabinetAuth } from "../runtime";
 import { hashRegistrationToken, newRegistrationToken } from "./registration-links";
 import {
   confirmationDedupKey,
-  registrationMailOf,
   sendConfirmationEmail,
+  servedTransactionalMail,
   takeDailyConfirmationMail,
 } from "./registration-mail";
 import { type ResendResult, resendConfirmationWith } from "./resend-confirmation";
@@ -33,8 +32,9 @@ export async function resendConfirmationEmail(): Promise<ResendResult> {
     now,
     process.env.NODE_ENV === "production",
   );
-  const mail = registrationMailOf(process.env, db);
-  if (mail === null) return { kind: "failed" };
+  const transactional = servedTransactionalMail(process.env, db);
+  if (transactional === null) return { kind: "failed" };
+  const { mail, schedule } = transactional;
   return resendConfirmationWith({
     enabled: true,
     // Only the shelter's own admin; a support view is the operator and never resends.
@@ -46,9 +46,7 @@ export async function resendConfirmationEmail(): Promise<ResendResult> {
       return (await firstRefusal([resendPerUserHour, resendPerUserDay], key, now)) === null;
     },
     takeDailyMail: () =>
-      takeDailyConfirmationMail(registrationLimiters.mailDailyCap, mail, now, (work) =>
-        after(work),
-      ),
+      takeDailyConfirmationMail(registrationLimiters.mailDailyCap, mail, now, schedule),
     repo: selfRegistrationRepo(db),
     newToken: newRegistrationToken,
     hashToken: hashRegistrationToken,

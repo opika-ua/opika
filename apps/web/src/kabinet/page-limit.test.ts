@@ -141,6 +141,7 @@ describe("a page load and an API call share one allowance", () => {
         production: false,
         shelterWrites: SHELTER_WRITE_POLICY,
         citySearch: roomyCitySearch(),
+        transactionalMail: null,
       },
     );
     return response.status;

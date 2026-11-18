@@ -131,6 +131,7 @@ export async function kabinetHomeOf(
       // The home page only reads; the served route carries the real upload config.
       photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
       invitePasswords: INVITE_PASSWORDS_OFF,
+      transactionalMail: null,
     }),
   });
   let view: KabinetShelterView;

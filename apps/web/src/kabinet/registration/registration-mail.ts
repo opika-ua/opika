@@ -1,5 +1,6 @@
 import type { ApplicationSummary } from "@opika/db/repos";
 import type { ShelterId } from "@opika/domain";
+import { after } from "next/server";
 import type { RateLimiter } from "../../api/rate-limit";
 import { OPERATOR_CONTACT, SITE_ORIGIN } from "../../brand";
 import { channelText } from "../../features/kabinet/profile-edit/fields";
@@ -22,25 +23,37 @@ export type RegistrationMail = {
 };
 
 /**
- * The notification mail's runtime, reused: the provider in production once sign-in is on, the
- * console in development, nothing where neither is configured.
+ * The kabinet's one transactional sender (registration, resend, the operator's mails, queue
+ * decisions) and when a handed-over send runs: after the response when served, inline in tests.
  */
-export function registrationMailOf(
+export type TransactionalMail = {
+  mail: RegistrationMail;
+  schedule: (work: () => Promise<void>) => void;
+};
+
+/**
+ * The served one: the notification mail's runtime (the provider in production once sign-in is
+ * on, the console in development, none otherwise), its sends run by `after()` so no answer waits.
+ */
+export function servedTransactionalMail(
   env: Readonly<Record<string, string | undefined>>,
   db: RegistrationEmailDeps["db"],
-): RegistrationMail | null {
+): TransactionalMail | null {
   const runtime = notifyRuntimeOf(env);
   if (runtime.kind === "off") return null;
   return {
-    deps: {
-      db,
-      mail: runtime.mail,
-      now: () => new Date(),
-      // biome-ignore lint/suspicious/noConsole: the masked line is the only trace of an unsent mail
-      log: (line) => console.warn(line),
+    mail: {
+      deps: {
+        db,
+        mail: runtime.mail,
+        now: () => new Date(),
+        // biome-ignore lint/suspicious/noConsole: the masked line is the only trace of an unsent mail
+        log: (line) => console.warn(line),
+      },
+      baseURL: runtime.context.baseURL,
+      operatorName: runtime.context.operatorName,
     },
-    baseURL: runtime.context.baseURL,
-    operatorName: runtime.context.operatorName,
+    schedule: (work) => after(work),
   };
 }
 

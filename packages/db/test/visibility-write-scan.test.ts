@@ -67,7 +67,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/applications-repo.ts",
-    line: 260,
+    line: 264,
     text: "verificationStatus: verification.status,",
     kind: "write",
     why:

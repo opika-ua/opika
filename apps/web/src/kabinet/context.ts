@@ -7,6 +7,7 @@ import type { InvitationSender } from "./email-senders";
 import type { InvitePasswords } from "./invite-password";
 import type { ShelterNotifier } from "./notify/intents";
 import type { PhotoUploads } from "./photo-uploads";
+import type { TransactionalMail } from "./registration/registration-mail";
 
 /**
  * What every kabinet request starts with, before access is decided. `now`
@@ -57,4 +58,9 @@ export type KabinetContext = {
    * served route sets it, so in-process page clients and tests send nothing unless they ask to.
    */
   notify?: ShelterNotifier;
+  /**
+   * The queue's decision emails, through the same sender as registration's. Its own field, not
+   * implied by `notify`: the served route passes it; null (page clients, most tests) mails nobody.
+   */
+  transactionalMail: TransactionalMail | null;
 };
