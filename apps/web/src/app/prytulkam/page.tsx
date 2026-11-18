@@ -5,9 +5,9 @@ import { ContentPageLayout } from "../../features/chrome/ContentPageLayout";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { KabinetEntryLink } from "../../features/kabinet/KabinetEntryLink";
 import { isSelfRegistrationEnabled } from "../../features/registration/flag";
+import { RegistrationAnchorButton } from "../../features/registration/RegistrationAnchorButton";
 import { RegistrationSection } from "../../features/registration/RegistrationSection";
 import { seoMetadata, withSite } from "../../seo/page-metadata";
-import { buttonClass } from "../../ui/Button";
 import { Heading } from "../../ui/Heading";
 import { Panel } from "../../ui/Panel";
 import { Text } from "../../ui/Text";
@@ -253,11 +253,9 @@ export function renderForSheltersPage(
         */}
       <Section heading={h.howToStart}>
         <Body>{howToStartFor(selfRegistration)}</Body>
-        {/* §13.1: the end of the page repeats the button, to the form's anchor (no page load). */}
+        {/* §13.1: the end of the page repeats the button; it scrolls smoothly unless motion is reduced. */}
         {selfRegistration ? (
-          <a href="#reyestratsiia" className={`self-start ${buttonClass("primary")}`}>
-            {uk.registration.ctaScroll}
-          </a>
+          <RegistrationAnchorButton label={uk.registration.ctaScroll} className="self-start" />
         ) : null}
       </Section>
     </ContentPageLayout>
