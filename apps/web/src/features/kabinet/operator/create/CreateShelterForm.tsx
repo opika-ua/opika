@@ -200,7 +200,7 @@ export function CreateShelterForm({
             form={form}
             set={set}
             street="optional"
-            errors={{ line1: err("line1"), coordinates: err("coordinates") }}
+            errors={{ line1: err("line1") }}
           />
         </FormSection>
 

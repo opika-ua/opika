@@ -112,7 +112,6 @@ export function AddressFields({
   street: "required" | "optional";
   errors: {
     line1: string | null;
-    coordinates: string | null;
   };
 }) {
   const t = uk.kabinet.operator.create;
@@ -144,16 +143,6 @@ export function AddressFields({
         autoComplete="off"
         value={form.postalCode}
         onChange={(event) => set("postalCode", event.target.value)}
-      />
-      <TextField
-        id={`${idPrefix}-coordinates`}
-        label={t.coordinates}
-        hint={t.coordinatesHint}
-        type="text"
-        autoComplete="off"
-        value={form.coordinates}
-        onChange={(event) => set("coordinates", event.target.value)}
-        error={errors.coordinates}
       />
     </>
   );

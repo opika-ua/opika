@@ -33,15 +33,16 @@ test("/tvaryny's title is SEO handoff B2's, ending in the owner's en-dash separa
   expect(title).not.toContain(" — Opika");
 });
 
-test("an animal page's title is name, species, city, then the brand", async ({ page }) => {
+test("an animal page's title is SEO handoff B2's, dropping « | Opika» only past 60 characters", async ({
+  page,
+}) => {
   await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
   const href = await page.locator(CARD).first().getAttribute("href");
   await page.goto(href as string);
   const title = await page.title();
-  expect(title.endsWith(EN_DASH_SEPARATOR)).toBe(true);
-  // Subject has three comma-separated parts: name, species, city.
-  const subject = title.slice(0, -EN_DASH_SEPARATOR.length);
-  expect(subject.split(", ")).toHaveLength(3);
+  expect(title).toMatch(/^.+ – (цуценя|собака|кошеня|кіт|кішка) шукає дім, [^|]+( \| Opika)?$/u);
+  expect(title.endsWith(" | Opika")).toBe(Array.from(title).length <= 60);
+  expect(title).not.toContain(EN_DASH_SEPARATOR);
 });
 
 test("the shelter page's title is SEO handoff B2's, dropping « | Opika» only past 60 characters", async ({

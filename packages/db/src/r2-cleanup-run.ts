@@ -21,6 +21,7 @@ import {
 } from "./image-pipeline/variants";
 import {
   afterDeleted,
+  ownersPresent,
   recordScan,
   stillUnreferenced,
   trackedUnreferencedObjects,
@@ -58,36 +59,61 @@ function isKeyOwnedByThisJob(objectKey: string): boolean {
 const DELETE_BATCH_SIZE = 1000;
 
 /**
- * Blast-radius cap: at most this many distinct photos or logos due in one run, else nothing is
- * deleted; only the CLI's `--max-photos` raises it. A day of ~100 photos or crops (crop-frame Q4),
- * counted in photos so no format change moves it (owner, 2026-11-16).
+ * Blast-radius cap: at most this many distinct photos or logos due in one run whose animal or
+ * shelter still exists, else nothing is deleted; only the CLI's `--max-photos` raises it. A day of
+ * ~100 photos or crops (crop-frame Q4), counted in photos so no format change moves it (owner,
+ * 2026-11-16). It is also the per-run budget (P0-4): photos whose row is gone (a deleted
+ * application or draft) never trip it, and a run deletes at most this many photos in all, the
+ * rest staying tracked for the next run.
  */
 export const DEFAULT_MAX_PHOTOS_PER_RUN = 100;
 
 /**
- * How many photos the cap counts among these keys. A variant or a kept source counts as the photo
- * whose folder holds it; any other key (or a second source in one folder) counts as a photo of its
+ * The photos among these keys, each with its objects. A variant or a kept source belongs to the
+ * photo whose folder holds it; any other key (or a second source in one folder) is a photo of its
  * own, so an object of no known shape can only tighten the cap, never loosen it.
  */
-export function photosAmong(objectKeys: readonly string[]): number {
-  const photos = new Set<string>();
+export function photoGroupsOf(objectKeys: readonly string[]): Map<string, string[]> {
+  const groups = new Map<string, string[]>();
   const sourced = new Set<string>();
-  let alone = 0;
+  const add = (group: string, key: string) => {
+    const keys = groups.get(group);
+    if (keys === undefined) groups.set(group, [key]);
+    else keys.push(key);
+  };
   for (const key of new Set(objectKeys)) {
     const variantOf = storageKeyFromObjectKey(key);
     if (variantOf !== null) {
-      photos.add(variantOf);
+      add(`photo:${variantOf}`, key);
       continue;
     }
     const sourceOf = storageKeyFromSourceObjectKey(key);
     if (sourceOf !== null && !sourced.has(sourceOf)) {
       sourced.add(sourceOf);
-      photos.add(sourceOf);
+      add(`photo:${sourceOf}`, key);
       continue;
     }
-    alone += 1;
+    add(`alone:${key}`, key);
   }
-  return photos.size + alone;
+  return groups;
+}
+
+/** How many photos the cap counts among these keys (`photoGroupsOf`). */
+export function photosAmong(objectKeys: readonly string[]): number {
+  return photoGroupsOf(objectKeys).size;
+}
+
+const ANIMAL_OWNER = /^(?:photo|alone):animals\/([^/]+)\/./;
+const SHELTER_OWNER = /^(?:photo|alone):shelters\/([^/]+)\/logo\//;
+
+/** The row a photo group hangs off, read from its path; null for a key of no known shape. */
+export function photoOwnerOf(
+  group: string,
+): { kind: "animal"; id: string } | { kind: "shelter"; id: string } | null {
+  const animal = ANIMAL_OWNER.exec(group)?.[1];
+  if (animal !== undefined) return { kind: "animal", id: animal };
+  const shelter = SHELTER_OWNER.exec(group)?.[1];
+  return shelter === undefined ? null : { kind: "shelter", id: shelter };
 }
 
 function chunk<T>(items: readonly T[], size: number): T[][] {
@@ -101,12 +127,17 @@ export type R2CleanupReport = {
   newlyTracked: number;
   clearedBack: number;
   dueForDeletion: readonly string[];
-  /** `photosAmong(dueForDeletion)`: what the cap counts, printed so a dry run shows it too. */
+  /** `photosAmong(dueForDeletion)`, printed so a dry run shows it too. */
   duePhotos: number;
+  /** Of `duePhotos`, those whose animal or shelter row is gone: the budget's, never the cap's. */
+  orphanedPhotos: number;
+  /** Due but over this run's budget: still tracked, for the next run. */
+  deferred: readonly string[];
+  deferredPhotos: number;
   deleted: readonly string[];
   failed: readonly { key: string; message: string }[];
   snapshotsNulled: number;
-  /** Set when a commit run found more due photos than the cap allows; nothing was deleted. */
+  /** Set when a commit run found more due photos of existing rows than the cap; nothing was deleted. */
   capTripped: { photos: number; objects: number; cap: number } | null;
 };
 
@@ -147,18 +178,25 @@ export async function runR2Cleanup(
   const { newlyTracked, cleared } = await recordScan(db, bucketKeys, now);
 
   const tracked = await trackedUnreferencedObjects(db);
+  const firstSeen = new Map(tracked.map((row) => [row.objectKey, row.firstSeenUnreferencedAt]));
   const due = tracked
     .filter((row) => isPastGracePeriod(row.firstSeenUnreferencedAt, now, graceDays))
     .map((row) => row.objectKey);
-  const duePhotos = photosAmong(due);
+  const plan = await budgetPlan(db, due, firstSeen, maxPhotos);
+  const base = {
+    scanned: bucketKeys.length,
+    newlyTracked,
+    clearedBack: cleared,
+    dueForDeletion: due,
+    duePhotos: plan.photos,
+    orphanedPhotos: plan.orphanedPhotos,
+  };
 
   if (!options.commit || due.length === 0) {
     return {
-      scanned: bucketKeys.length,
-      newlyTracked,
-      clearedBack: cleared,
-      dueForDeletion: due,
-      duePhotos,
+      ...base,
+      deferred: plan.deferred,
+      deferredPhotos: plan.deferredPhotos,
       deleted: [],
       failed: [],
       snapshotsNulled: 0,
@@ -166,24 +204,22 @@ export async function runR2Cleanup(
     };
   }
 
-  if (duePhotos > maxPhotos) {
+  if (plan.livePhotos > maxPhotos) {
     return {
-      scanned: bucketKeys.length,
-      newlyTracked,
-      clearedBack: cleared,
-      dueForDeletion: due,
-      duePhotos,
+      ...base,
+      deferred: [],
+      deferredPhotos: 0,
       deleted: [],
       failed: [],
       snapshotsNulled: 0,
-      capTripped: { photos: duePhotos, objects: due.length, cap: maxPhotos },
+      capTripped: { photos: plan.livePhotos, objects: plan.liveObjects, cap: maxPhotos },
     };
   }
 
   let deleted: string[] = [];
   let failed: { key: string; message: string }[] = [];
   let snapshotsNulled = 0;
-  for (const batch of chunk(due, DELETE_BATCH_SIZE)) {
+  for (const batch of chunk(plan.toDelete, DELETE_BATCH_SIZE)) {
     const stillDueInBatch = await stillUnreferenced(db, batch);
     const batchResult = await r2.deleteObjects(stillDueInBatch);
     const batchNulled = await afterDeleted(db, batchResult.deleted);
@@ -193,15 +229,54 @@ export async function runR2Cleanup(
   }
 
   return {
-    scanned: bucketKeys.length,
-    newlyTracked,
-    clearedBack: cleared,
-    dueForDeletion: due,
-    duePhotos,
+    ...base,
+    deferred: plan.deferred,
+    deferredPhotos: plan.deferredPhotos,
     deleted,
     failed,
     snapshotsNulled,
     capTripped: null,
+  };
+}
+
+/**
+ * Which due photos this run deletes (P0-4). Photos of a row that still exists come first and are
+ * what the cap counts: a burst of them means something unexpected, so the run stops. Photos whose
+ * row is gone follow, oldest first, until the run has `budget` photos; the rest wait for later
+ * runs. A key of no known shape counts as a live row's, so it can only tighten the stop.
+ */
+async function budgetPlan(
+  db: Database,
+  due: readonly string[],
+  firstSeen: ReadonlyMap<string, Date>,
+  budget: number,
+) {
+  const groups = [...photoGroupsOf(due)];
+  const present = await ownersPresent(
+    db,
+    groups.map(([group]) => photoOwnerOf(group)).filter((owner) => owner !== null),
+  );
+  const isLive = (group: string) => {
+    const owner = photoOwnerOf(group);
+    return owner === null || present[owner.kind].has(owner.id);
+  };
+  const oldest = (keys: readonly string[]) =>
+    Math.min(...keys.map((key) => firstSeen.get(key)?.getTime() ?? Number.POSITIVE_INFINITY));
+  const live = groups.filter(([group]) => isLive(group));
+  const orphaned = groups
+    .filter(([group]) => !isLive(group))
+    .sort(([a, aKeys], [b, bKeys]) => oldest(aKeys) - oldest(bKeys) || a.localeCompare(b));
+  const ordered = [...live, ...orphaned];
+  const taken = ordered.slice(0, budget);
+  const left = ordered.slice(budget);
+  return {
+    photos: groups.length,
+    livePhotos: live.length,
+    liveObjects: live.reduce((n, [, keys]) => n + keys.length, 0),
+    orphanedPhotos: orphaned.length,
+    toDelete: taken.flatMap(([, keys]) => keys),
+    deferred: left.flatMap(([, keys]) => keys),
+    deferredPhotos: left.length,
   };
 }
 
@@ -214,9 +289,15 @@ export function formatReport(
     `Newly tracked as unreferenced: ${report.newlyTracked}`,
     `Referenced again, untracked: ${report.clearedBack}`,
     `Past the grace period (${heading}): ${report.dueForDeletion.length}`,
-    `Photos and logos among them (what the cap counts): ${report.duePhotos}`,
+    `Photos and logos among them: ${report.duePhotos}`,
+    `Of those, whose animal or shelter still exists (what the cap counts): ${report.duePhotos - report.orphanedPhotos}`,
   ];
   for (const key of report.dueForDeletion) lines.push(`  ${key}`);
+  if (report.deferredPhotos > 0) {
+    lines.push(
+      `Over this run's budget, left tracked for the next run: ${report.deferredPhotos} photos (${report.deferred.length} objects)`,
+    );
+  }
   if (report.capTripped !== null) {
     const { photos, objects, cap } = report.capTripped;
     lines.push(

@@ -1,6 +1,4 @@
 import {
-  type Coordinates,
-  CoordinatesSchema,
   EdrpouSchema,
   type ExactAddress,
   instantOfCalendarDate,
@@ -60,8 +58,6 @@ export type CreateShelterForm = {
   line1: string;
   line2: string;
   postalCode: string;
-  /** One "lat, lng" field, pasted from a map (RU-T6). */
-  coordinates: string;
   legal: LegalForm;
   contacts: ContactsForm;
   evidence: readonly EvidenceRow[];
@@ -70,10 +66,7 @@ export type CreateShelterForm = {
 };
 
 /** The premises address as typed: S2's fields, and S4's address edit form. */
-export type AddressForm = Pick<
-  CreateShelterForm,
-  "cityId" | "line1" | "line2" | "postalCode" | "coordinates"
->;
+export type AddressForm = Pick<CreateShelterForm, "cityId" | "line1" | "line2" | "postalCode">;
 
 export const emptyCreateForm = (): CreateShelterForm => ({
   displayName: "",
@@ -82,7 +75,6 @@ export const emptyCreateForm = (): CreateShelterForm => ({
   line1: "",
   line2: "",
   postalCode: "",
-  coordinates: "",
   legal: {
     kind: null,
     legalName: "",
@@ -104,7 +96,6 @@ export type CreateFieldError =
   | "required"
   | "nameTooLong"
   | "edrpouFormat"
-  | "coordinatesFormat"
   | "emailFormat"
   | "descriptionTooLong"
   | "registeredAtFuture"
@@ -115,7 +106,6 @@ export type CreateField =
   | "description"
   | "cityId"
   | "line1"
-  | "coordinates"
   | "legalKind"
   | "legalName"
   | "edrpou"
@@ -136,19 +126,6 @@ export type CreateInputCheck =
   | { kind: "ok"; input: RegistryCreateInput }
   | { kind: "invalid"; errors: CreateFormErrors };
 
-/**
- * Two decimal numbers, latitude first, separated by a comma or spaces
- * («50.4501, 30.5234», what a map's "copy coordinates" gives), each in range.
- */
-const COORDINATES = /^\s*([+-]?\d+(?:\.\d+)?)\s*[,\s]\s*([+-]?\d+(?:\.\d+)?)\s*$/;
-
-export function coordinatesOf(raw: string): Coordinates | null {
-  const match = COORDINATES.exec(raw);
-  if (match === null) return null;
-  const parsed = CoordinatesSchema.safeParse({ lat: Number(match[1]), lng: Number(match[2]) });
-  return parsed.success ? parsed.data : null;
-}
-
 const EmailSchema = z.email();
 
 type LegalResult =
@@ -164,19 +141,17 @@ type AddressResult =
   | { kind: "ok"; exactAddress: StreetAddress & { cityId: string } }
   | { kind: "invalid" };
 
-/** The street is required once any address field is typed; the point is optional. */
+/**
+ * The street is required once any address field is typed. A point is never asked for (P0-6):
+ * nothing user-facing reads one, so it is always null.
+ */
 function streetAddressOf(
   form: AddressForm,
   errors: Partial<Record<CreateField, CreateFieldError>>,
 ): StreetResult {
   const line1 = trimmedOrNull(form.line1);
   if (line1 === null) errors.line1 = "required";
-  let coordinates: Coordinates | null = null;
-  if (form.coordinates.trim() !== "") {
-    coordinates = coordinatesOf(form.coordinates);
-    if (coordinates === null) errors.coordinates = "coordinatesFormat";
-  }
-  if (line1 === null || errors.coordinates !== undefined) return { kind: "invalid" };
+  if (line1 === null) return { kind: "invalid" };
   return {
     kind: "ok",
     street: {
@@ -184,7 +159,7 @@ function streetAddressOf(
       line2: trimmedOrNull(form.line2),
       postalCode: trimmedOrNull(form.postalCode),
       district: null,
-      coordinates,
+      coordinates: null,
     },
   };
 }
@@ -205,9 +180,7 @@ function optionalStreetAddressOf(
   form: AddressForm,
   errors: Partial<Record<CreateField, CreateFieldError>>,
 ): { kind: "ok"; street: StreetAddress | null } | { kind: "invalid" } {
-  const typed = [form.line1, form.line2, form.postalCode, form.coordinates].some(
-    (value) => value.trim() !== "",
-  );
+  const typed = [form.line1, form.line2, form.postalCode].some((value) => value.trim() !== "");
   return typed ? streetAddressOf(form, errors) : { kind: "ok", street: null };
 }
 
@@ -243,16 +216,12 @@ export function legalFormOf(legal: ShelterLegalEntity | null): LegalForm {
  * A stored premises address as S4's edit form starts; the district is kept by the caller.
  * None on file yet: the shelter's city, nothing else.
  */
-export const addressFormOf = (address: ExactAddress | null, cityId: string): AddressForm => {
-  const point = address?.coordinates ?? null;
-  return {
-    cityId: address?.cityId ?? cityId,
-    line1: address?.line1 ?? "",
-    line2: address?.line2 ?? "",
-    postalCode: address?.postalCode ?? "",
-    coordinates: point === null ? "" : `${point.lat}, ${point.lng}`,
-  };
-};
+export const addressFormOf = (address: ExactAddress | null, cityId: string): AddressForm => ({
+  cityId: address?.cityId ?? cityId,
+  line1: address?.line1 ?? "",
+  line2: address?.line2 ?? "",
+  postalCode: address?.postalCode ?? "",
+});
 
 export function legalEntityOf(
   legal: LegalForm,

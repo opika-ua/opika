@@ -404,12 +404,9 @@ describe("/tvaryny – handoff B2's description, the demo disclosure while no re
  * `/tvaryny/[animalId]` at all - Next does not merge a route's own
  * `generateMetadata` with the root layout's, it overrides it, and this
  * route builds its own `description`/`openGraph.description` from the
- * animal's own data (PR B, the SEO review of page titles: sex-aware species
- * word, name, city, shelter name, and a trimmed line of the animal's own
- * description - age and size are gone from here, deliberately;
- * `animalMetaDescription`'s own test in
- * `[animalId]/animal-meta-description.test.ts` covers that formatting in
- * detail). Without its own demo swap this route would preview a fictional
+ * animal's own data (SEO handoff B2: name, city, shelter name and the
+ * story's first sentence; `animalSeoText`'s own test in
+ * `[animalId]/animal-seo-text.test.ts` covers that formatting in detail). Without its own demo swap this route would preview a fictional
  * animal with no demo-data disclosure - exactly the shared-link surface
  * `/prytulkam` tells shelters they can paste into Telegram, so the one
  * route this disclosure matters on most.
@@ -436,7 +433,7 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS – /tvaryny/[animalId] link-preview des
       publicLocation: { cityId: CITY_ID },
     },
   };
-  const REAL_DESCRIPTION = "Кіт Мурчик · Бровари · Добрі лапи. Лагідний кіт.";
+  const REAL_DESCRIPTION = "Мурчик шукає дім. Бровари · Добрі лапи. Лагідний кіт.";
 
   beforeEach(() => {
     vi.resetModules();

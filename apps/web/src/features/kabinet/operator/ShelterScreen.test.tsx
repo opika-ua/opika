@@ -227,7 +227,6 @@ describe("S4 legal data, address, contacts, description", () => {
     renderScreen();
     const address = section("Адреса приміщення");
     expect(within(address).getByText("Бровари, вул. Київська, 300, 07400")).toBeTruthy();
-    expect(within(address).getByText("50.5, 30.8")).toBeTruthy();
     expect(
       within(address).getByText("Ті, хто шукає тварину, не бачать точної адреси – лише місто."),
     ).toBeTruthy();
@@ -239,11 +238,12 @@ describe("S4 legal data, address, contacts, description", () => {
     expect(within(section("Адреса приміщення")).getByText("Ще не заповнено")).toBeTruthy();
   });
 
-  it("an address without its point reads «Ще не заповнено» for the coordinates only", () => {
-    renderScreen({ exactAddress: { ...view().exactAddress, coordinates: null } as never });
+  it("shows no coordinates (P0-6), only the address line", () => {
+    renderScreen();
     const address = section("Адреса приміщення");
     expect(within(address).getByText("Бровари, вул. Київська, 300, 07400")).toBeTruthy();
-    expect(within(address).getByText("Ще не заповнено")).toBeTruthy();
+    expect(within(address).queryByText("Координати")).toBeNull();
+    expect(within(address).queryByText("50.5, 30.8")).toBeNull();
   });
 
   it("shows the contacts and the description", () => {

@@ -82,7 +82,7 @@ describe("LegalEdit", () => {
 });
 
 describe("AddressEdit", () => {
-  it("sends the changed address, keeping the stored district", async () => {
+  it("sends the changed address, keeping the stored district and never a point (P0-6)", async () => {
     const view = registryView({
       version: 3,
       exactAddress: { ...FIXTURE_ADDRESS, district: { uk: "Центральний", en: null } },
@@ -102,7 +102,7 @@ describe("AddressEdit", () => {
       expectedVersion: 3,
       change: {
         field: "exact_address",
-        next: { ...view.exactAddress, line1: "вул. Нова, 1" },
+        next: { ...view.exactAddress, line1: "вул. Нова, 1", coordinates: null },
       },
     });
   });

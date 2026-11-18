@@ -108,7 +108,6 @@ const initiative = (patch: Partial<CreateShelterForm> = {}): CreateShelterForm =
   description: "Волонтери з Вишгорода.",
   cityId,
   line1: "вул. Мечникова, 4",
-  coordinates: "50.5843, 30.4890",
   legal: {
     ...emptyCreateForm().legal,
     kind: "unregistered_initiative",

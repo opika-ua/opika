@@ -57,6 +57,16 @@ const EXPECTED: ReadonlyArray<{
       "a stale email, so there is nothing for the shared scrub to do",
   },
   {
+    file: "repos/application-deletion-repo.ts",
+    line: 184,
+    text: "tx.delete(authUser).where(ofUser(eq(authUser.id, uid))),",
+    kind: "exception",
+    why:
+      "deletes a self-registered application (D8, «Це не я») with its own shelter_history rows " +
+      "in the same transaction; the registrant was only ever that shelter's member (one email, " +
+      "one shelter), so no row is left to carry the email and there is nothing to scrub",
+  },
+  {
     file: "repos/admin-erasure-repo.ts",
     line: 157,
     text: 'DELETE FROM "auth_user"',

@@ -298,7 +298,7 @@ export function AddressEdit({
             form={form}
             set={(key, value) => setForm((current) => ({ ...current, [key]: value }))}
             street="required"
-            errors={{ line1: message(errors.line1), coordinates: message(errors.coordinates) }}
+            errors={{ line1: message(errors.line1) }}
           />
         </>
       }

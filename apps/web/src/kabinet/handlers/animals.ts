@@ -1,17 +1,19 @@
 import { isDeepStrictEqual } from "node:util";
-import type {
-  AgeEstimateInput,
-  AnimalPatchSchema,
-  apiErrors,
-  KabinetAnimalListFilter,
-  KabinetAnimalRowView,
-  KabinetAnimalView,
-  KabinetCursor,
-  KabinetListingEventInputSchema,
-  KabinetPhotoCropView,
+import {
+  type AgeEstimateInput,
+  type AnimalPatchSchema,
+  type apiErrors,
+  type KabinetAnimalListFilter,
+  type KabinetAnimalRowView,
+  type KabinetAnimalView,
+  type KabinetCursor,
+  type KabinetListingEventInputSchema,
+  type KabinetPhotoCropView,
+  UNKNOWN_CITY_MESSAGE,
 } from "@opika/contracts";
 import {
   type ConditionalWrite,
+  cityRepo,
   type KabinetAnimalFilter,
   kabinetAnimalRepo,
   type ListingMoveHistory,
@@ -28,11 +30,13 @@ import {
   type AnimalEditedField,
   type AnimalId,
   type AnimalListingState,
+  type AnimalLocation,
   type AnimalPhoto,
   ageDateProblem,
   animalLocationOf,
   type CityId,
   checkDraftCap,
+  cityPublicLocationOf,
   DEFAULT_FRESHNESS_POLICY,
   type DraftAnimal,
   declaredAtOfCalendarDate,
@@ -47,6 +51,7 @@ import {
   type LocalizedText,
   listingHistoryEventOf,
   type MedicalDeclarationInput,
+  type PublicLocation,
   type PublishGap,
   publishGaps,
   publishGateOf,
@@ -60,7 +65,7 @@ import {
   UNKNOWN_ATTESTATION,
   type VaccinationStatus,
 } from "@opika/domain";
-import type { ORPCErrorConstructorMap } from "@orpc/server";
+import { ORPCError, type ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { ShelterReadScope, ShelterWriteScope } from "../access";
 import type { KabinetContext } from "../context";
@@ -313,6 +318,25 @@ function editedAge(
   const problem = ageDateProblem(input.kind === "birth_date" ? input.date : input.asOf, now);
   if (problem !== null) throw errors.AGE_DATE_OUT_OF_RANGE({ data: { problem: problem.kind } });
   return ageOfInput(input, now);
+}
+
+/**
+ * «Де зараз тварина» (P0-5): `shelter_city` is a null `public_location` (it follows the shelter),
+ * `own_city` a city-precision one. The same city as stored keeps the stored value whole.
+ */
+async function editedLocation(
+  deps: Pick<AnimalDeps, "db">,
+  stored: PublicLocation | null,
+  input: AnimalLocation | undefined,
+): Promise<PublicLocation | null> {
+  if (input === undefined) return stored;
+  if (input.kind === "shelter_city") return null;
+  if (stored !== null && stored.cityId === input.cityId) return stored;
+  if ((await cityRepo(deps.db).findCurrentById(input.cityId)) === null) {
+    // As the operator's city pickers answer (RG-T5): a client fault, never the FK's 500.
+    throw new ORPCError("BAD_REQUEST", { status: 400, message: UNKNOWN_CITY_MESSAGE });
+  }
+  return cityPublicLocationOf(input.cityId, null);
 }
 
 /** A temperament's custom entry by `textAfterEdit`'s rule, against the stored custom entry. */
@@ -637,9 +661,7 @@ export async function animalsUpdate(
   const { animal, cityId } = await owned(deps, scope, input.animalId, errors);
   if (animal.version !== input.expectedVersion) throw errors.CONFLICT();
   const { patch } = input;
-  // The location write (and the effective `city_id` it maintains) lands with the location PR
-  // (Agent 4); until then a sent location is refused loudly, never dropped.
-  if (patch.location !== undefined) throw new Error("location edits are not served yet");
+  const publicLocation = await editedLocation(deps, animal.publicLocation, patch.location);
   const vaccination = declared(animal.vaccination, patch.vaccination, deps.now);
   const spayNeuter = declared(animal.spayNeuter, patch.spayNeuter, deps.now);
   if (vaccination === "refused" || spayNeuter === "refused") throw errors.REGISTRY_CONFIRMED();
@@ -665,6 +687,7 @@ export async function animalsUpdate(
           : textAfterEdit(animal.medicalNotes, patch.medicalNotes),
     vaccination,
     spayNeuter,
+    publicLocation,
   };
   const description = (stored: LocalizedText | null): LocalizedText | null =>
     patch.description === undefined

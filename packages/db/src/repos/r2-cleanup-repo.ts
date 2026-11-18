@@ -1,3 +1,4 @@
+import type { AnimalId, ShelterId } from "@opika/domain";
 import { inArray, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import {
@@ -9,7 +10,9 @@ import {
   variantObjectKey,
 } from "../image-pipeline/variants";
 import { executeRows } from "../raw-rows";
+import { animals } from "../schema/animals";
 import { r2UnreferencedObjects } from "../schema/r2-cleanup";
+import { shelters } from "../schema/shelters";
 
 /**
  * Postgres binds at most 65535 parameters per statement. A few hundred
@@ -265,4 +268,33 @@ export async function afterDeleted(
     snapshotsNulled += rows.length;
   }
   return { snapshotsNulled };
+}
+
+/**
+ * Which of these photo owners still have a row (P0-4's budget): a photo whose animal or shelter
+ * is gone can only be an orphan, never a live photo a broken reference made look unreferenced.
+ */
+export async function ownersPresent(
+  db: Database,
+  owners: readonly { kind: "animal" | "shelter"; id: string }[],
+): Promise<{ animal: Set<string>; shelter: Set<string> }> {
+  const present = { animal: new Set<string>(), shelter: new Set<string>() };
+  const ids = (kind: "animal" | "shelter") => [
+    ...new Set(owners.filter((owner) => owner.kind === kind).map((owner) => owner.id)),
+  ];
+  for (const batch of chunk(ids("animal"), SQL_BATCH_SIZE)) {
+    const rows = await db
+      .select({ id: animals.id })
+      .from(animals)
+      .where(inArray(animals.id, batch as AnimalId[]));
+    for (const row of rows) present.animal.add(row.id);
+  }
+  for (const batch of chunk(ids("shelter"), SQL_BATCH_SIZE)) {
+    const rows = await db
+      .select({ id: shelters.id })
+      .from(shelters)
+      .where(inArray(shelters.id, batch as ShelterId[]));
+    for (const row of rows) present.shelter.add(row.id);
+  }
+  return present;
 }

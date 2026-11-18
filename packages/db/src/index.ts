@@ -1,3 +1,8 @@
+export {
+  type ApplicationCleanupReport,
+  formatApplicationCleanupReport,
+  runApplicationCleanup,
+} from "./application-cleanup-run";
 export { createDatabase, createDatabaseWithClient, type Database } from "./client";
 export {
   REGION_BY_SLUG,

@@ -129,7 +129,6 @@ async function fillInitiative(visitedOn = "2026-10-12") {
   await u.type(screen.getByLabelText("Про притулок · необовʼязково"), "Волонтери з Вишгорода.");
   await pickCity(u, "Виш");
   await u.type(screen.getByLabelText("Вулиця, будинок"), "вул. Мечникова, 4");
-  await u.type(screen.getByLabelText("Координати"), "50.5843, 30.4890");
   await u.click(screen.getByRole("radio", { name: "Ініціатива без реєстрації" }));
   await u.type(screen.getByLabelText("Контактна особа"), "Ірина Коваль");
   const contacts = within(screen.getByRole("region", { name: "Контакти" }));
@@ -393,7 +392,7 @@ describe("the minimal shelter", () => {
   it("asks for the street once anything else in the address is typed", async () => {
     const fns = renderForm(async () => createdView(null));
     const u = user();
-    await u.type(screen.getByLabelText("Координати"), "50.5843, 30.4890");
+    await u.type(screen.getByLabelText("Індекс · необовʼязково"), "07300");
     await u.click(submit());
     expect(fns.create).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Вулиця, будинок").getAttribute("aria-invalid")).toBe("true");
@@ -758,16 +757,9 @@ describe("checked before anything is sent", () => {
     expect(createInputSchema.safeParse(fns.create.mock.calls[0]?.[0]).success).toBe(true);
   });
 
-  it("the coordinates in a shape it can't read get their own message", async () => {
-    const fns = renderForm(async () => createdView(null));
-    const u = await fillInitiative();
-    await u.clear(screen.getByLabelText("Координати"));
-    await u.type(screen.getByLabelText("Координати"), "50,4501 30,5234");
-    await u.click(submit());
-    expect(fns.create).not.toHaveBeenCalled();
-    expect(
-      screen.getByText("Вкажіть координати як «широта, довгота», наприклад «50.4501, 30.5234»."),
-    ).toBeDefined();
+  it("asks for no coordinates (P0-6): the address is the street and the city", () => {
+    renderForm(async () => createdView(null));
+    expect(screen.queryByLabelText("Координати")).toBeNull();
   });
 });
 

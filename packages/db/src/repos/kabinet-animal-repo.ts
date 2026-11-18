@@ -266,6 +266,10 @@ export function kabinetAnimalRepo(db: Database) {
      * `version`-only condition, so it never conflicts with a listing move. A
      * cleared fur, colour, temperament or medical note is no listing fact and
      * lands on any listing kind.
+     *
+     * «Де зараз тварина» (P0-5): `public_location` lands with `city_id` kept as the effective
+     * city, its own or (null) the shelter's, read in this statement so a shelter move landing
+     * meanwhile can't leave it behind. `cityId` only fills the row shape here.
      */
     async writeEditIf(
       animal: Animal,
@@ -274,6 +278,10 @@ export function kabinetAnimalRepo(db: Database) {
       history: AnimalHistoryRow<"animal_edited">,
     ): Promise<ConditionalWrite> {
       const row = animalToRowWithCity(animal, cityId);
+      const effectiveCity =
+        animal.publicLocation === null
+          ? sql`(SELECT ${shelters.cityId} FROM ${shelters} WHERE ${shelters.id} = ${animals.shelterId})`
+          : animal.publicLocation.cityId;
       const writesNull = row.size === null || row.age === null || row.descriptionUk === null;
       const update = db
         .update(animals)
@@ -301,6 +309,8 @@ export function kabinetAnimalRepo(db: Database) {
           medicalNotesEnProvenance: row.medicalNotesEnProvenance,
           vaccination: row.vaccination,
           spayNeuter: row.spayNeuter,
+          publicLocation: row.publicLocation,
+          cityId: effectiveCity,
           lastUpdatedAt: row.lastUpdatedAt,
           version: sql`${animals.version} + 1`,
         })
