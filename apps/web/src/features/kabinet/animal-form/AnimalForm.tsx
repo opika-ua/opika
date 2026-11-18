@@ -7,7 +7,7 @@ import {
   isDiscoverable,
   kyivCalendarDateOf,
   type PublishGap,
-  type ShelterGate,
+  type PublishGate,
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -24,8 +24,9 @@ import { Heading } from "../../../ui/Heading";
 import { StickyActionBar } from "../../../ui/StickyActionBar";
 import { Tabs } from "../../../ui/Tabs";
 import { Text } from "../../../ui/Text";
+import { TextLink } from "../../../ui/TextLink";
 import type { CompressedPhoto } from "../photos/compress-photo";
-import { publicAnimalPath } from "../routes";
+import { publicAnimalPath, SHELTER_CONTACTS_PATH } from "../routes";
 import { ListingStatusChip } from "../StatusChips";
 import { useCityPicker } from "../shared/city-picker";
 import { SavePill, SaveStatusLine } from "../shared/save-pill";
@@ -148,7 +149,7 @@ export function AnimalForm({
   /** Where the shelter's cards stand with the public (`shelterVisibilityOf`). */
   shelterVisibility: ShelterVisibility;
   /** Blocked while the shelter is an application (D2); the server's gate decides, this says why. */
-  publishGate?: ShelterGate;
+  publishGate?: PublishGate;
   back: { href: string; label: string };
   /** The tab `?tab=` named; «Публікація» is only there for a shelter that can write. */
   initialTab?: AnimalTab;
@@ -521,11 +522,11 @@ export function AnimalForm({
   // shelter, which has passed): `publishedAnnouncementOf`.
   const publishedAnnouncement = publishedAnnouncementOf(shelterVisibility);
 
-  const awaitingApproval = publishGate.kind === "blocked";
+  const blockedBy = publishGate.kind === "blocked" ? publishGate.why : null;
   const publish = async () => {
     if (!editable || publishing) return;
-    if (awaitingApproval) {
-      setAnnouncement(uk.kabinet.application.publishBlocked);
+    if (blockedBy !== null) {
+      setAnnouncement(blockedSentence[blockedBy]);
       return;
     }
     if (gaps.length > 0) {
@@ -557,6 +558,9 @@ export function AnimalForm({
           break;
         case "AWAITING_APPROVAL":
           setAnnouncement(uk.kabinet.application.publishBlocked);
+          break;
+        case "CONTACT_REQUIRED":
+          setAnnouncement(uk.kabinet.application.publishNoContact);
           break;
         default:
           // The save before it went through (a failed save returns above),
@@ -669,7 +673,7 @@ export function AnimalForm({
       <FormSection framing="flush" id="publication" title={t.sections.publication} titleless>
         {isDraft ? (
           <DraftPublication
-            awaitingApproval={awaitingApproval}
+            blockedBy={blockedBy}
             gaps={gaps}
             onGo={(gap) => goTo(GAP_TAB[gap.kind], GAP_TARGET[gap.kind])}
           />
@@ -751,7 +755,7 @@ export function AnimalForm({
           <DraftActions
             save={save}
             gaps={gaps}
-            awaitingApproval={awaitingApproval}
+            blockedBy={blockedBy}
             publishing={publishing}
             onSave={() => void saveFromButton()}
             onPublish={() => void publish()}
@@ -801,27 +805,39 @@ const fieldOfTarget = (target: EventTarget | null): FieldProblem["field"] | null
   return null;
 };
 
+type PublishBlock = Extract<PublishGate, { kind: "blocked" }>["why"];
+
+const blockedSentence: Record<PublishBlock, string> = {
+  application: uk.kabinet.application.publishBlocked,
+  no_contact: uk.kabinet.application.publishNoContact,
+};
+
 /**
  * «Публікація» on a draft: who sees it (nobody yet) and what is still missing, the way the
  * disabled «Опублікувати» is described. Each gap is a link that switches to its tab and focuses
  * the field, so the list is a route, not just a sentence.
  */
 function DraftPublication({
-  awaitingApproval,
+  blockedBy,
   gaps,
   onGo,
 }: {
-  awaitingApproval: boolean;
+  blockedBy: PublishBlock | null;
   gaps: readonly PublishGap[];
   onGo: (gap: PublishGap) => void;
 }) {
   return (
     <>
       <Text look="hint">{t.draft.notVisible}</Text>
-      {awaitingApproval ? (
-        <Text look="label" id="publish-awaiting-approval">
-          {uk.kabinet.application.publishBlocked}
+      {blockedBy !== null ? (
+        <Text look="label" id="publish-blocked">
+          {blockedSentence[blockedBy]}
         </Text>
+      ) : null}
+      {blockedBy === "no_contact" ? (
+        <TextLink href={SHELTER_CONTACTS_PATH} className="self-start text-label">
+          {uk.kabinet.application.publishNoContactLink}
+        </TextLink>
       ) : null}
       <MissingPanel gaps={gaps} onGo={onGo} />
     </>
@@ -890,7 +906,7 @@ function SaveProblems({
 function DraftActions({
   save,
   gaps,
-  awaitingApproval,
+  blockedBy,
   publishing,
   onSave,
   onPublish,
@@ -898,7 +914,7 @@ function DraftActions({
 }: {
   save: SaveState;
   gaps: readonly PublishGap[];
-  awaitingApproval: boolean;
+  blockedBy: PublishBlock | null;
   publishing: boolean;
   onSave: () => void;
   onPublish: () => void;
@@ -906,7 +922,7 @@ function DraftActions({
 }) {
   const unready = gaps.length > 0;
   const describedBy = [
-    ...(awaitingApproval ? ["publish-awaiting-approval"] : []),
+    ...(blockedBy !== null ? ["publish-blocked"] : []),
     ...(unready ? ["publish-missing", "publish-missing-list"] : []),
   ].join(" ");
   return (
@@ -931,7 +947,7 @@ function DraftActions({
         <Button
           variant="primary"
           className="flex-1 tablet:flex-none"
-          aria-disabled={unready || awaitingApproval || undefined}
+          aria-disabled={unready || blockedBy !== null || undefined}
           aria-describedby={describedBy === "" ? undefined : describedBy}
           aria-busy={publishing || undefined}
           onClick={onPublish}

@@ -5,12 +5,12 @@ import {
   type ListingEventType,
   type ListingKind,
   type PublishGap,
-  type ShelterGate,
+  type PublishGate,
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { freshnessLabel } from "@opika/ui";
 import { missingSentence } from "../animal-form/labels";
-import { animalPath, publicAnimalPath } from "../routes";
+import { animalPath, publicAnimalPath, SHELTER_CONTACTS_PATH } from "../routes";
 import { type AnimalRow, metaPartsOf, statusLineOf } from "./list-model";
 
 /**
@@ -104,7 +104,9 @@ export type PublishOffer =
   | { kind: "ready" }
   | { kind: "blocked"; gaps: readonly [PublishGap, ...PublishGap[]]; sentence: string }
   /** The shelter is still an application (D2): nothing publishes, whatever the card holds. */
-  | { kind: "awaiting_approval"; sentence: string };
+  | { kind: "awaiting_approval"; sentence: string }
+  /** The shelter has no adopter contact yet (owner, 2026-11-19); the link leads to where it's added. */
+  | { kind: "no_contact"; sentence: string; link: { href: string; label: string } };
 /** A visible card's ⋯: its public page, opened or copied. */
 export type SiteLinks = { kind: "site_links"; href: string };
 /** A draft's ⋯: only its delete (nothing is public yet). */
@@ -129,9 +131,15 @@ export type AnimalManageCard =
   | (CardCore & { status: "adopted"; closedLine: string })
   | (CardCore & { status: "withdrawn"; closedLine: string; statusMenu: StatusMenu<"withdrawn"> });
 
-const publishOfferOf = (gaps: readonly PublishGap[], gate: ShelterGate): PublishOffer => {
+const publishOfferOf = (gaps: readonly PublishGap[], gate: PublishGate): PublishOffer => {
   if (gate.kind === "blocked") {
-    return { kind: "awaiting_approval", sentence: uk.kabinet.application.publishBlocked };
+    return gate.why === "application"
+      ? { kind: "awaiting_approval", sentence: uk.kabinet.application.publishBlocked }
+      : {
+          kind: "no_contact",
+          sentence: uk.kabinet.application.publishNoContact,
+          link: { href: SHELTER_CONTACTS_PATH, label: uk.kabinet.application.publishNoContactLink },
+        };
   }
   const [first, ...rest] = gaps;
   return first === undefined
@@ -142,7 +150,7 @@ const publishOfferOf = (gaps: readonly PublishGap[], gate: ShelterGate): Publish
 export const toAnimalManageCard = (
   row: AnimalRow,
   now: Date,
-  publishGate: ShelterGate = { kind: "open" },
+  publishGate: PublishGate = { kind: "open" },
 ): AnimalManageCard => {
   const core: CardCore = {
     id: row.id,

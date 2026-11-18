@@ -193,7 +193,6 @@ describe("registerWith: the fields", () => {
         name: "required",
         cityId: "required",
         link: "required",
-        contact: "required",
         password: "required",
         passwordRepeat: "required",
       },
@@ -289,6 +288,18 @@ describe("registerWith: the write and the way in", () => {
       },
     ]);
     expect(h.cookies).toEqual([["kabinet.session_token=s; Path=/"]]);
+  });
+
+  it("an empty contact is valid and stores none; a wrong one is still refused (owner, 2026-11-19)", async () => {
+    const h = harness();
+    const state = await registerWith(formOf({ contact: "  " }), h.deps);
+    expect(state.result).toEqual({ kind: "registered", next: "/kabinet" });
+    expect(h.writes[0]?.shelter.contact).toBeNull();
+
+    const refused = harness();
+    const wrong = await registerWith(formOf({ contact: "0671234" }), refused.deps);
+    expect(wrong.result).toEqual({ kind: "invalid", fields: { contact: "contact" } });
+    expect(refused.writes).toEqual([]);
   });
 
   it("an address with an account answers email_taken: no email, no sign-in", async () => {

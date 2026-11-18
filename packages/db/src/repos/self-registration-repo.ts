@@ -55,7 +55,8 @@ export type ApplicationSummary = {
   displayName: string;
   cityName: string;
   link: string | null;
-  contact: Shelter["contact"]["primary"];
+  /** Null when the registrant left the contact field empty. */
+  contact: NonNullable<Shelter["contact"]>["primary"] | null;
   email: string;
 };
 
@@ -290,7 +291,7 @@ export function selfRegistrationRepo(db: Database) {
         displayName: shelter.displayName,
         cityName: row.cityName,
         link: link?.kind === "public_link" ? link.url : null,
-        contact: shelter.contact.primary,
+        contact: shelter.contact?.primary ?? null,
         email: row.email,
       };
     },

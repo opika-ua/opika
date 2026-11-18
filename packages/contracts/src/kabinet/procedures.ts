@@ -561,6 +561,7 @@ export const shelterAnimalsContract = {
       ...animalMoveErrors,
       PUBLISH_REQUIREMENTS_UNMET: apiErrors.PUBLISH_REQUIREMENTS_UNMET,
       AWAITING_APPROVAL: apiErrors.AWAITING_APPROVAL,
+      CONTACT_REQUIRED: apiErrors.CONTACT_REQUIRED,
     }),
   /** «Ще шукає»: one animal per call, never bulk (commitment #7). */
   confirm: shelterWriteProcedure

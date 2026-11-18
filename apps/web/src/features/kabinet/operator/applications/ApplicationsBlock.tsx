@@ -96,7 +96,13 @@ function ApplicationCard({
         ) : (
           <SubmittedLink url={item.link} />
         )}
-        <Text className="break-words">{channelValue(item.contact)}</Text>
+        {item.contact === null ? (
+          <Text look="label">
+            {uk.kabinet.profile.contactsTitle}: {uk.kabinet.profileNotRecorded}
+          </Text>
+        ) : (
+          <Text className="break-words">{channelValue(item.contact)}</Text>
+        )}
         <Text className="break-all">{item.email}</Text>
         <Text
           look={item.emailStatus === "confirmed" ? "body" : "label"}

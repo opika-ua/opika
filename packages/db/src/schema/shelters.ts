@@ -34,7 +34,8 @@ export const shelters = pgTable(
     publicLocation: jsonb<PublicLocation>("public_location").notNull(),
     /** Null until the operator adds it; the city is then only `city_id` / `public_location`. */
     exactAddress: jsonb<ExactAddress>("exact_address"),
-    contact: jsonb<ShelterContact>("contact").notNull(),
+    /** Null only for a self-registered shelter that gave none yet (`shelters_contact_check`). */
+    contact: jsonb<ShelterContact>("contact"),
     donation: jsonb<DonationLink>("donation"),
     logo: jsonb<ShelterLogo>("logo"),
     /**
@@ -147,6 +148,10 @@ export const shelters = pgTable(
     check(
       "shelters_application_is_self_registered",
       sql`${t.verificationStatus} <> 'application' OR ${t.registrationSource} = 'self_registration'`,
+    ),
+    check(
+      "shelters_contact_check",
+      sql`${t.contact} IS NOT NULL OR ${t.registrationSource} = 'self_registration'`,
     ),
     check(
       "shelters_application_rejected_at_check",

@@ -1,5 +1,5 @@
 import type { KabinetShelterView } from "@opika/contracts";
-import type { ListingKind } from "@opika/domain";
+import type { ListingKind, PublishGate } from "@opika/domain";
 
 /**
  * What a self-registered shelter is told at the top of its list (spec §2, Q3, P0-1). Pure: the
@@ -50,6 +50,15 @@ export function applicationBannersOf(
   return banners;
 }
 
-/** The publish gate as the kabinet sees it: the server's `publishGateOf` decides; this only says why. */
-export const awaitingApproval = (shelter: Pick<KabinetShelterView, "verification">): boolean =>
-  shelter.verification.status === "application";
+/**
+ * The publish gate as the kabinet sees it: the server's `publishGateOf` decides; this only says why,
+ * in the same order (the application wins over a missing contact).
+ */
+export const publishGateFor = (
+  shelter: Pick<KabinetShelterView, "verification" | "contact">,
+): PublishGate =>
+  shelter.verification.status === "application"
+    ? { kind: "blocked", why: "application" }
+    : shelter.contact === null
+      ? { kind: "blocked", why: "no_contact" }
+      : { kind: "open" };

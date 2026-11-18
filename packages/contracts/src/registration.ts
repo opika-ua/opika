@@ -59,10 +59,12 @@ export const RegistrationInputSchema = z
         ctx.addIssue({ code: "custom", message: "link" });
         return z.NEVER;
       }),
+    /** Optional (owner, 2026-11-19): left empty it is null; anything typed must still be valid. */
     contact: z
       .string()
       .max(CONTACT_INPUT_MAX_LENGTH)
       .transform((raw, ctx) => {
+        if (raw.trim() === "") return null;
         const contact = normalizeAdopterContact(raw);
         if (contact.kind === "ok") return contact.channel;
         ctx.addIssue({ code: "custom", message: "contact" });

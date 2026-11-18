@@ -103,6 +103,17 @@ describe("ApplicationsBlock", () => {
     expect(missing.getByRole("button", { name: "Схвалити" })).toBeTruthy();
   });
 
+  it("a card without a contact says so (it registered without one)", () => {
+    render(
+      <ApplicationsBlock
+        view={view({ applications: [card({ contact: null })] })}
+        cityNames={{}}
+        now={NOW}
+      />,
+    );
+    expect(screen.getByText("Контакти: Не записано")).toBeTruthy();
+  });
+
   it("a row the server couldn't read gets its own card with the shelter id, and counts", () => {
     render(
       <ApplicationsBlock

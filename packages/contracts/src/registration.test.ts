@@ -31,6 +31,12 @@ describe("RegistrationInputSchema", () => {
     });
   });
 
+  it("takes an empty or blank contact as none, and still refuses a wrong one (owner, 2026-11-19)", () => {
+    expect(RegistrationInputSchema.parse({ ...VALID, contact: "" }).contact).toBeNull();
+    expect(RegistrationInputSchema.parse({ ...VALID, contact: "   " }).contact).toBeNull();
+    expect(issuesOf({ ...VALID, contact: "0671234" })).toEqual([["contact", "contact"]]);
+  });
+
   it("never trims the password", () => {
     const spaced = {
       ...VALID,

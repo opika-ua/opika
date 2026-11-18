@@ -2,7 +2,7 @@
 
 import "../../../zod-client-config";
 import type { KabinetAnimalListFilter, KabinetCursor, KabinetShelterView } from "@opika/contracts";
-import { type ListingKind, type ShelterGate, UNDO_SHOWN_MS } from "@opika/domain";
+import { type ListingKind, UNDO_SHOWN_MS } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { type ReactNode, useCallback, useRef, useState } from "react";
 import {
@@ -20,7 +20,7 @@ import { Text } from "../../../ui/Text";
 import { type ToastHandle, ToastProvider, useToast } from "../../../ui/Toast";
 import type { AnimalFormEditing } from "../animal-form/AnimalForm";
 import { cardsArePublic, missingSentence, shelterVisibilityOf } from "../animal-form/labels";
-import { awaitingApproval } from "../application/application-banners";
+import { publishGateFor } from "../application/application-banners";
 import { NEW_ANIMAL_PATH } from "../routes";
 import {
   AnimalManageCard,
@@ -125,6 +125,8 @@ const refusalOf = (failure: ActionFailure, otherwise: string): string => {
       return uk.kabinet.deleteDraft.refused.wasPublished;
     case "awaiting_approval":
       return uk.kabinet.application.publishBlocked;
+    case "contact_required":
+      return uk.kabinet.application.publishNoContact;
     case "rate_limited":
       return t.errors.rateLimited;
     case "no_answer":
@@ -191,9 +193,7 @@ function AnimalListBody({
 
   const now = clock();
   const visibility = shelterVisibilityOf(verification.status, shelter.earlyListing);
-  const publishGate: ShelterGate = awaitingApproval({ verification })
-    ? { kind: "blocked", why: "application" }
-    : { kind: "open" };
+  const publishGate = publishGateFor({ verification, contact: shelter.contact });
   const shown = cardsArePublic(visibility);
   const visibilityNotice = visibilityNoticeOf(verification, shelter.earlyListing);
   const total = totalOf(counts);

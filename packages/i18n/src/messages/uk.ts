@@ -224,7 +224,7 @@ export const uk = {
       help: "За цим посиланням я перевірю притулок.",
     },
     contact: {
-      label: "Телефон або Telegram для людей",
+      label: "Телефон або Telegram для людей · необовʼязково",
       placeholder: "+380… або @imia",
       help: "Сюди писатимуть ті, хто хоче взяти тварину.",
     },
@@ -323,6 +323,10 @@ export const uk = {
       /** The «Притулок схвалено» banner's close button (owner, 2026-11-18). */
       approvedClose: "Закрити",
       publishBlocked: "Опублікувати можна після перевірки притулку.",
+      /** Publishing while the shelter has no adopter contact (owner-approved, 2026-11-19). */
+      publishNoContact: "Додайте хоча б один контакт, щоб люди могли вам написати.",
+      /** The link beside `publishNoContact`, to the profile's «Контакти» tab (owner-approved, 2026-11-19). */
+      publishNoContactLink: "Додати контакт",
       draftCap: "До перевірки можна додати не більше 30 чернеток.",
       donationBlocked: "Посилання на збір можна додати після перевірки притулку.",
       earlyListingDaysLeft: {
