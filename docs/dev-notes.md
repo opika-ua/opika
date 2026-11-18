@@ -37,6 +37,8 @@ corepack` first. In CI, prefer `corepack enable && corepack install`
 - **Biome warning ratchet:** `pnpm lint` runs `tooling/biome-ratchet.mjs`: `biome check .`, then fails unless the
   warning count equals `tooling/biome-warning-baseline.json`. More warnings: fix them. Fewer: run
   `pnpm run lint:ratchet-update` and commit the file, so the baseline always equals reality.
+- **Drizzle meta JSON is not linted:** `packages/db/drizzle/meta` (snapshots, journal) is excluded in `biome.json`.
+  drizzle-kit writes it in its own layout; reformatting a migration PR's metadata only churns the head.
 
 ## Module resolution (why `pnpm typecheck` is not enough)
 
