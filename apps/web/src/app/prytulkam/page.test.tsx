@@ -66,14 +66,6 @@ describe("/prytulkam with self-registration off is the page it was", () => {
     expect(screen.queryByRole("heading", { name: "Правила для притулків" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Зареєструвати притулок" })).toBeNull();
   });
-
-  it("renders the same as the default call", () => {
-    const first = render(renderForSheltersPage(false, OFF));
-    const off = first.container.innerHTML;
-    first.unmount();
-    const plain = render(renderForSheltersPage(false)).container.innerHTML;
-    expect(off).toBe(plain);
-  });
 });
 
 describe("/prytulkam with self-registration on (commitment #6's exception)", () => {

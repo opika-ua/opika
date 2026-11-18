@@ -12,6 +12,7 @@ import {
   type ShelterHistoryEntry,
 } from "@opika/domain";
 import { ORPCError, type ORPCErrorConstructorMap } from "@orpc/server";
+import { isSelfRegistrationEnabled } from "../../features/registration/flag";
 import type { ShelterWriteScope } from "../access";
 import { handOver } from "../notify/hand-over";
 import { actorOf, type ProfileDeps, profileGet } from "./profile";
@@ -60,6 +61,10 @@ export async function profileUpdateIdentity(
   input: Identity & { expectedVersion: number },
   errors: CasErrors,
 ): Promise<KabinetShelterView> {
+  // Behind the flag like the rest of self-registration: off, it answers as the Phase 0 stub did.
+  if (!isSelfRegistrationEnabled()) {
+    throw new Error("shelter.profile.updateIdentity is not served yet");
+  }
   if (
     input.cityId !== undefined &&
     (await cityRepo(deps.db).findCurrentById(input.cityId)) === null

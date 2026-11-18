@@ -24,7 +24,7 @@ import type {
   ShelterVerification,
 } from "@opika/domain";
 import { transition } from "@opika/domain";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
 import { SHELTER_WRITE_POLICY } from "./access";
@@ -305,7 +305,40 @@ describe("a donation link (§5, D3)", () => {
   });
 });
 
+describe("shelter.profile.updateIdentity with SELF_REGISTRATION_ENABLED off", () => {
+  it("is refused as the Phase 0 stub refused it, and writes nothing: shelter, animals, history", async () => {
+    vi.stubEnv("SELF_REGISTRATION_ENABLED", "");
+    try {
+      for (const stage of ["operator", "accepted"] as const) {
+        const shelter = await shelterAt(stage);
+        const atShelter = makeAnimal({ shelterId: shelter.id });
+        await animalRepo(db).insert(atShelter, cityId as never);
+        const before = await kabinetShelterRepo(db).historyOf(shelter.id);
+        const result = await call(shelter, "shelter.profile.updateIdentity", {
+          displayName: "Хвостики",
+          cityId: otherCityId,
+          expectedVersion: shelter.version,
+        });
+        expect(result.status).toBe(500);
+        expect(await shelterRepo(db).findById(shelter.id)).toEqual(shelter);
+        const rows = await db.select({ id: animals.id, cityId: animals.cityId }).from(animals);
+        expect(rows.find((row) => row.id === atShelter.id)?.cityId).toBe(cityId);
+        expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual(before);
+      }
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
 describe("shelter.profile.updateIdentity (§4, D4)", () => {
+  beforeEach(() => {
+    vi.stubEnv("SELF_REGISTRATION_ENABLED", "1");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("a rename is instant and logged with the shelter admin as actor", async () => {
     const shelter = await shelterAt("accepted");
     const result = await call<{ displayName?: string; version?: number }>(

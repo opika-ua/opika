@@ -134,7 +134,6 @@ const kabinetAnimalListBrowserContract = {
     },
     profile: {
       resume: shelterKabinetContract.shelter.profile.resume,
-      updateIdentity: shelterKabinetContract.shelter.profile.updateIdentity,
     },
   },
 } as const;

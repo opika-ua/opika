@@ -66,7 +66,7 @@ export type AuditedShelterChange =
    * if any, is the operator's and stays; the public location becomes the new city's.
    */
   | { kind: "city"; publicLocation: PublicLocation }
-  /** The operator renamed the shelter (R-UI 4); recorded as `display_name_changed`. */
+  /** A rename, by the operator (R-UI 4) or the shelter itself (D4); recorded as `display_name_changed`. */
   | { kind: "display_name"; displayName: string }
   /** The operator turned the weekly reminder email off (a timestamp) or back on (null). */
   | { kind: "freshness_reminder"; offAt: Date | null };
@@ -175,7 +175,7 @@ export function kabinetShelterRepo(db: Database) {
      * description is two facts, recorded as two lines). Still one statement,
      * so either every column and every entry lands or none does.
      *
-     * An address change also moves every animal still at the shelter
+     * An address or city change also moves every animal still at the shelter
      * (`public_location IS NULL`) to the new city, in the same statement:
      * their `city_id` mirrors the shelter's (CLAUDE.md, "`city_id` on
      * animals"), and a second statement could fail after the first. A

@@ -42,7 +42,7 @@ import {
   testOnlyLocationPolicy,
 } from "@opika/domain";
 import { RPCHandler } from "@orpc/server/fetch";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
 import { router as publicRouter } from "../api/router";
 import { fromRpcBody, toRpcBody } from "../api/test-harness";
@@ -405,6 +405,10 @@ describe("registry.shelters.list / byId / history.list", () => {
   });
 
   it("names the cities a page's city_changed lines need, on that page itself", async () => {
+    vi.stubEnv("SELF_REGISTRATION_ENABLED", "1");
+    onTestFinished(() => {
+      vi.unstubAllEnvs();
+    });
     const s = await shelter();
     const asAdmin = {
       principal: {

@@ -557,8 +557,8 @@ export async function animalsCreateDraft(
   const stage = await shelterStageOf(deps, shelter);
   const cap = draftCapOf(stage.lifecycle);
   if (cap.kind === "capped") {
-    // Counted, not locked: two creates racing past the cap can overshoot it by one each (D5 bounds
-    // storage, not an exact count).
+    // Counted, not locked: k creates racing at 29 drafts can all land; only the rate limiter
+    // bounds that (D5 bounds storage, not an exact count).
     const { draft } = await kabinetAnimalRepo(deps.db).countsByKind(shelter.id);
     const check = checkDraftCap(cap, draft);
     if (check.kind === "cap_reached")

@@ -189,8 +189,8 @@ export async function registryUpdateVerifiedData(
 }
 
 /**
- * The profile fields, written by the operator: the display name, which only
- * the operator changes (R-UI 4), and the ones the shelter can also edit. Each
+ * The profile fields, written by the operator: the display name (R-UI 4; a shelter renames itself
+ * through `updateIdentity` since self-registration, D4) and the ones the shelter can also edit. Each
  * changed field is its own history line with the operator as actor, which is
  * what the shelter later reads in its own history (RG-Q8). An unchanged field
  * records nothing; the contract has already trimmed the name, so a rename to
