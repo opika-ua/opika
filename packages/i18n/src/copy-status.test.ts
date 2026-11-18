@@ -338,7 +338,7 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     // Kabinet UX round 2 (owner-approved, 2026-10-29): the page save bar.
     "profileEdit.saveBar.unsaved": "Є незбережені зміни",
     "profileEdit.saveBar.cancel": "Скасувати",
-    // Save bar A (owner-approved 2026-10-31, `SAVEBAR-A-copy-table.md`).
+    // Save bar A (owner-approved 2026-10-31, `docs/decisions/savebar-a-copy-table-2026-10-31.md`).
     "profileEdit.saveBar.allSaved": "Усі зміни збережено",
     "profileEdit.saveBar.checkFields.one": "Перевірте {n} поле",
     "profileEdit.saveBar.checkFields.few": "Перевірте {n} поля",
