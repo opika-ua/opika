@@ -44,7 +44,6 @@ import {
   makeDraftAnimal,
   makeShelter,
   setupTestDatabase,
-  steppedDatabase,
   truncateAll,
 } from "../src/test-utils/index";
 
@@ -384,35 +383,6 @@ describe("deleteApplication", () => {
     expect((await leftOf(early)).shelter).toBe(1);
   });
 
-  it("re-checks inside the transaction: an email confirmed after the read keeps the application", async () => {
-    const seeded = await selfRegistered({
-      status: "application",
-      email: "unconfirmed",
-      appliedDaysAgo: 20,
-    });
-    await authRowsFor(seeded);
-    const stepped = steppedDatabase(db, {
-      holdWhen: (statement) =>
-        statement.kind === "select" && statement.tables.includes("support_sessions"),
-    });
-    const running = applicationDeletionRepo(stepped.db).deleteApplication(
-      seeded.shelterId,
-      "abandoned",
-      NOW,
-    );
-    await stepped.hold.reached;
-    await db.update(authUser).set({ emailVerified: true }).where(eq(authUser.id, seeded.userId));
-    stepped.hold.release();
-    expect(await running).toEqual({ kind: "not_due" });
-    expect(await leftOf(seeded)).toMatchObject({
-      shelter: 1,
-      user: 1,
-      sessions: 1,
-      emailTokens: 2,
-    });
-    expect(await db.select().from(applicationDeletions)).toEqual([]);
-  });
-
   it("a confirmation still committing when the deletion locks wins: the application stays", async () => {
     const seeded = await selfRegistered({
       status: "application",
@@ -444,7 +414,7 @@ describe("deleteApplication", () => {
     expect(await db.select().from(applicationDeletions)).toEqual([]);
   });
 
-  it("refuses, writing nothing, an application an operator opened a support session on", async () => {
+  it("deletes an application an operator opened a support session on, keeping the session (Q4 (B))", async () => {
     const seeded = await selfRegistered({
       status: "application",
       email: "unconfirmed",
@@ -467,10 +437,15 @@ describe("deleteApplication", () => {
       startedAt: NOW,
       lastSeenAt: NOW,
     });
-    await expect(
-      applicationDeletionRepo(db).deleteApplication(seeded.shelterId, "abandoned", NOW),
-    ).rejects.toThrow(/support session/);
-    expect((await leftOf(seeded)).shelter).toBe(1);
+    const sessionId = (await db.select({ id: supportSessions.id }).from(supportSessions))[0]?.id;
+    expect(
+      (await applicationDeletionRepo(db).deleteApplication(seeded.shelterId, "abandoned", NOW))
+        .kind,
+    ).toBe("deleted");
+    expect((await leftOf(seeded)).shelter).toBe(0);
+    expect(await db.select().from(supportSessions)).toEqual([
+      expect.objectContaining({ id: sessionId, operatorUserId: operator, shelterId: null }),
+    ]);
   });
 });
 

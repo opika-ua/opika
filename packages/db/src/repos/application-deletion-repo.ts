@@ -17,7 +17,6 @@ import {
   authSession,
   authUser,
   authVerification,
-  supportSessions,
 } from "../schema/auth";
 import { registrationEmailTokens } from "../schema/registration-email-tokens";
 import { shelterHistory } from "../schema/shelter-history";
@@ -124,15 +123,8 @@ export function applicationDeletionRepo(db: Database) {
         .where(and(eq(shelters.id, shelterId), stillDue(reason, now)))
         .limit(1);
       if (found === undefined) return { kind: "not_due" };
-      const [support] = await db
-        .select({ id: supportSessions.id })
-        .from(supportSessions)
-        .where(eq(supportSessions.shelterId, shelterId))
-        .limit(1);
-      // RS-Q0: support sessions are never deleted, and their key doesn't cascade.
-      if (support !== undefined) {
-        throw new Error(`Application ${shelterId} has a support session; it is never deleted`);
-      }
+      // A support session stays (RS-Q0): 0029's ON DELETE SET NULL keeps the row, shelter link
+      // nulled, when the shelter goes (owner, 2026-11-18, Q4 (B)).
 
       const { organizationId, userId, email } = found;
       const markerId = randomUUID();

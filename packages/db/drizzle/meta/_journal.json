@@ -204,6 +204,13 @@
       "when": 1794989908022,
       "tag": "0028_self_registration",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1795013914759,
+      "tag": "0029_support_session_shelter_set_null",
+      "breakpoints": true
     }
   ]
 }

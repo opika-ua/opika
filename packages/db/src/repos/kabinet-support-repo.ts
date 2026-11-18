@@ -68,7 +68,9 @@ export function kabinetSupportRepo(db: Database) {
         .set({ lastSeenAt: input.now })
         .where(and(mine, gt(supportSessions.lastSeenAt, freshAfter)))
         .returning({ shelterId: supportSessions.shelterId });
-      if (alive !== undefined) return alive.shelterId as ShelterId;
+      // A deleted application's session outlives its shelter (0029): nothing left to view.
+      if (alive !== undefined)
+        return alive.shelterId === null ? null : (alive.shelterId as ShelterId);
       await db
         .update(supportSessions)
         .set({
