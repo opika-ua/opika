@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { CityId, ShelterId } from "@opika/domain";
+import type { CityId, Shelter, ShelterId } from "@opika/domain";
 import { eq, sql } from "drizzle-orm";
 import type { Database } from "../src/client";
 import { executeRows } from "../src/raw-rows";
@@ -67,11 +67,9 @@ export async function runSelfRegistrationSmoke(db: Database): Promise<Outcome[]>
     return id;
   };
   const application = async (registrantUserId: string | null): Promise<ShelterId> => {
-    const shelter = makeShelter({
+    const fixture = makeShelter({
       displayName: `Смоук заявка ${randomUUID().slice(0, 6)}`,
       publicLocation: { precision: "city", cityId: city.id, district: null },
-      legalEntity: null,
-      exactAddress: null,
       verification: {
         status: "application",
         appliedAt: NOW,
@@ -81,6 +79,8 @@ export async function runSelfRegistrationSmoke(db: Database): Promise<Outcome[]>
         },
       },
     });
+    // As the form leaves it: no legal entity, no address (and so no point).
+    const shelter: Shelter = { ...fixture, legalEntity: null, exactAddress: null };
     await shelterRepo(db).insert(shelter);
     if (registrantUserId !== null) {
       await db.update(shelters).set({ registrantUserId }).where(eq(shelters.id, shelter.id));

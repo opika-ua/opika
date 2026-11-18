@@ -57,6 +57,9 @@ export async function setupTestDatabase() {
   // Drop every application table and the drizzle migration journal so
   // migrations apply cleanly from scratch on every test run.
   await client.unsafe(`
+    DROP TABLE IF EXISTS funnel_events CASCADE;
+    DROP TABLE IF EXISTS registration_email_tokens CASCADE;
+    DROP TABLE IF EXISTS application_deletions CASCADE;
     DROP TABLE IF EXISTS r2_unreferenced_objects CASCADE;
     DROP TABLE IF EXISTS notification_sends CASCADE;
     DROP TABLE IF EXISTS animal_photo_sources CASCADE;

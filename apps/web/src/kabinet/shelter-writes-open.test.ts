@@ -21,7 +21,7 @@ import { TEST_SESSION_COOKIE } from "./test-session-cookie";
  * router actually mounted on `/api/kabinet/*` and reading the access each one
  * declares, not from a list written here, so a write added later is held to
  * the same assertions automatically. The count is pinned too
- * (`toHaveLength(19)`), as a tripwire: a new write fails it, and the edit
+ * (`toHaveLength(20)`), as a tripwire: a new write fails it, and the edit
  * that bumps it is where someone confirms who may call it.
  *
  * Until PR 6 this file was `shelter-writes-refused.test.ts` and pinned the
@@ -176,9 +176,10 @@ describe("after the sentence's removal, the served router has no unprotected wri
 });
 
 describe("the walk finds the shelter writes (an empty walk can't pass)", () => {
-  it("finds the nineteen shelter writes, confirm, update, the photo writes and the logo writes among them", () => {
+  it("finds the twenty shelter writes, confirm, update, the photo writes and the logo writes among them", () => {
     // shelter.photos.crop (crop frame): the shelter's own admin only, like every photo write.
-    expect(shelterWrites).toHaveLength(19);
+    // shelter.profile.updateIdentity (self-registration, §4): name and city, the shelter's own.
+    expect(shelterWrites).toHaveLength(20);
     expect(shelterWrites).toEqual(
       expect.arrayContaining([
         "shelter.animals.confirm",
@@ -191,6 +192,7 @@ describe("the walk finds the shelter writes (an empty walk can't pass)", () => {
         "shelter.logo.remove",
         "shelter.profile.updateContact",
         "shelter.profile.updateDescription",
+        "shelter.profile.updateIdentity",
         "shelter.verification.requestReview",
       ]),
     );

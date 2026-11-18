@@ -190,6 +190,7 @@ describe("kabinetRegistryRepo.statusCounts (S1 chips)", () => {
     await shelter("Хвіст", "pending");
     await shelter("Лапи", "pending");
     expect(await repo().statusCounts(null)).toEqual({
+      application: 0,
       pending: 2,
       under_review: 0,
       verified: 1,

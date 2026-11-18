@@ -267,12 +267,12 @@ describe("the operator's events are the registry's verification procedures", () 
     );
   });
 
-  it("the domain events S4 leaves out are exactly the shelter's own pause and resume", () => {
+  it("the domain events S4 leaves out are the shelter's own pause and resume, and the queue's accept", () => {
     expect(
       VERIFICATION_EVENT_TYPES.filter(
         (type) => !(OPERATOR_VERIFICATION_EVENTS as readonly string[]).includes(type),
       ),
-    ).toEqual(["pause", "resume"]);
+    ).toEqual(["accept_application", "pause", "resume"]);
   });
 });
 

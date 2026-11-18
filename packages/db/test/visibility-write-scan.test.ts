@@ -53,7 +53,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "schema/shelters.ts",
-    line: 50,
+    line: 51,
     text: 'verificationStatus: text("verification_status", {',
     kind: "definition",
     why: "the column itself",
@@ -77,7 +77,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/mappers.ts",
-    line: 288,
+    line: 299,
     text: "listingKind: animal.listing.kind,",
     kind: "write",
     why:

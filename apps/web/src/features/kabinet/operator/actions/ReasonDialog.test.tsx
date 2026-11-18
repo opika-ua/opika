@@ -87,6 +87,8 @@ describe("reject: code and note, both required", () => {
       "Не вдалося підтвердити, хто стоїть за притулком",
       "Повторна заявка",
       "Заявка не схожа на звернення притулку",
+      // A5's preset (Appendix A, approved 2026-11-18), offered on S4 as well as in the queue.
+      "Це не притулок чи ініціатива допомоги тваринам",
       "Інше",
     ]);
     expect(

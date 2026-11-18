@@ -174,8 +174,8 @@ describe("every served kabinet procedure goes through implement(shelterKabinetCo
   const contractLeaves = collectLeaves(shelterKabinetContract);
   const routerLeaves = collectLeaves(shelterKabinetRouter);
 
-  it("finds all twenty-three shelter procedures (not vacuous)", () => {
-    expect(contractLeaves).toHaveLength(23);
+  it("finds all twenty-four shelter procedures (not vacuous)", () => {
+    expect(contractLeaves).toHaveLength(24);
   });
 
   it("serves exactly the contracted paths", () => {
@@ -206,8 +206,8 @@ describe("every served registry procedure goes through implement(registryContrac
   const routerLeaves = collectLeaves(registryRouter);
   const mountedLeaves = collectLeaves(kabinetRouter);
 
-  it("finds all twenty-five registry procedures (twenty-four plus session.exitSupport; not vacuous)", () => {
-    expect(contractLeaves).toHaveLength(25);
+  it("finds all twenty-eight registry procedures (twenty-seven plus session.exitSupport; not vacuous)", () => {
+    expect(contractLeaves).toHaveLength(28);
   });
 
   it("serves exactly the contracted paths", () => {

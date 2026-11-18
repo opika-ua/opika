@@ -25,6 +25,8 @@ describe("kabinetShelterViewOf: earlyListing", () => {
     expect(viewAt(pending, SINCE, new Date(END.getTime() - 1))).toEqual({
       kind: "running",
       expiresAt: END,
+      // The last partial day still reads as one (P0-1's reminder).
+      daysLeft: 1,
     });
     expect(viewAt(pending, SINCE, END)).toEqual({ kind: "ended", endedAt: END });
   });

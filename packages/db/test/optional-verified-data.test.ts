@@ -95,6 +95,10 @@ describe("0024 optional verified data: the migration", () => {
     await client.unsafe(
       "ALTER TABLE shelters ADD COLUMN IF NOT EXISTS freshness_reminder_off_at timestamptz",
     );
+    // And 0028's registration columns, with their defaults.
+    await client.unsafe(
+      "ALTER TABLE shelters ADD COLUMN IF NOT EXISTS registration_source text DEFAULT 'operator', ADD COLUMN IF NOT EXISTS registrant_user_id text, ADD COLUMN IF NOT EXISTS applied_at timestamptz, ADD COLUMN IF NOT EXISTS application_rejected_at timestamptz",
+    );
     const shelter = await seedShelter("verified");
     await applyMigration(TAG);
 

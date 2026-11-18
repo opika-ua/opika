@@ -192,6 +192,7 @@ describe("shelter.profile: the early listing as the shelter is told it", () => {
     expect(body.earlyListing).toEqual({
       kind: "running",
       expiresAt: new Date(since.getTime() + 60 * DAY),
+      daysLeft: 50,
     });
   });
 
