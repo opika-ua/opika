@@ -10,7 +10,16 @@ import { ownersPresent } from "../src/repos/r2-cleanup-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { animals } from "../src/schema/animals";
 import { applicationDeletions } from "../src/schema/application-deletions";
-import { authOrganization, authUser, supportSessions } from "../src/schema/auth";
+import {
+  authAccount,
+  authMember,
+  authOrganization,
+  authSession,
+  authUser,
+  authVerification,
+  supportSessions,
+} from "../src/schema/auth";
+import { registrationEmailTokens } from "../src/schema/registration-email-tokens";
 import { shelters } from "../src/schema/shelters";
 import { makeCity, makeDraftAnimal, makeShelter } from "../src/test-utils/index";
 
@@ -109,7 +118,9 @@ export async function runApplicationCleanupSmoke(db: Database): Promise<Outcome[
     });
     return id;
   };
-  const application = async (emailVerified: boolean): Promise<ShelterId> => {
+  const application = async (
+    emailVerified: boolean,
+  ): Promise<{ shelterId: ShelterId; userId: string; organizationId: string }> => {
     const fixture = makeShelter({
       displayName: `Смоук заявка ${randomUUID().slice(0, 6)}`,
       publicLocation: located,
@@ -125,14 +136,17 @@ export async function runApplicationCleanupSmoke(db: Database): Promise<Outcome[
     await db
       .insert(authOrganization)
       .values({ id: organizationId, name: "Смоук", slug: organizationId, createdAt: NOW });
+    const userId = await user(emailVerified);
     await db
       .update(shelters)
-      .set({ registrantUserId: await user(emailVerified), organizationId })
+      .set({ registrantUserId: userId, organizationId })
       .where(eq(shelters.id, shelter.id));
-    return shelter.id;
+    return { shelterId: shelter.id, userId, organizationId };
   };
-  const abandoned = await application(false);
-  const confirmed = await application(true);
+  const registrant = await application(false);
+  const abandoned = registrant.shelterId;
+  const confirmed = (await application(true)).shelterId;
+  await authRowsFor(db, registrant.userId, registrant.organizationId);
 
   const due = await applicationDeletionRepo(db).dueApplications(NOW);
   check(
@@ -173,6 +187,13 @@ export async function runApplicationCleanupSmoke(db: Database): Promise<Outcome[
     session === undefined ? "gone" : `shelter ${session.shelterId}`,
   );
 
+  const left = await authRowsLeft(db, registrant.userId, registrant.organizationId);
+  check(
+    "deleteApplication: the registrant's user, session, credential, link, token, membership and organization go",
+    Object.values(left).every((n) => n === 0),
+    JSON.stringify(left),
+  );
+
   const notDue = await applicationDeletionRepo(db).deleteApplication(confirmed, "abandoned", NOW);
   const [kept] = await db.select().from(shelters).where(eq(shelters.id, confirmed));
   const noMark = await db
@@ -207,4 +228,62 @@ function historyOf<K extends "animal_created" | "animal_edited">(animal: DraftAn
           fields: ["location" as const],
         };
   return { id: randomUUID(), entry } as never;
+}
+
+/** Everything the registration and Better Auth keep for a registrant: one row of each. */
+async function authRowsFor(db: Database, userId: string, organizationId: string): Promise<void> {
+  // The credential first: inserting a password revokes the user's sessions (0013).
+  await db.insert(authAccount).values({
+    id: randomUUID(),
+    accountId: userId,
+    providerId: "credential",
+    userId,
+    password: "salt:key",
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  await db.insert(authSession).values({
+    id: randomUUID(),
+    token: randomUUID(),
+    userId,
+    expiresAt: new Date(NOW.getTime() + DAY),
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  await db.insert(authVerification).values({
+    id: randomUUID(),
+    identifier: randomUUID().replaceAll("-", "").padEnd(43, "A").slice(0, 43),
+    value: userId,
+    expiresAt: new Date(NOW.getTime() + DAY),
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  await db.insert(registrationEmailTokens).values({
+    tokenHash: randomUUID(),
+    userId,
+    purpose: "confirm_email",
+    expiresAt: new Date(NOW.getTime() + DAY),
+  });
+  await db
+    .insert(authMember)
+    .values({ id: randomUUID(), organizationId, userId, role: "owner", createdAt: NOW });
+}
+
+async function authRowsLeft(db: Database, userId: string, organizationId: string) {
+  const n = async (rows: Promise<unknown[]>) => (await rows).length;
+  return {
+    user: await n(db.select().from(authUser).where(eq(authUser.id, userId))),
+    sessions: await n(db.select().from(authSession).where(eq(authSession.userId, userId))),
+    accounts: await n(db.select().from(authAccount).where(eq(authAccount.userId, userId))),
+    links: await n(db.select().from(authVerification).where(eq(authVerification.value, userId))),
+    tokens: await n(
+      db.select().from(registrationEmailTokens).where(eq(registrationEmailTokens.userId, userId)),
+    ),
+    membership: await n(
+      db.select().from(authMember).where(eq(authMember.organizationId, organizationId)),
+    ),
+    organization: await n(
+      db.select().from(authOrganization).where(eq(authOrganization.id, organizationId)),
+    ),
+  };
 }

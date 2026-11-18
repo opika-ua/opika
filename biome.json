@@ -10,6 +10,7 @@
     "includes": [
       "**",
       "!docs/design",
+      "!packages/db/drizzle/meta",
       "!apps/web/public/brand-v3/logo.svg",
       "!apps/web/src/app/icon.svg",
       "!apps/web/public/pet-card/*.svg"

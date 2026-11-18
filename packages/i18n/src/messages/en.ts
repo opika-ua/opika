@@ -1982,6 +1982,8 @@ export const en = {
     animal: {
       title: "{name} – a {noun} looking for a home, {city}",
       description: "{name} is looking for a home. {city} · {shelter}. {story}",
+      titleNoCity: "{name} – a {noun} looking for a home",
+      descriptionNoCity: "{name} is looking for a home. {shelter}. {story}",
     },
     shelter: {
       title: "{shelter} – animals looking for a home, {city}",
