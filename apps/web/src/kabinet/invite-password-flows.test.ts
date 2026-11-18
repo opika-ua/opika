@@ -214,6 +214,7 @@ async function accept(
     production: false,
     shelterWrites: SHELTER_WRITE_POLICY,
     citySearch: roomyCitySearch(),
+    transactionalMail: null,
     invitePasswords: () => ({
       kind: "on",
       perIp: invitePerIp,

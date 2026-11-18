@@ -114,6 +114,7 @@ async function call(path: string, input: unknown, principal: KabinetPrincipal) {
     // What the served route passes (pinned by `allowlist-removed.test.ts`).
     shelterWrites: SHELTER_WRITE_POLICY,
     citySearch: roomyCitySearch(),
+    transactionalMail: null,
   });
   const text = await response.text();
   return { status: response.status, body: text ? parsedBody(text) : null };

@@ -157,8 +157,8 @@ export async function handleKabinetRpc(
     invitePasswords?: () => InvitePasswords;
     /** The served route passes the `after()` notifier; left out, no notification mail is planned. */
     notify?: ShelterNotifier;
-    /** The served route passes its transactional sender over the request's database; left out, none. */
-    transactionalMail?: (db: Database) => TransactionalMail | null;
+    /** The served route passes its transactional sender over the request's database; null mails nobody. */
+    transactionalMail: ((db: Database) => TransactionalMail | null) | null;
   },
 ): Promise<Response> {
   const ipKey = ipRateLimitKey(deps.ip);
@@ -244,7 +244,7 @@ export async function handleKabinetRpc(
       citySearchLimiter: deps.citySearch,
       invitePasswords: deps.invitePasswords?.() ?? INVITE_PASSWORDS_OFF,
       ...(deps.notify === undefined ? {} : { notify: deps.notify }),
-      transactionalMail: deps.transactionalMail?.(db) ?? null,
+      transactionalMail: deps.transactionalMail === null ? null : deps.transactionalMail(db),
     },
   });
   if (!result.matched) return new Response("Not Found", { status: 404 });

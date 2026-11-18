@@ -23,29 +23,6 @@ export type RegistrationMail = {
 };
 
 /**
- * The notification mail's runtime, reused: the provider in production once sign-in is on, the
- * console in development, nothing where neither is configured.
- */
-function registrationMailOf(
-  env: Readonly<Record<string, string | undefined>>,
-  db: RegistrationEmailDeps["db"],
-): RegistrationMail | null {
-  const runtime = notifyRuntimeOf(env);
-  if (runtime.kind === "off") return null;
-  return {
-    deps: {
-      db,
-      mail: runtime.mail,
-      now: () => new Date(),
-      // biome-ignore lint/suspicious/noConsole: the masked line is the only trace of an unsent mail
-      log: (line) => console.warn(line),
-    },
-    baseURL: runtime.context.baseURL,
-    operatorName: runtime.context.operatorName,
-  };
-}
-
-/**
  * The kabinet's one transactional sender (registration, resend, the operator's mails, queue
  * decisions) and when a handed-over send runs: after the response when served, inline in tests.
  */
@@ -54,13 +31,30 @@ export type TransactionalMail = {
   schedule: (work: () => Promise<void>) => void;
 };
 
-/** The served one: `registrationMailOf`'s sender, its sends run by `after()` so no answer waits. */
+/**
+ * The served one: the notification mail's runtime (the provider in production once sign-in is
+ * on, the console in development, none otherwise), its sends run by `after()` so no answer waits.
+ */
 export function servedTransactionalMail(
   env: Readonly<Record<string, string | undefined>>,
   db: RegistrationEmailDeps["db"],
 ): TransactionalMail | null {
-  const mail = registrationMailOf(env, db);
-  return mail === null ? null : { mail, schedule: (work) => after(work) };
+  const runtime = notifyRuntimeOf(env);
+  if (runtime.kind === "off") return null;
+  return {
+    mail: {
+      deps: {
+        db,
+        mail: runtime.mail,
+        now: () => new Date(),
+        // biome-ignore lint/suspicious/noConsole: the masked line is the only trace of an unsent mail
+        log: (line) => console.warn(line),
+      },
+      baseURL: runtime.context.baseURL,
+      operatorName: runtime.context.operatorName,
+    },
+    schedule: (work) => after(work),
+  };
 }
 
 /** Per user for the first email; a resend adds its minute, so a double click mails once. */

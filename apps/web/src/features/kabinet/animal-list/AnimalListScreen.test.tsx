@@ -39,7 +39,13 @@ const renderScreen = (
     counts = NO_CARDS,
     email = null,
     approvedDismissed = false,
-  }: { counts?: typeof NO_CARDS; email?: string | null; approvedDismissed?: boolean } = {},
+    selfRegistration = true,
+  }: {
+    counts?: typeof NO_CARDS;
+    email?: string | null;
+    approvedDismissed?: boolean;
+    selfRegistration?: boolean;
+  } = {},
 ) =>
   render(
     <AnimalListScreen
@@ -53,6 +59,7 @@ const renderScreen = (
       operatorName="Олексій"
       person={email === null ? null : { name: null, email }}
       approvedDismissed={approvedDismissed}
+      selfRegistration={selfRegistration}
     />,
   );
 
@@ -159,6 +166,15 @@ describe("a self-registered shelter's banners (spec §2, Q3, P0-1)", () => {
     renderScreen(application("confirmed"), "admin", { email: "olena@example.org" });
     expect(screen.queryByRole("button", { name: "Надіслати ще раз" })).toBeNull();
     renderScreen(application("unconfirmed"), "support", { email: "olena@example.org" });
+    expect(screen.queryByRole("button", { name: "Надіслати ще раз" })).toBeNull();
+  });
+
+  it("with SELF_REGISTRATION_ENABLED off there is no confirm banner and so no resend button", () => {
+    renderScreen(application("unconfirmed"), "admin", {
+      email: "olena@example.org",
+      selfRegistration: false,
+    });
+    expect(screen.queryByText(CONFIRM_TEXT)).toBeNull();
     expect(screen.queryByRole("button", { name: "Надіслати ще раз" })).toBeNull();
   });
 

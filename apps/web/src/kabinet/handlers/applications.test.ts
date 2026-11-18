@@ -375,6 +375,44 @@ describe("registry.applications.list", () => {
     ]);
   });
 
+  it("a donation card carries only the holder's kind and name, never the EDRPOU or dates", async () => {
+    const donation = {
+      link: { url: "https://send.monobank.ua/jar/abc", provider: "monobank_jar" },
+      proposedAt: NOW,
+      proposedBy: null,
+    };
+    const ngo = inCity({
+      displayName: "ГО",
+      pendingDonation: donation,
+      legalEntity: {
+        kind: "registered_ngo",
+        legalName: "ГО «Лапа»",
+        edrpou: "12345678",
+        registeredAt: NOW,
+      },
+    } as Partial<Shelter>);
+    const fop = inCity({
+      displayName: "ФОП",
+      pendingDonation: donation,
+      legalEntity: { kind: "sole_proprietor", legalName: "ФОП Петренко", edrpou: "1234567890" },
+    } as Partial<Shelter>);
+    const initiative = inCity({
+      displayName: "Ініціатива",
+      pendingDonation: donation,
+      legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена К." },
+    } as Partial<Shelter>);
+    for (const shelter of [ngo, fop, initiative]) await shelterRepo(db).insert(shelter);
+    const { pendingDonations } = await applicationsList(deps(), OPERATOR);
+    const holders = Object.fromEntries(
+      pendingDonations.map((row) => [row.shelterId, row.legalEntity]),
+    );
+    expect(holders).toEqual({
+      [ngo.id]: { kind: "registered_ngo", name: "ГО «Лапа»" },
+      [fop.id]: { kind: "sole_proprietor", name: "ФОП Петренко" },
+      [initiative.id]: { kind: "unregistered_initiative", name: "Олена К." },
+    });
+  });
+
   it("counts the funnel's steps over the last 30 days only", async () => {
     const a = await application({ email: "a@example.org" });
     const b = await application({ email: "b@example.org" });
@@ -420,6 +458,9 @@ describe("a card the queue can't fully read (one bad row never fails the block)"
     expect(view.unreadable).toEqual([]);
     expect(view.funnel.counts.find((row) => row.kind === "registered")?.count).toBe(1);
     expect(warnings).toEqual([`[applications] ${linkless.id}: application_link_missing`]);
+    // Every queue load reads it again; the line is written once per process per shelter.
+    await applicationsList(deps(), OPERATOR);
+    expect(warnings).toHaveLength(1);
   });
 
   it("a row that can't make a valid card is named by id alone and logged by reason only", async () => {
@@ -428,7 +469,10 @@ describe("a card the queue can't fully read (one bad row never fails the block)"
     const view = await applicationsList(deps(), OPERATOR);
     expect(() => ApplicationsQueueViewSchema.parse(view)).not.toThrow();
     expect(view.applications.map((card) => card.shelterId)).toEqual([good.id]);
-    expect(view.unreadable).toEqual([{ shelterId: broken.id }]);
+    // Its own `applied_at`, so the block keeps it in the oldest-first order.
+    expect(view.unreadable).toEqual([
+      { shelterId: broken.id, appliedAt: new Date(NOW.getTime() - HOUR) },
+    ]);
     // The field and the issue, never the value («not-an-address») or the name.
     expect(warnings).toEqual([
       `[applications] ${broken.id}: application_unreadable (email:invalid_format)`,
@@ -477,6 +521,7 @@ describe("through the served route", () => {
         production: false,
         shelterWrites: SHELTER_WRITE_POLICY,
         citySearch: roomyCitySearch(),
+        transactionalMail: null,
         ...extra,
       },
     );

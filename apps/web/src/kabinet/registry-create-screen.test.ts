@@ -99,6 +99,7 @@ async function create(input: RegistryCreateInput, now: Date = NOW) {
     production: false,
     shelterWrites: SHELTER_WRITE_POLICY,
     citySearch: roomyCitySearch(),
+    transactionalMail: null,
   });
   return { status: response.status, body: fromRpcBody(await response.json()) };
 }

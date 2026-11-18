@@ -72,6 +72,7 @@ async function asShelterAdmin(shelterId: string, path: string, input: unknown) {
     production: false,
     shelterWrites: SHELTER_WRITE_POLICY,
     citySearch: roomyCitySearch(),
+    transactionalMail: null,
   });
   return fromRpcBody(JSON.parse(await response.text())) as { items: unknown[] };
 }

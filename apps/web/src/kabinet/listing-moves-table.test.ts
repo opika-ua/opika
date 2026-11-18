@@ -228,6 +228,7 @@ async function call(path: string, input: unknown): Promise<Answer> {
       // The served policy (shelter writes open, `shelter-writes-open.test.ts`).
       shelterWrites: SHELTER_WRITE_POLICY,
       citySearch: roomyCitySearch(),
+      transactionalMail: null,
       photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
     },
   );

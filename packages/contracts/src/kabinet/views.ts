@@ -520,7 +520,10 @@ export type FunnelCountsView = z.infer<typeof FunnelCountsViewSchema>;
 /** «Заявки (N)»: oldest application first; a row that can't make a card is named by id only. */
 export const ApplicationsQueueViewSchema = z.object({
   applications: z.array(ApplicationQueueItemViewSchema).readonly(),
-  unreadable: z.array(z.object({ shelterId: ShelterIdSchema })).readonly(),
+  /** In the same oldest-first order; `appliedAt` null only if even that column can't be read. */
+  unreadable: z
+    .array(z.object({ shelterId: ShelterIdSchema, appliedAt: z.date().nullable() }))
+    .readonly(),
   listedUnverified: z.array(ListedUnverifiedItemViewSchema).readonly(),
   pendingDonations: z.array(PendingDonationItemViewSchema).readonly(),
   funnel: FunnelCountsViewSchema,

@@ -87,6 +87,12 @@ function warn(line: string): void {
   console.warn(line);
 }
 
+/** Each queue load reads every card; once per process per shelter is enough to notice. */
+const linkMissingLogged = new Set<string>();
+
+const readableDate = (value: unknown): Date | null =>
+  value instanceof Date && !Number.isNaN(value.getTime()) ? value : null;
+
 function queueItemOf(
   row: ApplicationRow,
   existing: readonly DuplicateCandidate[],
@@ -97,7 +103,10 @@ function queueItemOf(
   }
   // The registration write always records it; without it the card says so rather than vanishing.
   const link = publicLinksOf(row.verification)[0] ?? null;
-  if (link === null) warn(`[applications] ${row.shelterId}: application_link_missing`);
+  if (link === null && !linkMissingLogged.has(row.shelterId)) {
+    linkMissingLogged.add(row.shelterId);
+    warn(`[applications] ${row.shelterId}: application_link_missing`);
+  }
   const self = existing.find((candidate) => candidate.shelterId === row.shelterId);
   const signals = self === undefined ? [] : duplicateSignals(self, existing);
   return {
@@ -175,7 +184,7 @@ export async function applicationsList(
   return {
     applications: cards.flatMap(({ card }) => (card === null ? [] : [card])),
     unreadable: cards.flatMap(({ row, card }) =>
-      card === null ? [{ shelterId: row.shelterId }] : [],
+      card === null ? [{ shelterId: row.shelterId, appliedAt: readableDate(row.appliedAt) }] : [],
     ),
     listedUnverified: earlyListed.flatMap((row) => {
       // Accepted, so the email no longer matters: only the listing's clock does.

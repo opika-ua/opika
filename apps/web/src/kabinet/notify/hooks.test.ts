@@ -95,6 +95,7 @@ async function call<T = Record<string, unknown>>(
       production: false,
       shelterWrites: SHELTER_WRITE_POLICY,
       citySearch: roomyCitySearch(),
+      transactionalMail: null,
       notify: (shelter, lines) => {
         handedOver.push({ shelter, lines });
         if (notifierThrows) throw new Error("no request scope");

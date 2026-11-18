@@ -106,7 +106,7 @@ describe("ApplicationsBlock", () => {
   it("a row the server couldn't read gets its own card with the shelter id, and counts", () => {
     render(
       <ApplicationsBlock
-        view={view({ unreadable: [{ shelterId: OTHER }] })}
+        view={view({ unreadable: [{ shelterId: OTHER, appliedAt: NOW }] })}
         cityNames={{}}
         now={NOW}
       />,
@@ -121,6 +121,30 @@ describe("ApplicationsBlock", () => {
     ).toBeTruthy();
     expect(broken.getByText(OTHER)).toBeTruthy();
     expect(broken.queryByRole("button")).toBeNull();
+  });
+
+  it("unreadable rows keep the oldest-first order and the 36-hour mark; an undated one goes last", () => {
+    const UNDATED = "dddddddd-dddd-4ddd-8ddd-dddddddddddd" as ShelterId;
+    render(
+      <ApplicationsBlock
+        view={view({
+          applications: [card({ appliedAt: new Date(NOW.getTime() - HOUR) })],
+          unreadable: [
+            { shelterId: UNDATED, appliedAt: null },
+            { shelterId: OTHER, appliedAt: new Date(NOW.getTime() - 40 * HOUR) },
+          ],
+        })}
+        cityNames={{}}
+        now={NOW}
+      />,
+    );
+    const items = [OTHER, "Лапа допомоги", UNDATED].map(
+      (text) => screen.getByText(text).closest("li") as HTMLElement,
+    );
+    const order = items.map((item) => [...(item.parentElement?.children ?? [])].indexOf(item));
+    expect(order).toEqual([0, 1, 2]);
+    expect(within(items[0] as HTMLElement).getByText("Чекає понад 36 годин")).toBeTruthy();
+    expect(within(items[2] as HTMLElement).queryByText("Чекає понад 36 годин")).toBeNull();
   });
 
   it("marks an application waiting longer than 36 hours", () => {

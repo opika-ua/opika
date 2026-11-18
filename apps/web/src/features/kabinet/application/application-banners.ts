@@ -19,15 +19,20 @@ export function applicationBannersOf(
   shelter: Pick<KabinetShelterView, "id" | "verification" | "earlyListing" | "registration">,
   counts: Readonly<Record<ListingKind, number>>,
   viewer: "admin" | "support",
-  email: string | null,
-  /** This browser closed «Притулок схвалено» for this shelter (`approved-dismissal.ts`). */
-  approvedDismissed = false,
+  context: {
+    email: string | null;
+    /** This browser closed «Притулок схвалено» for this shelter (`approved-dismissal.ts`). */
+    approvedDismissed: boolean;
+    /** `SELF_REGISTRATION_ENABLED`: off, nothing offers a confirmation email to resend. */
+    selfRegistration: boolean;
+  },
 ): ApplicationBanner[] {
+  const { email, approvedDismissed, selfRegistration } = context;
   if (viewer === "support" || shelter.registration.source !== "self_registration") return [];
   const { status } = shelter.verification;
   if (status === "application") {
     const banners: ApplicationBanner[] = [{ kind: "pending" }];
-    if (shelter.registration.email === "unconfirmed" && email !== null) {
+    if (selfRegistration && shelter.registration.email === "unconfirmed" && email !== null) {
       banners.push({ kind: "confirm_email", email });
     }
     return banners;

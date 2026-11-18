@@ -846,6 +846,7 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
       production: true,
       shelterWrites: SHELTER_WRITE_POLICY,
       citySearch: roomyCitySearch(),
+      transactionalMail: null,
       invitePasswords: () => ({
         kind: "on",
         perIp: unlimited(),

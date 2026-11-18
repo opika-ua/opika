@@ -162,6 +162,7 @@ async function call<T = Record<string, unknown>>(
     production: false,
     shelterWrites: SHELTER_WRITE_POLICY,
     citySearch: roomyCitySearch(),
+    transactionalMail: null,
   });
   const text = await response.text();
   return { status: response.status, body: (text ? fromRpcBody(JSON.parse(text)) : null) as T };

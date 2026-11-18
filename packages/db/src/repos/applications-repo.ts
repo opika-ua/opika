@@ -22,6 +22,8 @@ export type ApplicationRow = {
   version: number;
   name: string;
   cityId: CityId;
+  /** The `applied_at` column itself, so a row whose verification can't be read still sorts. */
+  appliedAt: Date | null;
   verification: ShelterVerification;
   contact: ShelterContact;
   /** The registrant's address and `email_verified`; null once that account is erased. */
@@ -84,6 +86,7 @@ export function applicationsRepo(db: Database) {
           version: shelters.version,
           name: shelters.displayName,
           cityId: shelters.cityId,
+          appliedAt: shelters.appliedAt,
           verification: shelters.verification,
           contact: shelters.contact,
           email: authUser.email,
@@ -116,6 +119,7 @@ export function applicationsRepo(db: Database) {
           version: row.version,
           name: row.name,
           cityId: row.cityId as CityId,
+          appliedAt: row.appliedAt,
           verification: row.verification,
           contact: row.contact,
           registrant:
