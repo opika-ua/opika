@@ -8,7 +8,7 @@ type Status = ShelterVerification["status"];
  * «На перевірці» for both (owner, 2026-11-06), so only the operator asks for this label.
  */
 export function operatorStatusLabel(status: Status): string {
-  return status === "pending" || status === "under_review"
+  return status === "application" || status === "pending" || status === "under_review"
     ? uk.kabinet.operatorStatus[status]
     : uk.kabinet.profileStatus[status];
 }
