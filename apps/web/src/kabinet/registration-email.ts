@@ -127,7 +127,7 @@ export function registrationEmailOf(email: RegistrationEmail, to: string): Outgo
       return emailBody(to, {
         subject: safeSubject(c.subject),
         before: [fillTemplate(c.body, { count: String(email.count) })],
-        link: { label: copy.operatorNewApplication.action, url: email.queueUrl },
+        link: { label: c.action, url: email.queueUrl },
         after: [],
       });
     }

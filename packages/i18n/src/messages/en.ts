@@ -1380,8 +1380,9 @@ export const en = {
         action: "Open applications",
       },
       registrationCapHit: {
-        subject: "Today's application limit is reached",
-        body: "{count} registration and re-confirmation emails were sent today. Until the end of the day the form shows applicants «Too many applications». Check «Заявки»: this may be a mass registration.",
+        subject: "Registration email limit reached for today",
+        body: "{count} registration and re-confirmation emails were sent today – the daily limit. Until the end of the day new registrations see «Too many applications». Check «Заявки» for signs of abuse: many applications with the same names, links or email domains.",
+        action: "Open «Заявки»",
       },
       signIn: {
         subject: `A sign-in link for the shelter's cabinet`,

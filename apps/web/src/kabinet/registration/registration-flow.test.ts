@@ -454,8 +454,13 @@ describe("the day's cap on confirmation emails", () => {
     await Promise.all(scheduled);
     expect(sent.map((email) => email.to)).toEqual(["hello@opika.org.ua"]);
     const [alarm] = sent;
-    expect(alarm?.subject).toBe("Ліміт заявок на сьогодні вичерпано");
-    expect(alarm?.text).toContain(`Сьогодні вже надіслано ${REGISTRATION_MAIL_DAILY_CAP} листів`);
+    expect(alarm?.subject).toBe("Ліміт листів реєстрації на сьогодні вичерпано");
+    expect(alarm?.text).toContain(
+      `Сьогодні надіслано ${REGISTRATION_MAIL_DAILY_CAP} листів реєстрації та повторного підтвердження – це ліміт на добу. До кінця доби нові реєстрації бачать повідомлення «Зараз забагато заявок». Перевір «Заявки» на ознаки зловживання: багато заявок з однаковими назвами, посиланнями чи доменами пошти.`,
+    );
+    // The button opens the live site's S1, plainly: no tracking redirect in the way.
+    expect(alarm?.html).toContain('href="https://opika.org.ua/kabinet/prytulky"');
+    expect(alarm?.html).toContain("Відкрити «Заявки»");
     expect(alarm?.text).not.toContain("@example.org");
     expect((await db.select().from(notificationSends)).map((row) => row.dedupKey)).toEqual([
       "registration_cap_hit:2031-03-04",

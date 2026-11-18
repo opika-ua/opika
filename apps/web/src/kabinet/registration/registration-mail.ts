@@ -1,7 +1,7 @@
 import type { ApplicationSummary } from "@opika/db/repos";
 import type { ShelterId } from "@opika/domain";
 import type { RateLimiter } from "../../api/rate-limit";
-import { OPERATOR_CONTACT } from "../../brand";
+import { OPERATOR_CONTACT, SITE_ORIGIN } from "../../brand";
 import { channelText } from "../../features/kabinet/profile-edit/fields";
 import { OPERATOR_HOME } from "../../features/kabinet/routes";
 import { mailCapKeyOf, REGISTRATION_MAIL_DAILY_CAP } from "../../features/registration/limits";
@@ -113,7 +113,8 @@ export async function sendCapAlarm(
     {
       template: "registration_cap_hit",
       count: REGISTRATION_MAIL_DAILY_CAP,
-      queueUrl: new URL(OPERATOR_HOME, mail.baseURL).toString(),
+      // The live site's S1, whatever deployment noticed the cap (owner, 2026-11-18).
+      queueUrl: new URL(OPERATOR_HOME, SITE_ORIGIN).toString(),
     },
     OPERATOR_CONTACT.email,
     capAlarmDedupKey(now),

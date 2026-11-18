@@ -1485,12 +1485,13 @@ export const uk = {
         action: "Відкрити заявки",
       },
       /**
-       * Operator only: the day's confirmation emails reached the cap (owner, 2026-11-18; the text
-       * waits for his approval). `{count}` is the cap.
+       * Operator only: the day's confirmation emails reached the cap (owner's wording, approved
+       * 2026-11-18). `{count}` is the cap; the button opens S1, the operator's «Заявки».
        */
       registrationCapHit: {
-        subject: "Ліміт заявок на сьогодні вичерпано",
-        body: "Сьогодні вже надіслано {count} листів для реєстрації та повторного підтвердження. До кінця дня форма показує заявникам «Зараз забагато заявок». Перегляньте «Заявки»: це може бути масова реєстрація.",
+        subject: "Ліміт листів реєстрації на сьогодні вичерпано",
+        body: "Сьогодні надіслано {count} листів реєстрації та повторного підтвердження – це ліміт на добу. До кінця доби нові реєстрації бачать повідомлення «Зараз забагато заявок». Перевір «Заявки» на ознаки зловживання: багато заявок з однаковими назвами, посиланнями чи доменами пошти.",
+        action: "Відкрити «Заявки»",
       },
       signIn: {
         subject: "Посилання для входу до кабінету притулку",
