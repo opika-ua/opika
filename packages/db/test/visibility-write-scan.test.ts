@@ -59,6 +59,16 @@ const EXPECTED: ReadonlyArray<{
     why: "the column itself",
   },
   {
+    file: "repos/applications-repo.ts",
+    line: 249,
+    text: "verificationStatus: verification.status,",
+    kind: "write",
+    why:
+      "applicationsRepo.decide - the queue's accept/reject, only ever from `application`. " +
+      "Accept allows the early listing in the same statement, so it stamps everServedAt on " +
+      "already-public animals as hook 2 does (none exist: publishing is gated in application)",
+  },
+  {
     file: "repos/gallery-repo.ts",
     line: 630,
     text: "listingKind: animals.listingKind,",
