@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { type Anchor, compareSites, scanSites } from "./source-sites";
 
 /**
  * S8-F5: every place `animals.listing_kind` or `shelters.verification_status`
@@ -29,45 +30,41 @@ import { describe, expect, it } from "vitest";
  *   - **a column definition** (`schema/*.ts`) - declares the column, writes nothing;
  *   - **a read** (`SELECT`, or a mapper reading a row back) - not a hook site;
  *   - **a write**, which must be one of the three S8-F5 hooks (see each entry).
- * A new match not in this list - a new file, a new line, or an existing
- * line's text changing - fails the test by name, forcing whoever added it to
- * extend this list and say which of the above it is.
+ * A new match not in this list - a new file, a new site, an existing line's
+ * text changing or a site moving to another function - fails the test by name,
+ * forcing whoever added it to extend this list and say which of the above it
+ * is. Sites are anchored by enclosing symbol (`source-sites.ts`), not line, so
+ * an edit above one does not.
  */
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "src");
 const SCANNED_DIRS = ["repos", "schema"];
 
 type Kind = "definition" | "read" | "write";
-const EXPECTED: ReadonlyArray<{
-  file: string;
-  line: number;
-  text: string;
-  kind: Kind;
-  why: string;
-}> = [
+const EXPECTED: ReadonlyArray<Anchor & { kind: Kind; why: string }> = [
   {
     file: "schema/animals.ts",
-    line: 204,
+    symbol: "animals",
     text: 'listingKind: text("listing_kind", {',
     kind: "definition",
     why: "the column itself",
   },
   {
     file: "schema/shelters.ts",
-    line: 52,
+    symbol: "shelters",
     text: 'verificationStatus: text("verification_status", {',
     kind: "definition",
     why: "the column itself",
   },
   {
     file: "repos/application-deletion-repo.ts",
-    line: 190,
+    symbol: "applicationDeletionRepo.rehearsalCandidate",
     text: ".select({ listingKind: animals.listingKind, everServedAt: animals.everServedAt })",
     kind: "read",
     why: "shelters:delete-test's dry run: counts a rehearsal shelter's drafts, served and listed animals",
   },
   {
     file: "repos/applications-repo.ts",
-    line: 264,
+    symbol: "applicationsRepo.decide",
     text: "verificationStatus: verification.status,",
     kind: "write",
     why:
@@ -77,14 +74,14 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/gallery-repo.ts",
-    line: 694,
+    symbol: "getAnimalColumns",
     text: "listingKind: animals.listingKind,",
     kind: "read",
     why: "getAnimalColumns' SELECT list for the gallery page",
   },
   {
     file: "repos/mappers.ts",
-    line: 198,
+    symbol: "shelterToRow",
     text: "verificationStatus: shelter.verification.status,",
     kind: "write",
     why:
@@ -94,7 +91,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/mappers.ts",
-    line: 299,
+    symbol: "animalToRowWithCity",
     text: "listingKind: animal.listing.kind,",
     kind: "write",
     why:
@@ -105,7 +102,7 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/kabinet-animal-repo.ts",
-    line: 388,
+    symbol: "kabinetAnimalRepo.writeListingIf",
     text: "listingKind: next.kind,",
     kind: "write",
     why:
@@ -116,52 +113,26 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/kabinet-shelter-repo.ts",
-    line: 87,
+    symbol: "columnsOf",
     text: "verificationStatus: change.verification.status,",
     kind: "write",
     why: "applyAuditedMany's columnsOf - the one UPDATE of this column; its own `becomesVerified` check is hook 2",
   },
 ];
 
-function* walk(dir: string): Generator<string> {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) yield* walk(path);
-    else if (entry.isFile() && path.endsWith(".ts") && !path.endsWith(".test.ts")) yield path;
-  }
-}
-
 /** A property-key occurrence: `listingKind:`/`verificationStatus:`, not a bare mention in a comment or string. */
 const KEY_PATTERN = /\b(listingKind|verificationStatus)\s*:/;
 
-function found(): { file: string; line: number; text: string }[] {
-  const results: { file: string; line: number; text: string }[] = [];
-  for (const dirName of SCANNED_DIRS) {
-    for (const path of walk(join(ROOT, dirName))) {
-      const lines = readFileSync(path, "utf8").split("\n");
-      lines.forEach((lineText, index) => {
-        if (KEY_PATTERN.test(lineText)) {
-          results.push({
-            file: path.slice(ROOT.length + 1).replaceAll("\\", "/"),
-            line: index + 1,
-            text: lineText.trim(),
-          });
-        }
-      });
-    }
-  }
-  return results;
-}
+const found = () =>
+  SCANNED_DIRS.flatMap((dirName) =>
+    scanSites(join(ROOT, dirName), KEY_PATTERN, (path) =>
+      path.slice(ROOT.length + 1).replaceAll("\\", "/"),
+    ),
+  );
 
 describe("S8-F5: every listingKind/verificationStatus property site is accounted for", () => {
   it("matches the expected list exactly - a new site needs a new entry here, naming its hook", () => {
-    const actual = found()
-      .map(({ file, line, text }) => ({ file, line, text }))
-      .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
-    const expected = EXPECTED.map(({ file, line, text }) => ({ file, line, text })).sort(
-      (a, b) => a.file.localeCompare(b.file) || a.line - b.line,
-    );
-    expect(actual).toEqual(expected);
+    expect(compareSites(found(), EXPECTED)).toEqual({ unexpected: [], missing: [] });
   });
 
   it("every write-kind entry is one of the three S8-F5 hooks named in this file's own comment", () => {
