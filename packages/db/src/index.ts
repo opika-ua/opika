@@ -1,4 +1,5 @@
 export {
+  APPLICATION_DELETIONS_PER_RUN,
   type ApplicationCleanupReport,
   formatApplicationCleanupReport,
   runApplicationCleanup,

@@ -21,7 +21,13 @@ const request = (authorization?: string) =>
     ...(authorization === undefined ? {} : { headers: { authorization } }),
   });
 
-const EMPTY: ApplicationCleanupReport = { due: [], deleted: [], notDue: [], failed: [] };
+const EMPTY: ApplicationCleanupReport = {
+  due: [],
+  deferred: [],
+  deleted: [],
+  notDue: [],
+  failed: [],
+};
 
 function harness(enabled: boolean, report: ApplicationCleanupReport = EMPTY) {
   const run = vi.fn(async () => report);
@@ -57,12 +63,19 @@ describe("the application clean-up cron", () => {
     const shelterId = "5b0e8a43-6a3c-4c5e-9d6d-1f2a3b4c5d6e";
     const { run, logs, deps } = harness(true, {
       due: [{ shelterId: shelterId as never, reason: "abandoned" }],
+      deferred: [],
       deleted: [{ shelterId, reason: "abandoned", photoKeys: 4 }],
       notDue: [],
       failed: [],
     });
     const response = await handleApplicationCleanupCron(request(`Bearer ${SECRET}`), deps);
-    expect(await response.json()).toEqual({ due: 1, deleted: 1, notDue: 0, failed: 0 });
+    expect(await response.json()).toEqual({
+      due: 1,
+      deferred: 0,
+      deleted: 1,
+      notDue: 0,
+      failed: 0,
+    });
     expect(run).toHaveBeenCalledWith(expect.anything(), deps.now, { commit: true });
     expect(logs.join("\n")).not.toContain(shelterId);
   });

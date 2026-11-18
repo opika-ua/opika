@@ -53,6 +53,7 @@ export async function handleApplicationCleanupCron(
   }
   const counts = {
     due: report.due.length,
+    deferred: report.deferred.length,
     deleted: report.deleted.length,
     notDue: report.notDue.length,
     failed: report.failed.length,

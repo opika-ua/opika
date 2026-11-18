@@ -11,14 +11,18 @@ import {
 } from "../src/legacy-invitations";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
+import { kabinetInvitationRepo } from "../src/repos/kabinet-invitation-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { animals } from "../src/schema/animals";
 import {
+  authAccount,
   authInvitation,
   authMember,
   authOrganization,
+  authSession,
   authUser,
   authVerification,
+  invitationCreatedUsers,
 } from "../src/schema/auth";
 import { shelterHistory } from "../src/schema/shelter-history";
 import { shelters } from "../src/schema/shelters";
@@ -198,12 +202,12 @@ describe("deleteLegacyShelters", () => {
   it("a different count aborts and writes nothing", async () => {
     await scene();
     const before = await snapshot();
-    expect(await deleteLegacyShelters(db, 3)).toEqual({
+    expect(await deleteLegacyShelters(db, 3, NOW)).toEqual({
       kind: "count_differs",
       found: 2,
       expected: 3,
     });
-    expect(await deleteLegacyShelters(db, 1)).toEqual({
+    expect(await deleteLegacyShelters(db, 1, NOW)).toEqual({
       kind: "count_differs",
       found: 2,
       expected: 1,
@@ -214,7 +218,11 @@ describe("deleteLegacyShelters", () => {
   it("the right count deletes them, their organizations, invitations and links, and nothing else", async () => {
     const { a, b } = await scene();
     const before = await snapshot();
-    expect(await deleteLegacyShelters(db, 2)).toEqual({ kind: "deleted", count: 2 });
+    expect(await deleteLegacyShelters(db, 2, NOW)).toEqual({
+      kind: "deleted",
+      count: 2,
+      inviteesErased: 0,
+    });
     const ids = (await db.select({ id: shelters.id }).from(shelters)).map((row) => row.id);
     expect(ids).not.toContain(a.id);
     expect(ids).not.toContain(b.id);
@@ -238,12 +246,140 @@ describe("deleteLegacyShelters", () => {
       holdWhen: (statement) =>
         statement.kind === "select" && statement.tables.includes("support_sessions"),
     });
-    const running = deleteLegacyShelters(stepped.db, 2);
+    const running = deleteLegacyShelters(stepped.db, 2, NOW);
     await stepped.hold.reached;
     await animalRepo(db).insert(makeDraftAnimal({ shelterId: a.id as ShelterId }), cityId as never);
     stepped.hold.release();
-    await expect(running).rejects.toThrow();
+    expect(await running).toEqual({ kind: "changed_meanwhile" });
     expect(await snapshot()).toEqual({ ...before, animals: before.animals + 1 });
+  });
+});
+
+describe("the invitees' accounts (the real invite path)", () => {
+  /** A legacy shelter invited as the operator invites: the invitation creates its user. */
+  async function invitedForReal(email: string) {
+    const shelter = makeShelter({
+      publicLocation: { ...makeShelter().publicLocation, cityId } as never,
+      verification: { status: "pending", submittedAt: NOW, evidence: EVIDENCE },
+    });
+    await shelterRepo(db).insert(shelter);
+    const result = await kabinetInvitationRepo(db).invite({
+      shelterId: shelter.id,
+      email,
+      name: "Олена",
+      inviterUserId: OPERATOR,
+      ids: { invitationId: randomUUID(), userId: randomUUID(), organizationId: randomUUID() },
+      now: NOW,
+      history: {
+        id: randomUUID(),
+        entry: { kind: "admin_invited", at: NOW, moderatorId: OPERATOR as never, email },
+      },
+    });
+    if (result.kind !== "invited" || !result.createdUser) throw new Error("expected a new invitee");
+    return { shelterId: shelter.id, userId: result.userId };
+  }
+
+  /** What Better Auth keeps for a user: a credential, then a session, a reset and a magic link. */
+  async function signedIn(userId: string, email: string) {
+    await db.insert(authAccount).values({
+      id: randomUUID(),
+      accountId: userId,
+      providerId: "credential",
+      userId,
+      password: "salt:key",
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.insert(authSession).values({
+      id: randomUUID(),
+      token: randomUUID(),
+      userId,
+      expiresAt: new Date(NOW.getTime() + 86_400_000),
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.insert(authVerification).values([
+      {
+        id: randomUUID(),
+        identifier: "D".repeat(43),
+        value: userId,
+        expiresAt: NOW,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: randomUUID(),
+        identifier: `magic-link:${"E".repeat(43)}`,
+        value: JSON.stringify({ type: "magic-link", email, name: "" }),
+        expiresAt: NOW,
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ]);
+  }
+
+  const rowsOf = async (userId: string, email: string) => ({
+    users: (await db.select().from(authUser).where(eq(authUser.id, userId))).length,
+    accounts: (await db.select().from(authAccount).where(eq(authAccount.userId, userId))).length,
+    sessions: (await db.select().from(authSession).where(eq(authSession.userId, userId))).length,
+    links: (await db.select().from(authVerification)).filter(
+      (row) => row.value === userId || row.value.includes(email),
+    ).length,
+    created: (
+      await db
+        .select()
+        .from(invitationCreatedUsers)
+        .where(eq(invitationCreatedUsers.userId, userId))
+    ).length,
+  });
+
+  it("erases each invitee's account, links and sessions in the same deletion", async () => {
+    const email = "invitee@example.org";
+    const invitee = await invitedForReal(email);
+    await signedIn(invitee.userId, email);
+    expect(await rowsOf(invitee.userId, email)).toEqual({
+      users: 1,
+      accounts: 1,
+      sessions: 1,
+      links: 2,
+      created: 1,
+    });
+    expect(await deleteLegacyShelters(db, 1, NOW)).toEqual({
+      kind: "deleted",
+      count: 1,
+      inviteesErased: 1,
+    });
+    expect(await rowsOf(invitee.userId, email)).toEqual({
+      users: 0,
+      accounts: 0,
+      sessions: 0,
+      links: 0,
+      created: 0,
+    });
+  });
+
+  it("keeps an invitee who has since become a member elsewhere, and the operator", async () => {
+    const email = "member@example.org";
+    const invitee = await invitedForReal(email);
+    const elsewhere = randomUUID();
+    await db
+      .insert(authOrganization)
+      .values({ id: elsewhere, name: "Інша", slug: elsewhere, createdAt: NOW });
+    await db.insert(authMember).values({
+      id: randomUUID(),
+      organizationId: elsewhere,
+      userId: invitee.userId,
+      role: "owner",
+      createdAt: NOW,
+    });
+    // Still legacy: its own organization has no member.
+    expect(await deleteLegacyShelters(db, 1, NOW)).toEqual({
+      kind: "deleted",
+      count: 1,
+      inviteesErased: 0,
+    });
+    expect((await rowsOf(invitee.userId, email)).users).toBe(1);
+    expect((await db.select().from(authUser).where(eq(authUser.id, OPERATOR))).length).toBe(1);
   });
 });
 

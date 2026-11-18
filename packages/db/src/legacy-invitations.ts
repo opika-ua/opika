@@ -18,9 +18,9 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ShelterId } from "@opika/domain";
-import { and, inArray, type SQL, sql } from "drizzle-orm";
+import { and, inArray, or, type SQL, sql } from "drizzle-orm";
 import postgres from "postgres";
-import { createDatabaseWithClient, type Database, inOneTransaction } from "./client";
+import { createDatabaseWithClient, type Database } from "./client";
 import {
   assertProductionWriteAllowed,
   databaseTargetLine,
@@ -28,12 +28,19 @@ import {
   expectedTargetOf,
   PROD_FLAG,
 } from "./prod-guard";
+import {
+  eraseUsersAndScrubHistory,
+  NOT_ELSEWHERE_IN_USE,
+  noLiveInvitationElsewhere,
+} from "./repos/admin-erasure-repo";
 import { animals } from "./schema/animals";
 import {
   authInvitation,
   authMember,
   authOrganization,
+  authUser,
   authVerification,
+  invitationCreatedUsers,
   supportSessions,
 } from "./schema/auth";
 import { shelterHistory } from "./schema/shelter-history";
@@ -121,18 +128,28 @@ export function maskEmail(email: string): string {
 }
 
 export type LegacyDeletion =
-  | { kind: "deleted"; count: number }
+  | { kind: "deleted"; count: number; inviteesErased: number }
   | { kind: "count_differs"; found: number; expected: number }
+  /** One stopped qualifying between the count and the lock: rolled back, nothing written. */
+  | { kind: "changed_meanwhile" }
   | { kind: "support_session"; shelterIds: readonly ShelterId[] };
 
+/** Thrown inside the transaction so it rolls back whole; never a partial deletion. */
+class LegacySetChanged extends Error {
+  override name = "LegacySetChanged";
+}
+
 /**
- * Deletes exactly the listed shelters, in one transaction, only if all `expected` of them are
- * still legacy when it runs: the first statement locks them and fails the whole transaction
- * otherwise, so nothing is written.
+ * Deletes exactly the listed shelters in one transaction, only if all `expected` of them are still
+ * legacy when it runs (locked first; otherwise it rolls back and nothing is written). The users
+ * their invitations created are erased through `eraseUsersAndScrubHistory` in the same
+ * transaction, under its invariant: never a member, an operator or an address with a live
+ * invitation elsewhere. Interactive, so a postgres-js connection only, as `demo:remove`.
  */
 export async function deleteLegacyShelters(
   db: Database,
   expected: number,
+  now: Date,
 ): Promise<LegacyDeletion> {
   const found = await legacyInvitedShelters(db);
   if (found.length !== expected) {
@@ -140,42 +157,110 @@ export async function deleteLegacyShelters(
   }
   const supported = found.filter((shelter) => shelter.hasSupportSession).map((s) => s.id);
   if (supported.length > 0) return { kind: "support_session", shelterIds: supported };
-  if (found.length === 0) return { kind: "deleted", count: 0 };
+  if (found.length === 0) return { kind: "deleted", count: 0, inviteesErased: 0 };
   const ids = found.map((shelter) => shelter.id);
   const organizationIds = found.map((shelter) => shelter.organizationId);
-  const tokenValues = found.flatMap((shelter) =>
-    shelter.invitationIds.map((id) => `invitation:${id}`),
-  );
   const targeted = and(inArray(shelters.id, ids), LEGACY_INVITED_SHELTER);
-  const [, , , deleted] = await inOneTransaction(
-    db,
-    (tx) =>
-      [
-        // Division by zero aborts the batch when any of them stopped being legacy since the read.
-        tx
-          .select({ ok: sql<number>`1 / (CASE WHEN count(*) = ${ids.length} THEN 1 ELSE 0 END)` })
-          .from(
-            sql`(SELECT ${shelters.id} FROM ${shelters} WHERE ${targeted} FOR UPDATE) AS locked`,
-          ),
-        tx
-          .delete(authVerification)
-          .where(
-            tokenValues.length === 0 ? sql`false` : inArray(authVerification.value, tokenValues),
-          ),
-        tx.delete(shelterHistory).where(inArray(shelterHistory.shelterId, ids)),
-        tx.delete(shelters).where(targeted).returning({ id: shelters.id }),
-        // Invitations and what hangs off them cascade with the organization.
-        tx
+  try {
+    return await db.transaction(
+      async (tx) => {
+        const locked = await tx
+          .select({ id: shelters.id })
+          .from(shelters)
+          .where(targeted)
+          .for("update");
+        if (locked.length !== ids.length) throw new LegacySetChanged();
+        // Read before the organizations go: their invitations' cascade takes these rows with them.
+        const invitations = await tx
+          .select({ id: authInvitation.id })
+          .from(authInvitation)
+          .where(inArray(authInvitation.organizationId, organizationIds));
+        const invitationIds = invitations.map((row) => row.id);
+        const invitees =
+          invitationIds.length === 0
+            ? []
+            : await tx
+                .select({ id: invitationCreatedUsers.userId })
+                .from(invitationCreatedUsers)
+                .where(inArray(invitationCreatedUsers.invitationId, invitationIds));
+        if (invitationIds.length > 0) {
+          await tx.delete(authVerification).where(
+            inArray(
+              authVerification.value,
+              invitationIds.map((id) => `invitation:${id}`),
+            ),
+          );
+        }
+        await tx.delete(shelterHistory).where(inArray(shelterHistory.shelterId, ids));
+        const deleted = await tx.delete(shelters).where(targeted).returning({ id: shelters.id });
+        // Invitations and their `invitation_created_users` rows cascade with the organization.
+        await tx
           .delete(authOrganization)
           .where(
             and(
               inArray(authOrganization.id, organizationIds),
               sql`NOT EXISTS (SELECT 1 FROM ${shelters} WHERE ${shelters.organizationId} = ${authOrganization.id})`,
             ),
-          ),
-      ] as const,
+          );
+        const inviteesErased = await eraseInvitees(
+          tx as unknown as Database,
+          invitees.map((row) => row.id),
+          now,
+        );
+        return { kind: "deleted" as const, count: deleted.length, inviteesErased };
+      },
+      { isolationLevel: "read committed" },
+    );
+  } catch (error) {
+    if (error instanceof LegacySetChanged) {
+      return { kind: "changed_meanwhile" };
+    }
+    throw error;
+  }
+}
+
+/**
+ * The invitees' accounts, once their legacy invitations are gone: only those still erasable by
+ * the shared invariant (no membership, no operator role, no live invitation anywhere), their
+ * Better Auth links first (`auth_verification` has no key to cascade), then the account and the
+ * email scrub through the one shared mechanism.
+ */
+async function eraseInvitees(db: Database, userIds: readonly string[], now: Date): Promise<number> {
+  if (userIds.length === 0) return 0;
+  const erasable = and(
+    inArray(authUser.id, [...userIds]),
+    NOT_ELSEWHERE_IN_USE,
+    noLiveInvitationElsewhere(now),
+  ) as SQL;
+  const users = await db
+    .select({ id: authUser.id, email: authUser.email })
+    .from(authUser)
+    .where(erasable)
+    .for("update");
+  if (users.length === 0) return 0;
+  await db.delete(authVerification).where(
+    or(
+      inArray(
+        authVerification.value,
+        users.map((user) => user.id),
+      ),
+      ...users.map(
+        (user) =>
+          sql`CASE WHEN starts_with(${authVerification.value}, '{"type":"magic-link",') THEN lower(${authVerification.value}::jsonb ->> 'email') END = lower(${user.email})`,
+      ),
+    ),
   );
-  return { kind: "deleted", count: deleted.length };
+  const { erasedCount } = await eraseUsersAndScrubHistory(
+    db,
+    and(
+      inArray(
+        authUser.id,
+        users.map((user) => user.id),
+      ),
+      erasable,
+    ) as SQL,
+  );
+  return erasedCount;
 }
 
 export type LegacyArgs =
@@ -275,9 +360,13 @@ async function main(): Promise<void> {
     if (!args.commit || args.count === undefined) {
       out("DRY RUN: nothing deleted. Re-run with --commit --expect <count> to delete them.");
     } else {
-      const result = await deleteLegacyShelters(db, args.count);
+      const result = await deleteLegacyShelters(db, args.count, new Date());
       if (result.kind === "deleted") {
         out(`Deleted: ${result.count} shelters, their organizations, invitations and links.`);
+        out(`Invitees' accounts erased: ${result.inviteesErased}.`);
+      } else if (result.kind === "changed_meanwhile") {
+        err("REFUSED: a shelter changed between the count and the deletion. Nothing was deleted.");
+        exitCode = 1;
       } else if (result.kind === "count_differs") {
         err(
           `REFUSED: found ${result.found}, --expect says ${result.expected}. Nothing was deleted.`,

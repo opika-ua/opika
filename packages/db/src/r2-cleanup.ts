@@ -33,8 +33,9 @@
  * Blast-radius cap: a run that finds more than `DEFAULT_MAX_PHOTOS_PER_RUN` distinct photos or logos
  * of rows that still exist due deletes none and exits 1; `--max-photos <n>` is the explicit
  * override, CLI only (the cron has no input). The same number is the per-run budget (P0-4): photos
- * whose animal or shelter is gone go oldest first up to it, the rest on later runs. The old
- * object-count `--max-delete` is refused, never read as a photo count.
+ * whose animal or shelter is gone go oldest first up to it, the rest on later runs. The stop so
+ * relies on `photoOwnerOf`/`ownersPresent`: a photo misread as an orphan costs at most 100 photos a
+ * run. The old object-count `--max-delete` is refused, never read as a photo count.
  *
  * Usage (from the repo root; `PROD_NEON_ENDPOINT` from the shell or the root
  * `.env.local`, as for every production-aware script):

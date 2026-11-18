@@ -145,6 +145,15 @@ export function applicationDeletionRepo(db: Database) {
           ? sql`false`
           : sql`CASE WHEN starts_with(${authVerification.value}, ${MAGIC_LINK_VALUE_PREFIX}) THEN lower(${authVerification.value}::jsonb ->> 'email') END = lower(${email})`;
       const uid = userId ?? "";
+      // FOR UPDATE can't reach the nullable side of an outer join: with a registrant, an inner one.
+      const registrantJoin =
+        userId === null
+          ? sql`LEFT JOIN ${authUser} ON ${authUser.id} = ${shelters.registrantUserId}`
+          : sql`JOIN ${authUser} ON ${authUser.id} = ${shelters.registrantUserId}`;
+      const lockedRows =
+        userId === null
+          ? sql`FOR UPDATE OF ${shelters}`
+          : sql`FOR UPDATE OF ${shelters}, ${authUser}`;
       const ofOrganization = (column: AnyPgColumn): SQL =>
         organizationId === null
           ? sql`false`
@@ -154,11 +163,13 @@ export function applicationDeletionRepo(db: Database) {
         db,
         (tx) =>
           [
-            // Re-checked under the row's lock; every later statement acts only if this line exists.
+            // Re-checked under the rows' locks; every later statement acts only if this line exists.
+            // The registrant's row is locked too: a confirmation writes only `email_verified`, so
+            // one committed while this waits is re-read here and the deletion is not due.
             tx
               .insert(applicationDeletions)
               .select(
-                sql`SELECT ${markerId}, ${shelters.id}, ${reason}, ${at(now)} FROM ${shelters} LEFT JOIN ${authUser} ON ${authUser.id} = ${shelters.registrantUserId} WHERE ${shelters.id} = ${shelterId} AND ${shelters.organizationId} IS NOT DISTINCT FROM ${organizationId} AND ${shelters.registrantUserId} IS NOT DISTINCT FROM ${userId} AND ${stillDue(reason, now)} FOR UPDATE OF ${shelters}`,
+                sql`SELECT ${markerId}, ${shelters.id}, ${reason}, ${at(now)} FROM ${shelters} ${registrantJoin} WHERE ${shelters.id} = ${shelterId} AND ${shelters.organizationId} IS NOT DISTINCT FROM ${organizationId} AND ${shelters.registrantUserId} IS NOT DISTINCT FROM ${userId} AND ${stillDue(reason, now)} ${lockedRows}`,
               )
               .returning({ id: applicationDeletions.id }),
             tx

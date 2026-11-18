@@ -12,6 +12,7 @@ import {
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  APPLICATION_DELETIONS_PER_RUN,
   formatApplicationCleanupReport,
   runApplicationCleanup,
 } from "../src/application-cleanup-run";
@@ -38,6 +39,7 @@ import { registrationEmailTokens } from "../src/schema/registration-email-tokens
 import { shelterHistory } from "../src/schema/shelter-history";
 import { shelters } from "../src/schema/shelters";
 import {
+  holdStatementUncommitted,
   makeCity,
   makeDraftAnimal,
   makeShelter,
@@ -411,6 +413,37 @@ describe("deleteApplication", () => {
     expect(await db.select().from(applicationDeletions)).toEqual([]);
   });
 
+  it("a confirmation still committing when the deletion locks wins: the application stays", async () => {
+    const seeded = await selfRegistered({
+      status: "application",
+      email: "unconfirmed",
+      appliedDaysAgo: 20,
+    });
+    await authRowsFor(seeded);
+    const held = holdStatementUncommitted((query) => /^update "auth_user"/i.test(query));
+    try {
+      const confirming = held.db
+        .update(authUser)
+        .set({ emailVerified: true })
+        .where(eq(authUser.id, seeded.userId));
+      const confirmed = confirming.then(() => undefined);
+      await held.ran;
+      const running = applicationDeletionRepo(db).deleteApplication(
+        seeded.shelterId,
+        "abandoned",
+        NOW,
+      );
+      expect(await held.waitsOnIt(running), "the deletion waited on the confirmation").toBe(true);
+      held.release();
+      await confirmed;
+      expect(await running).toEqual({ kind: "not_due" });
+    } finally {
+      await held.end();
+    }
+    expect(await leftOf(seeded)).toMatchObject({ shelter: 1, user: 1, sessions: 1 });
+    expect(await db.select().from(applicationDeletions)).toEqual([]);
+  });
+
   it("refuses, writing nothing, an application an operator opened a support session on", async () => {
     const seeded = await selfRegistered({
       status: "application",
@@ -608,6 +641,25 @@ describe("runApplicationCleanup: the daily job", () => {
     expect(left.sort()).toEqual([...seeded.kept].sort());
     // Idempotent: a second run finds nothing.
     expect((await runApplicationCleanup(db, NOW, { commit: true })).due).toEqual([]);
+  });
+
+  it("deletes at most the per-run cap; the rest stay for the next run", async () => {
+    const first = await selfRegistered({ status: "rejected", rejectedDaysAgo: 40 });
+    const second = await selfRegistered({ status: "rejected", rejectedDaysAgo: 40 });
+    const third = await selfRegistered({ status: "rejected", rejectedDaysAgo: 40 });
+    expect(APPLICATION_DELETIONS_PER_RUN).toBe(50);
+    const run = await runApplicationCleanup(db, NOW, { commit: true, maxDeletions: 2 });
+    expect(run.deleted).toHaveLength(2);
+    expect(run.deferred).toHaveLength(1);
+    expect(formatApplicationCleanupReport(run, true).join("\n")).toContain(
+      "Over this run's cap, left for the next run: 1",
+    );
+    const left = (await db.select({ id: shelters.id }).from(shelters)).map((row) => row.id);
+    expect(left).toHaveLength(1);
+    expect([first.shelterId, second.shelterId, third.shelterId]).toContain(left[0]);
+    const next = await runApplicationCleanup(db, NOW, { commit: true, maxDeletions: 2 });
+    expect(next.deleted).toHaveLength(1);
+    expect(next.deferred).toEqual([]);
   });
 
   it("prints ids and reasons only", async () => {

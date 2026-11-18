@@ -12,8 +12,13 @@ import {
   type DueApplication,
 } from "./repos/application-deletion-repo";
 
+/** At most this many deletions a run; the rest wait for the next day's (a bad day can't cascade). */
+export const APPLICATION_DELETIONS_PER_RUN = 50;
+
 export type ApplicationCleanupReport = {
   due: readonly DueApplication[];
+  /** Due, but over this run's cap: left as they are for the next run. */
+  deferred: readonly DueApplication[];
   deleted: readonly { shelterId: string; reason: DueApplication["reason"]; photoKeys: number }[];
   /** Selected, then found no longer due inside the transaction: nothing was written. */
   notDue: readonly DueApplication[];
@@ -25,15 +30,20 @@ export type ApplicationCleanupReport = {
 export async function runApplicationCleanup(
   db: Database,
   now: Date,
-  options: { commit: boolean },
+  options: { commit: boolean; maxDeletions?: number },
 ): Promise<ApplicationCleanupReport> {
+  const cap = options.maxDeletions ?? APPLICATION_DELETIONS_PER_RUN;
+  if (!Number.isInteger(cap) || cap < 1) {
+    throw new Error("The application clean-up's cap must be a positive whole number");
+  }
   const repo = applicationDeletionRepo(db);
   const due = await repo.dueApplications(now);
-  if (!options.commit) return { due, deleted: [], notDue: [], failed: [] };
+  const deferred = due.slice(cap);
+  if (!options.commit) return { due, deferred, deleted: [], notDue: [], failed: [] };
   const deleted: ApplicationCleanupReport["deleted"][number][] = [];
   const notDue: DueApplication[] = [];
   const failed: ApplicationCleanupReport["failed"][number][] = [];
-  for (const row of due) {
+  for (const row of due.slice(0, cap)) {
     let outcome: ApplicationDeletionOutcome;
     try {
       outcome = await repo.deleteApplication(row.shelterId, row.reason, now);
@@ -47,7 +57,7 @@ export async function runApplicationCleanup(
       notDue.push(row);
     }
   }
-  return { due, deleted, notDue, failed };
+  return { due, deferred, deleted, notDue, failed };
 }
 
 /** What a run prints: ids and reasons, never a name or an address. */
@@ -57,6 +67,9 @@ export function formatApplicationCleanupReport(
 ): string[] {
   const lines = [`Due for deletion: ${report.due.length}`];
   for (const row of report.due) lines.push(`  ${row.shelterId} ${row.reason}`);
+  if (report.deferred.length > 0) {
+    lines.push(`Over this run's cap, left for the next run: ${report.deferred.length}`);
+  }
   if (!commit) return lines;
   lines.push(`Deleted: ${report.deleted.length}`);
   lines.push(

@@ -58,13 +58,14 @@ const EXPECTED: ReadonlyArray<{
   },
   {
     file: "repos/application-deletion-repo.ts",
-    line: 184,
+    line: 195,
     text: "tx.delete(authUser).where(ofUser(eq(authUser.id, uid))),",
     kind: "exception",
     why:
       "deletes a self-registered application (D8, «Це не я») with its own shelter_history rows " +
       "in the same transaction; the registrant was only ever that shelter's member (one email, " +
-      "one shelter), so no row is left to carry the email and there is nothing to scrub",
+      "one shelter), so that shelter's history needs no scrub. Not scrubbed here: an " +
+      "auth_invitation another shelter sent the same address, which can survive the deletion",
   },
   {
     file: "repos/admin-erasure-repo.ts",
