@@ -7,6 +7,7 @@ import {
   shelterRepo,
 } from "@opika/db/repos";
 import {
+  donationProposalGateOf,
   donationProviderOf,
   earlyListingOf,
   earlyListingRemaining,
@@ -29,6 +30,7 @@ import type { KabinetContext } from "../context";
 import { handOver } from "../notify/hand-over";
 import { shelterUploadKey } from "../rate-limits";
 import { withinBudget } from "./photos";
+import { shelterStageOf } from "./shelter-stage";
 import { optionalTextAfterEdit } from "./text-after-edit";
 
 export type ProfileDeps = Pick<KabinetContext, "db" | "now" | "newId" | "photoUploads" | "notify">;
@@ -112,12 +114,12 @@ async function viewOf(deps: ProfileDeps, shelterId: ShelterId): Promise<KabinetS
   return kabinetShelterViewOf(shelter, registration, deps.now);
 }
 
-const actorOf = (scope: ShelterWriteScope): ShelterActor => ({
+export const actorOf = (scope: ShelterWriteScope): ShelterActor => ({
   kind: "shelter_admin",
   shelterAdminId: scope.shelterAdminId,
 });
 
-type Planned =
+export type Planned =
   | { kind: "write"; change: AuditedShelterChange; entry: ShelterHistoryEntry }
   | { kind: "no_change" };
 
@@ -150,7 +152,7 @@ export async function write(
  * before writing, so the history entry's `previous` is always what the write
  * actually replaced.
  */
-async function editFromForm(
+export async function editFromForm(
   deps: ProfileDeps,
   scope: ShelterWriteScope,
   expectedVersion: number,
@@ -250,11 +252,18 @@ export const profileUpdateDescription = (
  * operator approves; proposing again replaces the pending one (H2-7). The
  * provider is derived from the URL, never sent by the client.
  */
-export const profileProposeDonation = (
+export async function profileProposeDonation(
   deps: ProfileDeps,
   scope: ShelterWriteScope,
   input: { url: string },
-) => {
+  errors: ORPCErrorConstructorMap<{ AWAITING_APPROVAL: typeof apiErrors.AWAITING_APPROVAL }>,
+): Promise<KabinetShelterView> {
+  // §5: an application proposes nothing, so no link waits for the operator before approval. Read
+  // before the write: an application only ever moves out of that stage, never back into it.
+  const { lifecycle } = await shelterStageOf(deps, await load(deps, scope.shelterId));
+  if (donationProposalGateOf(lifecycle).kind === "blocked") {
+    throw errors.AWAITING_APPROVAL({ data: { action: "propose_donation" } });
+  }
   const link = { url: input.url, provider: donationProviderOf(input.url) };
   return tapWithRetry(deps, scope, (shelter) =>
     // The very link already waiting changes nothing: no history line, no version bump, no mail
@@ -270,7 +279,7 @@ export const profileProposeDonation = (
           entry: { kind: "donation_proposed", at: deps.now, actor: actorOf(scope), link },
         },
   );
-};
+}
 
 /** Withdraws a pending proposal. With nothing pending there is nothing to change or record. */
 export const profileCancelDonationProposal = (deps: ProfileDeps, scope: ShelterWriteScope) =>

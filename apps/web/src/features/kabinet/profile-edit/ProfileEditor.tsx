@@ -20,11 +20,16 @@ import { DonationSection } from "./DonationSection";
 import type { DonationOutcome } from "./donation-outcome";
 import { useReportVerification } from "./LiveVerificationStatus";
 import { LogoSection } from "./LogoSection";
+import { NameSection } from "./NameSection";
 import { PauseControl } from "./PauseControl";
 import { type ProfileTab, profileTabOf } from "./profile-tabs";
 
 /** Which tab holds each section that can refuse a save, so a refusal shows the tab it is on. */
-const SECTION_TAB: Record<string, ProfileTab> = { contacts: "kontakty", about: "profil" };
+const SECTION_TAB: Record<string, ProfileTab> = {
+  contacts: "kontakty",
+  about: "profil",
+  name: "profil",
+};
 
 /**
  * K4 with writes open for this shelter (the page decided, with the router's own `decideAccess`
@@ -43,6 +48,7 @@ export function ProfileEditor({
   operatorName,
   donationOutcome,
   initialTab = "profil",
+  identityEditable = false,
   client = kabinetProfileBrowserClient,
 }: {
   initialView: KabinetShelterView;
@@ -50,6 +56,8 @@ export function ProfileEditor({
   operatorName: string;
   donationOutcome: DonationOutcome;
   initialTab?: ProfileTab;
+  /** The name field (§4, D4), shown while self-registration is on; otherwise the page is as it was. */
+  identityEditable?: boolean;
   client?: KabinetProfileClient;
 }) {
   const [view, setView] = useState(initialView);
@@ -98,6 +106,17 @@ export function ProfileEditor({
       panel: (
         <div className="flex flex-col gap-4 desktop:gap-6">
           <Text look="hint">{t.profileNote}</Text>
+          {identityEditable ? (
+            <NameSection
+              displayName={view.displayName}
+              save={(displayName) =>
+                write(() =>
+                  profile.updateIdentity({ displayName, expectedVersion: versionRef.current }),
+                )
+              }
+              reload={reload}
+            />
+          ) : null}
           <LogoSection
             logo={view.logo}
             displayName={view.displayName}

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { WORDMARK } from "../../brand";
 import { ContentPageLayout } from "../../features/chrome/ContentPageLayout";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
+import { isSelfRegistrationEnabled } from "../../features/registration/flag";
 import { ABOUT_SEO } from "../../seo/page-metadata";
 import { Heading } from "../../ui/Heading";
 import { Mascot, MascotPerch } from "../../ui/Mascot";
@@ -67,11 +68,17 @@ export const dynamic = "force-dynamic";
 
 export default async function AboutPage() {
   const kabinetSignedIn = await kabinetSessionCookiePresent();
-  return renderAboutPage(kabinetSignedIn);
+  return renderAboutPage(kabinetSignedIn, { selfRegistration: isSelfRegistrationEnabled() });
 }
 
+/** Where the data paragraphs start: the registration form's consent links here. */
+export const DATA_SECTION_ANCHOR = "dani";
+
 /** The page body; exported so `page.test.tsx` can render it without a real request scope. */
-export function renderAboutPage(kabinetSignedIn: boolean) {
+export function renderAboutPage(
+  kabinetSignedIn: boolean,
+  { selfRegistration }: { selfRegistration: boolean } = { selfRegistration: false },
+) {
   return (
     <ContentPageLayout kabinetSignedIn={kabinetSignedIn} current="about" title={uk.about.title}>
       <Text look="lead" className="text-ink-2">
@@ -84,11 +91,22 @@ export function renderAboutPage(kabinetSignedIn: boolean) {
         {MONEY}
       </Text>
       {/* Four paragraphs in one catalogue string (audit 2026-10-22 #45), split on the blank line. */}
-      {uk.about.data.split("\n\n").map((paragraph) => (
-        <Text key={paragraph} look="lead" className="text-ink-2">
+      {uk.about.data.split("\n\n").map((paragraph, index) => (
+        <Text
+          key={paragraph}
+          {...(index === 0 ? { id: DATA_SECTION_ANCHOR } : {})}
+          look="lead"
+          className="scroll-mt-24 text-ink-2"
+        >
           {paragraph}
         </Text>
       ))}
+      {/* A7: what registering collects and how long an application is kept (flag-gated). */}
+      {selfRegistration ? (
+        <Text look="lead" className="text-ink-2">
+          {uk.registration.privacy}
+        </Text>
+      ) : null}
       <Text look="lead" className="text-ink-2">
         {uk.about.analytics}
       </Text>

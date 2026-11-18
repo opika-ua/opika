@@ -3,6 +3,8 @@ import type { SignedInPerson } from "../../../kabinet/signed-in-person";
 import { Heading } from "../../../ui/Heading";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
+import { ApplicationBanners } from "../application/ApplicationBanners";
+import { applicationBannersOf } from "../application/application-banners";
 import { KabinetNav } from "../KabinetNav";
 import { ShelterShell } from "../ShelterShell";
 import { VerificationDecision } from "../VerificationDecision";
@@ -30,6 +32,14 @@ export function AnimalListScreen({
   const status = page.shelter.verification.status;
   const pending = status === "pending" || status === "under_review";
   const early = page.shelter.earlyListing;
+  const banners = applicationBannersOf(
+    page.shelter,
+    page.first.counts,
+    page.viewer,
+    person?.email ?? null,
+  );
+  // A self-registered shelter reads the days left instead of the date (P0-1).
+  const selfRegistered = page.shelter.registration.source === "self_registration";
   const listedUntil = pending && early.kind === "running" ? early.expiresAt : null;
   const listed = listedUntil !== null;
   // Without this line an ended period would read the same as one never allowed (gap 6).
@@ -53,6 +63,8 @@ export function AnimalListScreen({
               verification={page.shelter.verification}
               operatorName={operatorName}
             />
+            {/* `resendConfirmation`: the registration PR's resend button goes in this slot. */}
+            <ApplicationBanners banners={banners} />
             {/* Not for the support view, where «я» would be the operator speaking to themselves. */}
             {!support && pending ? (
               <Panel
@@ -70,7 +82,7 @@ export function AnimalListScreen({
               </Panel>
             ) : null}
             {/* The shelter may see when the period ends; the public never does (N13). */}
-            {listedUntil !== null ? (
+            {listedUntil !== null && !selfRegistered ? (
               <Panel tone="outline" padding="md">
                 <Text look="label">
                   {fillTemplate(uk.kabinet.profile.earlyListingBanner, {

@@ -78,6 +78,7 @@ function fakeClient(view: KabinetShelterView, overrides: Partial<Fake> = {}) {
       },
     })),
     cancelDonationProposal: echo(() => ({ pendingDonation: null })),
+    updateIdentity: echo((input: { displayName: string }) => ({ displayName: input.displayName })),
     pause: echo((input: { reason: { code: "relocation"; note: string | null } }) => ({
       verification: {
         status: "paused",
@@ -98,6 +99,7 @@ function renderEditor(
     view?: KabinetShelterView;
     overrides?: Partial<Fake>;
     donationOutcome?: DonationOutcome;
+    identityEditable?: boolean;
   } = {},
 ) {
   const view = options.view ?? baseView();
@@ -108,6 +110,7 @@ function renderEditor(
       cityName="Бровари"
       operatorName="Олексій"
       donationOutcome={options.donationOutcome ?? { kind: "none" }}
+      identityEditable={options.identityEditable ?? false}
       client={client}
     />,
   );
@@ -1370,5 +1373,51 @@ describe("the save pill on the shelter page", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("self-registration's editability (§4, §5)", () => {
+  const NAME = "Назва притулку чи ініціативи";
+
+  it("an application has no donation link to propose yet, and says when it can", () => {
+    renderEditor({
+      view: baseView({
+        verification: { status: "application", since: new Date("2026-11-18T09:00:00Z") },
+      } as Partial<KabinetShelterView>),
+    });
+    const panel = within(donation());
+    expect(
+      panel.getByText("Посилання на збір можна додати після перевірки притулку."),
+    ).toBeTruthy();
+    expect(panel.queryByRole("textbox")).toBeNull();
+  });
+
+  it("no name field while self-registration is off: the page is as it was", () => {
+    renderEditor();
+    expect(screen.queryByRole("textbox", { name: NAME })).toBeNull();
+  });
+
+  it("with it on, the shelter renames itself through updateIdentity, on the version it read", async () => {
+    const fns = renderEditor({ identityEditable: true });
+    fireEvent.click(screen.getByRole("tab", { name: "Профіль" }));
+    const field = screen.getByRole("textbox", { name: NAME }) as HTMLInputElement;
+    expect(field.value).toBe(baseView().displayName);
+    await userEvent.clear(field);
+    await userEvent.type(field, "Хвостики");
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(fns.updateIdentity).toHaveBeenCalledWith({
+      displayName: "Хвостики",
+      expectedVersion: baseView().version,
+    });
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull());
+  });
+
+  it("an empty name is refused on the field and nothing is sent", async () => {
+    const fns = renderEditor({ identityEditable: true });
+    fireEvent.click(screen.getByRole("tab", { name: "Профіль" }));
+    await userEvent.clear(screen.getByRole("textbox", { name: NAME }));
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(fns.updateIdentity).not.toHaveBeenCalled();
+    expect(screen.getByText("Заповніть це поле.")).toBeTruthy();
   });
 });

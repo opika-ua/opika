@@ -1,5 +1,5 @@
 import type { AgeEstimateInput, KabinetAnimalView } from "@opika/contracts";
-import { ANIMAL_DESCRIPTION_MAX_CHARACTERS } from "@opika/domain";
+import { ANIMAL_DESCRIPTION_MAX_CHARACTERS, type ShelterGate } from "@opika/domain";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -204,6 +204,7 @@ function renderForm(
     initialTab?: AnimalTab;
     /** False to keep the tabs as they are, with only the selected panel showing. */
     reveal?: boolean;
+    publishGate?: ShelterGate;
   } = {},
 ) {
   const client = options.client ?? fakeClient(view);
@@ -218,6 +219,7 @@ function renderForm(
       clock={options.clock ?? (() => NOW)}
       compress={options.compress ?? okJpeg}
       {...(options.initialTab === undefined ? {} : { initialTab: options.initialTab })}
+      {...(options.publishGate === undefined ? {} : { publishGate: options.publishGate })}
     />,
   );
   // Every panel stays mounted under the tabs. Most tests here are about one field or one save, not
@@ -2764,5 +2766,60 @@ describe("the save pill", () => {
     expect(screen.getAllByText("Чернетку збережено о 12:00")).toHaveLength(1);
     expect(screen.queryByText("Збережено о 12:00")).toBeNull();
     expect(screen.queryByRole("button", { name: "Скасувати" })).toBeNull();
+  });
+});
+
+describe("a shelter still in application (D2, D5)", () => {
+  const BLOCKED: ShelterGate = { kind: "blocked", why: "application" };
+  const WHY = "Опублікувати можна після перевірки притулку.";
+
+  it("keeps «Опублікувати» focusable but disabled, described by why, and never publishes", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(
+      draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>),
+      {
+        publishGate: BLOCKED,
+      },
+    );
+    const publish = screen.getByRole("button", { name: "Опублікувати" });
+    expect(publish.getAttribute("aria-disabled")).toBe("true");
+    expect(publish.getAttribute("aria-describedby")).toBe("publish-awaiting-approval");
+    expect(document.getElementById("publish-awaiting-approval")?.textContent).toBe(WHY);
+    await user.click(publish);
+    expect(client.calls.transition).not.toHaveBeenCalled();
+    expect(formStatus().textContent).toBe(WHY);
+  });
+
+  it("says why when the server refuses the publish (approval not yet given)", async () => {
+    const user = userEvent.setup();
+    const client = fakeClient(
+      draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>),
+    );
+    client.calls.transition.mockRejectedValueOnce(
+      apiError("AWAITING_APPROVAL", { action: "publish" }),
+    );
+    renderForm(draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>), { client });
+    await user.click(screen.getByRole("button", { name: "Опублікувати" }));
+    expect(await screen.findByText(WHY)).toBeTruthy();
+  });
+
+  it("a new card past the 30-draft cap says so, and stops saving itself", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const client = fakeClient(null);
+    client.calls.createDraft.mockRejectedValue(apiError("DRAFT_LIMIT_REACHED", { max: 30 }));
+    renderForm(null, { client });
+    fireEvent.change(screen.getByLabelText("Імʼя"), { target: { value: "Ластівка" } });
+    fireEvent.click(within(screen.getByRole("group", { name: "Вид" })).getByLabelText("Собака"));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    });
+    expect(screen.getByText("До перевірки можна додати не більше 30 чернеток.")).toBeTruthy();
+    const asked = client.calls.createDraft.mock.calls.length;
+    // A changed field would restart the wait; the refusal must not, or it repeats every 10 s.
+    fireEvent.change(screen.getByLabelText("Імʼя"), { target: { value: "Ластівочка" } });
+    await act(async () => {
+      vi.advanceTimersByTime(20_000);
+    });
+    expect(client.calls.createDraft).toHaveBeenCalledTimes(asked);
   });
 });

@@ -293,7 +293,7 @@ export function AnimalManageCard({
             ) : card.status === "draft" ? (
               <>
                 <Text look="hint">{card.notice}</Text>
-                {card.publish.kind === "blocked" ? (
+                {card.publish.kind !== "ready" ? (
                   <Text look="hint" id={gapsId}>
                     {card.publish.sentence}
                   </Text>
@@ -345,9 +345,9 @@ export function AnimalManageCard({
                   variant="primary"
                   className={PRIMARY}
                   aria-describedby={
-                    card.publish.kind === "blocked" ? `${describedBy} ${gapsId}` : describedBy
+                    card.publish.kind !== "ready" ? `${describedBy} ${gapsId}` : describedBy
                   }
-                  aria-disabled={inert || card.publish.kind === "blocked" || undefined}
+                  aria-disabled={inert || card.publish.kind !== "ready" || undefined}
                   onClick={() => {
                     if (!inert && card.publish.kind === "ready") onPublish();
                   }}

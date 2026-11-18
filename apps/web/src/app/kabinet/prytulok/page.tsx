@@ -6,6 +6,7 @@ import { KabinetBrand } from "../../../features/kabinet/KabinetBrand";
 import { RETIRED_ACCOUNT_TAB } from "../../../features/kabinet/profile-edit/profile-tabs";
 import { OPERATOR_HOME, SHELTER_ACCOUNT_PATH } from "../../../features/kabinet/routes";
 import { ShelterProfile } from "../../../features/kabinet/ShelterProfile";
+import { isSelfRegistrationEnabled } from "../../../features/registration/flag";
 import { MAIN_LANDMARK } from "../../../ui/landmark";
 import { loadShelterPage } from "../shelter-load";
 import { signedInPerson } from "../signed-in-person";
@@ -68,6 +69,7 @@ export default async function ShelterProfilePage({
           editing={home.editing}
           person={await signedInPerson()}
           tab={Array.isArray(tab) ? tab[0] : tab}
+          identityEditable={isSelfRegistrationEnabled()}
         />
       );
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */

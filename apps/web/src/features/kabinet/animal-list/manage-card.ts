@@ -5,6 +5,7 @@ import {
   type ListingEventType,
   type ListingKind,
   type PublishGap,
+  type ShelterGate,
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { freshnessLabel } from "@opika/ui";
@@ -101,7 +102,9 @@ export type CardFreshness = { kind: FreshnessKind; label: string };
 export type ConfirmOffer = { label: string; emphasis: "quiet" | "prompt" };
 export type PublishOffer =
   | { kind: "ready" }
-  | { kind: "blocked"; gaps: readonly [PublishGap, ...PublishGap[]]; sentence: string };
+  | { kind: "blocked"; gaps: readonly [PublishGap, ...PublishGap[]]; sentence: string }
+  /** The shelter is still an application (D2): nothing publishes, whatever the card holds. */
+  | { kind: "awaiting_approval"; sentence: string };
 /** A visible card's ⋯: its public page, opened or copied. */
 export type SiteLinks = { kind: "site_links"; href: string };
 /** A draft's ⋯: only its delete (nothing is public yet). */
@@ -126,14 +129,21 @@ export type AnimalManageCard =
   | (CardCore & { status: "adopted"; closedLine: string })
   | (CardCore & { status: "withdrawn"; closedLine: string; statusMenu: StatusMenu<"withdrawn"> });
 
-const publishOfferOf = (gaps: readonly PublishGap[]): PublishOffer => {
+const publishOfferOf = (gaps: readonly PublishGap[], gate: ShelterGate): PublishOffer => {
+  if (gate.kind === "blocked") {
+    return { kind: "awaiting_approval", sentence: uk.kabinet.application.publishBlocked };
+  }
   const [first, ...rest] = gaps;
   return first === undefined
     ? { kind: "ready" }
     : { kind: "blocked", gaps: [first, ...rest], sentence: missingSentence(gaps) };
 };
 
-export const toAnimalManageCard = (row: AnimalRow, now: Date): AnimalManageCard => {
+export const toAnimalManageCard = (
+  row: AnimalRow,
+  now: Date,
+  publishGate: ShelterGate = { kind: "open" },
+): AnimalManageCard => {
   const core: CardCore = {
     id: row.id,
     name: row.name,
@@ -148,7 +158,7 @@ export const toAnimalManageCard = (row: AnimalRow, now: Date): AnimalManageCard 
         ...core,
         status: "draft",
         notice: statusLineOf(row, now),
-        publish: publishOfferOf(row.publishGaps),
+        publish: publishOfferOf(row.publishGaps, publishGate),
         more: { kind: "delete_draft" },
       };
     case "published":

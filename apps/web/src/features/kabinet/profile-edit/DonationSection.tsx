@@ -108,6 +108,15 @@ export function DonationSection({
 
   const pendingHost = pendingDonation === null ? null : hostOf(pendingDonation.link.url);
 
+  // §5: before approval no link may wait for the operator, so there is nothing to propose yet.
+  if (status === "application") {
+    return (
+      <FormSection id="donation" title={profile.donationTitle} titleless>
+        <Text look="body">{uk.kabinet.application.donationBlocked}</Text>
+      </FormSection>
+    );
+  }
+
   return (
     <FormSection id="donation" title={profile.donationTitle} titleless>
       <TextField

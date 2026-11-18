@@ -2,7 +2,7 @@
 
 import "../../../zod-client-config";
 import type { KabinetAnimalListFilter, KabinetCursor, KabinetShelterView } from "@opika/contracts";
-import { type ListingKind, UNDO_SHOWN_MS } from "@opika/domain";
+import { type ListingKind, type ShelterGate, UNDO_SHOWN_MS } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { type ReactNode, useCallback, useRef, useState } from "react";
 import {
@@ -20,6 +20,7 @@ import { Text } from "../../../ui/Text";
 import { type ToastHandle, ToastProvider, useToast } from "../../../ui/Toast";
 import type { AnimalFormEditing } from "../animal-form/AnimalForm";
 import { cardsArePublic, missingSentence, shelterVisibilityOf } from "../animal-form/labels";
+import { awaitingApproval } from "../application/application-banners";
 import { NEW_ANIMAL_PATH } from "../routes";
 import {
   AnimalManageCard,
@@ -122,6 +123,8 @@ const refusalOf = (failure: ActionFailure, otherwise: string): string => {
       return t.confirm.undoExpired;
     case "was_published":
       return uk.kabinet.deleteDraft.refused.wasPublished;
+    case "awaiting_approval":
+      return uk.kabinet.application.publishBlocked;
     case "rate_limited":
       return t.errors.rateLimited;
     case "no_answer":
@@ -188,6 +191,9 @@ function AnimalListBody({
 
   const now = clock();
   const visibility = shelterVisibilityOf(verification.status, shelter.earlyListing);
+  const publishGate: ShelterGate = awaitingApproval({ verification })
+    ? { kind: "blocked", why: "application" }
+    : { kind: "open" };
   const shown = cardsArePublic(visibility);
   const visibilityNotice = visibilityNoticeOf(verification, shelter.earlyListing);
   const total = totalOf(counts);
@@ -774,7 +780,7 @@ function AnimalListBody({
                 {items.map((row) => (
                   <AnimalManageCard
                     key={row.id}
-                    card={toAnimalManageCard(row, now)}
+                    card={toAnimalManageCard(row, now, publishGate)}
                     editable={editable}
                     busy={busy.has(row.id)}
                     openMenu={openMenu?.id === row.id ? openMenu.menu : null}

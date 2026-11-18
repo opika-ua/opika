@@ -6,51 +6,68 @@ import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signe
 import { KabinetEntryLink } from "../../features/kabinet/KabinetEntryLink";
 import { isSelfRegistrationEnabled } from "../../features/registration/flag";
 import { RegistrationSection } from "../../features/registration/RegistrationSection";
+import { seoMetadata, withSite } from "../../seo/page-metadata";
+import { buttonClass } from "../../ui/Button";
 import { Heading } from "../../ui/Heading";
 import { Panel } from "../../ui/Panel";
 import { Text } from "../../ui/Text";
 
-/**
- * The subject. The root layout's `title.template` («%s - Opika») appends
- * the product name - spelling it out here too rendered «Для притулків - Opika -
- * Opika», caught by reading the served HTML rather than by any assertion.
- *
- * `description`/`openGraph` are an explicit override (Option B, 2026-09-06,
- * see `docs/observations.md`) - without one this page would inherit the
- * root layout's default, which swaps to the demo-data disclosure while
- * `REGISTRY_HAS_NO_REAL_SHELTERS`. This is the link Oleksii actually sends
- * to shelters, and that disclosure was never meant to reach it specifically
- * - a scope decided, not an oversight. `uk.forShelters.whatThisIs` is the
- * page's own existing, already-shipped §1 sentence (the first paragraph
- * under the `<h1>`) - used verbatim, not trimmed, and not a new key. A full
- * `openGraph` object, not just `description` - Next replaces a parent's
- * `openGraph` wholesale rather than deep-merging it once a child sets any
- * part of it (same gotcha `/tvaryny/[animalId]/page.tsx` already has its
- * own note on). No `title` inside `openGraph`, deliberately: unlike the
- * nested object as a whole, Next resolves a missing `openGraph.title` from
- * the page's own already-templated `title` («Для притулків - Opika»),
- * exactly the string above - setting it explicitly here would instead
- * freeze it at the untemplated subject, dropping the brand name from the
- * one link-preview headline this page's own comment already flags as
- * having failed the same way once (PR #53 review, caught by rebuilding and
- * diffing the served `og:title`, not by inspection).
- */
 const INDEPENDENT = fillTemplate(uk.about.independent, { site: WORDMARK });
 const WHAT_THIS_IS = fillTemplate(uk.forShelters.whatThisIs, { site: WORDMARK });
 const WHO_CONTACTS_WHOM = fillTemplate(uk.forShelters.whoContactsWhom, { site: WORDMARK });
 const WHO_IS_BEHIND_THIS = fillTemplate(uk.forShelters.whoIsBehindThis, { site: WORDMARK });
+const CONTACT = "hello@opika.org.ua";
 
-export const metadata: Metadata = {
-  title: uk.forShelters.title,
-  description: WHAT_THIS_IS,
-  alternates: { canonical: "/prytulkam" },
-  openGraph: {
-    type: "website",
-    siteName: WORDMARK,
-    locale: "uk_UA",
-    description: WHAT_THIS_IS,
-  },
-};
+/**
+ * SEO handoff B2's title and description, the same in every preview; this is the link Oleksii sends
+ * to shelters, so it never takes the demo disclosure. With self-registration on, the description
+ * names the 3-minute registration (`seo.forShelters.descriptionSelfRegistration`).
+ */
+export function forSheltersMetadata(selfRegistration: boolean): Metadata {
+  const f = uk.seo.forShelters;
+  return {
+    ...seoMetadata(
+      withSite(f.title),
+      withSite(selfRegistration ? f.descriptionSelfRegistration : f.description),
+    ),
+    alternates: { canonical: "/prytulkam" },
+  };
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  return forSheltersMetadata(isSelfRegistrationEnabled());
+}
+
+/** A catalogue string's paragraph break (`Body` renders it with `whitespace-pre-line`). */
+const PARAGRAPH = "\n\n";
+
+/** A1's sentence in §7 (commitment #6), the paragraph self-registration replaces. */
+const ACCESS_SENTENCE =
+  "Доступ до кабінету я надсилаю сам – листом на адресу, яку ви мені вкажете.";
+
+/**
+ * §7 as the page shows it: with self-registration on, A1's paragraph becomes
+ * `registration.whatToPrepareAccess` and nothing else moves. Throws if A1 is not a paragraph of
+ * its own, so a reworded §7 can't silently keep the operator-only sentence.
+ */
+export function whatToPrepareFor(selfRegistration: boolean): string {
+  if (!selfRegistration) return uk.forShelters.whatToPrepare;
+  const paragraphs = uk.forShelters.whatToPrepare.split(PARAGRAPH);
+  if (!paragraphs.includes(ACCESS_SENTENCE)) {
+    throw new Error("forShelters.whatToPrepare lost A1's paragraph");
+  }
+  return paragraphs
+    .map((paragraph) =>
+      paragraph === ACCESS_SENTENCE ? uk.registration.whatToPrepareAccess : paragraph,
+    )
+    .join(PARAGRAPH);
+}
+
+/** §11: the form, or the operator's own path with the flag off. */
+const howToStartFor = (selfRegistration: boolean): string =>
+  fillTemplate(selfRegistration ? uk.registration.howToStart : uk.forShelters.howToStart, {
+    contact: CONTACT,
+  });
 
 /**
  * «Для притулків» - Phase T, closing critique finding E3.
@@ -197,7 +214,7 @@ export function renderForSheltersPage(
           these two adjacent.
         */}
       <Section heading={h.whatToPrepare}>
-        <Body>{uk.forShelters.whatToPrepare}</Body>
+        <Body>{whatToPrepareFor(selfRegistration)}</Body>
       </Section>
 
       {/*
@@ -229,6 +246,7 @@ export function renderForSheltersPage(
       <Section heading={h.whoIsBehindThis}>
         <Body>{WHO_IS_BEHIND_THIS}</Body>
       </Section>
+      {selfRegistration ? <RulesSection /> : null}
 
       {/*
           `hello@opika.org.ua` is live and receives mail (Cloudflare Email
@@ -239,8 +257,40 @@ export function renderForSheltersPage(
           the address bounces. That gate is satisfied, not outstanding.
         */}
       <Section heading={h.howToStart}>
-        <Body>{uk.forShelters.howToStart.replace("{contact}", "hello@opika.org.ua")}</Body>
+        <Body>{howToStartFor(selfRegistration)}</Body>
+        {/* §13.1: the end of the page repeats the button, to the form's anchor (no page load). */}
+        {selfRegistration ? (
+          <a href="#reyestratsiia" className={`self-start ${buttonClass("primary")}`}>
+            {uk.registration.ctaScroll}
+          </a>
+        ) : null}
       </Section>
     </ContentPageLayout>
+  );
+}
+
+/** Q6's «Правила» (A6), the anchor the registration's consent line links to. */
+function RulesSection() {
+  const r = uk.registration.rules;
+  return (
+    <section
+      id="pravyla"
+      aria-labelledby="pravyla-title"
+      className="flex scroll-mt-24 flex-col gap-3"
+    >
+      <Heading level={2} look="title" id="pravyla-title">
+        {r.title}
+      </Heading>
+      <ul className="flex list-disc flex-col gap-2 pl-6">
+        {r.items.map((item) => (
+          <li key={item}>
+            <Text look="lead" as="span" className="text-ink-2">
+              {item}
+            </Text>
+          </li>
+        ))}
+      </ul>
+      <Body>{r.enforcement}</Body>
+    </section>
   );
 }
