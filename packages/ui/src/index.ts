@@ -1,1 +1,1 @@
-export { freshnessLabel, freshnessPips, type PipFill } from "./freshness-display";
+export { freshnessLabel } from "./freshness-display";

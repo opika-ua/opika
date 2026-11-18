@@ -1,28 +1,10 @@
 import type { Freshness } from "@opika/domain";
 import { describe, expect, it } from "vitest";
-import { freshnessLabel, freshnessPips } from "./freshness-display";
+import { freshnessLabel } from "./freshness-display";
 
 function makeFreshness(kind: Freshness["kind"], ageDays: number): Freshness {
   return { kind, confirmedAt: new Date("2026-08-01T00:00:00Z"), ageDays };
 }
-
-describe("freshnessPips", () => {
-  // Which pips are filled; the colour each carries is appearance and is not
-  // asserted (CLAUDE.md, "Test logic, not looks"; removed 2026-10-20).
-  const filled = (kind: Freshness["kind"]) => freshnessPips(kind).map((pip) => pip !== "empty");
-
-  it("fills one pip when fresh, the rest empty", () => {
-    expect(filled("fresh")).toEqual([true, false, false]);
-  });
-
-  it("fills two pips when aging, the last empty", () => {
-    expect(filled("aging")).toEqual([true, true, false]);
-  });
-
-  it("fills all three pips when stale", () => {
-    expect(filled("stale")).toEqual([true, true, true]);
-  });
-});
 
 describe("freshnessLabel", () => {
   /**
