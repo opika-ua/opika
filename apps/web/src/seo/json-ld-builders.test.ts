@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { SITE_ORIGIN } from "../brand";
 import {
@@ -5,13 +7,41 @@ import {
   organizationJsonLd,
   serializeJsonLd,
   shelterBreadcrumbs,
+  webSiteJsonLd,
 } from "./json-ld-builders";
 
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
 describe("json-ld builders", () => {
-  it("builds an Organization with an absolute url", () => {
-    const org = organizationJsonLd();
-    expect(org["@type"]).toBe("Organization");
-    expect(String(org.url).startsWith(SITE_ORIGIN)).toBe(true);
+  it("builds the WebSite Google reads the site name from", () => {
+    expect(webSiteJsonLd()).toEqual({
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: "Opika",
+      alternateName: ["Опіка", "opika.org.ua"],
+      url: "https://opika.org.ua/",
+    });
+  });
+
+  it("builds an Organization with a logo and only the owner-supplied profile", () => {
+    expect(organizationJsonLd()).toEqual({
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: "Opika",
+      url: "https://opika.org.ua/",
+      logo: "https://opika.org.ua/icons/icon-512.png",
+      sameAs: ["https://www.instagram.com/opika.ua/"],
+    });
+  });
+
+  it("points the logo at a square PNG of at least 112px served from public/", () => {
+    const logo = new URL(String(organizationJsonLd().logo));
+    expect(logo.origin).toBe(SITE_ORIGIN);
+    const png = readFileSync(join(__dirname, "../../public", logo.pathname));
+    expect(png.subarray(0, 8)).toEqual(PNG_SIGNATURE);
+    const [width, height] = [png.readUInt32BE(16), png.readUInt32BE(20)];
+    expect(width).toBe(height);
+    expect(width).toBeGreaterThanOrEqual(112);
   });
 
   it("numbers animal breadcrumbs from 1 with absolute item urls", () => {
