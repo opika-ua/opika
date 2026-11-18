@@ -311,6 +311,8 @@ export const uk = {
         "Підтвердіть email – я надіслав лист на {email}. Без цього я не зможу схвалити притулок.",
       confirmEmailResend: "Надіслати ще раз",
       approved: "Притулок схвалено. Тепер можна публікувати тварин.",
+      /** The «Притулок схвалено» banner's close button (owner, 2026-11-18). */
+      approvedClose: "Закрити",
       publishBlocked: "Опублікувати можна після перевірки притулку.",
       draftCap: "До перевірки можна додати не більше 30 чернеток.",
       donationBlocked: "Посилання на збір можна додати після перевірки притулку.",
@@ -701,6 +703,10 @@ export const uk = {
       view: "Переглянути",
     },
     profileEdit: {
+      /** The shelter's name and city (§4). `{email}` is the operator's address (owner, 2026-11-18). */
+      identity: {
+        cityLocked: "Ваша адреса вже перевірена, тому місто змінюю я. Напишіть мені на {email}.",
+      },
       saveBar: {
         unsaved: "Є незбережені зміни",
         cancel: "Скасувати",
@@ -1896,6 +1902,8 @@ export const uk = {
         },
         shelter_created: "Притулок створено",
         shelter_registered: "Притулок зареєстровано",
+        /** The shelter's own city change (owner-approved, 2026-11-18); city names, nominative. */
+        city_changed: "Місто змінено: {from} – {to}",
         shelter_created_script: "Притулок додано з файлу",
         verification: {
           start_review: "Взято на розгляд",

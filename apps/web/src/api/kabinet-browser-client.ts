@@ -32,6 +32,7 @@ const kabinetProfileBrowserContract = {
       cancelDonationProposal: shelterKabinetContract.shelter.profile.cancelDonationProposal,
       pause: shelterKabinetContract.shelter.profile.pause,
       resume: shelterKabinetContract.shelter.profile.resume,
+      updateIdentity: shelterKabinetContract.shelter.profile.updateIdentity,
     },
     logo: {
       set: shelterKabinetContract.shelter.logo.set,

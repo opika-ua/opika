@@ -32,9 +32,11 @@ import {
   ageDateProblem,
   animalLocationOf,
   type CityId,
+  checkDraftCap,
   DEFAULT_FRESHNESS_POLICY,
   type DraftAnimal,
   declaredAtOfCalendarDate,
+  draftCapOf,
   freshnessOf,
   instantOfCalendarDate,
   isDraftAnimal,
@@ -47,6 +49,7 @@ import {
   type MedicalDeclarationInput,
   type PublishGap,
   publishGaps,
+  publishGateOf,
   publishReadinessOf,
   type ShelterActor,
   type ShelterId,
@@ -61,6 +64,7 @@ import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { ShelterReadScope, ShelterWriteScope } from "../access";
 import type { KabinetContext } from "../context";
+import { recordFunnelStep, shelterStageOf } from "./shelter-stage";
 import { textAfterEdit } from "./text-after-edit";
 
 export type AnimalDeps = Pick<KabinetContext, "db" | "now" | "newId">;
@@ -544,9 +548,22 @@ export async function animalsCreateDraft(
   deps: AnimalDeps,
   scope: ShelterWriteScope,
   input: Pick<DraftAnimal, "name" | "species">,
+  errors: ORPCErrorConstructorMap<{
+    DRAFT_LIMIT_REACHED: typeof apiErrors.DRAFT_LIMIT_REACHED;
+  }>,
 ): Promise<KabinetAnimalView> {
   const shelter = await shelterRepo(deps.db).findById(scope.shelterId as ShelterId);
   if (shelter === null) throw new Error(`Scope names missing shelter ${scope.shelterId}`);
+  const stage = await shelterStageOf(deps, shelter);
+  const cap = draftCapOf(stage.lifecycle);
+  if (cap.kind === "capped") {
+    // Counted, not locked: k creates racing at 29 drafts can all land; only the rate limiter
+    // bounds that (D5 bounds storage, not an exact count).
+    const { draft } = await kabinetAnimalRepo(deps.db).countsByKind(shelter.id);
+    const check = checkDraftCap(cap, draft);
+    if (check.kind === "cap_reached")
+      throw errors.DRAFT_LIMIT_REACHED({ data: { max: check.max } });
+  }
   const animal: DraftAnimal = {
     id: deps.newId() as AnimalId,
     shelterId: scope.shelterId,
@@ -582,6 +599,7 @@ export async function animalsCreateDraft(
       animalName: animal.name,
     },
   });
+  await recordFunnelStep(deps, stage.registration, "first_draft", shelter.id);
   return kabinetAnimalViewOf(animal, []);
 }
 
@@ -702,9 +720,15 @@ export async function animalsTransition(
   errors: MoveErrors &
     ORPCErrorConstructorMap<{
       PUBLISH_REQUIREMENTS_UNMET: typeof apiErrors.PUBLISH_REQUIREMENTS_UNMET;
+      AWAITING_APPROVAL: typeof apiErrors.AWAITING_APPROVAL;
     }>,
 ): Promise<KabinetAnimalView> {
   const event = { ...input.event, at: deps.now } as ListingEvent;
+  // Only a publish is gated (D2): an application's drafts stay drafts until the operator approves.
+  const publishing = event.type === "publish" ? await publishStageOf(deps, scope) : null;
+  if (publishing !== null && publishGateOf(publishing.lifecycle).kind === "blocked") {
+    throw errors.AWAITING_APPROVAL({ data: { action: "publish" } });
+  }
   const next = await tap(
     deps,
     scope,
@@ -736,7 +760,16 @@ export async function animalsTransition(
       },
     }),
   );
+  if (publishing !== null) {
+    await recordFunnelStep(deps, publishing.registration, "first_published", scope.shelterId);
+  }
   return kabinetAnimalViewFor(deps, scope, next);
+}
+
+async function publishStageOf(deps: AnimalDeps, scope: ShelterWriteScope) {
+  const shelter = await shelterRepo(deps.db).findById(scope.shelterId);
+  if (shelter === null) throw new Error(`Scope names missing shelter ${scope.shelterId}`);
+  return shelterStageOf(deps, shelter);
 }
 
 /**

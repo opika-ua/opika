@@ -84,6 +84,7 @@ import { runDonationSmoke } from "./neon-smoke-donation";
 import { runEarlyListingSmoke } from "./neon-smoke-early-listing";
 import { runFiltersSmoke } from "./neon-smoke-filters";
 import { runGeographySmoke } from "./neon-smoke-geography";
+import { runKabinetIdentitySmoke } from "./neon-smoke-kabinet-identity";
 import { runNotificationRecipientsSmoke } from "./neon-smoke-notification-recipients";
 import { runNotificationSendsSmoke } from "./neon-smoke-notification-sends";
 import { runPhotoSourcesSmoke } from "./neon-smoke-photo-sources";
@@ -2735,6 +2736,7 @@ async function main(): Promise<void> {
     ...(await runPhotoSourcesSmoke(database)),
     ...(await runSelfRegistrationSmoke(database)),
     ...(await runApplicationsSmoke(database)),
+    ...(await runKabinetIdentitySmoke(database)),
   ];
   for (const o of outcomes) console.log(`${o.ok ? "PASS" : "FAIL"}  ${o.name}: ${o.detail}`);
   const failed = outcomes.filter((o) => !o.ok).length;

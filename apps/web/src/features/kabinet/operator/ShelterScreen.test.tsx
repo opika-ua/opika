@@ -88,7 +88,7 @@ const renderScreen = (
     <ShelterScreen
       view={view(overrides)}
       cityName="Бровари"
-      history={{ items: [], nextCursor: null }}
+      history={{ items: [], nextCursor: null, cities: {} }}
       blocked={blocked}
       me={ME}
       actions={NO_ACTIONS}
@@ -414,11 +414,12 @@ describe("S4 history", () => {
         },
       ],
       nextCursor: null,
+      cities: {},
     }));
     render(
       <HistoryList
         shelterId={SHELTER_ID}
-        first={{ items: [created], nextCursor: cursor }}
+        first={{ items: [created], nextCursor: cursor, cities: {} }}
         people={{ me: ME, admins: [] }}
         client={
           {
@@ -443,12 +444,47 @@ describe("S4 history", () => {
     expect(within(history).queryByRole("button", { name: "Показати ще" })).toBeNull();
   });
 
+  it("a city change on a later page names both cities, from that page's own answer", async () => {
+    const KYIV = "c1000000-0000-4000-8000-000000000001";
+    const BROVARY = "c2000000-0000-4000-8000-000000000002";
+    const list = vi.fn(async () => ({
+      items: [
+        {
+          kind: "city_changed",
+          at: new Date("2026-10-15T07:00:00Z"),
+          actor: { kind: "moderator", moderatorId: ME },
+          from: KYIV,
+          to: BROVARY,
+        },
+      ],
+      nextCursor: null,
+      cities: { [KYIV]: "Київ", [BROVARY]: "Бровари" },
+    }));
+    render(
+      <HistoryList
+        shelterId={SHELTER_ID}
+        first={{ items: [created], nextCursor: cursor, cities: {} }}
+        people={{ me: ME, admins: [] }}
+        client={
+          {
+            registry: { shelters: { list: vi.fn() }, history: { list } },
+          } as unknown as RegistryReadClient
+        }
+        restart={vi.fn()}
+      />,
+    );
+    const history = section("Історія");
+    await userEvent.click(within(history).getByRole("button", { name: "Показати ще" }));
+    expect(within(history).getByText("Місто змінено: Київ – Бровари · ви")).toBeTruthy();
+    expect(within(history).queryByText(new RegExp(KYIV))).toBeNull();
+  });
+
   it("a failed page offers the same request again", async () => {
     const list = vi.fn().mockRejectedValue(new Error("offline"));
     render(
       <HistoryList
         shelterId={SHELTER_ID}
-        first={{ items: [created], nextCursor: cursor }}
+        first={{ items: [created], nextCursor: cursor, cities: {} }}
         people={{ me: ME, admins: [] }}
         client={
           {

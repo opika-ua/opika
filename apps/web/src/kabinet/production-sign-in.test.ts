@@ -241,7 +241,7 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   profileTabs: 5,
 
-  profileEdit: 94,
+  profileEdit: 95,
 
   listingStatus: 5,
 
@@ -267,14 +267,14 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   history: 2,
 
-  operator: 287,
+  operator: 288,
 
   verificationDecision: 8,
 
   animalHistoryLabels: 17,
 
   // Self-registration (2026-11-18): A3's banners and location lines, the operator's queue.
-  application: 10,
+  application: 11,
 
   location: 4,
 

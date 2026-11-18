@@ -3,6 +3,7 @@
 import "../../../zod-client-config";
 import type { ShelterHistoryEntry, ShelterId } from "@opika/domain";
 import { uk } from "@opika/i18n";
+import { useState } from "react";
 import { Button } from "../../../ui/Button";
 import { Heading } from "../../../ui/Heading";
 import { Panel } from "../../../ui/Panel";
@@ -29,14 +30,20 @@ export function HistoryList({
   restart = reloadPage,
 }: {
   shelterId: ShelterId;
-  first: Page<ShelterHistoryEntry>;
+  first: Page<ShelterHistoryEntry> & { cities: Readonly<Record<string, string>> };
   people: HistoryPeople;
   client?: RegistryReadClient;
   restart?: () => void;
 }) {
+  // Each page names the cities its own lines need; a later page adds to what the first knew.
+  const [cities, setCities] = useState(first.cities);
   const { items, hasMore, state, more } = useMore(
     first,
-    (cursor) => client.registry.history.list({ shelterId, cursor, limit: HISTORY_PAGE }),
+    async (cursor) => {
+      const page = await client.registry.history.list({ shelterId, cursor, limit: HISTORY_PAGE });
+      setCities((known) => ({ ...known, ...page.cities }));
+      return page;
+    },
     restart,
   );
   return (
@@ -55,7 +62,7 @@ export function HistoryList({
       ) : (
         <ol className="flex flex-col gap-3">
           {items.map((entry, index) => {
-            const line = historyLineOf(entry, people);
+            const line = historyLineOf(entry, { ...people, cities });
             return (
               // History rows carry no id in this view; their order is the record's.
               <li key={`${line.at.toISOString()}-${index}`} className="flex flex-col gap-1">

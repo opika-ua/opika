@@ -267,6 +267,7 @@ export type ActionFailure =
   | { kind: "publish_unmet"; gaps: readonly PublishGap[] }
   | { kind: "undo_expired" }
   | { kind: "was_published" }
+  | { kind: "awaiting_approval" }
   | { kind: "rate_limited" }
   | { kind: "no_answer" }
   | { kind: "failed" };
@@ -294,6 +295,9 @@ export function actionFailureOf(error: unknown): ActionFailure {
       return { kind: "undo_expired" };
     case "WAS_PUBLISHED":
       return { kind: "was_published" };
+    // The shelter is still an application (D2); the screen read it before approval.
+    case "AWAITING_APPROVAL":
+      return { kind: "awaiting_approval" };
     case "TOO_MANY_REQUESTS":
       return { kind: "rate_limited" };
     default:

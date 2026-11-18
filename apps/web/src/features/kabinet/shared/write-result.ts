@@ -2,6 +2,7 @@ import type { KabinetShelterView } from "@opika/contracts";
 import {
   CONTACT_TOO_MANY_CHANNELS_MESSAGE,
   SHELTER_DESCRIPTION_TOO_LONG_MESSAGE,
+  SHELTER_DISPLAY_NAME_TOO_LONG_MESSAGE,
 } from "@opika/domain";
 
 /**
@@ -18,6 +19,7 @@ import {
  * - `too_many_channels`: the input check refused a contact over the channel cap; the contacts
  *   section says which rule and how to fix it.
  * - `description_too_long`: the same, for the shelter's text over its cap (`SHELTER_DESCRIPTION_TOO_LONG_MESSAGE`).
+ * - `name_too_long`: the same, for the shelter's name (`SHELTER_DISPLAY_NAME_TOO_LONG_MESSAGE`).
  * - `failed`: the server answered with any other refusal.
  */
 export type WriteResult =
@@ -25,6 +27,9 @@ export type WriteResult =
   | { kind: "conflict" }
   | { kind: "too_many_channels" }
   | { kind: "description_too_long" }
+  | { kind: "name_too_long" }
+  /** CITY_LOCKED: the address is verified, so the operator moves the city (`cityLockedMessage`). */
+  | { kind: "city_locked" }
   | { kind: "illegal_transition" }
   | { kind: "no_answer" }
   | { kind: "failed" };
@@ -58,12 +63,17 @@ export function writeFailureOf(error: unknown): WriteFailure {
       return { kind: "conflict" };
     case "ILLEGAL_TRANSITION":
       return { kind: "illegal_transition" };
+    case "CITY_LOCKED":
+      return { kind: "city_locked" };
     case null:
       // No error code: no answer from the server reached us (fetch threw).
       return { kind: "no_answer" };
     case "BAD_REQUEST":
       if (hasIssueMessage(error, CONTACT_TOO_MANY_CHANNELS_MESSAGE)) {
         return { kind: "too_many_channels" };
+      }
+      if (hasIssueMessage(error, SHELTER_DISPLAY_NAME_TOO_LONG_MESSAGE)) {
+        return { kind: "name_too_long" };
       }
       return hasIssueMessage(error, SHELTER_DESCRIPTION_TOO_LONG_MESSAGE)
         ? { kind: "description_too_long" }

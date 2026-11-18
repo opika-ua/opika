@@ -354,7 +354,7 @@ export const shelterProfileContract = {
           message: "Empty update",
         }),
     )
-    .errors(shelterCasErrors),
+    .errors({ ...shelterCasErrors, CITY_LOCKED: apiErrors.CITY_LOCKED }),
   /** The provider is derived from the URL on the server (`donationProviderOf`), never sent. */
   proposeDonation: shelterProfileWrite
     .input(z.strictObject({ url: DonationProposalUrlSchema }))
@@ -1025,6 +1025,8 @@ export const registryHistoryContract = {
       z.object({
         items: z.array(HistoryEntryViewSchema).readonly(),
         nextCursor: KabinetCursorSchema.nullable(),
+        /** The names (nominative) of the cities this page's `city_changed` lines name, by id. */
+        cities: z.record(z.string(), z.string().min(1)),
       }),
     )
     .errors({ ...registryErrors, INVALID_CURSOR: apiErrors.INVALID_CURSOR }),

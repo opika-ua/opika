@@ -150,6 +150,8 @@ export async function operatorShelterListOf(
 export type HistoryPage = {
   items: readonly ShelterHistoryEntry[];
   nextCursor: KabinetCursor | null;
+  /** City names for the page's `city_changed` lines, by id. */
+  cities: Readonly<Record<string, string>>;
 };
 
 export type OperatorShelter =

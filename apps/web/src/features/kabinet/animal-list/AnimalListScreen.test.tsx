@@ -14,15 +14,27 @@ const AT = new Date("2026-10-04T09:00:00Z");
 const shelterIn = (
   verification: KabinetShelterView["verification"],
   earlyListing: KabinetShelterView["earlyListing"],
+  registration: KabinetShelterView["registration"] = { source: "operator" },
 ) =>
   ({
     id: "s",
     displayName: "Домівка",
     verification,
     earlyListing,
+    registration,
   }) as unknown as KabinetShelterView;
 
-const renderScreen = (shelter: KabinetShelterView, viewer: "admin" | "support" = "admin") =>
+const NO_CARDS = { draft: 0, published: 0, reserved: 0, adopted: 0, withdrawn: 0 };
+
+const renderScreen = (
+  shelter: KabinetShelterView,
+  viewer: "admin" | "support" = "admin",
+  {
+    counts = NO_CARDS,
+    email = null,
+    approvedDismissed = false,
+  }: { counts?: typeof NO_CARDS; email?: string | null; approvedDismissed?: boolean } = {},
+) =>
   render(
     <AnimalListScreen
       page={{
@@ -30,15 +42,11 @@ const renderScreen = (shelter: KabinetShelterView, viewer: "admin" | "support" =
         shelter,
         viewer,
         editing: { kind: "open" },
-        first: {
-          items: [],
-          nextCursor: null,
-          counts: { draft: 0, published: 0, reserved: 0, adopted: 0, withdrawn: 0 },
-          staleCount: 0,
-        },
+        first: { items: [], nextCursor: null, counts, staleCount: 0 },
       }}
       operatorName="Олексій"
-      person={null}
+      person={email === null ? null : { name: null, email }}
+      approvedDismissed={approvedDismissed}
     />,
   );
 
@@ -103,5 +111,97 @@ describe("the kabinet line once the period has ended, review still open (gap 6)"
     renderScreen(ended(), "support");
     expect(screen.queryByText(/Перевірку проводжу я/)).toBeNull();
     expect(screen.getByText(/завершився 1 грудня/)).toBeTruthy();
+  });
+});
+
+describe("a self-registered shelter's banners (spec §2, Q3, P0-1)", () => {
+  const SELF = (email: "confirmed" | "unconfirmed") =>
+    ({ source: "self_registration", appliedAt: AT, email }) as const;
+  const application = (email: "confirmed" | "unconfirmed") =>
+    shelterIn(
+      { status: "application", since: AT } as KabinetShelterView["verification"],
+      { kind: "none" },
+      SELF(email),
+    );
+  const PENDING_TEXT =
+    "Перевіряю ваш притулок – зазвичай до 2 днів. Поки можете заповнити профіль і додати тварин як чернетки: опублікувати їх можна буде після перевірки.";
+  const CONFIRM_TEXT =
+    "Підтвердіть email – я надіслав лист на olena@example.org. Без цього я не зможу схвалити притулок.";
+  const APPROVED_TEXT = "Притулок схвалено. Тепер можна публікувати тварин.";
+
+  it("an application reads «На перевірці» and what it can do meanwhile", () => {
+    renderScreen(application("confirmed"), "admin", { email: "olena@example.org" });
+    expect(screen.getByRole("heading", { level: 2, name: "На перевірці" })).toBeTruthy();
+    expect(screen.getByText(PENDING_TEXT)).toBeTruthy();
+    expect(screen.queryByText(CONFIRM_TEXT)).toBeNull();
+  });
+
+  it("asks to confirm the address while it is unconfirmed, naming it", () => {
+    renderScreen(application("unconfirmed"), "admin", { email: "olena@example.org" });
+    expect(screen.getByText(CONFIRM_TEXT)).toBeTruthy();
+  });
+
+  it("the support view gets none of the «я» banners", () => {
+    renderScreen(application("unconfirmed"), "support", { email: "olena@example.org" });
+    expect(screen.queryByText(PENDING_TEXT)).toBeNull();
+    expect(screen.queryByText(CONFIRM_TEXT)).toBeNull();
+  });
+
+  it("once approved: «Притулок схвалено» (dismissible) and the days left instead of the date", () => {
+    renderScreen(
+      shelterIn(
+        { status: "pending", since: AT } as KabinetShelterView["verification"],
+        { kind: "running", expiresAt: new Date("2026-12-01T09:00:00Z"), daysLeft: 22 },
+        SELF("confirmed"),
+      ),
+    );
+    expect(screen.getByText(APPROVED_TEXT)).toBeTruthy();
+    expect(screen.getByText("До кінця показу: 22 дні")).toBeTruthy();
+    expect(screen.queryByText(/до 1 грудня/)).toBeNull();
+    // «Закрити» is a native form post (no client component): it works without JavaScript.
+    const close = screen.getByRole("button", { name: "Закрити" });
+    expect(close.getAttribute("type")).toBe("submit");
+    expect(close.closest("form")).not.toBeNull();
+  });
+
+  it("once this browser closed it, «Притулок схвалено» is gone and the days left stay", () => {
+    renderScreen(
+      shelterIn(
+        { status: "pending", since: AT } as KabinetShelterView["verification"],
+        { kind: "running", expiresAt: new Date("2026-12-01T09:00:00Z"), daysLeft: 22 },
+        SELF("confirmed"),
+      ),
+      "admin",
+      { approvedDismissed: true },
+    );
+    expect(screen.queryByText(APPROVED_TEXT)).toBeNull();
+    expect(screen.getByText("До кінця показу: 22 дні")).toBeTruthy();
+  });
+
+  it("stops saying «схвалено» once anything was published", () => {
+    renderScreen(
+      shelterIn(
+        { status: "pending", since: AT } as KabinetShelterView["verification"],
+        { kind: "running", expiresAt: new Date("2026-12-01T09:00:00Z"), daysLeft: 1 },
+        SELF("confirmed"),
+      ),
+      "admin",
+      { counts: { ...NO_CARDS, adopted: 1 } },
+    );
+    expect(screen.queryByText(APPROVED_TEXT)).toBeNull();
+    expect(screen.getByText("До кінця показу: 1 день")).toBeTruthy();
+  });
+
+  it("an operator-created shelter sees none of them, and keeps the dated banner", () => {
+    renderScreen(
+      shelterIn({ status: "pending", since: AT } as KabinetShelterView["verification"], {
+        kind: "running",
+        expiresAt: new Date("2026-12-01T09:00:00Z"),
+        daysLeft: 22,
+      }),
+    );
+    expect(screen.queryByText(APPROVED_TEXT)).toBeNull();
+    expect(screen.queryByText(/До кінця показу/)).toBeNull();
+    expect(screen.getByText(/до 1 грудня/)).toBeTruthy();
   });
 });

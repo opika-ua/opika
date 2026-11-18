@@ -104,8 +104,9 @@ export const shelterKabinetRouter = guarded.router({
         ({ context, input, errors }) =>
           profileUpdateDescription(context, writeScope(context.access), input, errors),
       ),
-      proposeDonation: guarded.shelter.profile.proposeDonation.handler(({ context, input }) =>
-        profileProposeDonation(context, writeScope(context.access), input),
+      proposeDonation: guarded.shelter.profile.proposeDonation.handler(
+        ({ context, input, errors }) =>
+          profileProposeDonation(context, writeScope(context.access), input, errors),
       ),
       cancelDonationProposal: guarded.shelter.profile.cancelDonationProposal.handler(
         ({ context }) => profileCancelDonationProposal(context, writeScope(context.access)),
@@ -180,8 +181,8 @@ export const shelterKabinetRouter = guarded.router({
       byId: guarded.shelter.animals.byId.handler(({ context, input, errors }) =>
         animalsById(context, readScope(context.access), input, errors),
       ),
-      createDraft: guarded.shelter.animals.createDraft.handler(({ context, input }) =>
-        animalsCreateDraft(context, writeScope(context.access), input),
+      createDraft: guarded.shelter.animals.createDraft.handler(({ context, input, errors }) =>
+        animalsCreateDraft(context, writeScope(context.access), input, errors),
       ),
       update: guarded.shelter.animals.update.handler(({ context, input, errors }) =>
         animalsUpdate(context, writeScope(context.access), input, errors),

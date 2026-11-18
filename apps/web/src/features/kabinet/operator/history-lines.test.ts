@@ -1,4 +1,5 @@
 import {
+  type CityId,
   ERASED_ADMIN_EMAIL,
   type ModeratorId,
   type ShelterAdminId,
@@ -24,9 +25,14 @@ const OLENA = "33333333-3333-4333-8333-333333333333" as ShelterAdminId;
 const GONE = "44444444-4444-4444-8444-444444444444" as ShelterAdminId;
 const ANIMAL = "55555555-5555-4555-8555-555555555555" as never;
 
+const KYIV = "c1000000-0000-4000-8000-000000000001" as CityId;
+const BROVARY = "c2000000-0000-4000-8000-000000000002" as CityId;
+const GONE_CITY = "c3000000-0000-4000-8000-000000000003" as CityId;
+
 const people: HistoryPeople = {
   me: ME,
   admins: [{ id: OLENA, name: "Олена", email: "olena@example.org" }],
+  cities: { [KYIV]: "Київ", [BROVARY]: "Бровари" },
 };
 
 const byMe = { kind: "moderator", moderatorId: ME } as const;
@@ -372,6 +378,22 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
       to: "Притулок «Лапа допомоги»",
     },
     "Назва притулку: «Лапа» → «Притулок «Лапа допомоги»» · ви",
+  ],
+  [
+    "city_changed (§4), the shelter's admin, both cities by name",
+    {
+      kind: "city_changed",
+      at: AT,
+      actor: byOlena,
+      from: KYIV,
+      to: BROVARY,
+    },
+    "Місто змінено: Київ – Бровари · Олена",
+  ],
+  [
+    "city_changed, a city the page couldn't name reads as its id",
+    { kind: "city_changed", at: AT, actor: byMe, from: KYIV, to: GONE_CITY },
+    `Місто змінено: Київ – ${GONE_CITY} · ви`,
   ],
   [
     "freshness_reminder_changed, off",

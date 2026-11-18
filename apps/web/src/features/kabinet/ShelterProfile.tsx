@@ -70,6 +70,8 @@ export type ShelterProfileProps = {
   /** The `?tab=` of the page (the editor's sub-tab); anything unknown is the first tab. */
   tab?: string | undefined;
   person: SignedInPerson | null;
+  /** Self-registration's editability (§4): the name field, only while the flag is on. */
+  identityEditable?: boolean;
 };
 
 export function ShelterProfile({
@@ -80,6 +82,7 @@ export function ShelterProfile({
   editing = { kind: "read_only" },
   tab,
   person,
+  identityEditable = false,
 }: ShelterProfileProps) {
   const t = uk.kabinet.profile;
   const operatorName = inSentenceOperatorName(operator);
@@ -125,6 +128,7 @@ export function ShelterProfile({
             operatorName={operatorName}
             donationOutcome={editing.donationOutcome}
             initialTab={profileTabOf(tab)}
+            identityEditable={identityEditable}
           />
         ) : (
           <div className="flex min-w-0 flex-col gap-4 desktop:gap-6">

@@ -5,6 +5,7 @@ import { Text } from "../../ui/Text";
 import { AnimalForm } from "./animal-form/AnimalForm";
 import type { AnimalTab } from "./animal-form/animal-tabs";
 import type { KabinetAnimalPage } from "./animal-page";
+import { awaitingApproval } from "./application/application-banners";
 import { KabinetNav } from "./KabinetNav";
 import { ANIMAL_LIST_PATH, animalListShownTo, SHELTER_PROFILE_PATH } from "./routes";
 import { ShelterShell } from "./ShelterShell";
@@ -60,6 +61,11 @@ export function AnimalPage({
           editing={page.editing}
           viewer={page.viewer}
           shelterVisibility={page.shelterVisibility}
+          publishGate={
+            awaitingApproval(page.shelter)
+              ? { kind: "blocked", why: "application" }
+              : { kind: "open" }
+          }
           back={back}
           initialTab={tab}
         />

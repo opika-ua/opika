@@ -190,3 +190,24 @@ describe("photo, name and «Редагувати» open the edit page; the meta 
     }
   });
 });
+
+describe("a draft while the shelter is an application (D2)", () => {
+  const BLOCKED = { kind: "blocked", why: "application" } as const;
+
+  it("offers no publish, whatever the card holds, and says why", () => {
+    for (const gaps of [[], [{ kind: "photo" }]] as AnimalRow["publishGaps"][]) {
+      const result = toAnimalManageCard(row({ publishGaps: gaps }), NOW, BLOCKED);
+      expect(result.status).toBe("draft");
+      if (result.status !== "draft") return;
+      expect(result.publish).toEqual({
+        kind: "awaiting_approval",
+        sentence: "Опублікувати можна після перевірки притулку.",
+      });
+    }
+  });
+
+  it("a ready draft is ready again once the shelter is approved", () => {
+    const result = toAnimalManageCard(row(), NOW, { kind: "open" });
+    expect(result.status === "draft" && result.publish).toEqual({ kind: "ready" });
+  });
+});

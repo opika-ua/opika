@@ -6,6 +6,7 @@ import type {
   ShelterAdminView,
 } from "@opika/contracts";
 import {
+  cityRepo,
   kabinetRegistryRepo,
   kabinetShelterRepo,
   type RegistryAdminRow,
@@ -150,12 +151,25 @@ export async function registryHistoryList(
   input: { shelterId: ShelterId; after: { at: Date; id: string } | null; limit: number },
   encode: (position: { at: Date; id: string }) => string,
   errors: NotFound,
-): Promise<{ items: z.infer<typeof HistoryEntryViewSchema>[]; nextCursor: string | null }> {
+): Promise<{
+  items: z.infer<typeof HistoryEntryViewSchema>[];
+  nextCursor: string | null;
+  cities: Record<string, string>;
+}> {
   await loadShelterOr404(deps, input.shelterId, errors);
   const page = await kabinetShelterRepo(deps.db).historyPage({
     shelterId: input.shelterId,
     after: input.after,
     limit: input.limit,
   });
-  return { items: page.items, nextCursor: page.next === null ? null : encode(page.next) };
+  // One read per page, so «Показати ще» names its cities as the first page does.
+  const ids = page.items.flatMap((entry) =>
+    entry.kind === "city_changed" ? [entry.from, entry.to] : [],
+  );
+  const cities = await cityRepo(deps.db).findByIds(ids);
+  return {
+    items: page.items,
+    nextCursor: page.next === null ? null : encode(page.next),
+    cities: Object.fromEntries(cities.map((city) => [city.id, city.name.uk])),
+  };
 }

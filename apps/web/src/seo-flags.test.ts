@@ -317,22 +317,14 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS – root layout's default description sw
 });
 
 /**
- * Option B, 2026-09-06 (`docs/observations.md`): `/prytulkam` is the link
- * Oleksii sends to shelters directly - its own `description`/
- * `openGraph.description` is `uk.forShelters.whatThisIs`, its existing §1
- * sentence, and this page's `metadata` object does not read either
- * seo-flags constant at all. `vi.doMock` here is therefore a no-op today
- * (this page imports no such thing) rather than a demonstration that this
- * override "wins" over the root layout's default - that part is Next's
- * metadata-resolution behaviour (a child's own `description` replaces the
- * parent's, verified separately by building and reading the served HTML,
- * not by this unit test). What `it.each` actually guards: if a future edit
- * ever makes this page read `REGISTRY_HAS_NO_REAL_SHELTERS` after all, the
- * mock stops being a no-op and this test starts noticing.
+ * `/prytulkam` is the link Oleksii sends to shelters directly (Option B, 2026-09-06): it never takes
+ * the demo swap. Since the self-registration PR its description is SEO handoff B2's
+ * (`seo.forShelters.*`), with the registration variant behind `SELF_REGISTRATION_ENABLED`. What
+ * `it.each` guards: if this page ever read `REGISTRY_HAS_NO_REAL_SHELTERS`, the mock would notice.
  */
-describe("/prytulkam – description is its own opening sentence, never the demo swap", () => {
+describe("/prytulkam – description is its own, never the demo swap", () => {
   it.each([true, false])(
-    "uses uk.forShelters.whatThisIs when REGISTRY_HAS_NO_REAL_SHELTERS=%s",
+    "uses handoff B2's description when REGISTRY_HAS_NO_REAL_SHELTERS=%s",
     async (registryHasNoRealShelters) => {
       vi.resetModules();
       vi.doMock("./seo-flags", () => ({
@@ -341,14 +333,19 @@ describe("/prytulkam – description is its own opening sentence, never the demo
         assertDemoDiscoverabilityInvariant: vi.fn(),
       }));
 
-      const { metadata } = await import("./app/prytulkam/page");
+      const { forSheltersMetadata } = await import("./app/prytulkam/page");
 
-      const whatThisIs =
-        "Opika – сайт, де тварини з притулків України шукають дім, а кожен ваш підопічний отримує власну сторінку. Притулки, які ще проходять перевірку, мають позначку «на перевірці».";
-      expect(metadata.description).toBe(whatThisIs);
-      expect(metadata.openGraph?.description).toBe(whatThisIs);
-      expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);
+      const description =
+        "Розмістіть тварин свого притулку чи ініціативи на Opika безкоштовно, без реклами й комісій.";
+      for (const selfRegistration of [false, true]) {
+        const metadata = forSheltersMetadata(selfRegistration);
+        expect(metadata.description).toContain(description);
+        expect(metadata.openGraph?.description).toBe(metadata.description);
+        expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);
+      }
     },
+    // The page is a cold import after `resetModules` (the registration form rides along).
+    20_000,
   );
 });
 

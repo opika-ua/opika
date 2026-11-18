@@ -128,3 +128,25 @@ describe("AboutPage", () => {
     expect(link.getAttribute("href")).toBe("/tvaryny");
   });
 });
+
+describe("/pro's data section and self-registration (A7)", () => {
+  const privacy =
+    "Коли притулок реєструється, я отримую назву, місто, email, посилання на сайт чи соцмережу і контакт для людей. Email потрібен для входу й листів і на сайті не показується. Заявки без підтвердженого email я видаляю через 14 днів, відхилені – через 30.";
+
+  it("anchors the data section at #dani, where the registration's consent links", () => {
+    const { container } = render(renderAboutPage(false));
+    expect(container.querySelector("#dani")?.textContent).toMatch(/^Дані, які вносить притулок/);
+  });
+
+  it("adds what registering collects only while self-registration is on, after the data paragraphs", () => {
+    const off = render(renderAboutPage(false, { selfRegistration: false }));
+    expect(screen.queryByText(privacy)).toBeNull();
+    off.unmount();
+    const { container } = render(renderAboutPage(false, { selfRegistration: true }));
+    const added = screen.getByText(privacy);
+    const sentry = screen.getByText(/^Якщо на сайті стається збій/);
+    // Right after the data section's last paragraph.
+    expect(sentry.nextElementSibling).toBe(added);
+    expect(container.querySelectorAll("#dani")).toHaveLength(1);
+  });
+});
