@@ -104,6 +104,16 @@ export {
 export { registrationFactsRepo, type ShelterRegistrationFacts } from "./registration-facts-repo";
 export { type RevealBudget, type RevealInsertOutcome, revealRepo } from "./reveal-repo";
 export {
+  type ApplicationSummary,
+  type EmailConfirmOutcome,
+  type RegistrantApplication,
+  type RegistrationTokenPair,
+  type RegistrationTokenPurpose,
+  type SelfRegistrationOutcome,
+  type SelfRegistrationWrite,
+  selfRegistrationRepo,
+} from "./self-registration-repo";
+export {
   ADOPTER_CLEANUP_BATCH,
   ADOPTER_SESSION_POLICY,
   type AdopterSessionPolicy,

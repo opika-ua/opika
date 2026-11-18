@@ -21,6 +21,7 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
     "measures which word ends the first line (layout and font decide) to seat the mascot",
   "ui/Menu.tsx": "controlled open state, outside-press and Esc listeners",
   "ui/Modal.tsx": "controlled dialog; refs and the dialog core",
+  "ui/PasswordField.tsx": "show/hide toggle state",
   "ui/ErrorSummary.tsx":
     "item buttons focus their field (click handler); ref is the form's focus target",
   "ui/Combobox.tsx": "query state, debounce, abort, active option, dialog below tablet",
@@ -111,6 +112,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
     "uses useTokenOutOfAddressBar (strips token from URL)",
   "features/kabinet/password/NewPasswordFields.tsx": "two controlled password inputs",
   "features/kabinet/password/PasswordField.tsx": "show/hide toggle state",
+  "features/kabinet/registration/ResendConfirmationButton.tsx":
+    "resend press: pending state and the answer beside the button",
   "features/kabinet/password/ResetPasswordCard.tsx": "reset form, token strip",
   "features/kabinet/password/SetPasswordCard.tsx": "set-password form, token strip",
   "features/kabinet/password/use-token-out-of-address-bar.ts":
@@ -127,6 +130,10 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
     "section form with save state (the shelter's name)",
   "features/kabinet/profile-edit/PauseControl.tsx": "pause/unpause dialog",
   "features/kabinet/profile-edit/ProfileEditor.tsx": "editor shell: section states, browser client",
+  "features/registration/RegistrationForm.tsx":
+    "registration form: useActionState, kept values, blur checks, city picker, full-load exit",
+  "features/registration/RegistrationAnchorButton.tsx":
+    "smooth scroll to the form and focus on its heading (a plain anchor without JS)",
   "features/likes/SaveButton.tsx": "toggles saved state in localStorage",
   "features/likes/SavedButton.tsx": "reads saved count from localStorage after hydration",
   "features/likes/SavedCards.tsx":

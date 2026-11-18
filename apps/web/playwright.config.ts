@@ -128,6 +128,8 @@ export default defineConfig({
       // Arms the gallery's test-only failure hook (features/gallery/test-only-failure.ts); it still
       // needs ?opika_test_fail=1 on the request, which only gallery-error.harness.ts sends.
       OPIKA_TEST_FAIL_GALLERY: "1",
+      // The registration form on /prytulkam (`kabinet-entry.harness.ts`); off in production.
+      SELF_REGISTRATION_ENABLED: "1",
     },
     stdout: "pipe",
     stderr: "pipe",

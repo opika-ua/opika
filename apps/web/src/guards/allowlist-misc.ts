@@ -28,6 +28,8 @@ export const KABINET_IMPORTERS: Readonly<Record<string, string>> = {
     "Server env checks, the session check and the public RPC's origin check: no page, no navigation.",
   "proxy.ts":
     "The request gate: the kabinet's page limits and the token pages' no-store; it renders nothing.",
+  "features/registration/register-shelter.ts":
+    "The registration server action: creates the account with the kabinet's Better Auth, database and mail; it returns where to go and never navigates into /kabinet itself (the no-JS 303 aside).",
   "features/chrome/kabinet-signed-in.ts":
     "The session cookie's name, read server-side for the header's signed-in hint; no navigation.",
 };

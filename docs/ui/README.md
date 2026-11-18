@@ -73,6 +73,7 @@ What each of the five existing overlays needs to move over (done in its surface'
 | [FieldError](components/FieldError.md) | `form.tsx` | A field's error message. |
 | [TextField](components/TextField.md) | `form.tsx` | Label, input, hint and error as one unit. |
 | [TextArea](components/TextArea.md) | `form.tsx` | TextField for long text. |
+| [PasswordField](components/PasswordField.md) | `PasswordField.tsx` | A password input with its show/hide button, on the TextField frame (client). |
 | [Select](components/Select.md) | `form.tsx` | A native select with the field frame. |
 | [DateField](components/DateField.md) | `DateField.tsx`, `date-field.ts` | A calendar date as day, month (by name) and year in one fieldset; the only date input. |
 | [Radio](components/Radio.md) | `form.tsx` | One option of a radio group; the whole row is the target. |

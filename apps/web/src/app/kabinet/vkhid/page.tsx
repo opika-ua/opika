@@ -7,6 +7,7 @@ import { leavesSignIn } from "../../../features/kabinet/home";
 import { InviteUnusableCard } from "../../../features/kabinet/password/InviteUnusableCard";
 import { SetPasswordCard } from "../../../features/kabinet/password/SetPasswordCard";
 import { SignInCard } from "../../../features/kabinet/SignInCard";
+import { RegistrationSignInPrompt } from "../../../features/registration/RegistrationSignInPrompt";
 import { INVITE_LINK } from "../../../kabinet/email-links";
 import { replyToAddressOf } from "../../../kabinet/email-provider";
 import { invitePasswordLandingOf } from "../../../kabinet/invite-password";
@@ -74,7 +75,12 @@ export default async function SignInPage({
   const token = inviteTokenOf(await searchParams);
   let card: React.ReactNode;
   if (token === null) {
-    card = <SignInCard contact={contact} />;
+    card = (
+      <>
+        <SignInCard contact={contact} />
+        <RegistrationSignInPrompt />
+      </>
+    );
   } else {
     const landing = await invitePasswordLandingOf(token, {
       lookup: (value) => inviteTokensOf(kabinetDb()).landingOf(value),

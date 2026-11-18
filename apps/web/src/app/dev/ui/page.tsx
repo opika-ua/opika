@@ -30,6 +30,7 @@ import { MASCOT_RESERVE_CLASS, Mascot, MascotPerch, type MascotPose } from "../.
 import { MetaLine } from "../../../ui/MetaLine";
 import { Pagination } from "../../../ui/Pagination";
 import { Panel } from "../../../ui/Panel";
+import { PasswordField } from "../../../ui/PasswordField";
 import { PerchedWords } from "../../../ui/PerchedWords";
 import { Photo } from "../../../ui/Photo";
 import { PhotoSlider } from "../../../ui/PhotoSlider";
@@ -396,6 +397,14 @@ export default function DevUiPage() {
         <TextField id="f-text" label="Text field" hint="A hint in ink-2." />
         <TextField id="f-err" label="With error" error="This field is required." />
         <TextArea id="f-area" label="Text area" />
+        <PasswordField
+          id="f-password"
+          label="Password field"
+          autoComplete="new-password"
+          hint="The toggle shows and hides the value."
+          showLabel="Show password"
+          hideLabel="Hide password"
+        />
         <Select id="f-select" label="Select">
           <option>One</option>
           <option>Two</option>

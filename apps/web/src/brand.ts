@@ -19,6 +19,16 @@ export const SITE_ORIGIN = "https://opika.org.ua";
  */
 export const SITE_TITLE = "Собаки й коти з притулків України";
 
+/**
+ * Where a shelter reaches the operator (handoff §11.10): the registration form's «Хочете, щоб я
+ * допоміг?» line, «Це не я»'s answer, and the new-application email's recipient.
+ */
+export const OPERATOR_CONTACT = {
+  email: "hello@opika.org.ua",
+  telegram: "@oleshaz",
+  telegramUrl: "https://t.me/oleshaz",
+} as const;
+
 /** The separator is an en dash (owner, 2026-10-26), pinned by `no-em-en-dash.test.ts`. */
 export const TITLE_TEMPLATE = `%s – ${WORDMARK}`;
 

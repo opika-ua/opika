@@ -1,0 +1,266 @@
+import type { Shelter, ShelterHistoryEntry, ShelterId, VerificationStatus } from "@opika/domain";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
+import { type Database, inOneTransaction } from "../client";
+import { authAccount, authMember, authOrganization, authUser } from "../schema/auth";
+import { cities } from "../schema/cities";
+import { registrationEmailTokens } from "../schema/registration-email-tokens";
+import { shelterHistory } from "../schema/shelter-history";
+import { shelters } from "../schema/shelters";
+import { historyRowSelect } from "./history-sql";
+import { rowToShelter, shelterToRow } from "./mappers";
+
+export type RegistrationTokenPurpose = "confirm_email" | "not_me";
+
+/** A confirmation email's link, as stored: the SHA-256 of the token, never the token. */
+export type RegistrationTokenRow = {
+  tokenHash: string;
+  purpose: RegistrationTokenPurpose;
+  expiresAt: Date;
+};
+
+/** Every confirmation email carries both links. */
+export type RegistrationTokenPair = readonly [RegistrationTokenRow, RegistrationTokenRow];
+
+export type SelfRegistrationWrite = {
+  userId: string;
+  /** Trimmed and lowercased, as sign-in keys it. */
+  email: string;
+  accountId: string;
+  /** Better Auth's own hash of the password (`context.password.hash`). */
+  passwordHash: string;
+  organizationId: string;
+  memberId: string;
+  /** In `application`; the CHECKs tie it to `registration_source` and `applied_at`. */
+  shelter: Shelter;
+  history: { id: string; entry: ShelterHistoryEntry };
+  tokens: RegistrationTokenPair;
+  now: Date;
+};
+
+export type SelfRegistrationOutcome = { kind: "registered" } | { kind: "email_taken" };
+
+/** The registrant's application, as the confirmation links and the resend need it. */
+export type RegistrantApplication = {
+  userId: string;
+  email: string;
+  emailVerified: boolean;
+  shelterId: ShelterId;
+  displayName: string;
+  status: VerificationStatus;
+};
+
+/** What the operator's new-application email shows (D6): the queue card, in the inbox. */
+export type ApplicationSummary = {
+  shelterId: ShelterId;
+  displayName: string;
+  cityName: string;
+  link: string | null;
+  contact: Shelter["contact"]["primary"];
+  email: string;
+};
+
+export type EmailConfirmOutcome =
+  | { kind: "confirmed"; userId: string; application: ApplicationSummary | null }
+  | { kind: "unusable" };
+
+const EMAIL_INDEX = "auth_user_email_unique";
+
+/** Postgres refused the address on `auth_user`'s unique email; postgres-js and neon-http name it differently. */
+const emailTaken = (error: unknown): boolean => {
+  type PgError = { code?: string; constraint?: string; constraint_name?: string };
+  const outer = error as PgError & { cause?: PgError };
+  const pg = outer.cause?.code !== undefined ? outer.cause : outer;
+  return pg.code === "23505" && (pg.constraint_name ?? pg.constraint) === EMAIL_INDEX;
+};
+
+const usable = (purpose: RegistrationTokenPurpose, tokenHash: string, now: Date) =>
+  and(
+    eq(registrationEmailTokens.tokenHash, tokenHash),
+    eq(registrationEmailTokens.purpose, purpose),
+    isNull(registrationEmailTokens.usedAt),
+    gt(registrationEmailTokens.expiresAt, now),
+  );
+
+/**
+ * Self-registration's writes (2026-11-18): the second and last module allowed to write
+ * `auth_member` (`no-self-serve-yet.test.ts`), creating the registrant's membership of the shelter
+ * it registers, and the confirmation email's links.
+ */
+export function selfRegistrationRepo(db: Database) {
+  const repo = {
+    /**
+     * The account, its password, the organization, the membership, the shelter in `application`
+     * with its `shelter_registered` line, and both email links: one transaction, so a failed
+     * statement leaves none of it. A taken address is a value, never the unique index's error.
+     */
+    async register(input: SelfRegistrationWrite): Promise<SelfRegistrationOutcome> {
+      if (input.shelter.verification.status !== "application") {
+        throw new Error("A self-registered shelter starts as an application");
+      }
+      const [existing] = await db
+        .select({ id: authUser.id })
+        .from(authUser)
+        .where(eq(authUser.email, input.email))
+        .limit(1);
+      if (existing !== undefined) return { kind: "email_taken" };
+
+      const shelterRow = {
+        ...shelterToRow(input.shelter),
+        organizationId: input.organizationId,
+        registrantUserId: input.userId,
+      };
+      try {
+        await inOneTransaction(db, (tx) => {
+          const created = tx
+            .$with("created")
+            .as(tx.insert(shelters).values(shelterRow).returning({ id: shelters.id }));
+          return [
+            tx.insert(authUser).values({
+              id: input.userId,
+              // Better Auth requires a name; the person gave only the shelter's.
+              name: input.shelter.displayName,
+              email: input.email,
+              emailVerified: false,
+              createdAt: input.now,
+              updatedAt: input.now,
+            }),
+            tx.insert(authAccount).values({
+              id: input.accountId,
+              accountId: input.userId,
+              providerId: "credential",
+              userId: input.userId,
+              password: input.passwordHash,
+              createdAt: input.now,
+              updatedAt: input.now,
+            }),
+            tx.insert(authOrganization).values({
+              id: input.organizationId,
+              // As the operator's path does: the shelter's id is the name and the unique slug.
+              name: input.shelter.id,
+              slug: input.shelter.id,
+              createdAt: input.now,
+            }),
+            tx
+              .with(created)
+              .insert(shelterHistory)
+              .select(
+                sql`SELECT ${historyRowSelect(input.history, sql`"created"."id"`)} FROM "created"`,
+              ),
+            tx.insert(authMember).values({
+              id: input.memberId,
+              organizationId: input.organizationId,
+              userId: input.userId,
+              role: "admin",
+              createdAt: input.now,
+            }),
+            tx
+              .insert(registrationEmailTokens)
+              .values(input.tokens.map((token) => ({ ...token, userId: input.userId }))),
+          ] as const;
+        });
+      } catch (error) {
+        // Two registrations of one address at once: the loser reads as taken.
+        if (emailTaken(error)) return { kind: "email_taken" };
+        throw error;
+      }
+      return { kind: "registered" };
+    },
+
+    /** A resend's two new links; the earlier ones stay good until they expire. */
+    async issueTokens(userId: string, tokens: RegistrationTokenPair): Promise<void> {
+      await db
+        .insert(registrationEmailTokens)
+        .values(tokens.map((token) => ({ ...token, userId })));
+    },
+
+    /** Whose link this is, if it can still act. A read only: what a link's GET may do. */
+    async tokenUser(
+      purpose: RegistrationTokenPurpose,
+      tokenHash: string,
+      now: Date,
+    ): Promise<string | null> {
+      const [row] = await db
+        .select({ userId: registrationEmailTokens.userId })
+        .from(registrationEmailTokens)
+        .where(usable(purpose, tokenHash, now))
+        .limit(1);
+      return row?.userId ?? null;
+    },
+
+    /** Uses a link up; true for exactly one caller. */
+    async useToken(purpose: RegistrationTokenPurpose, tokenHash: string, now: Date) {
+      const rows = await db
+        .update(registrationEmailTokens)
+        .set({ usedAt: now })
+        .where(usable(purpose, tokenHash, now))
+        .returning({ userId: registrationEmailTokens.userId });
+      return rows.length === 1;
+    },
+
+    /**
+     * «Підтвердити email»: the link is used up and the address marked verified in one statement,
+     * so of two clicks at once exactly one confirms.
+     */
+    async confirmEmail(tokenHash: string, now: Date): Promise<EmailConfirmOutcome> {
+      const used = db.$with("used").as(
+        db
+          .update(registrationEmailTokens)
+          .set({ usedAt: now })
+          .where(usable("confirm_email", tokenHash, now))
+          .returning({ userId: registrationEmailTokens.userId }),
+      );
+      const [confirmed] = await db
+        .with(used)
+        .update(authUser)
+        .set({ emailVerified: true, updatedAt: now })
+        .where(sql`${authUser.id} IN (SELECT "user_id" FROM "used")`)
+        .returning({ id: authUser.id });
+      if (confirmed === undefined) return { kind: "unusable" };
+      return {
+        kind: "confirmed",
+        userId: confirmed.id,
+        application: await repo.summaryOf(confirmed.id),
+      };
+    },
+
+    /** The shelter `userId` registered, or null (operator-created shelters have no registrant). */
+    async applicationOf(userId: string): Promise<RegistrantApplication | null> {
+      const [row] = await db
+        .select({
+          userId: authUser.id,
+          email: authUser.email,
+          emailVerified: authUser.emailVerified,
+          shelterId: shelters.id,
+          displayName: shelters.displayName,
+          status: shelters.verificationStatus,
+        })
+        .from(shelters)
+        .innerJoin(authUser, eq(authUser.id, shelters.registrantUserId))
+        .where(eq(shelters.registrantUserId, userId))
+        .limit(1);
+      return row ?? null;
+    },
+
+    async summaryOf(userId: string): Promise<ApplicationSummary | null> {
+      const [row] = await db
+        .select({ shelter: shelters, cityName: cities.nameUk, email: authUser.email })
+        .from(shelters)
+        .innerJoin(authUser, eq(authUser.id, shelters.registrantUserId))
+        .innerJoin(cities, eq(cities.id, shelters.cityId))
+        .where(eq(shelters.registrantUserId, userId))
+        .limit(1);
+      if (row === undefined) return null;
+      const shelter = rowToShelter(row.shelter);
+      const link = shelter.verification.evidence.items.find((item) => item.kind === "public_link");
+      return {
+        shelterId: shelter.id,
+        displayName: shelter.displayName,
+        cityName: row.cityName,
+        link: link?.kind === "public_link" ? link.url : null,
+        contact: shelter.contact.primary,
+        email: row.email,
+      };
+    },
+  };
+  return repo;
+}
