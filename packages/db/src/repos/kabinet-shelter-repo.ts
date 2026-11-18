@@ -61,6 +61,11 @@ export type AuditedShelterChange =
       donation: DonationLink | null;
       pendingDonation: PendingDonation | null;
     }
+  /**
+   * The shelter moved its base city itself (§4), recorded as `city_changed`. The address on file,
+   * if any, is the operator's and stays; the public location becomes the new city's.
+   */
+  | { kind: "city"; publicLocation: PublicLocation }
   /** The operator renamed the shelter (R-UI 4); recorded as `display_name_changed`. */
   | { kind: "display_name"; displayName: string }
   /** The operator turned the weekly reminder email off (a timestamp) or back on (null). */
@@ -115,6 +120,8 @@ function columnsOf(change: AuditedShelterChange) {
       return { donation: change.donation, pendingDonation: null };
     case "donation_state":
       return { donation: change.donation, pendingDonation: change.pendingDonation };
+    case "city":
+      return { publicLocation: change.publicLocation, cityId: change.publicLocation.cityId };
     case "display_name":
       return { displayName: change.displayName };
     case "freshness_reminder":
@@ -195,7 +202,10 @@ export function kabinetShelterRepo(db: Database) {
           .where(and(eq(shelters.id, input.shelterId), eq(shelters.version, input.expectedVersion)))
           .returning({ id: shelters.id }),
       );
-      const moved = input.changes.find((change) => change.kind === "exact_address");
+      // An address move and a city move both carry the animals that follow the shelter's city.
+      const moved = input.changes.find(
+        (change) => change.kind === "exact_address" || change.kind === "city",
+      );
       // S8-F5, hook 2: entering `verified` (approve, resume, reinstate - the
       // only three events `transition()` can produce this status for) can
       // make animals visible that a publish never stamped, because they

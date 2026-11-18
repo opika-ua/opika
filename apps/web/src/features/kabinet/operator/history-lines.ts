@@ -34,6 +34,8 @@ export type HistoryPeople = {
   me: ModeratorId;
   /** The shelter's admins and invitees now (S4's list): names for ids and addresses. */
   admins: readonly Pick<ShelterAdminView, "id" | "name" | "email">[];
+  /** City names by id, for `city_changed`; a city not here reads as its id. */
+  cities?: Readonly<Record<string, string>>;
 };
 
 export const historyLineText = (line: HistoryLine): string =>
@@ -282,6 +284,14 @@ function lineOf(
     case "display_name_changed":
       return {
         text: renameLine(entry.from, entry.to),
+        actor: actorOf(entry.actor, people),
+      };
+    case "city_changed":
+      return {
+        text: fillTemplate(t.city_changed, {
+          from: people.cities?.[entry.from] ?? entry.from,
+          to: people.cities?.[entry.to] ?? entry.to,
+        }),
         actor: actorOf(entry.actor, people),
       };
     case "freshness_reminder_changed":

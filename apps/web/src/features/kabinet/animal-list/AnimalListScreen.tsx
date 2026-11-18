@@ -22,11 +22,14 @@ export function AnimalListScreen({
   page,
   operatorName,
   person,
+  approvedDismissed = false,
 }: {
   page: Extract<KabinetAnimalListPage, { kind: "list" }>;
   /** Who signs a rejection or suspension note (`standaloneOperatorName`). */
   operatorName: string;
   person: SignedInPerson | null;
+  /** This browser closed «Притулок схвалено» for this shelter. */
+  approvedDismissed?: boolean;
 }) {
   const support = page.viewer === "support";
   const status = page.shelter.verification.status;
@@ -37,6 +40,7 @@ export function AnimalListScreen({
     page.first.counts,
     page.viewer,
     person?.email ?? null,
+    approvedDismissed,
   );
   // A self-registered shelter reads the days left instead of the date (P0-1).
   const selfRegistered = page.shelter.registration.source === "self_registration";

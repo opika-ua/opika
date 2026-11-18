@@ -125,8 +125,6 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/profile-edit/LogoSection.tsx": "logo upload via browser client",
   "features/kabinet/profile-edit/NameSection.tsx":
     "section form with save state (the shelter's name)",
-  "features/kabinet/application/ApprovedBanner.tsx":
-    "dismiss state of the «Притулок схвалено» banner",
   "features/kabinet/profile-edit/PauseControl.tsx": "pause/unpause dialog",
   "features/kabinet/profile-edit/ProfileEditor.tsx": "editor shell: section states, browser client",
   "features/likes/SaveButton.tsx": "toggles saved state in localStorage",

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { LISTING_KINDS } from "../animals/listing-transition";
+import { CityIdSchema } from "../primitives/ids";
 import { LocalizedTextSchema } from "../primitives/localized-text";
 import { ShelterContactSchema } from "./contact";
 import { DonationLinkSchema, DonationRemovalCodeSchema } from "./donation";
@@ -128,6 +129,13 @@ export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
     ...base,
     from: z.string().min(1),
     to: z.string().min(1),
+  }),
+  /** The shelter's own city change; the city ids are public facts, named at render. */
+  z.object({
+    kind: z.literal("city_changed"),
+    ...base,
+    from: CityIdSchema,
+    to: CityIdSchema,
   }),
   /** Allowed and revoked by the operator; the period number, the note and the moderator id stay operator-only. */
   z.object({ kind: z.literal("early_listing_allowed"), ...base }),
@@ -288,6 +296,14 @@ export function shelterFacingHistoryOf(
     case "display_name_changed":
       return {
         kind: "display_name_changed",
+        at: entry.at,
+        actor: shelterActorView(entry.actor),
+        from: entry.from,
+        to: entry.to,
+      };
+    case "city_changed":
+      return {
+        kind: "city_changed",
         at: entry.at,
         actor: shelterActorView(entry.actor),
         from: entry.from,

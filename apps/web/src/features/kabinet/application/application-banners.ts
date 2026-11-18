@@ -9,17 +9,19 @@ import type { ListingKind } from "@opika/domain";
 export type ApplicationBanner =
   | { kind: "pending" }
   | { kind: "confirm_email"; email: string }
-  | { kind: "approved" }
+  | { kind: "approved"; shelterId: string }
   | { kind: "days_left"; daysLeft: number };
 
 /** Every kind a card can leave a draft for: once any exists, the shelter has published. */
 const PUBLISHED_ONCE: readonly ListingKind[] = ["published", "reserved", "adopted", "withdrawn"];
 
 export function applicationBannersOf(
-  shelter: Pick<KabinetShelterView, "verification" | "earlyListing" | "registration">,
+  shelter: Pick<KabinetShelterView, "id" | "verification" | "earlyListing" | "registration">,
   counts: Readonly<Record<ListingKind, number>>,
   viewer: "admin" | "support",
   email: string | null,
+  /** This browser closed «Притулок схвалено» for this shelter (`approved-dismissal.ts`). */
+  approvedDismissed = false,
 ): ApplicationBanner[] {
   if (viewer === "support" || shelter.registration.source !== "self_registration") return [];
   const { status } = shelter.verification;
@@ -33,8 +35,8 @@ export function applicationBannersOf(
   const banners: ApplicationBanner[] = [];
   // Approved, and nothing published yet: «Тепер можна публікувати» is still the news.
   const accepted = status === "pending" || status === "under_review" || status === "verified";
-  if (accepted && PUBLISHED_ONCE.every((kind) => counts[kind] === 0)) {
-    banners.push({ kind: "approved" });
+  if (!approvedDismissed && accepted && PUBLISHED_ONCE.every((kind) => counts[kind] === 0)) {
+    banners.push({ kind: "approved", shelterId: shelter.id });
   }
   const early = shelter.earlyListing;
   if ((status === "pending" || status === "under_review") && early.kind === "running") {

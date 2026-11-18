@@ -1,5 +1,5 @@
 import type { KabinetShelterView } from "@opika/contracts";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AnimalListScreen } from "./AnimalListScreen";
 
@@ -29,7 +29,11 @@ const NO_CARDS = { draft: 0, published: 0, reserved: 0, adopted: 0, withdrawn: 0
 const renderScreen = (
   shelter: KabinetShelterView,
   viewer: "admin" | "support" = "admin",
-  { counts = NO_CARDS, email = null }: { counts?: typeof NO_CARDS; email?: string | null } = {},
+  {
+    counts = NO_CARDS,
+    email = null,
+    approvedDismissed = false,
+  }: { counts?: typeof NO_CARDS; email?: string | null; approvedDismissed?: boolean } = {},
 ) =>
   render(
     <AnimalListScreen
@@ -42,6 +46,7 @@ const renderScreen = (
       }}
       operatorName="Олексій"
       person={email === null ? null : { name: null, email }}
+      approvedDismissed={approvedDismissed}
     />,
   );
 
@@ -153,8 +158,24 @@ describe("a self-registered shelter's banners (spec §2, Q3, P0-1)", () => {
     expect(screen.getByText(APPROVED_TEXT)).toBeTruthy();
     expect(screen.getByText("До кінця показу: 22 дні")).toBeTruthy();
     expect(screen.queryByText(/до 1 грудня/)).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Закрити" }));
+    // «Закрити» is a native form post (no client component): it works without JavaScript.
+    const close = screen.getByRole("button", { name: "Закрити" });
+    expect(close.getAttribute("type")).toBe("submit");
+    expect(close.closest("form")).not.toBeNull();
+  });
+
+  it("once this browser closed it, «Притулок схвалено» is gone and the days left stay", () => {
+    renderScreen(
+      shelterIn(
+        { status: "pending", since: AT } as KabinetShelterView["verification"],
+        { kind: "running", expiresAt: new Date("2026-12-01T09:00:00Z"), daysLeft: 22 },
+        SELF("confirmed"),
+      ),
+      "admin",
+      { approvedDismissed: true },
+    );
     expect(screen.queryByText(APPROVED_TEXT)).toBeNull();
+    expect(screen.getByText("До кінця показу: 22 дні")).toBeTruthy();
   });
 
   it("stops saying «схвалено» once anything was published", () => {

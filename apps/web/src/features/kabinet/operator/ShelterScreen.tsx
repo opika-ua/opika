@@ -374,6 +374,7 @@ export function ShelterScreen({
   view,
   cityName,
   history,
+  historyCities = {},
   blocked,
   me,
   actions,
@@ -381,6 +382,8 @@ export function ShelterScreen({
   view: RegistryShelterView;
   cityName: string | null;
   history: HistoryPage;
+  /** City names for the history's `city_changed` lines, by id. */
+  historyCities?: Readonly<Record<string, string>>;
   blocked: BlockedAddressesView;
   me: ModeratorId;
   actions: ShelterScreenActions;
@@ -436,7 +439,7 @@ export function ShelterScreen({
             key={historyKeyOf(history)}
             shelterId={view.id}
             first={history}
-            people={{ me, admins: view.admins }}
+            people={{ me, admins: view.admins, cities: historyCities }}
           />
         </div>
       </div>

@@ -3,6 +3,7 @@ import { type WithdrawalReason, WithdrawalReasonSchema } from "../animals/listin
 import { LISTING_KINDS } from "../animals/listing-transition";
 import {
   AnimalIdSchema,
+  CityIdSchema,
   InvitationIdSchema,
   ModeratorIdSchema,
   ShelterAdminIdSchema,
@@ -286,6 +287,17 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     to: z.string().min(1),
   }),
   /**
+   * The shelter moved its base city itself (§4, owner 2026-11-18): the animals that follow the
+   * shelter's city moved with it in the same write. Ids only; the line names the cities at render.
+   */
+  z.object({
+    kind: z.literal("city_changed"),
+    at: z.date(),
+    actor: ShelterActorSchema,
+    from: CityIdSchema,
+    to: CityIdSchema,
+  }),
+  /**
    * The operator turned the shelter's weekly «непідтверджені картки» email off or back on, usually
    * because the shelter asked. Operator-only, like `evidence_added`: the shelter-facing history
    * does not carry it.
@@ -429,6 +441,7 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
     case "early_listing_revoked":
     case "early_listing_lapsed":
     case "display_name_changed":
+    case "city_changed":
     case "freshness_reminder_changed":
     case "shelter_created":
     case "shelter_registered":

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AnimalIdSchema,
+  CityIdSchema,
   InvitationIdSchema,
   ModeratorIdSchema,
   ShelterAdminIdSchema,
@@ -169,6 +170,13 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     actor: ADMIN,
     animalId: ANIMAL,
     animalName: "Барсик",
+  },
+  city_changed: {
+    kind: "city_changed",
+    at: new Date("2026-11-19T00:00:00.000Z"),
+    actor: ADMIN,
+    from: CityIdSchema.parse("c1000000-0000-4000-8000-000000000001"),
+    to: CityIdSchema.parse("c2000000-0000-4000-8000-000000000002"),
   },
   display_name_changed: {
     kind: "display_name_changed",
@@ -339,6 +347,26 @@ describe("display_name_changed (R-UI 4)", () => {
   });
 });
 
+describe("city_changed (§4, the shelter's own city)", () => {
+  const moved = ENTRIES.city_changed as Extract<ShelterHistoryEntry, { kind: "city_changed" }>;
+
+  it("records who moved it, the shelter admin or the operator, with both city ids", () => {
+    expect(ShelterHistoryEntrySchema.safeParse(moved).success).toBe(true);
+    expect(
+      ShelterHistoryEntrySchema.safeParse({
+        ...moved,
+        actor: { kind: "moderator", moderatorId: MOD },
+      }).success,
+    ).toBe(true);
+  });
+
+  it("refuses a line missing a city, or with a city that is not an id", () => {
+    const { from: _f, ...noFrom } = moved;
+    expect(ShelterHistoryEntrySchema.safeParse(noFrom).success).toBe(false);
+    expect(ShelterHistoryEntrySchema.safeParse({ ...moved, to: "Київ" }).success).toBe(false);
+  });
+});
+
 describe("admin_joined", () => {
   /** IN-Q14: the email is stored at join time, so an entry without one is refused, not resolved later. */
   it("refuses an entry without the email, or without either id", () => {
@@ -443,6 +471,7 @@ describe("historyEntryAt", () => {
         "2026-10-16",
         "2026-10-17",
         "2026-10-18",
+        "2026-11-19",
         "2026-10-19",
         "2026-10-20",
         "2026-10-21",

@@ -1,3 +1,4 @@
+import { UNKNOWN_CITY_MESSAGE } from "@opika/contracts";
 import {
   animalRepo,
   cityRepo,
@@ -5,7 +6,7 @@ import {
   kabinetShelterRepo,
   shelterRepo,
 } from "@opika/db/repos";
-import { funnelEvents } from "@opika/db/schema";
+import { animals, funnelEvents } from "@opika/db/schema";
 import {
   makeAnimal,
   makeCity,
@@ -362,15 +363,156 @@ describe("shelter.profile.updateIdentity (§4, D4)", () => {
     expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual(before);
   });
 
-  it("a city change is refused loudly until it has a history line, and moves nothing", async () => {
+  /** An animal at the shelter (follows its city) and one fostered in a third city (its own). */
+  async function twoAnimals(shelter: Shelter) {
+    const fosterCity = makeCity();
+    await cityRepo(db).insert(fosterCity);
+    const atShelter = makeAnimal({ shelterId: shelter.id });
+    const fostered = makeAnimal({
+      shelterId: shelter.id,
+      publicLocation: { precision: "city", cityId: fosterCity.id, district: null },
+    } as never);
+    await animalRepo(db).insert(atShelter, cityId as never);
+    await animalRepo(db).insert(fostered, fosterCity.id as never);
+    return { atShelter, fostered, fosterCityId: fosterCity.id };
+  }
+
+  async function animalCities(): Promise<Map<string, string>> {
+    const rows = await db.select({ id: animals.id, cityId: animals.cityId }).from(animals);
+    return new Map(rows.map((row) => [row.id, row.cityId]));
+  }
+
+  it("a city change moves the shelter and only the animals that follow its city, logged with the admin", async () => {
+    const shelter = await shelterAt("accepted");
+    const { atShelter, fostered, fosterCityId } = await twoAnimals(shelter);
+    const result = await call<{ cityId?: string; version?: number }>(
+      shelter,
+      "shelter.profile.updateIdentity",
+      { cityId: otherCityId, expectedVersion: shelter.version },
+    );
+    expect(result.status).toBe(200);
+    expect(result.body.cityId).toBe(otherCityId);
+    expect(result.body.version).toBe(shelter.version + 1);
+    const stored = await shelterRepo(db).findById(shelter.id);
+    expect(stored?.publicLocation).toEqual({
+      precision: "city",
+      cityId: otherCityId,
+      district: null,
+    });
+    const cities = await animalCities();
+    expect(cities.get(atShelter.id)).toBe(otherCityId);
+    expect(cities.get(fostered.id)).toBe(fosterCityId);
+    const line = (await kabinetShelterRepo(db).historyOf(shelter.id)).find(
+      (entry) => entry.kind === "city_changed",
+    );
+    expect(line).toEqual({
+      kind: "city_changed",
+      at: NOW,
+      actor: { kind: "shelter_admin", shelterAdminId: ADMIN },
+      from: cityId,
+      to: otherCityId,
+    });
+  });
+
+  it("the write itself is compare-and-set: a version lost in between moves nothing", async () => {
+    const shelter = await shelterAt("accepted");
+    const { atShelter } = await twoAnimals(shelter);
+    const before = await kabinetShelterRepo(db).historyOf(shelter.id);
+    const written = await kabinetShelterRepo(db).applyAuditedMany({
+      shelterId: shelter.id,
+      expectedVersion: shelter.version - 1,
+      changes: [
+        {
+          kind: "city",
+          publicLocation: { precision: "city", cityId: otherCityId, district: null },
+        },
+      ] as never,
+      entries: [
+        {
+          id: crypto.randomUUID(),
+          entry: {
+            kind: "city_changed",
+            at: NOW,
+            actor: { kind: "shelter_admin", shelterAdminId: ADMIN },
+            from: cityId,
+            to: otherCityId,
+          } as never,
+        },
+      ],
+      now: NOW,
+    });
+    expect(written).toEqual({ kind: "conflict" });
+    expect((await shelterRepo(db).findById(shelter.id))?.publicLocation.cityId).toBe(cityId);
+    expect((await animalCities()).get(atShelter.id)).toBe(cityId);
+    expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual(before);
+  });
+
+  it("a name and a city sent together are one write: one version, two lines", async () => {
     const shelter = await shelterAt("accepted");
     const before = await kabinetShelterRepo(db).historyOf(shelter.id);
-    const result = await call(shelter, "shelter.profile.updateIdentity", {
+    const result = await call<{ version?: number; displayName?: string; cityId?: string }>(
+      shelter,
+      "shelter.profile.updateIdentity",
+      { displayName: "Хвостики", cityId: otherCityId, expectedVersion: shelter.version },
+    );
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({
+      version: shelter.version + 1,
+      displayName: "Хвостики",
+      cityId: otherCityId,
+    });
+    const after = await kabinetShelterRepo(db).historyOf(shelter.id);
+    expect(after.length - before.length).toBe(2);
+    expect(after.map((entry) => entry.kind)).toEqual(
+      expect.arrayContaining(["display_name_changed", "city_changed"]),
+    );
+  });
+
+  it("a stale version moves nothing: no city, no animal, no line", async () => {
+    const shelter = await shelterAt("accepted");
+    const { atShelter } = await twoAnimals(shelter);
+    const before = await kabinetShelterRepo(db).historyOf(shelter.id);
+    const result = await call<{ code?: string }>(shelter, "shelter.profile.updateIdentity", {
+      cityId: otherCityId,
+      expectedVersion: shelter.version + 1,
+    });
+    expect(result.status).toBe(409);
+    expect(result.body.code).toBe("CONFLICT");
+    expect((await shelterRepo(db).findById(shelter.id))?.publicLocation.cityId).toBe(cityId);
+    expect((await animalCities()).get(atShelter.id)).toBe(cityId);
+    expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual(before);
+  });
+
+  it("a city that doesn't exist is refused as the operator's address edit refuses it", async () => {
+    const shelter = await shelterAt("accepted");
+    const result = await call<{ code?: string; message?: string }>(
+      shelter,
+      "shelter.profile.updateIdentity",
+      { cityId: "c9000000-0000-4000-8000-000000000009", expectedVersion: shelter.version },
+    );
+    expect(result.status).toBe(400);
+    expect(result.body.message).toBe(UNKNOWN_CITY_MESSAGE);
+    expect((await shelterRepo(db).findById(shelter.id))?.publicLocation.cityId).toBe(cityId);
+  });
+
+  it("the shelter's own history shows the move as its own, with both cities and no ids of people", async () => {
+    const shelter = await shelterAt("accepted");
+    await call(shelter, "shelter.profile.updateIdentity", {
       cityId: otherCityId,
       expectedVersion: shelter.version,
     });
-    expect(result.status).toBe(500);
-    expect((await shelterRepo(db).findById(shelter.id))?.publicLocation.cityId).toBe(cityId);
-    expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual(before);
+    const history = await call<{ items: Record<string, unknown>[] }>(
+      shelter,
+      "shelter.history.list",
+      { cursor: null, limit: 50 },
+    );
+    expect(history.status).toBe(200);
+    expect(history.body.items.find((item) => item.kind === "city_changed")).toEqual({
+      kind: "city_changed",
+      at: NOW,
+      actor: { kind: "shelter" },
+      from: cityId,
+      to: otherCityId,
+    });
   });
 });

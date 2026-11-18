@@ -1,11 +1,13 @@
 import { pluralizeUk } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import type { ReactNode } from "react";
+import { Button } from "../../../ui/Button";
 import { Heading } from "../../../ui/Heading";
+import { Icon } from "../../../ui/Icon";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
-import { ApprovedBanner } from "./ApprovedBanner";
 import type { ApplicationBanner } from "./application-banners";
+import { dismissApprovedBanner } from "./dismiss-approved";
 
 const t = uk.kabinet.application;
 
@@ -50,7 +52,24 @@ export function ApplicationBanners({
           </Panel>
         );
       case "approved":
-        return <ApprovedBanner key="approved" />;
+        return (
+          <Panel
+            key="approved"
+            tone="outline"
+            padding="md"
+            className="flex items-start justify-between gap-3"
+          >
+            <Text look="label" className="self-center">
+              {t.approved}
+            </Text>
+            {/* A native form post: works without JavaScript and needs no client component. */}
+            <form action={dismissApprovedBanner.bind(null, banner.shelterId)}>
+              <Button type="submit" variant="icon" aria-label={t.approvedClose}>
+                <Icon name="close" size="md" />
+              </Button>
+            </form>
+          </Panel>
+        );
       case "days_left":
         return (
           <Panel key="days_left" tone="outline" padding="md">

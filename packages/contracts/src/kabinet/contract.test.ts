@@ -655,6 +655,7 @@ describe("every shelter-facing history variant carries exactly its listed keys (
     donation_suspended: ["kind", "at", "actor", "previousLive", "outcome"],
     verified_data_changed: ["kind", "at", "actor", "change"],
     display_name_changed: ["kind", "at", "actor", "from", "to"],
+    city_changed: ["kind", "at", "actor", "from", "to"],
     early_listing_allowed: ["kind", "at", "actor"],
     early_listing_revoked: ["kind", "at", "actor"],
     early_listing_lapsed: ["kind", "at"],

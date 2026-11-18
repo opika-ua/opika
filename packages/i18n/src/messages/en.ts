@@ -616,6 +616,7 @@ export const en = {
         "Confirm your email – I sent a message to {email}. Without it I can't approve the shelter.",
       confirmEmailResend: "Send again",
       approved: "The shelter is approved. You can publish animals now.",
+      approvedClose: "Close",
       publishBlocked: "You can publish after the shelter is checked.",
       draftCap: "Before the check you can add at most 30 drafts.",
       donationBlocked: "You can add a fundraising link after the shelter is checked.",
@@ -1664,6 +1665,7 @@ export const en = {
         },
         shelter_created: "Shelter created",
         shelter_registered: "Shelter registered",
+        city_changed: "City changed: {from} – {to}",
         shelter_created_script: "Shelter added from a file",
         verification: {
           start_review: "Taken under review",

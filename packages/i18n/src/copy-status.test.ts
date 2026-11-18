@@ -1090,6 +1090,8 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.history.shelter_registered": "Притулок зареєстровано",
     "operator.history.verification.accept_application": "Заявку схвалено",
     "operator.codes.rejection.not_animal_welfare": "Це не притулок чи ініціатива допомоги тваринам",
+    // The shelter's own city change, the owner's string verbatim (2026-11-18), en dash U+2013.
+    "operator.history.city_changed": "Місто змінено: {from} – {to}",
   };
 
   const EARLY_LISTING_OPERATOR_COPY: Record<string, string> = {

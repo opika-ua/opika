@@ -119,7 +119,7 @@ export const actorOf = (scope: ShelterWriteScope): ShelterActor => ({
   shelterAdminId: scope.shelterAdminId,
 });
 
-export type Planned =
+type Planned =
   | { kind: "write"; change: AuditedShelterChange; entry: ShelterHistoryEntry }
   | { kind: "no_change" };
 
@@ -152,7 +152,7 @@ export async function write(
  * before writing, so the history entry's `previous` is always what the write
  * actually replaced.
  */
-export async function editFromForm(
+async function editFromForm(
   deps: ProfileDeps,
   scope: ShelterWriteScope,
   expectedVersion: number,

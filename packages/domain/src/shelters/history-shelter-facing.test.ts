@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AnimalIdSchema,
+  CityIdSchema,
   InvitationIdSchema,
   ModeratorIdSchema,
   ShelterAdminIdSchema,
@@ -162,6 +163,13 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     actor: ADMIN,
     animalId: ANIMAL_ID,
     animalName: "Барсик",
+  },
+  city_changed: {
+    kind: "city_changed",
+    at: AT,
+    actor: ADMIN,
+    from: CityIdSchema.parse("c1000000-0000-4000-8000-000000000001"),
+    to: CityIdSchema.parse("c2000000-0000-4000-8000-000000000002"),
   },
   display_name_changed: {
     kind: "display_name_changed",
@@ -342,6 +350,17 @@ describe("shelterFacingHistoryOf", () => {
       at: new Date("2026-10-17T00:00:00.000Z"),
       actor: { kind: "shelter" },
       animalName: "Барсик",
+    });
+  });
+
+  /** §4: the shelter sees its own move, as its own action, with both city ids and no admin id. */
+  it("city_changed: the shelter as actor, both cities", () => {
+    expect(facing(ENTRIES.city_changed, OPERATOR)).toEqual({
+      kind: "city_changed",
+      at: AT,
+      actor: { kind: "shelter" },
+      from: "c1000000-0000-4000-8000-000000000001",
+      to: "c2000000-0000-4000-8000-000000000002",
     });
   });
 

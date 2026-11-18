@@ -1,7 +1,12 @@
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { AnimalListScreen } from "../../../features/kabinet/animal-list/AnimalListScreen";
+import {
+  APPROVED_DISMISSED_COOKIE,
+  approvedDismissedFor,
+} from "../../../features/kabinet/application/approved-dismissal";
 import { operatorNameOf, standaloneOperatorName } from "../../../kabinet/operator";
 import { signedInPerson } from "../signed-in-person";
 import { loadKabinetAnimalListPage } from "./load";
@@ -28,6 +33,10 @@ export default async function AnimalListPage() {
         <AnimalListScreen
           page={page}
           person={await signedInPerson()}
+          approvedDismissed={approvedDismissedFor(
+            page.shelter.id,
+            (await cookies()).get(APPROVED_DISMISSED_COOKIE)?.value,
+          )}
           operatorName={standaloneOperatorName(
             operatorNameOf({
               KABINET_OPERATOR_DISPLAY_NAME: process.env.KABINET_OPERATOR_DISPLAY_NAME,
