@@ -59,6 +59,13 @@ const EXPECTED: ReadonlyArray<{
     why: "the column itself",
   },
   {
+    file: "repos/application-deletion-repo.ts",
+    line: 183,
+    text: ".select({ listingKind: animals.listingKind, everServedAt: animals.everServedAt })",
+    kind: "read",
+    why: "shelters:delete-test's dry run: counts a rehearsal shelter's drafts, served and listed animals",
+  },
+  {
     file: "repos/applications-repo.ts",
     line: 260,
     text: "verificationStatus: verification.status,",
