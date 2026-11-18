@@ -200,11 +200,12 @@ describe("the walk finds the shelter writes (an empty walk can't pass)", () => {
     );
   });
 
-  it("and the four shelter reads, which stay open", () => {
+  it("and the five shelter reads, which stay open", () => {
     expect(shelterReads.sort()).toEqual(
       [
         "shelter.animals.byId",
         "shelter.animals.list",
+        "shelter.cities.search",
         "shelter.history.list",
         "shelter.profile.get",
       ].sort(),
@@ -284,6 +285,7 @@ describe("reads stay open to a shelter admin", () => {
     "shelter.history.list": () => ({ cursor: null }),
     "shelter.animals.list": () => ({ filter: { kind: "all" }, cursor: null }),
     "shelter.animals.byId": () => ({ animalId: draft.id }),
+    "shelter.cities.search": () => ({ query: "Бровари", regionBias: null }),
   };
 
   it("has an input for every read the walk found", () => {
