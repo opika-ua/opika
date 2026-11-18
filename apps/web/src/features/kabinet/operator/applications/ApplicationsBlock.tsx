@@ -66,7 +66,14 @@ function ApplicationCard({
         {waitingLong ? <Text look="label">{t.waitingLong}</Text> : null}
       </div>
       <div className="flex flex-col gap-1">
-        <SubmittedLink url={item.link} />
+        {item.link === null ? (
+          // A row without its link still gets its card; it says what's missing (unknown field rule).
+          <Text look="label">
+            {uk.registration.link.label}: {uk.kabinet.profileNotRecorded}
+          </Text>
+        ) : (
+          <SubmittedLink url={item.link} />
+        )}
         <Text className="break-words">{channelValue(item.contact)}</Text>
         <Text className="break-all">{item.email}</Text>
         <Text
@@ -105,6 +112,18 @@ function ApplicationCard({
         name={item.name}
         emailStatus={item.emailStatus}
       />
+    </Card>
+  );
+}
+
+/** A row the server couldn't make a card of: said plainly, with the id to find it by. */
+function UnreadableCard({ shelterId }: { shelterId: string }) {
+  return (
+    <Card as="li" tone="outline" className="flex flex-col gap-1 p-4">
+      <Text>{t.cardUnreadable}</Text>
+      <Text look="hint" className="break-all">
+        {shelterId}
+      </Text>
     </Card>
   );
 }
@@ -155,11 +174,7 @@ function HolderCheck({ legalEntity }: { legalEntity: PendingDonationItemView["le
       </Text>
       <Text look="body">
         {initiative ? uk.kabinet.profile.contactPerson : uk.kabinet.profile.legalName}:{" "}
-        {legalEntity === null
-          ? uk.kabinet.profileNotRecorded
-          : legalEntity.kind === "unregistered_initiative"
-            ? legalEntity.contactPersonName
-            : legalEntity.legalName}
+        {legalEntity === null ? uk.kabinet.profileNotRecorded : legalEntity.name}
       </Text>
     </div>
   );
@@ -227,9 +242,11 @@ export function ApplicationsBlock({
   return (
     <section aria-labelledby="queue-title" className="flex flex-col gap-4">
       <Heading level={2} look="section" id="queue-title">
-        {fillTemplate(t.title, { count: String(view.applications.length) })}
+        {fillTemplate(t.title, {
+          count: String(view.applications.length + view.unreadable.length),
+        })}
       </Heading>
-      {view.applications.length > 0 ? (
+      {view.applications.length + view.unreadable.length > 0 ? (
         <ul className="flex flex-col gap-3">
           {view.applications.map((item) => (
             <ApplicationCard
@@ -238,6 +255,9 @@ export function ApplicationsBlock({
               cityName={cityNames[item.cityId] ?? null}
               now={now}
             />
+          ))}
+          {view.unreadable.map((row) => (
+            <UnreadableCard key={row.shelterId} shelterId={row.shelterId} />
           ))}
         </ul>
       ) : null}

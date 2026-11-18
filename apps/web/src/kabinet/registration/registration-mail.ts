@@ -1,5 +1,6 @@
 import type { ApplicationSummary } from "@opika/db/repos";
 import type { ShelterId } from "@opika/domain";
+import { after } from "next/server";
 import type { RateLimiter } from "../../api/rate-limit";
 import { OPERATOR_CONTACT, SITE_ORIGIN } from "../../brand";
 import { channelText } from "../../features/kabinet/profile-edit/fields";
@@ -25,7 +26,7 @@ export type RegistrationMail = {
  * The notification mail's runtime, reused: the provider in production once sign-in is on, the
  * console in development, nothing where neither is configured.
  */
-export function registrationMailOf(
+function registrationMailOf(
   env: Readonly<Record<string, string | undefined>>,
   db: RegistrationEmailDeps["db"],
 ): RegistrationMail | null {
@@ -42,6 +43,24 @@ export function registrationMailOf(
     baseURL: runtime.context.baseURL,
     operatorName: runtime.context.operatorName,
   };
+}
+
+/**
+ * The kabinet's one transactional sender (registration, resend, the operator's mails, queue
+ * decisions) and when a handed-over send runs: after the response when served, inline in tests.
+ */
+export type TransactionalMail = {
+  mail: RegistrationMail;
+  schedule: (work: () => Promise<void>) => void;
+};
+
+/** The served one: `registrationMailOf`'s sender, its sends run by `after()` so no answer waits. */
+export function servedTransactionalMail(
+  env: Readonly<Record<string, string | undefined>>,
+  db: RegistrationEmailDeps["db"],
+): TransactionalMail | null {
+  const mail = registrationMailOf(env, db);
+  return mail === null ? null : { mail, schedule: (work) => after(work) };
 }
 
 /** Per user for the first email; a resend adds its minute, so a double click mails once. */

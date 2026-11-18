@@ -16,6 +16,7 @@ import { INVITE_PASSWORDS_OFF, type InvitePasswords } from "./invite-password";
 import type { ShelterNotifier } from "./notify/intents";
 import { PHOTO_UPLOADS_NOT_CONFIGURED, type PhotoUploads } from "./photo-uploads";
 import { type KabinetLimiters, kabinetUserKey } from "./rate-limits";
+import type { TransactionalMail } from "./registration/registration-mail";
 import { registryRouter } from "./registry-router";
 import { shelterKabinetRouter } from "./router";
 
@@ -156,6 +157,8 @@ export async function handleKabinetRpc(
     invitePasswords?: () => InvitePasswords;
     /** The served route passes the `after()` notifier; left out, no notification mail is planned. */
     notify?: ShelterNotifier;
+    /** The served route passes its transactional sender over the request's database; left out, none. */
+    transactionalMail?: (db: Database) => TransactionalMail | null;
   },
 ): Promise<Response> {
   const ipKey = ipRateLimitKey(deps.ip);
@@ -241,6 +244,7 @@ export async function handleKabinetRpc(
       citySearchLimiter: deps.citySearch,
       invitePasswords: deps.invitePasswords?.() ?? INVITE_PASSWORDS_OFF,
       ...(deps.notify === undefined ? {} : { notify: deps.notify }),
+      transactionalMail: deps.transactionalMail?.(db) ?? null,
     },
   });
   if (!result.matched) return new Response("Not Found", { status: 404 });

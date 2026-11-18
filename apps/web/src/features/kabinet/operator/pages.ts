@@ -78,6 +78,7 @@ function readClient(principal: KabinetPrincipal, deps: OperatorPageDeps): ReadCl
       cookieHeader: null,
       photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
       invitePasswords: INVITE_PASSWORDS_OFF,
+      transactionalMail: null,
     }),
   });
 }

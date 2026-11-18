@@ -356,6 +356,9 @@ export const uk = {
       draftsAnimals: { one: "{count} чернетка", few: "{count} чернетки", many: "{count} чернеток" },
       draftsPhotos: { one: "{count} фото", few: "{count} фото", many: "{count} фото" },
       waitingLong: "Чекає понад 36 годин",
+      /** Owner, 2026-11-18: a card the queue couldn't read; the shelter id follows in small text. */
+      cardUnreadable:
+        "Цю заявку не вдалося показати. Відкрийте притулок у списку, щоб переглянути її.",
       accept: "Схвалити",
       reject: "Відхилити",
       funnel: {

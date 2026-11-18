@@ -21,6 +21,7 @@ import {
   type PhotoUploads,
 } from "../../../../kabinet/photo-uploads";
 import { kabinetIdentityOf } from "../../../../kabinet/principal";
+import { servedTransactionalMail } from "../../../../kabinet/registration/registration-mail";
 import { handleKabinetRpc } from "../../../../kabinet/rpc-route";
 import { kabinetAuth } from "../../../../kabinet/runtime";
 
@@ -93,6 +94,7 @@ async function handle(request: Request): Promise<Response> {
     photoUploads: photoUploads(),
     citySearch: citySearchLimiter,
     notify: afterResponseNotifier(process.env),
+    transactionalMail: (db) => servedTransactionalMail(process.env, db),
     invitePasswords: () => ({
       kind: "on",
       perIp: inviteLimiters.perIp,

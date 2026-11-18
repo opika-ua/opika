@@ -1,8 +1,10 @@
-import type {
-  ApplicationDecisionResult,
-  ApplicationQueueItemView,
-  ApplicationsQueueView,
-  apiErrors,
+import {
+  type ApplicationDecisionResult,
+  type ApplicationQueueItemView,
+  ApplicationQueueItemViewSchema,
+  type ApplicationsQueueView,
+  type apiErrors,
+  type PendingDonationItemView,
 } from "@opika/contracts";
 import {
   type ApplicationDecisionWrite,
@@ -31,24 +33,19 @@ import {
   type Shelter,
   type ShelterHistoryEntry,
   type ShelterId,
+  type ShelterLegalEntity,
   type ShelterVerification,
 } from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { KabinetContext } from "../context";
-import { type ApplicationMailer, servedApplicationMailer } from "./applications-mail";
+import { sendApplicationDecision } from "./applications-mail";
 
 /**
  * The operator's «Заявки» block (§3). Decisions follow `acceptApplication` / `rejectApplication`
  * and land as one statement conditional on the status and the version read, so a second tab or a
  * double click answers `already_decided` and writes nothing.
  */
-export type ApplicationsDeps = Pick<KabinetContext, "db" | "now" | "newId" | "notify"> & {
-  /**
-   * Where decision emails go. Unset, only the served route (the one that sets `notify`) mails,
-   * after the response; in-process callers and tests send nothing unless they pass one.
-   */
-  applicationMail?: ApplicationMailer;
-};
+export type ApplicationsDeps = Pick<KabinetContext, "db" | "now" | "newId" | "transactionalMail">;
 
 type DecisionErrors = ORPCErrorConstructorMap<{
   CONFLICT: typeof apiErrors.CONFLICT;
@@ -85,6 +82,11 @@ const candidateOf = (source: DuplicateSourceRow): DuplicateCandidate => ({
   ],
 });
 
+function warn(line: string): void {
+  // biome-ignore lint/suspicious/noConsole: a reason code and an id, never applicant text
+  console.warn(line);
+}
+
 function queueItemOf(
   row: ApplicationRow,
   existing: readonly DuplicateCandidate[],
@@ -93,9 +95,9 @@ function queueItemOf(
   if (row.verification.status !== "application") {
     throw new Error(`Shelter ${row.shelterId} read as an application but is not one`);
   }
-  const [link] = publicLinksOf(row.verification);
-  // The registration write always records it; a card without it can't be checked, so say so loudly.
-  if (link === undefined) throw new Error(`Application ${row.shelterId} has no submitted link`);
+  // The registration write always records it; without it the card says so rather than vanishing.
+  const link = publicLinksOf(row.verification)[0] ?? null;
+  if (link === null) warn(`[applications] ${row.shelterId}: application_link_missing`);
   const self = existing.find((candidate) => candidate.shelterId === row.shelterId);
   const signals = self === undefined ? [] : duplicateSignals(self, existing);
   return {
@@ -117,6 +119,44 @@ function queueItemOf(
   };
 }
 
+/**
+ * A card, or the row's id alone if it can't make one: a single bad application must not take the
+ * queue, the donation links and the funnel down with it. Logged by field and issue code, no values.
+ */
+function cardOf(
+  row: ApplicationRow,
+  existing: readonly DuplicateCandidate[],
+  names: ReadonlyMap<string, string>,
+): ApplicationQueueItemView | null {
+  let reason: string;
+  try {
+    const parsed = ApplicationQueueItemViewSchema.safeParse(queueItemOf(row, existing, names));
+    if (parsed.success) return parsed.data;
+    reason = parsed.error.issues.map((issue) => `${issue.path.join(".")}:${issue.code}`).join(",");
+  } catch {
+    reason = "thrown";
+  }
+  warn(`[applications] ${row.shelterId}: application_unreadable (${reason})`);
+  return null;
+}
+
+/** Only what the holder check shows (D3); the EDRPOU and registration date stay off the queue. */
+function holderOf(entity: ShelterLegalEntity | null): PendingDonationItemView["legalEntity"] {
+  if (entity === null) return null;
+  switch (entity.kind) {
+    case "registered_ngo":
+    case "sole_proprietor":
+      return { kind: entity.kind, name: entity.legalName };
+    case "unregistered_initiative":
+      return { kind: entity.kind, name: entity.contactPersonName };
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
+    default: {
+      const unreachable: never = entity;
+      return unreachable;
+    }
+  }
+}
+
 export async function applicationsList(
   deps: ApplicationsDeps,
   _moderatorId: ModeratorId,
@@ -131,8 +171,12 @@ export async function applicationsList(
   const sources = pending.length === 0 ? [] : await repo.duplicateSources();
   const candidates = sources.map(candidateOf);
   const names = new Map(sources.map((source) => [source.shelterId, source.name]));
+  const cards = pending.map((row) => ({ row, card: cardOf(row, candidates, names) }));
   return {
-    applications: pending.map((row) => queueItemOf(row, candidates, names)),
+    applications: cards.flatMap(({ card }) => (card === null ? [] : [card])),
+    unreadable: cards.flatMap(({ row, card }) =>
+      card === null ? [{ shelterId: row.shelterId }] : [],
+    ),
     listedUnverified: earlyListed.flatMap((row) => {
       // Accepted, so the email no longer matters: only the listing's clock does.
       const lifecycle = lifecycleOf(
@@ -159,18 +203,13 @@ export async function applicationsList(
       name: row.name,
       version: row.version,
       proposedUrl: row.pendingDonation.link.url,
-      legalEntity: row.legalEntity,
+      legalEntity: holderOf(row.legalEntity),
     })),
     funnel: {
       windowDays: FUNNEL_WINDOW_DAYS,
       counts: FUNNEL_EVENT_KINDS.map((kind) => ({ kind, count: counts[kind] })),
     },
   };
-}
-
-function warn(line: string): void {
-  // biome-ignore lint/suspicious/noConsole: a reason code and an id, never applicant text
-  console.warn(line);
 }
 
 type Decided = Extract<ApplicationDecision, { kind: "ok" }>;
@@ -250,18 +289,19 @@ async function decide(
       .record("approved", shelter.id, deps.now)
       .catch(() => warn(`[applications] ${shelter.id}: funnel_not_recorded`));
   }
+  const transactional = deps.transactionalMail;
   try {
-    const registrant = await repo.registrantOf(shelter.id);
-    const mailer =
-      deps.applicationMail ??
-      (deps.notify === undefined ? null : servedApplicationMailer(process.env));
-    if (registrant !== null && mailer !== null) {
-      mailer({
+    const registrant = transactional === null ? null : await repo.registrantOf(shelter.id);
+    if (transactional !== null && registrant !== null) {
+      const mail = {
         ...spec.mail,
         shelterId: shelter.id,
         name: shelter.displayName,
         to: registrant.email,
         recipientUserId: registrant.userId,
+      };
+      transactional.schedule(async () => {
+        await sendApplicationDecision(transactional.mail, mail);
       });
     }
   } catch {

@@ -609,6 +609,7 @@ describe("a failure between the POST's two writes doesn't strand the shelter", (
       shelterWrites: SHELTER_WRITE_POLICY,
       photoUploads: PHOTO_UPLOADS_NOT_CONFIGURED,
       invitePasswords: { kind: "off" },
+      transactionalMail: null,
     };
     await call(registryRouter.registry.admins.resendInvite, { shelterId, adminId }, { context });
     const token = /[?&]zaproshennia=([A-Za-z0-9_-]{43})$/.exec(invites.sent[0]?.url ?? "")?.[1];

@@ -3,7 +3,6 @@
 import { funnelRepo, selfRegistrationRepo } from "@opika/db/repos";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { after } from "next/server";
 import { clientIp } from "../../api/client-ip";
 import { addressRateLimitKey, derivedSecretKey, ipRateLimitKey } from "../../api/rate-limit-key";
 import { retryAfterSecondsOf } from "../../api/retry-after";
@@ -17,8 +16,8 @@ import {
 } from "../../kabinet/registration/registration-links";
 import {
   confirmationDedupKey,
-  registrationMailOf,
   sendConfirmationEmail,
+  servedTransactionalMail,
   takeDailyConfirmationMail,
 } from "../../kabinet/registration/registration-mail";
 import { kabinetAuth } from "../../kabinet/runtime";
@@ -63,7 +62,8 @@ export async function registerShelter(
   const db = kabinetDb();
   const auth = kabinetAuth();
   const credentials = inviteCredentialsOf(auth, availability.baseURL, requestHeaders);
-  const mail = registrationMailOf(process.env, db);
+  const transactional = servedTransactionalMail(process.env, db);
+  const mail = transactional?.mail ?? null;
   const limiters = registrationLimiters;
 
   const state = await registerWith(form, {
@@ -90,7 +90,9 @@ export async function registerShelter(
     passwordVerdict: shelterPasswordVerdictOf,
     hasAccount: (email) => selfRegistrationRepo(db).hasAccount(email),
     takeDailyMail: () =>
-      takeDailyConfirmationMail(limiters.mailDailyCap, mail, now, (work) => after(work)),
+      takeDailyConfirmationMail(limiters.mailDailyCap, mail, now, (work) =>
+        transactional?.schedule(work),
+      ),
     hashPassword: async (password) => (await auth.$context).password.hash(password),
     write: (input) => selfRegistrationRepo(db).register(input),
     newId: () => crypto.randomUUID(),
@@ -100,10 +102,14 @@ export async function registerShelter(
       await funnelRepo(db)
         .record("registered", application.shelterId, now)
         .catch(() => log("[registration] funnel not recorded"));
-      if (mail === null) return;
+      if (transactional === null) return;
       // In the background: the email never holds up the way into the kabinet (D1).
-      after(async () => {
-        await sendConfirmationEmail(mail, application, confirmationDedupKey(application.userId));
+      transactional.schedule(async () => {
+        await sendConfirmationEmail(
+          transactional.mail,
+          application,
+          confirmationDedupKey(application.userId),
+        );
       });
     },
     signIn: (email, password) => credentials.signIn(email, password),

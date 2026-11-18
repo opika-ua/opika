@@ -67,7 +67,6 @@ export function AnimalListScreen({
               verification={page.shelter.verification}
               operatorName={operatorName}
             />
-            {/* `resendConfirmation`: the registration PR's resend button goes in this slot. */}
             <ApplicationBanners banners={banners} />
             {/* Not for the support view, where «я» would be the operator speaking to themselves. */}
             {!support && pending ? (

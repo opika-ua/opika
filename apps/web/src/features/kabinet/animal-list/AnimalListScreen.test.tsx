@@ -1,11 +1,17 @@
 import type { KabinetShelterView } from "@opika/contracts";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { AnimalListScreen } from "./AnimalListScreen";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/kabinet/tvaryny",
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+}));
+
+const resend = vi.hoisted(() => vi.fn(async () => ({ kind: "sent" as const })));
+vi.mock("../../../kabinet/registration/resend-confirmation-action", () => ({
+  resendConfirmationEmail: resend,
 }));
 
 /** The shelter's landing page: the banner and the pending note while cards are shown early (N13, B5). */
@@ -139,6 +145,21 @@ describe("a self-registered shelter's banners (spec §2, Q3, P0-1)", () => {
   it("asks to confirm the address while it is unconfirmed, naming it", () => {
     renderScreen(application("unconfirmed"), "admin", { email: "olena@example.org" });
     expect(screen.getByText(CONFIRM_TEXT)).toBeTruthy();
+  });
+
+  it("offers «Надіслати ще раз» with the confirm banner; pressing it asks for the email again", async () => {
+    resend.mockClear();
+    renderScreen(application("unconfirmed"), "admin", { email: "olena@example.org" });
+    await userEvent.click(screen.getByRole("button", { name: "Надіслати ще раз" }));
+    expect(resend).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText("Перевірте пошту")).toBeTruthy();
+  });
+
+  it("no resend button once the address is confirmed, nor in the support view", () => {
+    renderScreen(application("confirmed"), "admin", { email: "olena@example.org" });
+    expect(screen.queryByRole("button", { name: "Надіслати ще раз" })).toBeNull();
+    renderScreen(application("unconfirmed"), "support", { email: "olena@example.org" });
+    expect(screen.queryByRole("button", { name: "Надіслати ще раз" })).toBeNull();
   });
 
   it("the support view gets none of the «я» banners", () => {
