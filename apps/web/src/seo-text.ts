@@ -51,3 +51,29 @@ export function trimAtWordBoundary(text: string, maxLength: number): string {
   const lastSpaceIndex = cut.lastIndexOf(" ");
   return lastSpaceIndex > 0 ? cut.slice(0, lastSpaceIndex).join("") : cut.join("");
 }
+
+/** SEO handoff B2: a title fits in 60 characters where possible. */
+export const TITLE_MAX_LENGTH = 60;
+
+/** SEO handoff B2: a description stays under 155 characters, its «…» included. */
+export const SEO_DESCRIPTION_MAX_LENGTH = 154;
+
+/**
+ * The branded title while it fits in 60 characters, else the subject alone: a long dynamic
+ * title drops « | Opika» before anything else (handoff B2). A subject over 60 is kept whole.
+ */
+export function fitTitle(withSite: string, subject: string): string {
+  return Array.from(withSite).length <= TITLE_MAX_LENGTH ? withSite : subject;
+}
+
+/** A description cut at a word boundary to stay under 155 characters, ending in «…» when cut. */
+export function truncateDescription(
+  text: string,
+  maxLength: number = SEO_DESCRIPTION_MAX_LENGTH,
+): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (Array.from(normalized).length <= maxLength) return normalized;
+  // «слово,…» reads as a typo: drop the punctuation the cut left dangling.
+  const cut = trimAtWordBoundary(normalized, maxLength - 1).replace(/[\s,;:.–-]+$/u, "");
+  return `${cut}…`;
+}

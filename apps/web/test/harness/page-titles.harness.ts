@@ -21,13 +21,13 @@ test.beforeEach(async ({ page }, testInfo) => {
   await page.setExtraHTTPHeaders({ "x-forwarded-for": `192.0.2.${lastOctet}` });
 });
 
-test("/tvaryny's title is the subject, then the owner's en-dash separator, then the brand", async ({
+test("/tvaryny's title is SEO handoff B2's, ending in the owner's en-dash separator and the brand", async ({
   page,
 }) => {
   await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
   const title = await page.title();
   expect(title.endsWith(EN_DASH_SEPARATOR)).toBe(true);
-  expect(title).toBe(`Собаки й коти з притулків України${EN_DASH_SEPARATOR}`);
+  expect(title).toBe(`Взяти собаку чи кота з притулку${EN_DASH_SEPARATOR}`);
   // The separator is the en dash, nothing else - a hyphen or an em dash is a regression.
   expect(title).not.toContain(" - Opika");
   expect(title).not.toContain(" — Opika");
@@ -44,7 +44,7 @@ test("an animal page's title is name, species, city, then the brand", async ({ p
   expect(subject.split(", ")).toHaveLength(3);
 });
 
-test("the shelter page's title is the shelter's name, then its city, then the brand", async ({
+test("the shelter page's title is SEO handoff B2's, dropping « | Opika» only past 60 characters", async ({
   page,
 }) => {
   await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
@@ -62,7 +62,7 @@ test("the shelter page's title is the shelter's name, then its city, then the br
     animalTitle,
   );
   const title = await page.title();
-  expect(title.endsWith(EN_DASH_SEPARATOR)).toBe(true);
-  const subject = title.slice(0, -EN_DASH_SEPARATOR.length);
-  expect(subject.split(", ")).toHaveLength(2);
+  expect(title).toMatch(/^.+ – тварини шукають дім, [^|]+( \| Opika)?$/u);
+  expect(title.endsWith(" | Opika")).toBe(Array.from(title).length <= 60);
+  expect(title).not.toContain(" – Opika");
 });

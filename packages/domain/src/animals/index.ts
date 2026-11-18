@@ -9,5 +9,6 @@ export * from "./listing";
 export * from "./listing-transition";
 export * from "./photo";
 export * from "./photo-framing";
+export * from "./seo-words";
 export * from "./size";
 export * from "./temperament";

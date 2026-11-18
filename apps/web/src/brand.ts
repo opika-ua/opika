@@ -21,16 +21,8 @@ export const WORDMARK = "Opika";
 export const SITE_ORIGIN = "https://opika.org.ua";
 
 /**
- * The subject only - no brand suffix. `app/layout.tsx`'s root `title.default` uses it
- * as-is (Next never runs a segment's own `template` against its own `default`, so the
- * root's fallback title - reached by any route with no explicit title of its own,
- * which today means the two error boundaries and both `not-found.tsx` files - renders subject-only, brand-less;
- * a minor, accepted gap, and every one of those routes is noindex anyway). `/tvaryny`
- * (`app/tvaryny/
- * page.tsx`) sets this as its own explicit `title`, which Next *does* run through the
- * template, producing the real brand-suffixed title. `titled()` below does the same
- * job manually for the one place that bypasses the template entirely: `openGraph.title`,
- * which Next never auto-templates when it's set explicitly.
+ * The subject only, no brand: the root layout's default title (a route with no title of its own,
+ * all noindex) and, through `titled()`, the default link preview and the PWA name.
  */
 export const SITE_TITLE = "Собаки й коти з притулків України";
 

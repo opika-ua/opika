@@ -2049,4 +2049,53 @@ export const uk = {
       },
     },
   },
+  /**
+   * Page titles and meta descriptions (SEO handoff B1, B2; approved by the owner 2026-11-18,
+   * verbatim). `{site}` is the brand from `brand.ts`; `{city}` is the nominative name, never declined.
+   */
+  seo: {
+    /** A title that ends with the brand; a long dynamic one drops this suffix first. */
+    titleWithSite: "{title} | {site}",
+    nouns: {
+      puppy: "цуценя",
+      dog: "собака",
+      kitten: "кошеня",
+      tomcat: "кіт",
+      femaleCat: "кішка",
+    },
+    speciesPhrase: {
+      lower: { dogs: "собаки", cats: "коти", dogsAndCats: "собаки й коти" },
+      capitalised: { dogs: "Собаки", cats: "Коти", dogsAndCats: "Собаки й коти" },
+    },
+    gallery: {
+      title: "Взяти собаку чи кота з притулку – {site}",
+      description:
+        "Собаки й коти з притулків України шукають дім. Оберіть місто, вік і розмір та напишіть притулку напряму.",
+    },
+    animal: {
+      /** Before `titleWithSite`. */
+      title: "{name} – {noun} шукає дім, {city}",
+      /** `{story}`: the first sentence of the animal's story, trimmed. */
+      description: "{name} шукає дім. {city} · {shelter}. {story}",
+    },
+    shelter: {
+      /** Before `titleWithSite`. */
+      title: "{shelter} – тварини шукають дім, {city}",
+      description:
+        "{shelter}, {city}: {species}, які шукають дім. Контакти – на картці кожної тварини.",
+    },
+    forShelters: {
+      title: "Розмістити тварин притулку безкоштовно | {site}",
+      description:
+        "Розмістіть тварин свого притулку чи ініціативи на {site} безкоштовно, без реклами й комісій.",
+      /** While self-registration is on. */
+      descriptionSelfRegistration:
+        "Розмістіть тварин свого притулку чи ініціативи на {site} безкоштовно, без реклами й комісій. Реєстрація – 3 хвилини.",
+    },
+    about: {
+      title: "Про {site} – сайт, де тварини з притулків шукають дім",
+      description:
+        "{site} робить одна людина, у вільний від роботи час: без реклами, без інвесторів, безкоштовно для притулків.",
+    },
+  },
 } as const;

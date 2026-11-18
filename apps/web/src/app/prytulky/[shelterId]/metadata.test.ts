@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  DESCRIPTION,
   makeShelterPageShelter,
   SHELTER_ID,
   stubShelterPageClient,
@@ -28,16 +27,20 @@ const params = Promise.resolve({ shelterId: SHELTER_ID });
 const searchParams = Promise.resolve({});
 
 describe("the shelter page's metadata (PR B, the SEO review of page titles)", () => {
-  it("title is the shelter's name, then its city", async () => {
-    expect((await generateMetadata({ params, searchParams })).title).toBe("Лапа допомоги, Бровари");
+  it("title is handoff B2's, with the shelter's name and city", async () => {
+    expect((await generateMetadata({ params, searchParams })).title).toEqual({
+      absolute: "Лапа допомоги – тварини шукають дім, Бровари | Opika",
+    });
   });
 
-  it("drops the city segment rather than rendering an empty one when it doesn't resolve", async () => {
+  it("falls back to the name and brand rather than an empty city when it doesn't resolve", async () => {
     current = stubShelterPageClient({
       kind: "answer",
       shelter: makeShelterPageShelter({ publicLocation: { cityId: "unknown-city-id" as never } }),
     });
-    expect((await generateMetadata({ params, searchParams })).title).toBe("Лапа допомоги");
+    expect((await generateMetadata({ params, searchParams })).title).toEqual({
+      absolute: "Лапа допомоги – Opika",
+    });
   });
 
   it("canonical is always the bare shelter URL, with no ?sort=/?page=", async () => {
@@ -47,9 +50,9 @@ describe("the shelter page's metadata (PR B, the SEO review of page titles)", ()
     ).toBe(`/prytulky/${SHELTER_ID}`);
   });
 
-  it("openGraph carries no title of its own – Next fills it from the already-templated one", async () => {
+  it("openGraph carries the same title as the page", async () => {
     const metadata = await generateMetadata({ params, searchParams });
-    expect(metadata.openGraph).not.toHaveProperty("title");
+    expect(metadata.openGraph?.title).toBe("Лапа допомоги – тварини шукають дім, Бровари | Opika");
   });
 
   it("RATE_LIMITED is kept out of search results", async () => {
@@ -80,36 +83,24 @@ describe("the shelter page's metadata (PR B, the SEO review of page titles)", ()
       );
     });
 
-    it("is the shelter's own text, never padded, once real shelters exist", async () => {
+    it("is handoff B2's, from the species the shelter lists, once real shelters exist", async () => {
       vi.doMock("../../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: false }));
       const { generateMetadata: freshGenerateMetadata } = await import("./page");
       const description = (await freshGenerateMetadata({ params, searchParams })).description;
-      expect(description).toBe(DESCRIPTION);
-      expect(DESCRIPTION.length).toBeLessThan(120);
+      expect(description).toBe(
+        "Лапа допомоги, Бровари: собаки, які шукають дім. Контакти – на картці кожної тварини.",
+      );
     });
 
-    /**
-     * The test above uses the fixture's own short `DESCRIPTION` (under 120 characters),
-     * so it can prove "never padded" but can't prove the 160-character ceiling is real
-     * - found on review: removing the trim call entirely still left that test green.
-     * This one supplies a shelter description long enough to actually force the cut.
-     */
-    it("trims a long shelter description to 160 characters, at a word boundary", async () => {
+    it("names both species from the shelter's unfiltered counts, whatever the filter in the URL", async () => {
       vi.doMock("../../../seo-flags", () => ({ REGISTRY_HAS_NO_REAL_SHELTERS: false }));
-      const longDescription =
-        "Цей притулок опікується тваринами вже багато років і завжди радий новим друзям та " +
-        "волонтерам, які готові допомогти з доглядом, прогулянками, транспортуванням до ветлікаря " +
-        "та пошуком дому для кожного мешканця притулку.";
-      expect(longDescription.length).toBeGreaterThan(160);
-      current = stubShelterPageClient({
-        kind: "answer",
-        shelter: makeShelterPageShelter({ description: { uk: longDescription, en: null } }),
-      });
+      const catsOnly = Promise.resolve({ vyd: "cat" });
       const { generateMetadata: freshGenerateMetadata } = await import("./page");
-      const description = (await freshGenerateMetadata({ params, searchParams })).description;
-      expect(description?.length).toBeLessThanOrEqual(160);
-      expect(description?.length).toBeGreaterThan(120);
-      expect(longDescription.startsWith(description ?? "")).toBe(true);
+      const description = (await freshGenerateMetadata({ params, searchParams: catsOnly }))
+        .description;
+      expect(description).toBe(
+        "Лапа допомоги, Бровари: собаки й коти, які шукають дім. Контакти – на картці кожної тварини.",
+      );
     });
   });
 });

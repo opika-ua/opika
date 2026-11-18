@@ -3,7 +3,6 @@ import { placeName, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
 import { anonymousRouterClient } from "../../api/server-client";
-import { SITE_TITLE } from "../../brand";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
 import { ActiveFilterChips } from "../../features/gallery/ActiveFilterChips";
@@ -34,6 +33,7 @@ import { OutOfRangeNotice } from "../../features/gallery/OutOfRangeNotice";
 import { placeBookOf } from "../../features/gallery/place-book";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
 import { throwIfGalleryTestFailure } from "../../features/gallery/test-only-failure";
+import { GALLERY_SEO } from "../../seo/page-metadata";
 import { Container } from "../../ui/Container";
 import { cx } from "../../ui/cx";
 import { Heading } from "../../ui/Heading";
@@ -51,32 +51,11 @@ import { PerchedWords } from "../../ui/PerchedWords";
 export const dynamic = "force-dynamic";
 
 /**
- * PR B, the SEO review of page titles. Before this the route had no metadata of its
- * own at all, so it inherited the root layout's `title.default` - which Next never
- * runs through `title.template`, so it rendered brand-first ("Opika - тварини...")
- * rather than subject-first. Setting an explicit `title` here (the same subject,
- * `SITE_TITLE`) is what gets it templated, producing "Собаки й коти з притулків
- * України – Opika".
- *
- * No `description` and no `openGraph` here, deliberately - found on review:
- * Next doesn't merge a child's `openGraph` into a parent's, it replaces the whole
- * object, so this page's own `openGraph: { type, description }` was silently dropping
- * the root layout's `siteName`/`locale` from every link preview of the gallery. The
- * root's own `description` (D-2's `linkPreviewDescription` ternary - `uk.demo.
- * bannerNotice` while `REGISTRY_HAS_NO_REAL_SHELTERS`, `uk.firstRun.promise` once real
- * shelters exist) and its `openGraph` (now carrying `title: titled(SITE_TITLE)`,
- * `brand.ts`) already say exactly what this page would have said by hand - the owner's
- * review of this PR's draft cut the longer description once proposed here down to
- * exactly `uk.firstRun.promise` ("remove «гортайте по одній» - the deck is off"), which
- * is what made the two identical in the first place. Leaving both unset here means
- * there's one definition of the non-demo link-preview sentence, not two that can drift.
- *
- * The gallery's own filter/sort/page query variants canonicalise here too (owner,
- * PR B): no `generateMetadata`, so this one static object answers every `?...` combo
- * identically, which is exactly what a single shared canonical needs.
+ * Handoff B2's title and description, for the page and its previews alike. Every filter, sort and
+ * page variant shares this one static object and so one canonical (owner, PR B).
  */
 export const metadata: Metadata = {
-  title: SITE_TITLE,
+  ...GALLERY_SEO,
   alternates: { canonical: "/tvaryny" },
 };
 
