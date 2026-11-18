@@ -1,5 +1,5 @@
 import type { AgeEstimateInput, KabinetAnimalView } from "@opika/contracts";
-import { ANIMAL_DESCRIPTION_MAX_CHARACTERS, type ShelterGate } from "@opika/domain";
+import { ANIMAL_DESCRIPTION_MAX_CHARACTERS, type CityId, type ShelterGate } from "@opika/domain";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,7 +7,7 @@ import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
 import { typeDate } from "../../../ui/test-date-field";
 import { type CompressedPhoto, compressPhoto } from "../photos/compress-photo";
 import { confirmLeave } from "../shared/unsaved-changes";
-import { AnimalForm, type AnimalFormEditing } from "./AnimalForm";
+import { AnimalForm, type AnimalFormEditing, type AnimalFormLocation } from "./AnimalForm";
 import type { AnimalTab } from "./animal-tabs";
 import type { ShelterVisibility } from "./labels";
 
@@ -27,6 +27,7 @@ import type { ShelterVisibility } from "./labels";
 const NOW = new Date("2026-10-17T09:00:00.000Z");
 const ID = "a1000000-0000-4000-8000-000000000001" as KabinetAnimalView["id"];
 const PHOTO = { storageKey: "/photos/1.jpg", width: 1600, height: 2000, alt: null };
+const BROVARY = "c0000000-0000-4000-8000-0000000000b1" as CityId;
 const unknown = { source: "shelter_declared", state: "unknown", declaredAt: NOW } as const;
 
 const draft = (overrides: Partial<KabinetAnimalView> = {}): KabinetAnimalView =>
@@ -48,6 +49,7 @@ const draft = (overrides: Partial<KabinetAnimalView> = {}): KabinetAnimalView =>
     documentReadiness: { kind: "unknown" },
     listing: { kind: "draft" },
     publicLocation: null,
+    location: { kind: "shelter_city" },
     createdAt: NOW,
     lastUpdatedAt: NOW,
     version: 0,
@@ -125,6 +127,7 @@ function fakeClient(start: KabinetAnimalView | null): FakeClient {
         ...(patch.colour !== undefined ? { colour: patch.colour } : {}),
         ...(patch.medicalNotes !== undefined ? { medicalNotes: patch.medicalNotes } : {}),
         ...(patch.description !== undefined ? { description: patch.description } : {}),
+        ...(patch.location !== undefined ? { location: patch.location } : {}),
         ...(patch.age !== undefined ? { age: storedAgeOf(patch.age as AgeEstimateInput) } : {}),
         version: current.version + 1,
       } as KabinetAnimalView;
@@ -174,10 +177,26 @@ function fakeClient(start: KabinetAnimalView | null): FakeClient {
     } as KabinetAnimalView;
     return current;
   });
+  // «Де зараз тварина»'s place search: one settlement, as `shelter.cities.search` answers.
+  const search = vi.fn(async () => ({
+    kind: "results" as const,
+    places: [
+      {
+        id: BROVARY,
+        kind: "city",
+        slug: "brovary",
+        name: "Бровари",
+        district: "Броварський район",
+        hromada: null,
+        region: { id: "814661e1-67de-532e-a38e-2216d8b521ff", ukShort: "Київська обл." },
+      },
+    ],
+  }));
   const client = {
     shelter: {
       animals: { createDraft, update, transition, byId },
       photos: { add, reorder, remove },
+      cities: { search },
     },
   } as unknown as FakeClient;
   client.calls = { createDraft, update, transition, byId, add, reorder, remove };
@@ -205,6 +224,7 @@ function renderForm(
     /** False to keep the tabs as they are, with only the selected panel showing. */
     reveal?: boolean;
     publishGate?: ShelterGate;
+    location?: AnimalFormLocation;
   } = {},
 ) {
   const client = options.client ?? fakeClient(view);
@@ -220,6 +240,7 @@ function renderForm(
       compress={options.compress ?? okJpeg}
       {...(options.initialTab === undefined ? {} : { initialTab: options.initialTab })}
       {...(options.publishGate === undefined ? {} : { publishGate: options.publishGate })}
+      {...(options.location === undefined ? {} : { location: options.location })}
     />,
   );
   // Every panel stays mounted under the tabs. Most tests here are about one field or one save, not
@@ -2821,5 +2842,58 @@ describe("a shelter still in application (D2, D5)", () => {
       vi.advanceTimersByTime(20_000);
     });
     expect(client.calls.createDraft).toHaveBeenCalledTimes(asked);
+  });
+});
+
+describe("«Де зараз тварина» (owner, 2026-11-18)", () => {
+  const IN_KYIV: AnimalFormLocation = { shelterCityName: "Київ", ownCity: null };
+
+  it("«В іншому місті», a city picked, «Зберегти чернетку»: the save sends the location", async () => {
+    const client = renderForm(draft(), { location: IN_KYIV });
+    const user = userEvent.setup();
+    expect(
+      (screen.getByRole("radio", { name: "У місті притулку (Київ)" }) as HTMLInputElement).checked,
+    ).toBe(true);
+    await user.click(screen.getByRole("radio", { name: "В іншому місті" }));
+    await user.type(screen.getByRole("combobox", { name: /Населений пункт/ }), "Бров");
+    await user.click(await screen.findByRole("option", { name: /м\. Бровари/ }));
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await waitFor(() => expect(client.calls.update).toHaveBeenCalledTimes(1));
+    expect(client.calls.update.mock.calls[0]?.[0]).toEqual({
+      animalId: ID,
+      expectedVersion: 0,
+      patch: { location: { kind: "own_city", cityId: BROVARY } },
+    });
+  });
+
+  it("«В іншому місті» with no city picked is not saved, and says why", async () => {
+    const client = renderForm(draft(), { location: IN_KYIV });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("radio", { name: "В іншому місті" }));
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    expect(client.calls.update).not.toHaveBeenCalled();
+    expect(screen.getAllByText("Оберіть населений пункт зі списку").length).toBeGreaterThan(0);
+  });
+
+  it("a stored own city shows by name; back to the shelter's city sends shelter_city", async () => {
+    const client = renderForm(draft({ location: { kind: "own_city", cityId: BROVARY } }), {
+      location: { shelterCityName: "Київ", ownCity: { value: BROVARY, label: "м. Бровари" } },
+    });
+    const user = userEvent.setup();
+    expect(
+      (screen.getByRole("radio", { name: "В іншому місті" }) as HTMLInputElement).checked,
+    ).toBe(true);
+    expect(screen.getByDisplayValue("м. Бровари")).toBeTruthy();
+    await user.click(screen.getByRole("radio", { name: "У місті притулку (Київ)" }));
+    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await waitFor(() => expect(client.calls.update).toHaveBeenCalledTimes(1));
+    expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({
+      patch: { location: { kind: "shelter_city" } },
+    });
+  });
+
+  it("without the page's labels, no section is shown", () => {
+    renderForm(draft());
+    expect(screen.queryByRole("radiogroup", { name: "Де зараз тварина" })).toBeNull();
   });
 });

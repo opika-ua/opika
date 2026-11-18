@@ -19,6 +19,7 @@ const DENY = [
   "kabinet-upload-attempt-day",
   "kabinet-crop-attempt-hour",
   "kabinet-crop-attempt-day",
+  "kabinet-city-search-user",
   "kabinet-invite-ip",
   "kabinet-forgot-ip",
   "kabinet-forgot-address",

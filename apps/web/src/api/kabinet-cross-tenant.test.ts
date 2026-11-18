@@ -293,6 +293,7 @@ describe("cross-tenant: a smuggled shelterId is BAD_REQUEST, and B is untouched"
     ["shelter.verification.requestReview", () => smuggle({})],
     ["shelter.animals.list", () => smuggle({ filter: { kind: "all" }, cursor: null, limit: 50 })],
     ["shelter.history.list", () => smuggle({ cursor: null, limit: 50 })],
+    ["shelter.cities.search", () => smuggle({ query: "Бро", regionBias: null })],
     ["shelter.animals.createDraft", () => smuggle({ name: "Новий", species: "dog" })],
     [
       "shelter.logo.set",
@@ -442,8 +443,9 @@ describe("coverage", () => {
       "shelter.history.list",
       "shelter.logo.set",
       "shelter.logo.remove",
+      "shelter.cities.search",
     ];
-    expect(new Set(covered).size).toBe(24);
+    expect(new Set(covered).size).toBe(25);
     expect([...covered].sort()).toEqual(pathsOf(shelterKabinetContract.shelter, "shelter").sort());
   });
 });

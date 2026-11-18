@@ -67,6 +67,7 @@ describe("AnimalPage", () => {
           viewer: "support",
           editing: { kind: "read_only" },
           shelterVisibility: "visible",
+          location: null,
         }}
       />,
     );

@@ -44,6 +44,7 @@ import {
   verificationRequestReview,
 } from "./handlers/profile";
 import { profileUpdateIdentity } from "./handlers/profile-identity";
+import { shelterCitiesSearch } from "./handlers/registry-cities";
 
 const base = implement(shelterKabinetContract).$context<KabinetContext>();
 
@@ -124,6 +125,11 @@ export const shelterKabinetRouter = guarded.router({
     verification: {
       requestReview: guarded.shelter.verification.requestReview.handler(({ context, errors }) =>
         verificationRequestReview(context, writeScope(context.access), errors),
+      ),
+    },
+    cities: {
+      search: guarded.shelter.cities.search.handler(({ context, input, errors }) =>
+        shelterCitiesSearch(context, readScope(context.access), input, errors),
       ),
     },
     history: {

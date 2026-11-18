@@ -15,6 +15,7 @@ import { Panel } from "../../../../ui/Panel";
 import { Text } from "../../../../ui/Text";
 import { ContactFields, NO_CONTACT_ERRORS } from "../../profile-edit/ContactFields";
 import { OPERATOR_HOME } from "../../routes";
+import { useCityPicker } from "../../shared/city-picker";
 import { typedDateMessage } from "../../shared/kabinet-date";
 import { aboutTooLongMessage } from "../about-text";
 import { nameTooLongMessage } from "../display-name";
@@ -32,7 +33,7 @@ import {
 } from "./create-input";
 import { type CreateRefusal, createRefusalOf, refusalMessage } from "./create-outcome";
 import { type RegistryCreateClient, registryCreateBrowserClient } from "./registry-create-client";
-import { AddressFields, CityField, LegalFields, useCityPicker } from "./VerifiedDataFields";
+import { AddressFields, CityField, LegalFields } from "./VerifiedDataFields";
 
 /** Where S2 stands. A submission is one request; nothing retries it (RU-T9). */
 type Phase =

@@ -1119,17 +1119,30 @@ export const kabinetInvitationContract = {
  * the answer is capped (`PLACE_SEARCH_MAX_RESULTS`), and `regionBias` ranks an oblast first
  * without ever filtering.
  */
+const PlaceSearchInputSchema = z.strictObject({
+  query: z.string().max(PLACE_SEARCH_MAX_QUERY_LENGTH),
+  regionBias: RegionIdSchema.nullable(),
+});
+
 export const registryCitiesContract = {
   search: kabinet
     .$meta(registry)
-    .input(
-      z.strictObject({
-        query: z.string().max(PLACE_SEARCH_MAX_QUERY_LENGTH),
-        regionBias: RegionIdSchema.nullable(),
-      }),
-    )
+    .input(PlaceSearchInputSchema)
     .output(PlaceSearchResultSchema)
     .errors({ UNAUTHENTICATED: apiErrors.UNAUTHENTICATED, FORBIDDEN: apiErrors.FORBIDDEN }),
+};
+
+/**
+ * The same place search for a shelter's own kabinet (owner, 2026-11-18): «Де зараз тварина» picks
+ * a settlement with it. A read, so a support view may search too; a per-user limit of its own
+ * beside the kabinet's (`RATE_LIMITED`).
+ */
+export const shelterCitiesContract = {
+  search: kabinet
+    .$meta(shelterRead)
+    .input(PlaceSearchInputSchema)
+    .output(PlaceSearchResultSchema)
+    .errors({ ...shelterScopedErrors, RATE_LIMITED: apiErrors.RATE_LIMITED }),
 };
 
 // ─── registry.applications (self-registration, 2026-11-18) ──────────────────

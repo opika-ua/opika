@@ -1,5 +1,6 @@
 import type { Database } from "@opika/db";
 import type { LocationPrivacyPolicy } from "@opika/domain";
+import type { RateLimiter } from "../api/rate-limit";
 import type { ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import type { InvitationSender } from "./email-senders";
@@ -41,6 +42,11 @@ export type KabinetContext = {
   shelterWrites: ShelterWritePolicy;
   /** Where `shelter.photos.add` stores, or why it can't on this deployment (P-Q10). */
   photoUploads: PhotoUploads;
+  /**
+   * `shelter.cities.search`'s own per-person limit (`CITY_SEARCH_RATE_LIMITS`). The served route
+   * always sets it; an in-process page client, which never searches, leaves it out and is refused.
+   */
+  citySearchLimiter?: RateLimiter;
   /**
    * What the invitation link's «Створіть пароль» needs (PW-2): on for the served route, off
    * (`INVITE_PASSWORDS_OFF`) for in-process page clients, which never call it.

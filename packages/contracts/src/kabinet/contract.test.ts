@@ -110,6 +110,7 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "shelter.logo.set": WRITE,
   "shelter.logo.remove": WRITE,
   "shelter.history.list": READ,
+  "shelter.cities.search": READ,
   "registry.shelters.list": REGISTRY,
   "registry.shelters.byId": REGISTRY,
   "registry.shelters.create": REGISTRY,
@@ -615,7 +616,16 @@ describe("every shelter-facing output carries exactly its listed keys", () => {
         .map(([path]) => path)
         .filter((path) => path.startsWith("shelter."))
         .sort(),
-    ).toEqual(Object.keys(EXPECTED_OUTPUT_KEYS).sort());
+    ).toEqual([...Object.keys(EXPECTED_OUTPUT_KEYS), "shelter.cities.search"].sort());
+  });
+
+  it("shelter.cities.search answers exactly what registry.cities.search does (one search)", () => {
+    expect(internals("shelter.cities.search").outputSchema).toBe(
+      internals("registry.cities.search").outputSchema,
+    );
+    expect(internals("shelter.cities.search").inputSchema).toBe(
+      internals("registry.cities.search").inputSchema,
+    );
   });
 
   it.each(Object.keys(EXPECTED_OUTPUT_KEYS))("%s", (path) => {
