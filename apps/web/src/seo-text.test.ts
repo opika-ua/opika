@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { trimAtWordBoundary } from "./seo-text";
+import { fitTitle, trimAtWordBoundary, truncateDescription } from "./seo-text";
 
 describe("trimAtWordBoundary", () => {
   it("returns the text unchanged when it already fits", () => {
@@ -58,5 +58,53 @@ describe("trimAtWordBoundary", () => {
   it("returns an empty string for a non-positive limit, never a crash", () => {
     expect(trimAtWordBoundary("anything", 0)).toBe("");
     expect(trimAtWordBoundary("anything", -5)).toBe("");
+  });
+});
+
+describe("fitTitle (SEO handoff B2: 60 characters, drop the brand first)", () => {
+  const subject = (length: number) => "а".repeat(length);
+  it.each([
+    [40, true],
+    [52, true],
+    [53, false],
+    [70, false],
+  ])("a %i-character subject keeps the brand: %s", (length, keepsBrand) => {
+    const withSite = `${subject(length)} | Opika`;
+    expect(fitTitle(withSite, subject(length))).toBe(keepsBrand ? withSite : subject(length));
+  });
+
+  it("counts code points, not UTF-16 units", () => {
+    const withSite = `${"🐕".repeat(52)} | Opika`;
+    expect(Array.from(withSite).length).toBe(60);
+    expect(fitTitle(withSite, "🐕")).toBe(withSite);
+  });
+});
+
+describe("truncateDescription (SEO handoff B2: under 155 characters, «…»)", () => {
+  it("returns a text that fits unchanged, with no «…»", () => {
+    expect(truncateDescription("Коротко.")).toBe("Коротко.");
+    expect(truncateDescription("а".repeat(154))).toBe("а".repeat(154));
+  });
+
+  it("cuts a longer one at a word boundary, under 155 with its «…»", () => {
+    const text = `${"слово ".repeat(40)}кінець`;
+    const cut = truncateDescription(text);
+    expect(Array.from(cut).length).toBeLessThan(155);
+    expect(cut.endsWith("…")).toBe(true);
+    expect(text.startsWith(cut.slice(0, -1))).toBe(true);
+    expect(cut.slice(0, -1).endsWith("слово")).toBe(true);
+  });
+
+  it.each([
+    ["abc def ghi", 8, "abc def…"],
+    ["abc, def ghi", 8, "abc…"],
+    ["abc – def ghi", 9, "abc…"],
+    ["abcdefghij", 5, "abcd…"],
+  ])("%j at %i → %j", (text, max, expected) => {
+    expect(truncateDescription(text, max)).toBe(expected);
+  });
+
+  it("collapses whitespace before measuring", () => {
+    expect(truncateDescription("  a\n\nb  ")).toBe("a b");
   });
 });

@@ -69,6 +69,7 @@ export function makeShelterPageView(overrides: Partial<ShelterPageView> = {}): S
     cityName: "Бровари",
     cityPlace: "м. Бровари",
     animals: makeListOutput([makeCardView(1), makeCardView(2)]),
+    listedSpecies: ["dog"],
     cityNames: new Map([[CITY_ID as never, "Бровари"]]),
     query: { sort: "freshest", page: 1, filters: NO_FILTERS },
     filterUi: null,

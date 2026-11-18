@@ -14,8 +14,8 @@ export const WORDMARK_CYRILLIC = "Опіка";
 export const SITE_ORIGIN = "https://opika.org.ua";
 
 /**
- * The subject only. The root `title.default` uses it as-is (Next never templates a segment's own
- * default); `/tvaryny` sets it as an explicit `title`, which Next does template.
+ * The subject only, no brand: the root layout's default title (a route with no title of its own,
+ * all noindex) and, through `titled()`, the default link preview and the PWA name.
  */
 export const SITE_TITLE = "Собаки й коти з притулків України";
 

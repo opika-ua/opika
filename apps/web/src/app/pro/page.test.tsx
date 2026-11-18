@@ -18,6 +18,21 @@ describe("AboutPage", () => {
     expect(metadata.alternates?.canonical).toBe("/pro");
   });
 
+  it("sets the approved title and description (SEO handoff B2), the same in every preview", () => {
+    const title = "Про Opika – сайт, де тварини з притулків шукають дім";
+    const description =
+      "Opika робить одна людина, у вільний від роботи час: без реклами, без інвесторів, безкоштовно для притулків.";
+    expect(metadata.title).toEqual({ absolute: title });
+    expect(metadata.description).toBe(description);
+    expect(metadata.openGraph).toMatchObject({
+      title,
+      description,
+      siteName: "Opika",
+      locale: "uk_UA",
+    });
+    expect(metadata.twitter).toMatchObject({ card: "summary_large_image", title, description });
+  });
+
   it("credits the codifier in «Джерела даних», with both links named", () => {
     const { container } = render(renderAboutPage(false));
     const heading = screen.getByRole("heading", { level: 2, name: "Джерела даних" });

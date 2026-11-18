@@ -1,5 +1,7 @@
 import type { GalleryFacetCounts, GalleryRelaxation, PublicShelterView } from "@opika/contracts";
 import {
+  ANIMAL_SPECIES,
+  type AnimalSpecies,
   type CityId,
   FEED_FILTER_DIMENSIONS,
   isConstrained,
@@ -26,6 +28,8 @@ export interface ShelterPageView {
   cityPlace: string | null;
   /** One page of the shelter's discoverable animals, in the requested date sort. */
   animals: Awaited<ReturnType<ShelterPageClient["gallery"]["list"]>>;
+  /** The species the shelter lists, whatever the filters or page; empty when it lists none. */
+  listedSpecies: readonly AnimalSpecies[];
   /** Card city names (a fostered animal's city can differ from the shelter's). */
   cityNames: ReadonlyMap<CityId, string>;
   query: ShelterPageQuery;
@@ -127,6 +131,12 @@ export async function loadShelterPage(
         relaxations: relaxed?.relaxations ?? [],
       };
     }
+    // Without counts there are at most 12 animals and no filter, so page 1 holds them all.
+    const listedSpecies = ANIMAL_SPECIES.filter((species) =>
+      counted
+        ? counted[1].species[species] > 0
+        : animals.items.some((card) => card.species === species),
+    );
     const shelterCity =
       animals.cityLabels.find((city) => city.id === shelterCityId) ??
       cityRows?.find((city) => city.id === shelterCityId) ??
@@ -141,6 +151,7 @@ export async function loadShelterPage(
         cityName: shelterCity ? placeName(shelterCity) : null,
         cityPlace: shelterCity ? placeText(shelterCity, "address") : null,
         animals,
+        listedSpecies,
         cityNames,
         query,
         filterUi,

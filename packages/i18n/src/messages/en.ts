@@ -1941,4 +1941,45 @@ export const en = {
       },
     },
   },
+  /** Page titles and meta descriptions; see the Ukrainian catalogue. */
+  seo: {
+    titleWithSite: "{title} | {site}",
+    nouns: {
+      puppy: "puppy",
+      dog: "dog",
+      kitten: "kitten",
+      tomcat: "cat",
+      femaleCat: "cat",
+    },
+    speciesPhrase: {
+      lower: { dogs: "dogs", cats: "cats", dogsAndCats: "dogs and cats" },
+      capitalised: { dogs: "Dogs", cats: "Cats", dogsAndCats: "Dogs and cats" },
+    },
+    gallery: {
+      title: "Adopt a dog or a cat from a shelter – {site}",
+      description:
+        "Dogs and cats from shelters across Ukraine are looking for a home. Choose a city, age and size, and write to the shelter directly.",
+    },
+    animal: {
+      title: "{name} – a {noun} looking for a home, {city}",
+      description: "{name} is looking for a home. {city} · {shelter}. {story}",
+    },
+    shelter: {
+      title: "{shelter} – animals looking for a home, {city}",
+      description:
+        "{shelter}, {city}: {species} looking for a home. Contacts are on each animal's card.",
+    },
+    forShelters: {
+      title: "List your shelter's animals for free | {site}",
+      description:
+        "List the animals of your shelter or initiative on {site} for free, with no ads and no fees.",
+      descriptionSelfRegistration:
+        "List the animals of your shelter or initiative on {site} for free, with no ads and no fees. Signing up takes 3 minutes.",
+    },
+    about: {
+      title: "About {site} – a site where shelter animals look for a home",
+      description:
+        "{site} is made by one person in their spare time: no ads, no investors, free for shelters.",
+    },
+  },
 } as const;

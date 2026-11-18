@@ -353,13 +353,12 @@ describe("/prytulkam – description is its own opening sentence, never the demo
 });
 
 /**
- * Same reasoning as `/prytulkam` above, for `/pro` - its own `uk.about.intro`,
- * and the same caveat about what the `it.each` parameterisation does and
- * does not prove today.
+ * Same reasoning as `/prytulkam` above, for `/pro` - its own description (SEO handoff B2),
+ * and the same caveat about what the `it.each` parameterisation does and does not prove today.
  */
-describe("/pro – description is its own opening sentence, never the demo swap", () => {
+describe("/pro – description is its own, never the demo swap", () => {
   it.each([true, false])(
-    "uses uk.about.intro when REGISTRY_HAS_NO_REAL_SHELTERS=%s",
+    "uses handoff B2's description when REGISTRY_HAS_NO_REAL_SHELTERS=%s",
     async (registryHasNoRealShelters) => {
       vi.resetModules();
       vi.doMock("./seo-flags", () => ({
@@ -370,13 +369,37 @@ describe("/pro – description is its own opening sentence, never the demo swap"
 
       const { metadata } = await import("./app/pro/page");
 
-      const intro =
-        "Opika – сайт, де тварини з притулків України шукають дім. Його робить одна людина, у вільний від роботи час і незалежно: немає команди й інвестора. Це не державний і не міський сервіс.";
-      expect(metadata.description).toBe(intro);
-      expect(metadata.openGraph?.description).toBe(intro);
+      const description =
+        "Opika робить одна людина, у вільний від роботи час: без реклами, без інвесторів, безкоштовно для притулків.";
+      expect(metadata.description).toBe(description);
+      expect(metadata.openGraph?.description).toBe(description);
       expect(metadata.description).not.toBe(DEMO_BANNER_NOTICE);
     },
   );
+});
+
+/** `/tvaryny` (SEO handoff B2): its description claims shelters exist, so it keeps D-2's swap. */
+describe("/tvaryny – handoff B2's description, the demo disclosure while no real shelters exist", () => {
+  it.each([
+    [true, DEMO_BANNER_NOTICE],
+    [
+      false,
+      "Собаки й коти з притулків України шукають дім. Оберіть місто, вік і розмір та напишіть притулку напряму.",
+    ],
+  ])("REGISTRY_HAS_NO_REAL_SHELTERS=%s", async (registryHasNoRealShelters, description) => {
+    vi.resetModules();
+    vi.doMock("./seo-flags", () => ({
+      SITE_IS_PUBLICLY_DISCOVERABLE: false,
+      REGISTRY_HAS_NO_REAL_SHELTERS: registryHasNoRealShelters,
+      assertDemoDiscoverabilityInvariant: vi.fn(),
+    }));
+
+    const { metadata } = await import("./app/tvaryny/page");
+
+    expect(metadata.description).toBe(description);
+    expect(metadata.openGraph?.description).toBe(description);
+    expect(metadata.twitter?.description).toBe(description);
+  });
 });
 
 /**

@@ -1,9 +1,16 @@
-import type { FeedFilters, GallerySort } from "@opika/domain";
-import { uk } from "@opika/i18n";
+import type { PublicShelterView } from "@opika/contracts";
+import {
+  type FeedFilters,
+  type GallerySort,
+  type SpeciesPhrase,
+  speciesPhrase,
+} from "@opika/domain";
+import { fillTemplate, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { cache } from "react";
+import { titled } from "../../../brand";
 import { kabinetSessionCookiePresent } from "../../../features/chrome/kabinet-signed-in";
 import { RateLimitedScreen } from "../../../features/chrome/RateLimitedScreen";
 import type { SearchParams } from "../../../features/gallery/filter-url";
@@ -16,12 +23,9 @@ import {
 import { parseShelterPageQuery } from "../../../features/shelters/shelter-url";
 import { JsonLd } from "../../../seo/json-ld";
 import { shelterBreadcrumbs } from "../../../seo/json-ld-builders";
+import { seoMetadata, withSite } from "../../../seo/page-metadata";
 import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../../../seo-flags";
-import {
-  LINK_PREVIEW_DESCRIPTION,
-  META_DESCRIPTION_MAX_LENGTH,
-  trimAtWordBoundary,
-} from "../../../seo-text";
+import { fitTitle, LINK_PREVIEW_DESCRIPTION, truncateDescription } from "../../../seo-text";
 
 /** Live listing data, like `/tvaryny`: prerendering would bake in a stale snapshot. */
 export const dynamic = "force-dynamic";
@@ -84,25 +88,10 @@ function loadShelterPageOnce(shelterId: string, searchParams: SearchParams) {
 }
 
 /**
- * The title is `{shelterName}, {city}` (owner, PR B, the SEO review of page titles;
- * `cityName` omitted when it doesn't resolve). No `robots` of its own: the root
- * layout's, set by `SITE_IS_PUBLICLY_DISCOVERABLE`, applies here as everywhere (with
- * `next.config.ts`'s header), except that a rate-limited answer is never indexed as
- * this URL's page (RL-F1). The description is the D-2 demo disclosure while the
- * registry holds no real shelters, as on the animal page, and otherwise the shelter's
- * own text - trimmed at a word boundary to 160 characters, never padded past whatever
- * the shelter actually wrote (owner, verbatim: "if it's shorter than 120, leave it
- * short, never pad").
- *
- * `openGraph.title` is omitted, not duplicated: Next resolves a missing one from the
- * page's own already-templated `title` (`/prytulkam`'s and `/pro`'s own metadata
- * already use this), so "og:title matches the page's title" holds without hand-typing
- * the city and brand suffix here too.
- *
- * `alternates.canonical` is always the bare shelter URL, with no `?sort=`/`?stor=` or filter params (`?vyd=`, `?rozmir=`, ...) -
- * the same policy the gallery's own filter/sort/page variants use (owner, PR B), for
- * the same reason: at this corpus size, one shelter's few animals paginated or
- * re-sorted or filtered have no unique indexable value over the shelter's own unparameterised page.
+ * Handoff B2's title and description (from the species the shelter lists, its city nominative),
+ * for the page and its previews alike. Without a city or a listed animal the template cannot be
+ * filled, so the brand-suffixed name and the shelter's own text stand in. The canonical is the
+ * bare shelter URL whatever the sort, page or filters (owner, PR B).
  */
 export async function generateMetadata({
   params,
@@ -119,25 +108,20 @@ export async function generateMetadata({
 export function shelterMetadataOf(load: ShelterPageLoad): Metadata {
   if (load.kind === "rate_limited") return { robots: { index: false, follow: false } };
   if (load.kind !== "shelter") return {};
-  const { shelter, cityName } = load.view;
-  const title = [shelter.displayName, cityName].filter(Boolean).join(", ");
-  // No text: the root layout's default, for the page and the share preview alike (a Next page
-  // `openGraph` replaces the layout's, so the preview needs its own copy).
-  const about = shownAboutText(shelter.description);
-  const description = REGISTRY_HAS_NO_REAL_SHELTERS
-    ? uk.demo.bannerNotice
-    : about === null
-      ? LINK_PREVIEW_DESCRIPTION
-      : trimAtWordBoundary(about, META_DESCRIPTION_MAX_LENGTH);
+  const { shelter, cityName, listedSpecies } = load.view;
+  const { title, description } = shelterSeoText(
+    shelter.displayName,
+    cityName,
+    speciesPhrase(listedSpecies),
+    shelter.description,
+  );
   return {
-    title,
-    description,
+    ...seoMetadata(title, description),
     // `shelter.id`, not the raw route param - same reasoning as the animal page's own
     // canonical (found on review): a UUID's schema accepts any case, so a request that
     // happened to use uppercase would otherwise get a canonical that disagrees with the
     // lowercase form every other link on the site actually uses.
     alternates: { canonical: `/prytulky/${shelter.id}` },
-    openGraph: { type: "website", description },
     // A paused page is reachable by link only: after the discoverability flip it must not be indexed.
     // Paused, or still under review: reachable by link, never indexed (owner, 2026-11-04).
     ...((shelter.availability.kind === "paused" ||
@@ -145,4 +129,35 @@ export function shelterMetadataOf(load: ShelterPageLoad): Metadata {
       robots: { index: false, follow: SITE_IS_PUBLICLY_DISCOVERABLE },
     }),
   };
+}
+
+/** Exported for its table test: the strings `shelterMetadataOf` sets, before the metadata shape. */
+export function shelterSeoText(
+  shelterName: string,
+  cityName: string | null,
+  phrase: SpeciesPhrase,
+  about: PublicShelterView["description"],
+): { title: string; description: string } {
+  const subject =
+    cityName === null
+      ? null
+      : fillTemplate(uk.seo.shelter.title, { shelter: shelterName, city: cityName });
+  const title =
+    subject === null
+      ? titled(shelterName)
+      : fitTitle(withSite(uk.seo.titleWithSite, { title: subject }), subject);
+  if (REGISTRY_HAS_NO_REAL_SHELTERS) return { title, description: uk.demo.bannerNotice };
+  if (cityName === null || phrase.kind === "none") {
+    const own = shownAboutText(about);
+    return {
+      title,
+      description: own === null ? LINK_PREVIEW_DESCRIPTION : truncateDescription(own),
+    };
+  }
+  const description = fillTemplate(uk.seo.shelter.description, {
+    shelter: shelterName,
+    city: cityName,
+    species: uk.seo.speciesPhrase.lower[phrase.key],
+  });
+  return { title, description: truncateDescription(description) };
 }

@@ -89,3 +89,33 @@ describe("the shelter page's filters (loader)", () => {
     expect(await loadShelterPage(SHELTER_ID, QUERY, client)).toEqual({ kind: "not_found" });
   });
 });
+
+describe("the species a shelter lists (for its title and description)", () => {
+  it("reads them off the cards when the shelter is small, with no extra query", async () => {
+    const mixed = makeListOutput([
+      makeCardView(1, { species: "cat" }),
+      makeCardView(2, { species: "cat" }),
+    ]);
+    const { client, facetCounts } = stubShelterPageClient({ kind: "answer" }, mixed);
+    const load = await loadShelterPage(SHELTER_ID, QUERY, client);
+    expect(load.kind === "shelter" && load.view.listedSpecies).toEqual(["cat"]);
+    expect(facetCounts).not.toHaveBeenCalled();
+  });
+
+  it("reads them off the unfiltered counts when there are any, whatever the filter", async () => {
+    const { client, facetCounts } = stubShelterPageClient({ kind: "answer" }, listOf(2));
+    facetCounts.mockImplementation(async (input?: { filters: unknown }) =>
+      makeFacetCounts({
+        species: input?.filters === NO_FILTERS ? { dog: 1, cat: 1 } : { dog: 0, cat: 1 },
+      }),
+    );
+    const load = await loadShelterPage(SHELTER_ID, { ...QUERY, filters: CATS }, client);
+    expect(load.kind === "shelter" && load.view.listedSpecies).toEqual(["dog", "cat"]);
+  });
+
+  it("is empty for a shelter with nothing listed", async () => {
+    const { client } = stubShelterPageClient({ kind: "answer" }, listOf(0));
+    const load = await loadShelterPage(SHELTER_ID, QUERY, client);
+    expect(load.kind === "shelter" && load.view.listedSpecies).toEqual([]);
+  });
+});

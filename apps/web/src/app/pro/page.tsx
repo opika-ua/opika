@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { WORDMARK } from "../../brand";
 import { ContentPageLayout } from "../../features/chrome/ContentPageLayout";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
+import { ABOUT_SEO } from "../../seo/page-metadata";
 import { Heading } from "../../ui/Heading";
 import { Mascot, MascotPerch } from "../../ui/Mascot";
 import { Text } from "../../ui/Text";
@@ -19,34 +20,10 @@ const MONEY = fillTemplate(uk.about.money, { site: WORDMARK });
 const CODIFIER_DATASET_URL = "https://data.gov.ua/dataset/43c2a113-a032-4c8a-a409-3b5e1660bb38";
 const CODIFIER_LICENCE_URL = "http://www.opendefinition.org/licenses/cc-by";
 
-/**
- * Title only, plus an explicit `description`/`openGraph` override (Option B,
- * 2026-09-06, see `docs/observations.md`) - without one this page would
- * inherit the root layout's default, which swaps to the demo-data
- * disclosure while `REGISTRY_HAS_NO_REAL_SHELTERS`. That disclosure was
- * never meant to reach this page specifically. `uk.about.intro` is the
- * page's own existing, already-shipped opening sentence - used verbatim,
- * not trimmed, and not a new key. A full `openGraph` object, not just
- * `description` - Next replaces a parent's `openGraph` wholesale rather
- * than deep-merging it once a child sets any part of it (same gotcha
- * `/tvaryny/[animalId]/page.tsx` already has its own note on). No `title`
- * inside `openGraph`, deliberately: unlike the nested object as a whole,
- * Next resolves a missing `openGraph.title` from the page's own
- * already-templated `title` («Про проєкт - Opika»); setting it explicitly
- * here would instead freeze it at the untemplated subject, dropping the
- * brand name from the link-preview headline (PR #53 review, caught by
- * rebuilding and diffing the served `og:title`, not by inspection).
- */
+/** Handoff B2's title and description, for the page and its previews alike (not the demo default). */
 export const metadata: Metadata = {
-  title: uk.about.title,
-  description: INTRO,
+  ...ABOUT_SEO,
   alternates: { canonical: "/pro" },
-  openGraph: {
-    type: "website",
-    siteName: WORDMARK,
-    locale: "uk_UA",
-    description: INTRO,
-  },
 };
 
 /**
