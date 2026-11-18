@@ -1,20 +1,6 @@
 /**
- * `shelters:delete-test` (owner, 2026-11-18): removes ONE pre-launch rehearsal shelter, so its
- * registrant's address can register again. It goes through the application deletion service's
- * own batch (`applicationDeletionRepo.deleteRehearsal`): the shelter and its rows, the registrant's
- * user, sessions, accounts, verification rows, email tokens, membership and organization, in one
- * transaction that re-checks every guard under the rows' locks. A support session keeps its row,
- * shelter nulled (0029). R2 photos are left to the photo clean-up job.
- *
- * The audit line is written with the reason `not_me` (owner: no migration for a reason of its
- * own), so after a deletion the command prints the line to add to
- * `docs/prelaunch/rehearsal-log.md` (owner: never written here, since production runs from a
- * sitting worktree): these rows are rehearsals, never real «Це не я» events.
- *
- * Usage (from the repo root; `PROD_NEON_ENDPOINT` from the shell or the root `.env.local`):
- *   pnpm --filter @opika/db shelters:delete-test --shelter-id <uuid> --expect-name "<name>"
- *   … --prod --expect ep-…                     dry run on production
- *   … --prod --expect ep-… --commit            deletes
+ * `shelters:delete-test` (owner, 2026-11-18): removes one pre-launch rehearsal shelter and its
+ * registrant through the application deletion batch; a dry run unless `--commit`.
  */
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -108,11 +94,35 @@ export function targetRefusalOf(
   return check.kind === "refused" ? refusalMessage(check) : null;
 }
 
+const MEMBERSHIP_TEXT: Record<RehearsalCandidate["registrantMembership"], string> = {
+  this_shelter: "this shelter's organization only",
+  elsewhere_or_none: "not this shelter's organization (another shelter's, or none)",
+  no_registrant: "(no registrant)",
+};
+
+/**
+ * What a failure prints: the error's class and its SQLSTATE or constraint, never the message, which
+ * for a failed query carries its parameters (a sign-in link's email among them).
+ */
+export function failureLines(error: unknown): string[] {
+  type Pg = { code?: unknown; constraint?: unknown; constraint_name?: unknown; cause?: unknown };
+  const name = error instanceof Error ? error.name : "unknown";
+  const outer = (typeof error === "object" && error !== null ? error : {}) as Pg;
+  const pg = (typeof outer.cause === "object" && outer.cause !== null ? outer.cause : outer) as Pg;
+  const code = typeof pg.code === "string" ? pg.code : "none";
+  const constraint = pg.constraint_name ?? pg.constraint;
+  return [
+    `ERROR: ${name} (SQLSTATE ${code}${typeof constraint === "string" ? `, constraint ${constraint}` : ""}).`,
+    "Nothing was deleted (one transaction).",
+  ];
+}
+
 export type RehearsalRefusal =
   | "not_found"
   | "name_mismatch"
   | "operator_created"
   | "status"
+  | "registrant_elsewhere"
   | "animal_ever_served"
   | "animal_listed";
 
@@ -121,6 +131,8 @@ const REFUSAL_TEXT: Record<RehearsalRefusal, string> = {
   name_mismatch: "its display name is not --expect-name exactly",
   operator_created: "it was created by the operator, not self-registered",
   status: `its status is not one of ${REHEARSAL_STATUSES.join(", ")}`,
+  registrant_elsewhere:
+    "its registrant is not a member of this shelter's organization (they may belong to another shelter now)",
   animal_ever_served: "one of its animals has been shown publicly (ever_served_at is set)",
   animal_listed: `one of its animals is ${REHEARSAL_LISTED_KINDS.join("/")} now`,
 };
@@ -134,6 +146,7 @@ export function rehearsalRefusalOf(
   if (candidate.displayName !== expectedName) return "name_mismatch";
   if (candidate.source !== "self_registration") return "operator_created";
   if (!(REHEARSAL_STATUSES as readonly string[]).includes(candidate.status)) return "status";
+  if (candidate.registrantMembership === "elsewhere_or_none") return "registrant_elsewhere";
   if (candidate.everServed > 0) return "animal_ever_served";
   if (candidate.listedNow > 0) return "animal_listed";
   return null;
@@ -165,6 +178,7 @@ export async function runDeleteTestShelter(
       `Status: ${candidate.status}`,
       `Registration source: ${candidate.source}`,
       `Registrant email domain: ${candidate.registrantEmailDomain ?? "(no registrant)"}`,
+      `Registrant membership: ${MEMBERSHIP_TEXT[candidate.registrantMembership]}`,
       `Animals: ${candidate.animals} (${candidate.drafts} drafts, ${candidate.everServed} ever shown, ${candidate.listedNow} listed now)`,
     );
   }
@@ -202,8 +216,8 @@ export function rehearsalLogLine(now: Date, deletionId: string, shelterId: strin
 const out = (line: string): void => {
   process.stdout.write(`${line}\n`);
 };
-const err = (line: unknown): void => {
-  process.stderr.write(`${line instanceof Error ? (line.stack ?? line.message) : String(line)}\n`);
+const err = (line: string): void => {
+  process.stderr.write(`${line}\n`);
 };
 
 async function main(): Promise<void> {
@@ -237,8 +251,7 @@ async function main(): Promise<void> {
     for (const line of report.lines) out(line);
     if (report.outcome === "refused") exitCode = 1;
   } catch (error) {
-    err(error);
-    err("Nothing was deleted (one transaction).");
+    for (const line of failureLines(error)) err(line);
     exitCode = 1;
   } finally {
     await client.end();

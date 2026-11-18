@@ -3,16 +3,18 @@ import type { ShelterAdminId, ShelterId } from "@opika/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  failureLines,
   parseDeleteTestArgs,
   REHEARSAL_LOG_BEGIN,
   REHEARSAL_LOG_END,
-  rehearsalLogLine,
   runDeleteTestShelter,
   targetRefusalOf,
 } from "../src/delete-test-shelter";
+import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
 import { applicationDeletionRepo } from "../src/repos/application-deletion-repo";
 import { cityRepo } from "../src/repos/city-repo";
+import { revealRepo } from "../src/repos/reveal-repo";
 import {
   type SelfRegistrationWrite,
   selfRegistrationRepo,
@@ -33,9 +35,11 @@ import { registrationEmailTokens } from "../src/schema/registration-email-tokens
 import { shelterHistory } from "../src/schema/shelter-history";
 import { shelters } from "../src/schema/shelters";
 import {
+  makeAdopter,
   makeAnimal,
   makeCity,
   makeDraftAnimal,
+  makeReveal,
   makeShelter,
   setupTestDatabase,
   truncateAll,
@@ -134,6 +138,39 @@ async function rehearsal(): Promise<{ shelterId: ShelterId; userId: string }> {
   return { shelterId: write.shelter.id, userId: write.userId };
 }
 
+/** The probe's scenario: the registrant left this organization and joined another shelter's. */
+async function joinedElsewhere(userId: string): Promise<string> {
+  await db.delete(authMember).where(eq(authMember.userId, userId));
+  const otherOrg = randomUUID();
+  await db
+    .insert(authOrganization)
+    .values({ id: otherOrg, name: "Інший притулок", slug: `other-${otherOrg}`, createdAt: NOW });
+  await db
+    .insert(authMember)
+    .values({ id: randomUUID(), organizationId: otherOrg, userId, role: "owner", createdAt: NOW });
+  return otherOrg;
+}
+
+const operatorCreated = async () => {
+  const shelter = makeShelter({
+    displayName: NAME,
+    publicLocation: { ...makeShelter().publicLocation, cityId } as never,
+    verification: {
+      status: "pending",
+      submittedAt: NOW,
+      evidence: { items: [], submittedAt: NOW },
+    },
+  });
+  await shelterRepo(db).insert(shelter);
+  return shelter.id;
+};
+
+const publishedNow = async (shelterId: ShelterId) => {
+  const published = makeAnimal({ shelterId });
+  await animalRepo(db).insert(published, cityId as never);
+  await db.update(animals).set({ everServedAt: null }).where(eq(animals.id, published.id));
+};
+
 const draftOf = async (shelterId: ShelterId) => {
   const draft = makeDraftAnimal({ shelterId, everServedAt: null });
   await animalRepo(db).insert(draft, cityId as never);
@@ -172,6 +209,7 @@ describe("shelters:delete-test, dry run", () => {
     expect(text).toContain("Status: pending");
     expect(text).toContain("Registration source: self_registration");
     expect(text).toContain("Registrant email domain: example.org");
+    expect(text).toContain("Registrant membership: this shelter's organization only");
     expect(text).toContain("Animals: 1 (1 drafts, 0 ever shown, 0 listed now)");
     expect(text).not.toContain(EMAIL);
     expect(pasteBlockIn(report.lines)).toBe(false);
@@ -235,9 +273,18 @@ describe("shelters:delete-test refuses, writing nothing", () => {
   it("an unknown id", async () => {
     await refuses(randomUUID() as ShelterId, /no shelter has this id/);
   });
+
+  it("a registrant who now belongs to another shelter (their membership there untouched)", async () => {
+    const { shelterId, userId } = await rehearsal();
+    const otherOrg = await joinedElsewhere(userId);
+    await refuses(shelterId, /registrant is not a member of this shelter's organization/);
+    expect(
+      (await db.select().from(authMember).where(eq(authMember.organizationId, otherOrg))).length,
+    ).toBe(1);
+  });
 });
 
-describe("the batch re-checks every guard under its locks (no command read before it)", () => {
+describe("the batch re-checks every guard itself (no command read before it)", () => {
   const refusedByBatch = async (shelterId: ShelterId, expectedName = NAME) => {
     const before = await snapshot();
     expect(await applicationDeletionRepo(db).deleteRehearsal(shelterId, expectedName, NOW)).toEqual(
@@ -266,6 +313,61 @@ describe("the batch re-checks every guard under its locks (no command read befor
     const id = await draftOf(shelterId);
     await db.update(animals).set({ everServedAt: NOW }).where(eq(animals.id, id));
     await refusedByBatch(shelterId);
+  });
+
+  it("an operator-created shelter (registration_source)", async () => {
+    await refusedByBatch(await operatorCreated());
+  });
+
+  it("an animal published now, never served", async () => {
+    const { shelterId } = await rehearsal();
+    await publishedNow(shelterId);
+    await refusedByBatch(shelterId);
+  });
+
+  it("a registrant who now belongs to another shelter: their membership there stays", async () => {
+    const { shelterId, userId } = await rehearsal();
+    const otherOrg = await joinedElsewhere(userId);
+    await refusedByBatch(shelterId);
+    expect(
+      (await db.select().from(authMember).where(eq(authMember.organizationId, otherOrg))).length,
+    ).toBe(1);
+  });
+});
+
+describe("a failing batch", () => {
+  it("prints the error's class and SQLSTATE, never the query's parameters (no address)", async () => {
+    const { shelterId } = await rehearsal();
+    const animalId = await draftOf(shelterId);
+    // A reveal's key doesn't cascade: the batch's animal delete fails and rolls everything back.
+    const adopter = makeAdopter();
+    await adopterRepo(db).insert(adopter);
+    await revealRepo(db).insert(makeReveal({ adopterId: adopter.id, animalId, shelterId }));
+    const before = await snapshot();
+    let caught: unknown;
+    try {
+      await run(shelterId, true);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeDefined();
+    const printed = failureLines(caught).join("\n");
+    expect(printed).not.toContain("@");
+    expect(printed).toMatch(/SQLSTATE 23503/);
+    expect(await snapshot()).toEqual(before);
+  });
+
+  it("a failed query naming an address in its parameters prints neither", () => {
+    const failed = Object.assign(
+      new Error(
+        'Failed query: delete from "auth_verification" where ... params: oleksii+t1@example.org',
+      ),
+      { name: "DrizzleQueryError", cause: { code: "40001", constraint_name: undefined } },
+    );
+    expect(failureLines(failed)).toEqual([
+      "ERROR: DrizzleQueryError (SQLSTATE 40001).",
+      "Nothing was deleted (one transaction).",
+    ]);
   });
 });
 
@@ -330,8 +432,6 @@ describe("shelters:delete-test --commit", () => {
       REHEARSAL_LOG_END,
     ]);
     expect(report.lines.join("\n")).not.toContain(EMAIL);
-    expect(REHEARSAL_LOG_BEGIN).toBe("---- paste into docs/prelaunch/rehearsal-log.md ----");
-    expect(rehearsalLogLine(NOW, "d", "s")).not.toContain(NAME);
   });
 });
 

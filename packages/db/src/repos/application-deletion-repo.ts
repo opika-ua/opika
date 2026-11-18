@@ -101,6 +101,8 @@ export type RehearsalCandidate = {
   source: string;
   /** The registrant's email domain only, never the address. */
   registrantEmailDomain: string | null;
+  /** Where the registrant is a member: this shelter's organization, somewhere else, or nowhere. */
+  registrantMembership: "this_shelter" | "elsewhere_or_none" | "no_registrant";
   animals: number;
   drafts: number;
   everServed: number;
@@ -108,14 +110,17 @@ export type RehearsalCandidate = {
 };
 
 /**
- * `shelters:delete-test`'s guards as SQL over the shelter (and its registrant), re-checked under
- * the deletion's locks: the exact name, self-registered, never verified/paused/suspended, and no
- * animal ever served or public/adopted now.
+ * `shelters:delete-test`'s guards as SQL, re-checked in the batch: the exact name, self-registered,
+ * never verified/paused/suspended, the registrant a member of this shelter's organization only
+ * (`auth_member_user_id_unique`), and no animal ever served or public/adopted now. The shelter and
+ * registrant rows are locked; the animals aren't, so a draft published at that instant could still
+ * go (it was never served, so nothing public is lost).
  */
 function rehearsalGuard(expectedName: string): SQL {
   return sql`${shelters.displayName} = ${expectedName}
     AND ${shelters.registrationSource} = 'self_registration'
     AND ${inArray(shelters.verificationStatus, [...REHEARSAL_STATUSES])}
+    AND (${shelters.registrantUserId} IS NULL OR EXISTS (SELECT 1 FROM ${authMember} WHERE ${authMember.userId} = ${shelters.registrantUserId} AND ${authMember.organizationId} = ${shelters.organizationId}))
     AND NOT EXISTS (SELECT 1 FROM ${animals} WHERE ${animals.shelterId} = ${shelters.id}
       AND (${animals.everServedAt} IS NOT NULL OR ${inArray(animals.listingKind, [...REHEARSAL_LISTED_KINDS])}))`;
 }
@@ -150,18 +155,16 @@ export function applicationDeletionRepo(db: Database) {
 
     /**
      * A pre-launch rehearsal shelter, removed by `shelters:delete-test` (owner, 2026-11-18) through
-     * this same batch, guarded by `rehearsalGuard` under the same locks. Recorded as `not_me`
-     * (no migration for a reason of its own); the command logs it as a rehearsal.
+     * this same batch, guarded by `rehearsalGuard`. Recorded as `not_me` (no migration for a
+     * reason of its own); the command prints it as a rehearsal.
      */
     async deleteRehearsal(
       shelterId: ShelterId,
       expectedName: string,
       now: Date,
-    ): Promise<{ kind: "deleted"; deletionId: string; photoKeys: number } | { kind: "refused" }> {
+    ): Promise<{ kind: "deleted"; deletionId: string } | { kind: "refused" }> {
       const done = await deleteWhere(shelterId, "not_me", rehearsalGuard(expectedName), now);
-      return done === null
-        ? { kind: "refused" }
-        : { kind: "deleted", deletionId: done.deletionId, photoKeys: done.outcome.photoKeys };
+      return done === null ? { kind: "refused" } : { kind: "deleted", deletionId: done.deletionId };
     },
 
     /** What `shelters:delete-test` prints and checks before it asks for the deletion. */
@@ -173,9 +176,13 @@ export function applicationDeletionRepo(db: Database) {
           status: shelters.verificationStatus,
           source: shelters.registrationSource,
           email: authUser.email,
+          registrantUserId: shelters.registrantUserId,
+          organizationId: shelters.organizationId,
+          memberOf: authMember.organizationId,
         })
         .from(shelters)
         .leftJoin(authUser, eq(authUser.id, shelters.registrantUserId))
+        .leftJoin(authMember, eq(authMember.userId, shelters.registrantUserId))
         .where(eq(shelters.id, shelterId))
         .limit(1);
       if (row === undefined) return null;
@@ -189,6 +196,12 @@ export function applicationDeletionRepo(db: Database) {
         status: row.status,
         source: row.source,
         registrantEmailDomain: row.email === null ? null : (row.email.split("@").at(-1) ?? null),
+        registrantMembership:
+          row.registrantUserId === null
+            ? "no_registrant"
+            : row.memberOf !== null && row.memberOf === row.organizationId
+              ? "this_shelter"
+              : "elsewhere_or_none",
         animals: own.length,
         drafts: own.filter((a) => a.listingKind === "draft").length,
         everServed: own.filter((a) => a.everServedAt !== null).length,
