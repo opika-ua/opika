@@ -33,6 +33,7 @@ import { OutOfRangeNotice } from "../../features/gallery/OutOfRangeNotice";
 import { placeBookOf } from "../../features/gallery/place-book";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
 import { throwIfGalleryTestFailure } from "../../features/gallery/test-only-failure";
+import { HomeJsonLd } from "../../seo/home-json-ld";
 import { GALLERY_SEO } from "../../seo/page-metadata";
 import { Container } from "../../ui/Container";
 import { cx } from "../../ui/cx";
@@ -495,5 +496,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
     kabinetSessionCookiePresent(),
   ]);
   throwIfGalleryTestFailure(process.env, rawSearchParams);
-  return renderGallery(anonymousRouterClient(), rawSearchParams, kabinetSignedIn);
+  return (
+    <>
+      <HomeJsonLd />
+      {await renderGallery(anonymousRouterClient(), rawSearchParams, kabinetSignedIn)}
+    </>
+  );
 }

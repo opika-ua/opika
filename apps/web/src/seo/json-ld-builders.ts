@@ -1,4 +1,5 @@
-import { SITE_ORIGIN, WORDMARK } from "../brand";
+import { SITE_ORIGIN, WORDMARK, WORDMARK_CYRILLIC } from "../brand";
+import { LOGO_ICON } from "../pwa";
 
 export type JsonLdObject = Readonly<Record<string, unknown>>;
 
@@ -9,12 +10,28 @@ export function absoluteUrl(path: string): string {
   return new URL(path, SITE_ORIGIN).toString();
 }
 
+/** Only profiles the owner has supplied the exact URL for (2026-11-18); never a guessed one. */
+export const ORGANIZATION_SAME_AS = ["https://www.instagram.com/opika.ua/"] as const;
+
+/** Google reads the site name from this on the home page (`/` redirects to `/tvaryny`). */
+export function webSiteJsonLd(): JsonLdObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: WORDMARK,
+    alternateName: [WORDMARK_CYRILLIC, new URL(SITE_ORIGIN).host],
+    url: absoluteUrl("/"),
+  };
+}
+
 export function organizationJsonLd(): JsonLdObject {
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: WORDMARK,
     url: absoluteUrl("/"),
+    logo: absoluteUrl(LOGO_ICON.src),
+    sameAs: [...ORGANIZATION_SAME_AS],
   };
 }
 

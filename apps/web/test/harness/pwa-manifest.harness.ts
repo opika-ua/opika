@@ -1,6 +1,7 @@
 /**
- * The manifest and its icons against a real server, without credentials, as a browser fetches them. Own forwarded IP so
- * no other spec's per-IP budget is spent.
+ * The manifest, its icons, the favicons and the home page's structured data against a real
+ * server, without credentials, as a browser fetches them. Own forwarded IP so no other spec's
+ * per-IP budget is spent.
  */
 import { expect, test } from "@playwright/test";
 
@@ -35,5 +36,41 @@ test.describe("web app manifest, against a real server", () => {
       1,
     );
     await expect(page.locator('link[rel="manifest"]')).toHaveCount(1);
+  });
+
+  test("serves /favicon.ico and declares it with the 48 and 192px PNG favicons", async ({
+    page,
+    request,
+  }) => {
+    const ico = await request.get("/favicon.ico", { maxRedirects: 0 });
+    expect(ico.status()).toBe(200);
+    expect(ico.headers()["content-type"]).toMatch(/^image\/(x-icon|vnd\.microsoft\.icon)/);
+
+    await page.goto("/tvaryny");
+    await expect(page.locator('link[rel="icon"][href*="/favicon.ico"]')).toHaveCount(1);
+    for (const [file, sizes] of [
+      ["/icon1.png", "48x48"],
+      ["/icon2.png", "192x192"],
+    ] as const) {
+      const link = page.locator(`link[rel="icon"][href*="${file}"]`);
+      await expect(link).toHaveAttribute("sizes", sizes);
+      await expect(link).toHaveAttribute("type", "image/png");
+      const png = await request.get((await link.getAttribute("href")) ?? file, {
+        maxRedirects: 0,
+      });
+      expect(png.status(), file).toBe(200);
+      expect(png.headers()["content-type"], file).toBe("image/png");
+    }
+  });
+
+  test("structured data: WebSite and Organization on the home page only", async ({ page }) => {
+    const emittedTypes = async () =>
+      (await page.locator('script[type="application/ld+json"]').allTextContents()).map(
+        (text) => JSON.parse(text)["@type"],
+      );
+    await page.goto("/tvaryny");
+    expect(await emittedTypes()).toEqual(["WebSite", "Organization"]);
+    await page.goto("/pro");
+    expect(await emittedTypes()).toEqual([]);
   });
 });
