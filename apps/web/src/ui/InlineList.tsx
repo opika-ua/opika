@@ -23,7 +23,6 @@ export function InlineList({
       <div className={cx("inline-list-row", itemWrap === "never" && "inline-list-nowrap")}>
         {items.map((item, index) => (
           // A static row in a fixed order: the position is the identity.
-          // biome-ignore lint/suspicious/noArrayIndexKey: the items never reorder
           <span key={index}>{item}</span>
         ))}
       </div>
