@@ -264,7 +264,9 @@ describe("the confirmation links", () => {
     expect(await repo.recordNotMeAfterApproval("notme-a", crypto.randomUUID(), LATER)).toBe(true);
     expect(await repo.recordNotMeAfterApproval("notme-a", crypto.randomUUID(), LATER)).toBe(false);
     // The confirmation link is not a «Це не я» link.
-    expect(await repo.recordNotMeAfterApproval("confirm-a", crypto.randomUUID(), LATER)).toBe(false);
+    expect(await repo.recordNotMeAfterApproval("confirm-a", crypto.randomUUID(), LATER)).toBe(
+      false,
+    );
     const lines = (await db.select().from(shelterHistory)).filter(
       (row) => row.kind === "not_me_after_approval",
     );
