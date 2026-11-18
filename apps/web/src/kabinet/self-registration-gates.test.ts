@@ -33,6 +33,7 @@ import { capturingInvitationSender } from "./email-senders";
 import { recordFunnelStep } from "./handlers/shelter-stage";
 import { capturingPasswordMail } from "./password-mail";
 import { handleKabinetRpc } from "./rpc-route";
+import { roomyCitySearch } from "./test-city-search";
 import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
 /**
@@ -160,6 +161,7 @@ async function call<T = Record<string, unknown>>(
     locationPolicy: null,
     production: false,
     shelterWrites: SHELTER_WRITE_POLICY,
+    citySearch: roomyCitySearch(),
   });
   const text = await response.text();
   return { status: response.status, body: (text ? fromRpcBody(JSON.parse(text)) : null) as T };
