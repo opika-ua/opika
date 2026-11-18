@@ -76,6 +76,8 @@ describe("gallery.facetCounts", () => {
             regionShort: "Київська обл.",
             raion: null,
           },
+          // A verified shelter's animal: the city's landing page exists, whatever the filters.
+          hasPage: true,
         },
       ],
       regions: [{ regionId: city.regionId, count: 1 }],

@@ -2,7 +2,7 @@ import { contract } from "@opika/contracts";
 import { implement } from "@orpc/server";
 import type { AppContext } from "./context";
 import { animalsById, animalsCardsByIds, animalsNeighbours } from "./handlers/animals";
-import { citiesByIds, citiesResolveTokens } from "./handlers/cities";
+import { citiesByIds, citiesResolveTokens, citiesWithPages } from "./handlers/cities";
 import { galleryFacetCounts, galleryList, galleryRelaxationCounts } from "./handlers/gallery";
 import { regionsList } from "./handlers/regions";
 import { animalsReveal } from "./handlers/reveal";
@@ -29,6 +29,9 @@ export const router = impl.router({
     byIds: impl.cities.byIds.handler(({ input, context }) => citiesByIds(input, context)),
     resolveTokens: impl.cities.resolveTokens.handler(({ input, context }) =>
       citiesResolveTokens(input, context),
+    ),
+    withPages: impl.cities.withPages.handler(({ input, context }) =>
+      citiesWithPages(input, context),
     ),
   },
   regions: {

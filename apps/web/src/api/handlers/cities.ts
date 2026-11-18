@@ -2,9 +2,11 @@ import type {
   CitiesByIdsInputSchema,
   CitiesResolveTokensInputSchema,
   CitiesResolveTokensOutputSchema,
+  CitiesWithPagesInputSchema,
+  CitiesWithPagesOutputSchema,
   CityLabelView,
 } from "@opika/contracts";
-import { cityRepo } from "@opika/db/repos";
+import { cityRepo, galleryRepo } from "@opika/db/repos";
 import type { z } from "zod";
 import type { AppContext } from "../context";
 import { cityLabelOf } from "./city-labels";
@@ -27,4 +29,15 @@ export async function citiesResolveTokens(
     city: city ? cityLabelOf(city) : null,
     via,
   }));
+}
+
+export async function citiesWithPages(
+  input: z.infer<typeof CitiesWithPagesInputSchema>,
+  context: AppContext,
+): Promise<z.infer<typeof CitiesWithPagesOutputSchema>> {
+  const rows = await galleryRepo(context.db).cityPages({
+    now: context.now,
+    ...(input.ids ? { cityIds: input.ids } : {}),
+  });
+  return rows.map(({ cityId, species }) => ({ cityId, species }));
 }

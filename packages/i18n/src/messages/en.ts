@@ -1956,6 +1956,11 @@ export const en = {
       },
     },
   },
+  cityPage: {
+    heading: "Looking for a home: {city}",
+    intro:
+      "Animals from shelters and volunteers in {city}. Choose an animal and write directly – the contacts are on every card.",
+  },
   /** Page titles and meta descriptions; see the Ukrainian catalogue. */
   seo: {
     titleWithSite: "{title} | {site}",
@@ -1992,6 +1997,11 @@ export const en = {
         "List the animals of your shelter or initiative on {site} for free, with no ads and no fees.",
       descriptionSelfRegistration:
         "List the animals of your shelter or initiative on {site} for free, with no ads and no fees. Signing up takes 3 minutes.",
+    },
+    city: {
+      title: "{species} for adoption – {city}",
+      description:
+        "{species} from shelters and volunteers looking for a home – {city}. Write directly, the contacts are on the card.",
     },
     about: {
       title: "About {site} – a site where shelter animals look for a home",

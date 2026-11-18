@@ -144,3 +144,26 @@ describe("the labels that ride with a response", () => {
     expect(body.cityLabels.map((l) => l.id)).toEqual([brovary.id]);
   });
 });
+
+describe("cities.withPages (SEO B3)", () => {
+  it("answers the cities with an indexable animal and their species, nothing else, narrowed by ids", async () => {
+    const { brovary, irpin } = await seedPlaces();
+    const empty = makeCity({ slug: "bucha-kyivska" as never });
+    await cityRepo(h.db).insert(empty);
+
+    const all = await h.call("cities.withPages", {});
+    expect(all.status).toBe(200);
+    expect(all.body).toEqual(
+      expect.arrayContaining([
+        { cityId: brovary.id, species: ["dog"] },
+        { cityId: irpin.id, species: ["dog"] },
+      ]),
+    );
+    expect(all.body).toHaveLength(2);
+    // The repo's slug and date stay server-side: only the contract's fields are served.
+    expect(all.raw).not.toContain("brovary-kyivska");
+
+    const narrowed = await h.call("cities.withPages", { ids: [irpin.id, empty.id] });
+    expect(narrowed.body).toEqual([{ cityId: irpin.id, species: ["dog"] }]);
+  });
+});

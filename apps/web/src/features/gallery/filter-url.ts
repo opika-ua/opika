@@ -157,7 +157,40 @@ export const NO_PLACE_IDS: PlaceIdsBySlug = { cities: new Map(), regions: new Ma
  * `uuidV5(katottg_code)`), so a lookup can never answer for the wrong kind. Built by the page from
  * the labels it already holds; an id it has no slug for is dropped from the link it writes.
  */
-export type CitySlugsById = ReadonlyMap<CityId | RegionId, string>;
+export type CitySlugsById = ReadonlyMap<CityId | RegionId, string | CityWithPage>;
+
+/** A city whose landing page exists (SEO B3): a link to it alone goes to that page, not `?misto=`. */
+export type CityWithPage = { readonly slug: string; readonly hasPage: true };
+
+/** The slug a link writes for an entry of {@link CitySlugsById}, page or not. */
+export const slugOfEntry = (entry: string | CityWithPage): string =>
+  typeof entry === "string" ? entry : entry.slug;
+
+/** The city landing pages' parent path; the gallery itself stays at {@link GALLERY_PATH}. */
+export const CITY_PAGE_PATH = "/tvaryny/misto";
+
+export const cityPagePath = (slug: string): string => `${CITY_PAGE_PATH}/${slug}`;
+
+/**
+ * Where a gallery link for `filters` lives: one city with a page and no oblast is that city's
+ * page, its own `misto` dropped (the other filters stay); anything else is `basePath`. Only the
+ * gallery's links move: a shelter page passes its own `basePath` and keeps it.
+ */
+function placedOf(
+  filters: FeedFilters,
+  citySlugs: CitySlugsById,
+  basePath: string,
+): { path: string; filters: FeedFilters } {
+  const canonical = canonicalizeFilters(filters);
+  if (basePath !== GALLERY_PATH || canonical.regions.kind !== "any") {
+    return { path: basePath, filters: canonical };
+  }
+  const [only, ...more] = canonical.cities.kind === "oneOf" ? canonical.cities.values : [];
+  const entry = only !== undefined && more.length === 0 ? citySlugs.get(only) : undefined;
+  return entry !== undefined && typeof entry !== "string"
+    ? { path: cityPagePath(entry.slug), filters: { ...canonical, cities: ANY } }
+    : { path: basePath, filters: canonical };
+}
 
 /** The most `obl` tokens a request reads: 27 regions exist. City tokens share the contract's cap. */
 const MAX_REGION_TOKENS = 27;
@@ -176,6 +209,34 @@ export const cityTokensOf = (searchParams: SearchParams): string[] =>
         .filter((token) => token.length > 0 && token.length <= MAX_CITY_TOKEN_LENGTH),
     ),
   ].slice(0, MAX_CITY_TOKENS);
+
+/** `searchParams` without its city and oblast params: a city page takes its place from the path. */
+export function withoutPlaceParams(searchParams: SearchParams): SearchParams {
+  const { [CITY_PARAM]: _city, [REGION_PARAM]: _region, ...rest } = searchParams;
+  return rest;
+}
+
+/**
+ * A city page's canonical (owner, B3): the bare city page, plus the page number past page 1;
+ * sort and filters are dropped, as the gallery's own canonical drops them.
+ */
+export function cityPageCanonicalPath(slug: string, page: number): string {
+  return page > 1 ? `${cityPagePath(slug)}?${PAGE_PARAM}=${page}` : cityPagePath(slug);
+}
+
+/**
+ * The gallery's canonical: `/tvaryny` whatever the filters, sort or page, unless its links would
+ * move to a city page (`placedOf`'s rule): then that city page's canonical, page number kept.
+ */
+export function galleryCanonicalPath(
+  filters: FeedFilters,
+  page: number,
+  citySlugs: CitySlugsById,
+): string {
+  const placed = placedOf(filters, citySlugs, GALLERY_PATH);
+  if (placed.path === GALLERY_PATH) return GALLERY_PATH;
+  return page > 1 ? `${placed.path}?${PAGE_PARAM}=${page}` : placed.path;
+}
 
 function parseCitySelection(
   raw: string | string[] | undefined,
@@ -393,7 +454,10 @@ export const withToggledSex = (filters: FeedFilters, sex: AnimalSex): FeedFilter
  * came from the page's own labels (the URL's resolved tokens, the facet options), so this is a
  * safety net, not an expected path. */
 function slugsOf(ids: readonly (CityId | RegionId)[], slugs: CitySlugsById): string[] {
-  return ids.map((id) => slugs.get(id)).filter((slug): slug is string => slug !== undefined);
+  return ids.flatMap((id) => {
+    const entry = slugs.get(id);
+    return entry === undefined ? [] : [slugOfEntry(entry)];
+  });
 }
 
 /**
@@ -452,8 +516,9 @@ export function galleryHref(
   citySlugs: CitySlugsById,
   basePath: string = GALLERY_PATH,
 ): string {
-  const qs = filterAndSortParams(filters, sort, citySlugs).toString();
-  return qs ? `${basePath}?${qs}` : basePath;
+  const placed = placedOf(filters, citySlugs, basePath);
+  const qs = filterAndSortParams(placed.filters, sort, citySlugs).toString();
+  return qs ? `${placed.path}?${qs}` : placed.path;
 }
 
 /** The gallery's own path; a shelter page passes its own as `basePath` to reuse the same links. */
@@ -474,13 +539,14 @@ export function galleryPageHref(
   citySlugs: CitySlugsById,
   basePath: string = GALLERY_PATH,
 ): string {
-  const params = filterAndSortParams(filters, sort, citySlugs);
+  const placed = placedOf(filters, citySlugs, basePath);
+  const params = filterAndSortParams(placed.filters, sort, citySlugs);
   if (page > 1) {
     params.set(PAGE_PARAM, String(page));
   }
 
   const qs = params.toString();
-  return qs ? `${basePath}?${qs}` : basePath;
+  return qs ? `${placed.path}?${qs}` : placed.path;
 }
 
 /**

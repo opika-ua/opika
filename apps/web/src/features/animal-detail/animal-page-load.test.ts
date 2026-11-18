@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { describe, expect, it, vi } from "vitest";
 import { loadAnimalPage } from "./animal-page-load";
-import { ANIMAL_ID, makeDetailAnimal, stubAnimalPageClient } from "./test-fixtures";
+import { ANIMAL_ID, CITY_LABEL, makeDetailAnimal, stubAnimalPageClient } from "./test-fixtures";
 
 /**
  * The one loader behind the animal page and the gallery's overlay
@@ -17,6 +17,21 @@ describe("loadAnimalPage", () => {
     expect(load.view.shelter.displayName).toBe("Тестовий притулок «Домівка»");
     expect(load.view.cityName).toBe("Бровари");
     expect(load.view.backToGalleryHref).toContain("brovary");
+  });
+
+  it("the way back is the city's landing page when the city has one (SEO B3), «?misto=» otherwise", async () => {
+    const { client } = stubAnimalPageClient();
+    const without = await loadAnimalPage(ANIMAL_ID, client);
+    if (without.kind !== "animal") throw new Error(`expected the animal, got ${without.kind}`);
+    expect(without.view.backToGalleryHref).toBe("/tvaryny?misto=brovary");
+
+    vi.mocked(client.cities.withPages).mockResolvedValueOnce([
+      { cityId: CITY_LABEL.id, species: ["cat"] },
+    ]);
+    const withPage = await loadAnimalPage(ANIMAL_ID, client);
+    if (withPage.kind !== "animal") throw new Error(`expected the animal, got ${withPage.kind}`);
+    expect(withPage.view.backToGalleryHref).toBe("/tvaryny/misto/brovary");
+    expect(vi.mocked(client.cities.withPages)).toHaveBeenLastCalledWith({ ids: [CITY_LABEL.id] });
   });
 
   it("a refusal for rate is its own state, not «not found» (RL-F1)", async () => {

@@ -8,8 +8,10 @@ import { SITE_IS_PUBLICLY_DISCOVERABLE } from "../seo-flags";
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const now = new Date();
   const entries = await buildSitemapEntries(SITE_IS_PUBLICLY_DISCOVERABLE, {
-    animals: () => galleryRepo(getDb()).sitemapRows({ now: new Date() }),
+    animals: () => galleryRepo(getDb()).sitemapRows({ now }),
+    cities: () => galleryRepo(getDb()).cityPages({ now }),
   });
   return entries.map((entry) => ({ ...entry }));
 }

@@ -34,6 +34,7 @@ describe("the contract surface", () => {
       "animals.reveal",
       "cities.byIds",
       "cities.resolveTokens",
+      "cities.withPages",
       "gallery.facetCounts",
       "gallery.list",
       "gallery.relaxationCounts",
@@ -199,7 +200,7 @@ describe("gallery facet counts output", () => {
     raion: "Броварський район",
   };
   const counts = {
-    cities: [{ cityId: CITY, count: 3, label }],
+    cities: [{ cityId: CITY, count: 3, label, hasPage: true }],
     regions: [{ regionId: REGION, count: 3 }],
     ages: { baby: 1, young: 0, adult: 2, senior: 0 },
     sizes: { small: 1, medium: 1, large: 1 },
@@ -209,13 +210,14 @@ describe("gallery facet counts output", () => {
 
   // Public view: option ids, integers and a city label cross the wire, whatever the handler hands
   // over - a shelter id, a centroid or a KATOTTG code rides along nowhere.
-  it("strips anything beyond option ids, counts and the label", () => {
+  it("strips anything beyond option ids, counts, the label and hasPage", () => {
     const parsed = GalleryFacetCountsOutputSchema.parse({
       ...counts,
       cities: [
         {
           cityId: CITY,
           count: 3,
+          hasPage: true,
           shelterId: "x",
           label: { ...label, katottgCode: "UA32000000000000000", centroid: { lat: 1, lng: 2 } },
         },

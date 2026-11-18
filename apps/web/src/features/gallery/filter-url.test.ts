@@ -12,8 +12,11 @@ import type { CityTokenResolution } from "./city-tokens";
 import {
   animalPageHref,
   type CitySlugsById,
+  type CityWithPage,
   chipDisplayLabel,
+  cityPageCanonicalPath,
   cityTokensOf,
+  galleryCanonicalPath,
   galleryHref,
   galleryPageHref,
   NO_PLACE_IDS,
@@ -24,6 +27,7 @@ import {
   similarAnimalsHref,
   similarAnimalsLabel,
   withOnlySpecies,
+  withoutPlaceParams,
   withToggledAge,
   withToggledCity,
   withToggledRegion,
@@ -644,5 +648,104 @@ describe("chipDisplayLabel", () => {
     expect(chipDisplayLabel({ dimension: "ages", value: "senior" })).toBe("Літній");
     expect(chipDisplayLabel({ dimension: "sizes", value: "medium" })).toBe("Середній");
     expect(chipDisplayLabel({ dimension: "sexes", value: "female" })).toBe("Дівчинка");
+  });
+});
+
+describe("links to one city with a landing page go to that page (SEO B3)", () => {
+  // City A has a page; city B does not.
+  const WITH_PAGE: CitySlugsById = new Map<CityId | RegionId, string | CityWithPage>([
+    [CITY_A, { slug: SLUG_A, hasPage: true }],
+    [CITY_B, SLUG_B],
+    [KYIV_OBL, SLUG_KYIVSKA],
+  ]);
+  const oneCity = withToggledCity(NO_FILTERS, CITY_A);
+
+  it("one city with a page, other filters kept, its own misto dropped", () => {
+    expect(galleryHref(oneCity, "freshest", WITH_PAGE)).toBe(`/tvaryny/misto/${SLUG_A}`);
+    expect(galleryHref(withOnlySpecies(oneCity, "cat"), "longest_waiting", WITH_PAGE)).toBe(
+      `/tvaryny/misto/${SLUG_A}?vyd=cat&sort=longest_waiting`,
+    );
+  });
+
+  it("a page link keeps the page number on the city page", () => {
+    expect(galleryPageHref(oneCity, "freshest", 3, WITH_PAGE)).toBe(
+      `/tvaryny/misto/${SLUG_A}?stor=3`,
+    );
+  });
+
+  it("stays on the gallery for a city without a page, two cities, or a city with an oblast", () => {
+    expect(galleryHref(withToggledCity(NO_FILTERS, CITY_B), "freshest", WITH_PAGE)).toBe(
+      `/tvaryny?misto=${SLUG_B}`,
+    );
+    expect(galleryHref(withToggledCity(oneCity, CITY_B), "freshest", WITH_PAGE)).toBe(
+      `/tvaryny?misto=${SLUG_A}%2C${SLUG_B}`,
+    );
+    expect(
+      galleryHref(
+        { ...oneCity, regions: { kind: "oneOf", values: [KYIV_OBL] } },
+        "freshest",
+        WITH_PAGE,
+      ),
+    ).toBe(`/tvaryny?obl=${SLUG_KYIVSKA}&misto=${SLUG_A}`);
+  });
+
+  it("a shelter page's own links never move", () => {
+    expect(galleryHref(oneCity, "freshest", WITH_PAGE, "/prytulky/x")).toBe(
+      `/prytulky/x?misto=${SLUG_A}`,
+    );
+  });
+
+  it("the card link keeps the gallery's context as «?misto=», for the overlay's walk", () => {
+    const id = "33333333-3333-4333-8333-333333333333" as AnimalId;
+    expect(animalPageHref(id, oneCity, "freshest", WITH_PAGE)).toBe(
+      `/tvaryny/${id}?misto=${SLUG_A}`,
+    );
+  });
+});
+
+describe("cityPageCanonicalPath", () => {
+  it("is the bare city page on page 1 and keeps the page number past it", () => {
+    expect(cityPageCanonicalPath("kyiv", 1)).toBe("/tvaryny/misto/kyiv");
+    expect(cityPageCanonicalPath("kyiv", 2)).toBe("/tvaryny/misto/kyiv?stor=2");
+  });
+});
+
+describe("withoutPlaceParams", () => {
+  it("drops the city and oblast params and keeps the rest", () => {
+    expect(withoutPlaceParams({ misto: "a", obl: "b", vyd: "dog", stor: "2" })).toEqual({
+      vyd: "dog",
+      stor: "2",
+    });
+  });
+});
+
+describe("galleryCanonicalPath (SEO B3, owner 2026-11-18)", () => {
+  const WITH_PAGE: CitySlugsById = new Map<CityId | RegionId, string | CityWithPage>([
+    [CITY_A, { slug: SLUG_A, hasPage: true }],
+    [CITY_B, SLUG_B],
+    [KYIV_OBL, SLUG_KYIVSKA],
+  ]);
+  const oneCity = withToggledCity(NO_FILTERS, CITY_A);
+
+  it("one city with a page: the city page, filters and sort dropped, the page number kept", () => {
+    expect(galleryCanonicalPath(oneCity, 1, WITH_PAGE)).toBe(`/tvaryny/misto/${SLUG_A}`);
+    expect(galleryCanonicalPath(withOnlySpecies(oneCity, "dog"), 3, WITH_PAGE)).toBe(
+      `/tvaryny/misto/${SLUG_A}?stor=3`,
+    );
+  });
+
+  it("anything else keeps the bare gallery, whatever the page", () => {
+    expect(galleryCanonicalPath(NO_FILTERS, 3, WITH_PAGE)).toBe("/tvaryny");
+    expect(galleryCanonicalPath(withToggledCity(NO_FILTERS, CITY_B), 2, WITH_PAGE)).toBe(
+      "/tvaryny",
+    );
+    expect(galleryCanonicalPath(withToggledCity(oneCity, CITY_B), 1, WITH_PAGE)).toBe("/tvaryny");
+    expect(
+      galleryCanonicalPath(
+        { ...oneCity, regions: { kind: "oneOf", values: [KYIV_OBL] } },
+        1,
+        WITH_PAGE,
+      ),
+    ).toBe("/tvaryny");
   });
 });

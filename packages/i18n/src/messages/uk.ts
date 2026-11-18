@@ -2273,6 +2273,12 @@ export const uk = {
       },
     },
   },
+  /** The city landing page `/tvaryny/misto/{slug}` (SEO handoff B3; approved by the owner 2026-11-18, verbatim). */
+  cityPage: {
+    heading: "Шукають дім: {city}",
+    intro:
+      "Тварини з притулків і від волонтерів із міста {city}. Оберіть тварину й напишіть напряму – контакти на кожній картці.",
+  },
   /**
    * Page titles and meta descriptions (SEO handoff B1, B2; approved by the owner 2026-11-18,
    * verbatim). `{site}` is the brand from `brand.ts`; `{city}` is the nominative name, never declined.
@@ -2318,6 +2324,12 @@ export const uk = {
       /** While self-registration is on. */
       descriptionSelfRegistration:
         "Розмістіть тварин свого притулку чи ініціативи на {site} безкоштовно, без реклами й комісій. Реєстрація – 3 хвилини.",
+    },
+    city: {
+      /** Before `titleWithSite`; `{species}` is the capitalised species phrase. */
+      title: "{species} в добрі руки – {city}",
+      description:
+        "{species} з притулків і від волонтерів шукають дім – {city}. Напишіть напряму, контакти – на картці.",
     },
     about: {
       title: "Про {site} – сайт, де тварини з притулків шукають дім",

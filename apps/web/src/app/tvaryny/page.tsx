@@ -1,7 +1,9 @@
-import type { FeedFilters, RegionId } from "@opika/domain";
-import { placeName, uk } from "@opika/i18n";
+import type { CityLabelView, GalleryFacetCounts } from "@opika/contracts";
+import { ANY, type FeedFilters, type GallerySort, type RegionId } from "@opika/domain";
+import { fillTemplate, placeName, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
+import { cache } from "react";
 import { anonymousRouterClient } from "../../api/server-client";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
@@ -9,13 +11,17 @@ import { ActiveFilterChips } from "../../features/gallery/ActiveFilterChips";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
 import { activeFilterChips, anyFilterSet } from "../../features/gallery/active-filters";
 import { cardCityId } from "../../features/gallery/card-text";
+import type { CityTokenResolution } from "../../features/gallery/city-tokens";
 import { FilterSheet } from "../../features/gallery/FilterSheetLazy";
 import {
   cityTokensOf,
+  GALLERY_PATH,
+  galleryCanonicalPath,
   parseGalleryQuery,
   redirectHrefForNonCanonicalCities,
   resetFiltersHref,
   type SearchParams,
+  withoutPlaceParams,
 } from "../../features/gallery/filter-url";
 import { GalleryCard } from "../../features/gallery/GalleryCard";
 import { GalleryControlBlock } from "../../features/gallery/GalleryControlBlock";
@@ -30,7 +36,7 @@ import { railResultCount } from "../../features/gallery/gallery-copy";
 import { hasPagination } from "../../features/gallery/gallery-pagination";
 import { NoMatch } from "../../features/gallery/NoMatch";
 import { OutOfRangeNotice } from "../../features/gallery/OutOfRangeNotice";
-import { placeBookOf } from "../../features/gallery/place-book";
+import { type PlaceBook, placeBookOf } from "../../features/gallery/place-book";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
 import { throwIfGalleryTestFailure } from "../../features/gallery/test-only-failure";
 import { HomeJsonLd } from "../../seo/home-json-ld";
@@ -42,6 +48,7 @@ import { MAIN_LANDMARK } from "../../ui/landmark";
 import { MASCOT_RESERVE_CLASS, Mascot } from "../../ui/Mascot";
 import { mascotKindFor } from "../../ui/mascot-species";
 import { PerchedWords } from "../../ui/PerchedWords";
+import { Text } from "../../ui/Text";
 
 /**
  * Same reasoning as `../page.tsx`: without this, `next build` would try to
@@ -53,12 +60,114 @@ export const dynamic = "force-dynamic";
 
 /**
  * Handoff B2's title and description, for the page and its previews alike. Every filter, sort and
- * page variant shares this one static object and so one canonical (owner, PR B).
+ * page variant shares the canonical `/tvaryny` (owner, PR B), except one city alone: that is its
+ * landing page's state, so the city page with the same page number is canonical (owner, B3).
  */
-export const metadata: Metadata = {
-  ...GALLERY_SEO,
-  alternates: { canonical: "/tvaryny" },
-};
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}): Promise<Metadata> {
+  const reads = await readGalleryOnce(JSON.stringify(await searchParams));
+  return galleryMetadataOf(galleryCanonicalOf(reads));
+}
+
+/** Exported for its test. */
+export function galleryMetadataOf(canonical: string): Metadata {
+  return { ...GALLERY_SEO, alternates: { canonical } };
+}
+
+/** The canonical for what the page read; a former-slug redirect never renders, so it is moot there. */
+export function galleryCanonicalOf(reads: GalleryReads): string {
+  return reads.kind === "reads"
+    ? galleryCanonicalPath(reads.filters, reads.pageNumber, reads.book.slugs)
+    : GALLERY_PATH;
+}
+
+/** The landing page's variant of the gallery (SEO B3): the city fixed, its own heading and intro. */
+export type GalleryCityPage = { readonly city: CityLabelView };
+
+/** What the gallery reads before it renders: a former-slug redirect, or the page's data. */
+export type GalleryReads =
+  | { readonly kind: "redirect"; readonly href: string }
+  | {
+      readonly kind: "reads";
+      readonly filters: FeedFilters;
+      readonly sort: GallerySort;
+      readonly pageNumber: number;
+      readonly page: Awaited<
+        ReturnType<ReturnType<typeof anonymousRouterClient>["gallery"]["list"]>
+      >;
+      readonly facetCounts: GalleryFacetCounts;
+      readonly resolutions: readonly CityTokenResolution[];
+      readonly book: PlaceBook;
+    };
+
+/**
+ * The URL's place tokens are resolved before it can be parsed: an oblast slug against the 27
+ * regions (a constant, no query), a city token through `cities.resolveTokens` (a current slug, a
+ * former slug or a legacy id, only when `misto` is present). The page never reads a settlement
+ * list: with every settlement imported it would be ~30k rows. Everything else the page names
+ * comes back with its own responses (the cards' cities, the cities that have an animal, and
+ * which of them has a landing page).
+ */
+export async function readGallery(
+  client: ReturnType<typeof anonymousRouterClient>,
+  rawSearchParams: SearchParams,
+  cityPage?: GalleryCityPage,
+): Promise<GalleryReads> {
+  // A city page fixes its city from the path, so its own query's place params are ignored.
+  const queryParams = cityPage ? withoutPlaceParams(rawSearchParams) : rawSearchParams;
+  const cityTokens = cityTokensOf(queryParams);
+  const [regions, urlResolutions] = await Promise.all([
+    client.regions.list({}),
+    cityTokens.length > 0 ? client.cities.resolveTokens({ tokens: cityTokens }) : [],
+  ]);
+  const resolutions: readonly CityTokenResolution[] = cityPage
+    ? [{ token: cityPage.city.slug, city: cityPage.city, via: "slug" }]
+    : urlResolutions;
+
+  if (!cityPage) {
+    const href = redirectHrefForNonCanonicalCities(rawSearchParams, GALLERY_PATH, resolutions);
+    if (href) return { kind: "redirect", href };
+  }
+
+  const parsed = parseGalleryQuery(queryParams, placeBookOf(regions, [], resolutions).placeIds);
+  const filters: FeedFilters = cityPage
+    ? { ...parsed.filters, regions: ANY, cities: { kind: "oneOf", values: [cityPage.city.id] } }
+    : parsed.filters;
+  // The selectors' counts ride with the page rather than a fetch when a selector opens: one
+  // grouped scan, in parallel with the page's own, so they cost no extra wait and reach the
+  // no-JS sheet too (measured and argued in the filter selectors PR).
+  const [page, facetCounts] = await Promise.all([
+    client.gallery.list({ filters, sort: parsed.sort, page: parsed.page }),
+    client.gallery.facetCounts({ filters }),
+  ]);
+
+  // Labels for every link the page writes: the cities with an animal (the filter's options), the
+  // cards' cities, and the cities the URL names (which may have no animal).
+  const book = placeBookOf(
+    regions,
+    [...facetCounts.cities.map((entry) => entry.label), ...page.cityLabels],
+    resolutions,
+    new Set(facetCounts.cities.filter((entry) => entry.hasPage).map((entry) => entry.cityId)),
+  );
+  return {
+    kind: "reads",
+    filters,
+    sort: parsed.sort,
+    pageNumber: parsed.page,
+    page,
+    facetCounts,
+    resolutions,
+    book,
+  };
+}
+
+/** `generateMetadata` and the page read the same statements once per request. */
+const readGalleryOnce = cache((searchParamsJson: string) =>
+  readGallery(anonymousRouterClient(), JSON.parse(searchParamsJson) as SearchParams),
+);
 
 /**
  * Only the first card is the LCP image (preloaded, fetchpriority high). A second preload would
@@ -137,48 +246,14 @@ export async function renderGallery(
   // scope"), caught by running this suite, not inferred. `Page` below is
   // the one real caller and always computes the real value.
   kabinetSignedIn = false,
+  cityPage?: GalleryCityPage,
+  /** Already read (`Page` shares them with `generateMetadata`); read here when absent. */
+  preread?: GalleryReads,
 ) {
-  /**
-   * The URL's place tokens are resolved before it can be parsed: an oblast slug against the 27
-   * regions (a constant, no query), a city token through `cities.resolveTokens` (a current slug, a
-   * former slug or a legacy id, only when `misto` is present). The page never reads a settlement
-   * list: with every settlement imported it would be ~30k rows. Everything else the page names
-   * comes back with its own responses (the cards' cities, the cities that have an animal).
-   */
-  const cityTokens = cityTokensOf(rawSearchParams);
-  const [regions, resolutions] = await Promise.all([
-    client.regions.list({}),
-    cityTokens.length > 0 ? client.cities.resolveTokens({ tokens: cityTokens }) : [],
-  ]);
-
-  const legacyRedirect = redirectHrefForNonCanonicalCities(
-    rawSearchParams,
-    "/tvaryny",
-    resolutions,
-  );
-  if (legacyRedirect) permanentRedirect(legacyRedirect);
-
-  const {
-    filters,
-    sort,
-    page: pageNumber,
-  } = parseGalleryQuery(rawSearchParams, placeBookOf(regions, [], resolutions).placeIds);
-  // The selectors' counts ride with the page rather than a fetch when a selector opens: one
-  // grouped scan, in parallel with the page's own, so they cost no extra wait and reach the
-  // no-JS sheet too (measured and argued in the filter selectors PR).
-  const [page, facetCounts] = await Promise.all([
-    client.gallery.list({ filters, sort, page: pageNumber }),
-    client.gallery.facetCounts({ filters }),
-  ]);
-
-  // Labels for every link the page writes: the cities with an animal (the filter's options), the
-  // cards' cities, and the cities the URL names (which may have no animal).
+  const reads = preread ?? (await readGallery(client, rawSearchParams, cityPage));
+  if (reads.kind === "redirect") permanentRedirect(reads.href);
+  const { filters, sort, pageNumber, page, facetCounts, resolutions, book } = reads;
   const selectedCities = resolutions.flatMap(({ city }) => (city ? [city] : []));
-  const book = placeBookOf(
-    regions,
-    [...facetCounts.cities.map((entry) => entry.label), ...page.cityLabels],
-    resolutions,
-  );
   const citySlugs = book.slugs;
   const cityNames = new Map([...book.cities].map(([id, label]) => [id, placeName(label)] as const));
   // The oblast filter always lists all 27 (one with no animal is shown disabled).
@@ -201,6 +276,9 @@ export async function renderGallery(
     page.totalMatching === 0 ? neighbourRegionsOf(filters.regions, book, facetCounts.regions) : [];
 
   const mascotKind = mascotKindFor(filters.species);
+  const heading = cityPage
+    ? fillTemplate(uk.cityPage.heading, { city: placeName(cityPage.city) })
+    : uk.feed.galleryTitle;
   const registryEmpty = page.totalMatching === 0 && !anyFilterSet(filters);
 
   return (
@@ -271,13 +349,18 @@ export async function renderGallery(
                 >
                   {page.totalMatching > 0 ? (
                     <PerchedWords
-                      text={uk.feed.galleryTitle}
+                      text={heading}
                       mascot={<Mascot kind={mascotKind} pose="lie" size={48} perch="word" />}
                     />
                   ) : (
-                    uk.feed.galleryTitle
+                    heading
                   )}
                 </Heading>
+                {cityPage && (
+                  <Text look="lead" className="mt-3 text-ink-2">
+                    {fillTemplate(uk.cityPage.intro, { city: placeName(cityPage.city) })}
+                  </Text>
+                )}
               </div>
             }
             trailing={
@@ -496,10 +579,19 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
     kabinetSessionCookiePresent(),
   ]);
   throwIfGalleryTestFailure(process.env, rawSearchParams);
+  const reads = await readGalleryOnce(JSON.stringify(rawSearchParams));
   return (
     <>
       <HomeJsonLd />
-      {await renderGallery(anonymousRouterClient(), rawSearchParams, kabinetSignedIn)}
+      {
+        await renderGallery(
+          anonymousRouterClient(),
+          rawSearchParams,
+          kabinetSignedIn,
+          undefined,
+          reads,
+        )
+      }
     </>
   );
 }

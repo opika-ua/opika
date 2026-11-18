@@ -48,10 +48,12 @@ test.describe("/tvaryny filter selectors", () => {
     await expect(active).toHaveCount(1);
     const [city, count] = nameAndCount(await active.getAttribute("aria-label"));
     await page.keyboard.press("Enter");
-    await page.waitForURL(/misto=/);
+    // Applied with no Apply button. A city with its own page lands there (B3), else `?misto=`.
+    await page.waitForURL(/\/tvaryny\/misto\/|[?&]misto=/);
     await page.locator(CARD).first().waitFor({ state: "visible" });
 
-    // Applied with no Apply button; the list stayed open; the row is selected.
+    // The row is selected; the city page is a new route, so its list is opened again there.
+    if (!(await list.isVisible())) await page.getByRole("combobox", { name: /^Місто/ }).click();
     await expect(list).toBeVisible();
     await expect(list.getByRole("option", { name: new RegExp(`^${city}, `) })).toHaveAttribute(
       "aria-selected",

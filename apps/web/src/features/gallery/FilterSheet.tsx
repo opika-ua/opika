@@ -32,6 +32,7 @@ import {
   parseGalleryQuery,
   resetFiltersHref,
   searchParamsFromFormData,
+  slugOfEntry,
   withToggledCity,
   withToggledRegion,
 } from "./filter-url";
@@ -211,7 +212,10 @@ export function FilterSheet({
   }, []);
 
   const appliedKey = galleryHref(filters, sort, citySlugs, basePath);
-  const slugOf = (id: CityId | RegionId): string => citySlugs.get(id) ?? id;
+  const slugOf = (id: CityId | RegionId): string => {
+    const entry = citySlugs.get(id);
+    return entry === undefined ? id : slugOfEntry(entry);
+  };
 
   // `router.replace`, not the push a real `<a>`/GET produces: ten filter changes should not be ten
   // history entries (same reasoning as `ReplaceNav`). Closing the dialog fires the Sheet's own
