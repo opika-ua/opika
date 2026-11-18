@@ -6,6 +6,14 @@ export {
   applicationDeletionRepo,
 } from "./application-deletion-repo";
 export {
+  type ApplicationDecisionWrite,
+  type ApplicationRow,
+  applicationsRepo,
+  type DuplicateSourceRow,
+  type EarlyListedApplicationRow,
+  type PendingDonationRow,
+} from "./applications-repo";
+export {
   type AuthExpiryCounts,
   authExpiryRepo,
   KABINET_SESSION_LIMITS,

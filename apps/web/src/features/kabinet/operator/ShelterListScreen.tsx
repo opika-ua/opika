@@ -1,5 +1,6 @@
 import { VERIFICATION_STATUSES, type VerificationStatus } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
+import type { ReactNode } from "react";
 import { LinkButton } from "../../../ui/Button";
 import { Chip } from "../../../ui/Chip";
 import { TextField } from "../../../ui/form";
@@ -37,9 +38,12 @@ export type ShelterListContent =
 export function ShelterListScreen({
   filters,
   content,
+  queue = null,
 }: {
   filters: ShelterListFilters;
   content: ShelterListContent;
+  /** «Заявки» (self-registration), under the heading while the flag is on; nothing otherwise. */
+  queue?: ReactNode;
 }) {
   const counts = content.kind === "list" ? content.page.counts : null;
   const total =
@@ -56,6 +60,8 @@ export function ShelterListScreen({
         </div>
         <LinkButton href={NEW_SHELTER_PATH}>{t.create}</LinkButton>
       </div>
+
+      {queue}
 
       <search>
         <form method="get" action={OPERATOR_HOME} className="flex flex-col gap-2">

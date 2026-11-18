@@ -1,10 +1,14 @@
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { ApplicationsBlock } from "../../../features/kabinet/operator/applications/ApplicationsBlock";
+import { operatorQueueOf } from "../../../features/kabinet/operator/applications/queue-page";
 import { listFiltersOf } from "../../../features/kabinet/operator/list-params";
 import { OperatorShell } from "../../../features/kabinet/operator/OperatorShell";
 import { operatorShelterListOf } from "../../../features/kabinet/operator/pages";
 import { ShelterListScreen } from "../../../features/kabinet/operator/ShelterListScreen";
+import { isSelfRegistrationEnabled } from "../../../features/registration/flag";
+import { Text } from "../../../ui/Text";
 import { signedInPerson } from "../signed-in-person";
 import { operatorRequest } from "./operator-request";
 
@@ -37,11 +41,22 @@ export default async function OperatorSheltersPage({
       notFound();
       break;
     case "load_failed":
-    case "list":
+    case "list": {
+      // The list's own read decided access; the queue reads behind the same check.
+      const queue = isSelfRegistrationEnabled() ? await operatorQueueOf(principal, deps) : null;
       return (
         <OperatorShell current="shelters" person={await signedInPerson()}>
           <ShelterListScreen
             filters={filters}
+            queue={
+              queue?.kind === "queue" ? (
+                <ApplicationsBlock view={queue.view} cityNames={queue.cityNames} now={deps.now} />
+              ) : queue?.kind === "load_failed" ? (
+                <div role="alert">
+                  <Text look="label">{uk.kabinet.operator.list.loadFailed}</Text>
+                </div>
+              ) : null
+            }
             content={
               list.kind === "list"
                 ? { kind: "list", page: list.page, cityNames: list.cityNames }
@@ -50,6 +65,7 @@ export default async function OperatorSheltersPage({
           />
         </OperatorShell>
       );
+    }
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
     default: {
       const unreachable: never = list;

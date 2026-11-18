@@ -148,6 +148,13 @@ const REGISTRY_CALLS = (shelter: Shelter): [string, unknown][] => {
     ["registry.history.list", { ...ref, cursor: null, limit: 10 }],
     ["registry.cities.search", { query: "Бровари", regionBias: null }],
     ["registry.support.enter", ref],
+    // Self-registration's queue (2026-11-18): the operator's alone, like every registry call.
+    ["registry.applications.list", {}],
+    ["registry.applications.accept", { ...ref, expectedVersion: 0 }],
+    [
+      "registry.applications.reject",
+      { ...ref, expectedVersion: 0, reason: { code: "not_animal_welfare", note: null } },
+    ],
   ];
 };
 
@@ -168,8 +175,8 @@ const NOT_OPERATORS: [string, KabinetPrincipal, number][] = [
 ];
 
 describe("registry.* refuses everyone but a super_admin", () => {
-  it("covers all twenty-four registry procedures (not vacuous)", () => {
-    expect(REGISTRY_CALLS(makeShelter())).toHaveLength(24);
+  it("covers all twenty-seven registry procedures (not vacuous)", () => {
+    expect(REGISTRY_CALLS(makeShelter())).toHaveLength(27);
   });
 
   for (const [who, principal, status] of NOT_OPERATORS) {

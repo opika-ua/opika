@@ -1,43 +1,318 @@
-import type { ApplicationDecisionResult, ApplicationsQueueView, apiErrors } from "@opika/contracts";
-import type { ApplicationRejectionReason, ModeratorId, ShelterId } from "@opika/domain";
+import type {
+  ApplicationDecisionResult,
+  ApplicationQueueItemView,
+  ApplicationsQueueView,
+  apiErrors,
+} from "@opika/contracts";
+import {
+  type ApplicationDecisionWrite,
+  type ApplicationRow,
+  applicationsRepo,
+  type DuplicateSourceRow,
+  funnelRepo,
+  registrationFactsRepo,
+  shelterRepo,
+} from "@opika/db/repos";
+import {
+  type ApplicationDecision,
+  type ApplicationRejectionReason,
+  acceptApplication,
+  type ContactChannel,
+  type DuplicateCandidate,
+  duplicateSignals,
+  type EmailStatus,
+  ERASED_ADMIN_EMAIL,
+  earlyListingOf,
+  FUNNEL_EVENT_KINDS,
+  FUNNEL_WINDOW_DAYS,
+  lifecycleOf,
+  type ModeratorId,
+  rejectApplication,
+  type Shelter,
+  type ShelterHistoryEntry,
+  type ShelterId,
+  type ShelterVerification,
+} from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { KabinetContext } from "../context";
+import { type ApplicationMailer, servedApplicationMailer } from "./applications-mail";
 
 /**
- * The operator's «Заявки» block (§3), typed in Phase 0 and served by the operator-queue PR
- * (Agent 2). Until then each answers a loud error, never an empty queue that reads as "nothing to
- * do". Decide with `acceptApplication` / `rejectApplication` (domain), writing conditionally on
- * the status read, with the shelter's version as every S4 form does.
+ * The operator's «Заявки» block (§3). Decisions follow `acceptApplication` / `rejectApplication`
+ * and land as one statement conditional on the status and the version read, so a second tab or a
+ * double click answers `already_decided` and writes nothing.
  */
-export type ApplicationsDeps = Pick<KabinetContext, "db" | "now" | "newId" | "notify">;
-
-type DecisionErrors = ORPCErrorConstructorMap<{ CONFLICT: typeof apiErrors.CONFLICT }>;
-
-const notServedYet = (procedure: string): never => {
-  throw new Error(`registry.applications.${procedure} is not served yet`);
+export type ApplicationsDeps = Pick<KabinetContext, "db" | "now" | "newId" | "notify"> & {
+  /**
+   * Where decision emails go. Unset, only the served route (the one that sets `notify`) mails,
+   * after the response; in-process callers and tests send nothing unless they pass one.
+   */
+  applicationMail?: ApplicationMailer;
 };
 
+type DecisionErrors = ORPCErrorConstructorMap<{
+  CONFLICT: typeof apiErrors.CONFLICT;
+  NOT_FOUND: typeof apiErrors.NOT_FOUND;
+}>;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const linksOfContact = (channel: ContactChannel): string[] => {
+  switch (channel.kind) {
+    case "website":
+    case "facebook":
+      return [channel.url];
+    case "instagram":
+      return [`https://www.instagram.com/${channel.handle}/`];
+    case "telegram":
+      return [`https://t.me/${channel.handle}`];
+    default:
+      return [];
+  }
+};
+
+const publicLinksOf = (verification: ShelterVerification): string[] =>
+  verification.evidence.items.flatMap((item) => (item.kind === "public_link" ? [item.url] : []));
+
+const candidateOf = (source: DuplicateSourceRow): DuplicateCandidate => ({
+  shelterId: source.shelterId,
+  name: source.name,
+  cityId: source.cityId,
+  emails: source.emails,
+  links: [
+    ...publicLinksOf(source.verification),
+    ...[source.contact.primary, ...source.contact.additional].flatMap(linksOfContact),
+  ],
+});
+
+function queueItemOf(
+  row: ApplicationRow,
+  existing: readonly DuplicateCandidate[],
+  names: ReadonlyMap<string, string>,
+): ApplicationQueueItemView {
+  if (row.verification.status !== "application") {
+    throw new Error(`Shelter ${row.shelterId} read as an application but is not one`);
+  }
+  const [link] = publicLinksOf(row.verification);
+  // The registration write always records it; a card without it can't be checked, so say so loudly.
+  if (link === undefined) throw new Error(`Application ${row.shelterId} has no submitted link`);
+  const self = existing.find((candidate) => candidate.shelterId === row.shelterId);
+  const signals = self === undefined ? [] : duplicateSignals(self, existing);
+  return {
+    shelterId: row.shelterId,
+    version: row.version,
+    name: row.name,
+    cityId: row.cityId,
+    appliedAt: row.verification.appliedAt,
+    link,
+    contact: row.contact.primary,
+    email: row.registrant?.email ?? ERASED_ADMIN_EMAIL,
+    emailStatus: row.registrant?.emailVerified === true ? "confirmed" : "unconfirmed",
+    duplicates: signals.map((signal) => ({
+      kind: signal.kind,
+      shelterId: signal.shelterId,
+      shelterName: names.get(signal.shelterId) ?? "",
+    })),
+    drafts: row.drafts,
+  };
+}
+
 export async function applicationsList(
-  _deps: ApplicationsDeps,
+  deps: ApplicationsDeps,
   _moderatorId: ModeratorId,
 ): Promise<ApplicationsQueueView> {
-  return notServedYet("list");
+  const repo = applicationsRepo(deps.db);
+  const [pending, earlyListed, donations, counts] = await Promise.all([
+    repo.pending(),
+    repo.earlyListed(),
+    repo.pendingDonations(),
+    funnelRepo(deps.db).countsSince(new Date(deps.now.getTime() - FUNNEL_WINDOW_DAYS * DAY_MS)),
+  ]);
+  const sources = pending.length === 0 ? [] : await repo.duplicateSources();
+  const candidates = sources.map(candidateOf);
+  const names = new Map(sources.map((source) => [source.shelterId, source.name]));
+  return {
+    applications: pending.map((row) => queueItemOf(row, candidates, names)),
+    listedUnverified: earlyListed.flatMap((row) => {
+      // Accepted, so the email no longer matters: only the listing's clock does.
+      const lifecycle = lifecycleOf(
+        row.verification,
+        earlyListingOf(row.earlyListingSince),
+        "confirmed",
+        deps.now,
+      );
+      return lifecycle.stage === "listed_unverified"
+        ? [
+            {
+              shelterId: row.shelterId,
+              name: row.name,
+              cityId: row.cityId,
+              expiresAt: lifecycle.expiresAt,
+              daysLeft: lifecycle.daysLeft,
+              remind: lifecycle.remind,
+            },
+          ]
+        : [];
+    }),
+    pendingDonations: donations.map((row) => ({
+      shelterId: row.shelterId,
+      name: row.name,
+      version: row.version,
+      proposedUrl: row.pendingDonation.link.url,
+      legalEntity: row.legalEntity,
+    })),
+    funnel: {
+      windowDays: FUNNEL_WINDOW_DAYS,
+      counts: FUNNEL_EVENT_KINDS.map((kind) => ({ kind, count: counts[kind] })),
+    },
+  };
 }
 
-export async function applicationsAccept(
-  _deps: ApplicationsDeps,
-  _moderatorId: ModeratorId,
-  _input: { shelterId: ShelterId; expectedVersion: number },
-  _errors: DecisionErrors,
-): Promise<ApplicationDecisionResult> {
-  return notServedYet("accept");
+function warn(line: string): void {
+  // biome-ignore lint/suspicious/noConsole: a reason code and an id, never applicant text
+  console.warn(line);
 }
 
-export async function applicationsReject(
-  _deps: ApplicationsDeps,
-  _moderatorId: ModeratorId,
-  _input: { shelterId: ShelterId; expectedVersion: number; reason: ApplicationRejectionReason },
-  _errors: DecisionErrors,
+type Decided = Extract<ApplicationDecision, { kind: "ok" }>;
+
+type DecisionSpec = {
+  plan: (shelter: Shelter, email: EmailStatus) => ApplicationDecision;
+  write: (
+    shelter: Shelter,
+    decided: Decided,
+  ) => { decision: ApplicationDecisionWrite; entries: ShelterHistoryEntry[] };
+  /** Which email the registrant gets once the write has landed. */
+  mail: { kind: "approved" } | { kind: "rejected"; reason: ApplicationRejectionReason };
+};
+
+const verificationLine = (shelter: Shelter, decided: Decided): ShelterHistoryEntry => ({
+  kind: "verification",
+  event: decided.event,
+  from: shelter.verification.status,
+  to: decided.next.status,
+});
+
+/**
+ * Both decisions: plan on the row read, refuse a stale form (CONFLICT), write once, and on a lost
+ * write tell a decision that landed meanwhile (`already_decided`) from an applicant's edit
+ * (CONFLICT). The funnel and the email follow a write that happened and never fail it.
+ */
+async function decide(
+  deps: ApplicationsDeps,
+  input: { shelterId: ShelterId; expectedVersion: number },
+  errors: DecisionErrors,
+  spec: DecisionSpec,
 ): Promise<ApplicationDecisionResult> {
-  return notServedYet("reject");
+  const shelter = await shelterRepo(deps.db).findById(input.shelterId);
+  if (shelter === null) throw errors.NOT_FOUND();
+  const facts = await registrationFactsRepo(deps.db).of(shelter.id);
+  const planned = spec.plan(
+    shelter,
+    facts?.source === "self_registration" ? facts.email : "unconfirmed",
+  );
+  switch (planned.kind) {
+    case "already_decided":
+      return { kind: "already_decided", status: planned.status };
+    case "email_unconfirmed":
+      return { kind: "email_unconfirmed" };
+    case "non_monotonic":
+      // The server stamps `at`, so this is its own clock behind the last write: a deployment fault.
+      throw new Error(`Shelter ${shelter.id}: the decision precedes its current state`);
+    case "ok":
+      break;
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = planned;
+      return unreachable;
+    }
+  }
+  const { decision, entries } = spec.write(shelter, planned);
+  const repo = applicationsRepo(deps.db);
+  const result = await repo.decide({
+    shelterId: shelter.id,
+    expectedVersion: input.expectedVersion,
+    decision,
+    entries: entries.map((entry) => ({ id: deps.newId(), entry })),
+    now: deps.now,
+  });
+  if (result === "lost") {
+    const current = await shelterRepo(deps.db).findById(shelter.id);
+    if (current === null) throw errors.NOT_FOUND();
+    if (current.verification.status !== "application") {
+      return { kind: "already_decided", status: current.verification.status };
+    }
+    throw errors.CONFLICT();
+  }
+
+  if (spec.mail.kind === "approved") {
+    // Once per shelter by construction (`already_recorded`).
+    await funnelRepo(deps.db)
+      .record("approved", shelter.id, deps.now)
+      .catch(() => warn(`[applications] ${shelter.id}: funnel_not_recorded`));
+  }
+  try {
+    const registrant = await repo.registrantOf(shelter.id);
+    const mailer =
+      deps.applicationMail ??
+      (deps.notify === undefined ? null : servedApplicationMailer(process.env));
+    if (registrant !== null && mailer !== null) {
+      mailer({
+        ...spec.mail,
+        shelterId: shelter.id,
+        name: shelter.displayName,
+        to: registrant.email,
+        recipientUserId: registrant.userId,
+      });
+    }
+  } catch {
+    warn(`[applications] ${shelter.id}: decision_email_not_handed_over`);
+  }
+  return { kind: "decided", status: planned.next.status };
+}
+
+export function applicationsAccept(
+  deps: ApplicationsDeps,
+  moderatorId: ModeratorId,
+  input: { shelterId: ShelterId; expectedVersion: number },
+  errors: DecisionErrors,
+): Promise<ApplicationDecisionResult> {
+  return decide(deps, input, errors, {
+    plan: (shelter, email) =>
+      acceptApplication({ verification: shelter.verification, email, moderatorId, now: deps.now }),
+    write: (shelter, decided) => ({
+      decision: {
+        kind: "accept",
+        verification: decided.next,
+        earlyListingSince: decided.earlyListingSince ?? deps.now,
+      },
+      entries: [
+        verificationLine(shelter, decided),
+        // An application has never been listed, so this is always its first period (P0-1).
+        { kind: "early_listing_allowed", at: deps.now, moderatorId, period: 1, note: null },
+      ],
+    }),
+    mail: { kind: "approved" },
+  });
+}
+
+export function applicationsReject(
+  deps: ApplicationsDeps,
+  moderatorId: ModeratorId,
+  input: { shelterId: ShelterId; expectedVersion: number; reason: ApplicationRejectionReason },
+  errors: DecisionErrors,
+): Promise<ApplicationDecisionResult> {
+  return decide(deps, input, errors, {
+    plan: (shelter) =>
+      rejectApplication({
+        verification: shelter.verification,
+        reason: input.reason,
+        moderatorId,
+        now: deps.now,
+      }),
+    write: (shelter, decided) => ({
+      decision: { kind: "reject", verification: decided.next, rejectedAt: deps.now },
+      entries: [verificationLine(shelter, decided)],
+    }),
+    mail: { kind: "rejected", reason: input.reason },
+  });
 }

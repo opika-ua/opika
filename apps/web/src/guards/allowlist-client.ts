@@ -75,6 +75,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
     'SERVER CANDIDATE (server list + small load-more island): "load more" through the browser client',
   "features/kabinet/operator/ShelterRows.tsx":
     "SERVER CANDIDATE (server rows + island for the filter): row list with status filter and browser-client paging",
+  "features/kabinet/operator/applications/QueueDecisions.tsx":
+    "the «Заявки» block's accept/reject and donation buttons, reason dialog, request state",
   "features/kabinet/operator/actions/AdminsManager.tsx": "invite/remove admins form + dialog",
   "features/kabinet/operator/actions/DecisionPanel.tsx": "verification decision controls + dialogs",
   "features/kabinet/operator/actions/DonationDecision.tsx":

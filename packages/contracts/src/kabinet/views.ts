@@ -24,6 +24,7 @@ import {
   ShelterFacingVerificationSchema,
   ShelterHistoryEntrySchema,
   ShelterIdSchema,
+  ShelterLegalEntitySchema,
   ShelterSchema,
   VerificationStatusSchema,
 } from "@opika/domain";
@@ -492,6 +493,8 @@ export const PendingDonationItemViewSchema = z.object({
   name: z.string().min(1),
   version: z.int().nonnegative(),
   proposedUrl: z.url(),
+  /** The holder check S4 shows beside «Схвалити» (D3): who the account should belong to. Null until recorded. */
+  legalEntity: ShelterLegalEntitySchema.nullable(),
 });
 export type PendingDonationItemView = z.infer<typeof PendingDonationItemViewSchema>;
 
