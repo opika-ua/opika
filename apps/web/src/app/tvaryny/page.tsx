@@ -1,8 +1,9 @@
-import type { CityLabelView } from "@opika/contracts";
-import { ANY, type CityId, type FeedFilters, type RegionId } from "@opika/domain";
+import type { CityLabelView, GalleryFacetCounts } from "@opika/contracts";
+import { ANY, type FeedFilters, type GallerySort, type RegionId } from "@opika/domain";
 import { fillTemplate, placeName, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
+import { cache } from "react";
 import { anonymousRouterClient } from "../../api/server-client";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
@@ -13,13 +14,11 @@ import { cardCityId } from "../../features/gallery/card-text";
 import type { CityTokenResolution } from "../../features/gallery/city-tokens";
 import { FilterSheet } from "../../features/gallery/FilterSheetLazy";
 import {
-  cityPageCanonicalPath,
   cityTokensOf,
   GALLERY_PATH,
-  NO_PLACE_IDS,
+  galleryCanonicalPath,
   parseGalleryQuery,
   redirectHrefForNonCanonicalCities,
-  regionTokensOf,
   resetFiltersHref,
   type SearchParams,
   withoutPlaceParams,
@@ -37,7 +36,7 @@ import { railResultCount } from "../../features/gallery/gallery-copy";
 import { hasPagination } from "../../features/gallery/gallery-pagination";
 import { NoMatch } from "../../features/gallery/NoMatch";
 import { OutOfRangeNotice } from "../../features/gallery/OutOfRangeNotice";
-import { placeBookOf } from "../../features/gallery/place-book";
+import { type PlaceBook, placeBookOf } from "../../features/gallery/place-book";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
 import { throwIfGalleryTestFailure } from "../../features/gallery/test-only-failure";
 import { HomeJsonLd } from "../../seo/home-json-ld";
@@ -69,36 +68,106 @@ export async function generateMetadata({
 }: {
   searchParams: Promise<SearchParams>;
 }): Promise<Metadata> {
-  return galleryMetadataOf(anonymousRouterClient(), await searchParams);
+  const reads = await readGalleryOnce(JSON.stringify(await searchParams));
+  return galleryMetadataOf(galleryCanonicalOf(reads));
 }
 
-/** Exported for its test, which passes a stub client. */
-export async function galleryMetadataOf(
-  client: Pick<ReturnType<typeof anonymousRouterClient>, "cities">,
-  rawSearchParams: SearchParams,
-): Promise<Metadata> {
-  return {
-    ...GALLERY_SEO,
-    alternates: { canonical: await galleryCanonicalOf(client, rawSearchParams) },
-  };
+/** Exported for its test. */
+export function galleryMetadataOf(canonical: string): Metadata {
+  return { ...GALLERY_SEO, alternates: { canonical } };
 }
 
-async function galleryCanonicalOf(
-  client: Pick<ReturnType<typeof anonymousRouterClient>, "cities">,
-  rawSearchParams: SearchParams,
-): Promise<string> {
-  const tokens = cityTokensOf(rawSearchParams);
-  if (tokens.length !== 1 || regionTokensOf(rawSearchParams).length > 0) return GALLERY_PATH;
-  const [resolved] = await client.cities.resolveTokens({ tokens });
-  const city = resolved?.city;
-  if (!city) return GALLERY_PATH;
-  const [page] = await client.cities.withPages({ ids: [city.id] });
-  if (!page) return GALLERY_PATH;
-  return cityPageCanonicalPath(city.slug, parseGalleryQuery(rawSearchParams, NO_PLACE_IDS).page);
+/** The canonical for what the page read; a former-slug redirect never renders, so it is moot there. */
+export function galleryCanonicalOf(reads: GalleryReads): string {
+  return reads.kind === "reads"
+    ? galleryCanonicalPath(reads.filters, reads.pageNumber, reads.book.slugs)
+    : GALLERY_PATH;
 }
 
 /** The landing page's variant of the gallery (SEO B3): the city fixed, its own heading and intro. */
 export type GalleryCityPage = { readonly city: CityLabelView };
+
+/** What the gallery reads before it renders: a former-slug redirect, or the page's data. */
+export type GalleryReads =
+  | { readonly kind: "redirect"; readonly href: string }
+  | {
+      readonly kind: "reads";
+      readonly filters: FeedFilters;
+      readonly sort: GallerySort;
+      readonly pageNumber: number;
+      readonly page: Awaited<
+        ReturnType<ReturnType<typeof anonymousRouterClient>["gallery"]["list"]>
+      >;
+      readonly facetCounts: GalleryFacetCounts;
+      readonly resolutions: readonly CityTokenResolution[];
+      readonly book: PlaceBook;
+    };
+
+/**
+ * The URL's place tokens are resolved before it can be parsed: an oblast slug against the 27
+ * regions (a constant, no query), a city token through `cities.resolveTokens` (a current slug, a
+ * former slug or a legacy id, only when `misto` is present). The page never reads a settlement
+ * list: with every settlement imported it would be ~30k rows. Everything else the page names
+ * comes back with its own responses (the cards' cities, the cities that have an animal, and
+ * which of them has a landing page).
+ */
+export async function readGallery(
+  client: ReturnType<typeof anonymousRouterClient>,
+  rawSearchParams: SearchParams,
+  cityPage?: GalleryCityPage,
+): Promise<GalleryReads> {
+  // A city page fixes its city from the path, so its own query's place params are ignored.
+  const queryParams = cityPage ? withoutPlaceParams(rawSearchParams) : rawSearchParams;
+  const cityTokens = cityTokensOf(queryParams);
+  const [regions, urlResolutions] = await Promise.all([
+    client.regions.list({}),
+    cityTokens.length > 0 ? client.cities.resolveTokens({ tokens: cityTokens }) : [],
+  ]);
+  const resolutions: readonly CityTokenResolution[] = cityPage
+    ? [{ token: cityPage.city.slug, city: cityPage.city, via: "slug" }]
+    : urlResolutions;
+
+  if (!cityPage) {
+    const href = redirectHrefForNonCanonicalCities(rawSearchParams, GALLERY_PATH, resolutions);
+    if (href) return { kind: "redirect", href };
+  }
+
+  const parsed = parseGalleryQuery(queryParams, placeBookOf(regions, [], resolutions).placeIds);
+  const filters: FeedFilters = cityPage
+    ? { ...parsed.filters, regions: ANY, cities: { kind: "oneOf", values: [cityPage.city.id] } }
+    : parsed.filters;
+  // The selectors' counts ride with the page rather than a fetch when a selector opens: one
+  // grouped scan, in parallel with the page's own, so they cost no extra wait and reach the
+  // no-JS sheet too (measured and argued in the filter selectors PR).
+  const [page, facetCounts] = await Promise.all([
+    client.gallery.list({ filters, sort: parsed.sort, page: parsed.page }),
+    client.gallery.facetCounts({ filters }),
+  ]);
+
+  // Labels for every link the page writes: the cities with an animal (the filter's options), the
+  // cards' cities, and the cities the URL names (which may have no animal).
+  const book = placeBookOf(
+    regions,
+    [...facetCounts.cities.map((entry) => entry.label), ...page.cityLabels],
+    resolutions,
+    new Set(facetCounts.cities.filter((entry) => entry.hasPage).map((entry) => entry.cityId)),
+  );
+  return {
+    kind: "reads",
+    filters,
+    sort: parsed.sort,
+    pageNumber: parsed.page,
+    page,
+    facetCounts,
+    resolutions,
+    book,
+  };
+}
+
+/** `generateMetadata` and the page read the same statements once per request. */
+const readGalleryOnce = cache((searchParamsJson: string) =>
+  readGallery(anonymousRouterClient(), JSON.parse(searchParamsJson) as SearchParams),
+);
 
 /**
  * Only the first card is the LCP image (preloaded, fetchpriority high). A second preload would
@@ -178,64 +247,13 @@ export async function renderGallery(
   // the one real caller and always computes the real value.
   kabinetSignedIn = false,
   cityPage?: GalleryCityPage,
+  /** Already read (`Page` shares them with `generateMetadata`); read here when absent. */
+  preread?: GalleryReads,
 ) {
-  /**
-   * The URL's place tokens are resolved before it can be parsed: an oblast slug against the 27
-   * regions (a constant, no query), a city token through `cities.resolveTokens` (a current slug, a
-   * former slug or a legacy id, only when `misto` is present). The page never reads a settlement
-   * list: with every settlement imported it would be ~30k rows. Everything else the page names
-   * comes back with its own responses (the cards' cities, the cities that have an animal).
-   */
-  // A city page fixes its city from the path, so its own query's place params are ignored.
-  const queryParams = cityPage ? withoutPlaceParams(rawSearchParams) : rawSearchParams;
-  const cityTokens = cityTokensOf(queryParams);
-  // Which cities have a landing page, so a link to one city alone goes there (SEO B3). Only the
-  // links need it, so it is awaited with the page's own reads, not before them.
-  const cityPagesRead: Promise<readonly CityId[]> = cityPage
-    ? Promise.resolve([cityPage.city.id])
-    : client.cities.withPages({}).then((rows) => rows.map((row) => row.cityId));
-  cityPagesRead.catch(() => undefined);
-  const [regions, urlResolutions] = await Promise.all([
-    client.regions.list({}),
-    cityTokens.length > 0 ? client.cities.resolveTokens({ tokens: cityTokens }) : [],
-  ]);
-  const resolutions: readonly CityTokenResolution[] = cityPage
-    ? [{ token: cityPage.city.slug, city: cityPage.city, via: "slug" }]
-    : urlResolutions;
-
-  if (!cityPage) {
-    const legacyRedirect = redirectHrefForNonCanonicalCities(
-      rawSearchParams,
-      "/tvaryny",
-      resolutions,
-    );
-    if (legacyRedirect) permanentRedirect(legacyRedirect);
-  }
-
-  const parsed = parseGalleryQuery(queryParams, placeBookOf(regions, [], resolutions).placeIds);
-  const { sort, page: pageNumber } = parsed;
-  const filters: FeedFilters = cityPage
-    ? { ...parsed.filters, regions: ANY, cities: { kind: "oneOf", values: [cityPage.city.id] } }
-    : parsed.filters;
-  // The selectors' counts ride with the page rather than a fetch when a selector opens: one
-  // grouped scan, in parallel with the page's own, so they cost no extra wait and reach the
-  // no-JS sheet too (measured and argued in the filter selectors PR).
-  const [page, facetCounts, cityPageIds] = await Promise.all([
-    client.gallery.list({ filters, sort, page: pageNumber }),
-    client.gallery.facetCounts({ filters }),
-    cityPagesRead,
-  ]);
-  const cityPages = new Set(cityPageIds);
-
-  // Labels for every link the page writes: the cities with an animal (the filter's options), the
-  // cards' cities, and the cities the URL names (which may have no animal).
+  const reads = preread ?? (await readGallery(client, rawSearchParams, cityPage));
+  if (reads.kind === "redirect") permanentRedirect(reads.href);
+  const { filters, sort, pageNumber, page, facetCounts, resolutions, book } = reads;
   const selectedCities = resolutions.flatMap(({ city }) => (city ? [city] : []));
-  const book = placeBookOf(
-    regions,
-    [...facetCounts.cities.map((entry) => entry.label), ...page.cityLabels],
-    resolutions,
-    cityPages,
-  );
   const citySlugs = book.slugs;
   const cityNames = new Map([...book.cities].map(([id, label]) => [id, placeName(label)] as const));
   // The oblast filter always lists all 27 (one with no animal is shown disabled).
@@ -561,10 +579,19 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
     kabinetSessionCookiePresent(),
   ]);
   throwIfGalleryTestFailure(process.env, rawSearchParams);
+  const reads = await readGalleryOnce(JSON.stringify(rawSearchParams));
   return (
     <>
       <HomeJsonLd />
-      {await renderGallery(anonymousRouterClient(), rawSearchParams, kabinetSignedIn)}
+      {
+        await renderGallery(
+          anonymousRouterClient(),
+          rawSearchParams,
+          kabinetSignedIn,
+          undefined,
+          reads,
+        )
+      }
     </>
   );
 }

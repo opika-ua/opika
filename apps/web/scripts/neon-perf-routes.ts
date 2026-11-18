@@ -68,15 +68,13 @@ const DETAIL_NOTE =
 export const ROUTES: Route[] = [
   {
     label: "/tvaryny (gallery, unfiltered)",
-    reads: "regions.list (no DB) | gallery.list || gallery.facetCounts || cities.withPages",
+    reads: "regions.list (no DB) | gallery.list || gallery.facetCounts",
     needs: () => true,
     run: async (client) => {
-      const pages = client.cities.withPages({});
       await client.regions.list({});
       await Promise.all([
         client.gallery.list({ filters: NO_FILTERS, sort: "freshest", page: 1 } as never),
         client.gallery.facetCounts({ filters: NO_FILTERS } as never),
-        pages,
       ]);
     },
     notes: [
@@ -86,11 +84,9 @@ export const ROUTES: Route[] = [
   },
   {
     label: "/tvaryny?misto=<busiest city>",
-    reads:
-      "regions.list | cities.resolveTokens || cities.withPages, then gallery.list || gallery.facetCounts",
+    reads: "regions.list | cities.resolveTokens, then gallery.list || gallery.facetCounts",
     needs: (p) => p.citySlug !== null && p.cityId !== null,
     run: async (client, _db, pick) => {
-      const pages = client.cities.withPages({});
       const [, resolutions] = await Promise.all([
         client.regions.list({}),
         client.cities.resolveTokens({ tokens: [pick.citySlug as string] }),
@@ -102,7 +98,6 @@ export const ROUTES: Route[] = [
       await Promise.all([
         client.gallery.list({ filters, sort: "freshest", page: 1 } as never),
         client.gallery.facetCounts({ filters } as never),
-        pages,
       ]);
     },
     notes: [

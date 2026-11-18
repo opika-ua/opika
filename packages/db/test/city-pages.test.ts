@@ -167,3 +167,35 @@ describe("galleryRepo.cityPages (SEO B3: a city page exists only with an indexab
     expect((await pages()).map((row) => row.slug)).toEqual(["kyiv", "lviv"]);
   });
 });
+
+describe("galleryRepo.facetCounts' hasPage: the same rule, riding the facet grouping", () => {
+  it("is true only for a city with a verified shelter's listed animal, whatever the filters", async () => {
+    const kyiv = await city("kyiv");
+    const irpin = await city("irpin");
+    const early = await city("early");
+    const paused = await city("paused");
+    const verified = await shelterIn(kyiv);
+    const earlyShelter = await shelterIn(early, {
+      verification: PENDING,
+      earlyListingSince: daysBefore(3),
+    });
+    const pausedShelter = await shelterIn(paused, { verification: PAUSED });
+    await animalRepo(db).insertMany([
+      // Fostered: the page belongs to Irpin, the effective city, not Kyiv.
+      { animal: makeAnimal({ shelterId: verified, species: "dog" }), cityId: irpin },
+      { animal: makeAnimal({ shelterId: earlyShelter }), cityId: early },
+      { animal: makeAnimal({ shelterId: earlyShelter }), cityId: kyiv },
+      { animal: makeAnimal({ shelterId: pausedShelter }), cityId: paused },
+    ]);
+
+    const counts = await galleryRepo(db).facetCounts({
+      filters: { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } },
+      now: NOW,
+    });
+    const hasPage = Object.fromEntries(
+      counts.cities.map((entry) => [entry.city.slug, entry.hasPage]),
+    );
+    // The paused shelter's city is not in the gallery at all; the early-listed ones are, page-less.
+    expect(hasPage).toEqual({ early: false, irpin: true, kyiv: false });
+  });
+});

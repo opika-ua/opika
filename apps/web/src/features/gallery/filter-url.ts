@@ -210,12 +210,6 @@ export const cityTokensOf = (searchParams: SearchParams): string[] =>
     ),
   ].slice(0, MAX_CITY_TOKENS);
 
-/** The request's non-empty oblast tokens, unresolved: enough to tell "one city alone" from a wider place. */
-export const regionTokensOf = (searchParams: SearchParams): string[] =>
-  tokensOf(searchParams[REGION_PARAM])
-    .map((token) => token.trim())
-    .filter((token) => token.length > 0);
-
 /** `searchParams` without its city and oblast params: a city page takes its place from the path. */
 export function withoutPlaceParams(searchParams: SearchParams): SearchParams {
   const { [CITY_PARAM]: _city, [REGION_PARAM]: _region, ...rest } = searchParams;
@@ -228,6 +222,20 @@ export function withoutPlaceParams(searchParams: SearchParams): SearchParams {
  */
 export function cityPageCanonicalPath(slug: string, page: number): string {
   return page > 1 ? `${cityPagePath(slug)}?${PAGE_PARAM}=${page}` : cityPagePath(slug);
+}
+
+/**
+ * The gallery's canonical: `/tvaryny` whatever the filters, sort or page, unless its links would
+ * move to a city page (`placedOf`'s rule): then that city page's canonical, page number kept.
+ */
+export function galleryCanonicalPath(
+  filters: FeedFilters,
+  page: number,
+  citySlugs: CitySlugsById,
+): string {
+  const placed = placedOf(filters, citySlugs, GALLERY_PATH);
+  if (placed.path === GALLERY_PATH) return GALLERY_PATH;
+  return page > 1 ? `${placed.path}?${PAGE_PARAM}=${page}` : placed.path;
 }
 
 function parseCitySelection(

@@ -160,10 +160,18 @@ export const GalleryFacetCountsInputSchema = z.object({
  * from the animals, never from the settlement list), each with its label so a chip can print the
  * kind-aware name and tell two same-named settlements apart. Its `count` and `regions`' are the
  * matches with both location dimensions relaxed, so an oblast's count is the sum of its cities'.
+ * `hasPage`: the city's landing page exists (a verified shelter's listed animal there, filters ignored).
  */
 export const GalleryFacetCountsOutputSchema = z.object({
   cities: z
-    .array(z.object({ cityId: CityIdSchema, count: countSchema, label: CityLabelViewSchema }))
+    .array(
+      z.object({
+        cityId: CityIdSchema,
+        count: countSchema,
+        label: CityLabelViewSchema,
+        hasPage: z.boolean(),
+      }),
+    )
     .readonly(),
   regions: z.array(z.object({ regionId: RegionIdSchema, count: countSchema })).readonly(),
   ages: z.record(AgeBucketSchema, countSchema),

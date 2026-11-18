@@ -392,8 +392,7 @@ describe("/tvaryny – handoff B2's description, the demo disclosure while no re
     }));
 
     const { galleryMetadataOf } = await import("./app/tvaryny/page");
-    // No `misto` in the URL: the canonical needs no lookup, so the client is never called.
-    const metadata = await galleryMetadataOf({} as never, {});
+    const metadata = galleryMetadataOf("/tvaryny");
 
     expect(metadata.description).toBe(description);
     expect(metadata.openGraph?.description).toBe(description);

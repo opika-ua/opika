@@ -50,10 +50,11 @@ export const KYIV_LABEL = cityLabel(KYIV, "kyiv", "Київ", KYIV_OBL, {
 });
 export const LVIV_LABEL = cityLabel(LVIV, "lviv-lvivska", "Львів", LVIV_OBL);
 
-export const facetCity = (label: CityLabelView, count: number) => ({
+export const facetCity = (label: CityLabelView, count: number, hasPage = false) => ({
   cityId: label.id,
   count,
   label,
+  hasPage,
 });
 
 export const COUNTS: GalleryFacetCounts = {

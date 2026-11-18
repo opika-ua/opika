@@ -8,7 +8,7 @@ import { anonymousRouterClient } from "../../../../api/server-client";
 import { createTestHarness, type TestHarness } from "../../../../api/test-harness";
 import { loadCityPage } from "../../../../features/gallery/city-page-load";
 import { WithMockRouter } from "../../../../features/gallery/test-router";
-import { renderGallery } from "../../page";
+import { galleryCanonicalOf, readGallery, renderGallery } from "../../page";
 
 let h: TestHarness;
 
@@ -180,6 +180,27 @@ describe("/tvaryny?misto=: keeps working, its links lead to the city page when i
     expect(screen.getAllByTestId("species-cat")[0]?.getAttribute("href")).toBe(
       "/tvaryny/misto/brovary?vyd=cat",
     );
+  });
+
+  it("its canonical is the city page with the page number when the city has one, «/tvaryny» otherwise", async () => {
+    const brovary = await seedCity("brovary", "Бровари");
+    const bucha = await seedCity("bucha", "Буча");
+    await animalRepo(h.db).insert(makeAnimal({ shelterId: await seedShelter(brovary) }), brovary);
+    const early = await seedShelter(bucha, {
+      verification: PENDING,
+      earlyListingSince: daysAgo(2),
+    });
+    await animalRepo(h.db).insert(makeAnimal({ shelterId: early }), bucha);
+    const canonicalOf = async (searchParams: Record<string, string>) =>
+      galleryCanonicalOf(await readGallery(anonymousRouterClient(h.db), searchParams));
+
+    expect(
+      await canonicalOf({ misto: "brovary", vyd: "dog", sort: "longest_waiting", stor: "3" }),
+    ).toBe("/tvaryny/misto/brovary?stor=3");
+    expect(await canonicalOf({ misto: "brovary" })).toBe("/tvaryny/misto/brovary");
+    expect(await canonicalOf({ misto: "bucha", stor: "3" })).toBe("/tvaryny");
+    expect(await canonicalOf({ misto: "brovary,bucha" })).toBe("/tvaryny");
+    expect(await canonicalOf({ vyd: "dog", stor: "2" })).toBe("/tvaryny");
   });
 
   it("a city whose only shelter is early-listed has no page, so its links keep «?misto=»", async () => {

@@ -46,6 +46,7 @@ import {
   buildFeedPredicate,
   buildFilterPredicate,
   buildScopePredicate,
+  listedShelterCondition,
 } from "./feed-predicate";
 import { rowToCity, rowToDiscoverableAnimal } from "./mappers";
 
@@ -92,6 +93,11 @@ export type GalleryFacetCounts = {
     readonly cityId: CityId;
     readonly city: City;
     readonly count: number;
+    /**
+     * The city has a landing page (SEO B3): a listed animal of a verified shelter, filters
+     * ignored. Under a shelter scope only that shelter's animals count, so it can read false there.
+     */
+    readonly hasPage: boolean;
   }[];
   /** The same, rolled up per oblast over `cities`. */
   readonly regions: readonly { readonly regionId: RegionId; readonly count: number }[];
@@ -486,8 +492,15 @@ export function galleryRepo(db: Database) {
       for (const species of ANIMAL_SPECIES)
         countWhere(`n_species_${species}`, { ...opts.filters, species: only(species) });
 
+      // Rides the same grouping, so the gallery's city links need no statement of their own.
+      const indexable = sql<number>`count(*) FILTER (WHERE ${animals.shelterId} IN (
+        SELECT ${shelters.id} FROM ${shelters}
+        WHERE ${listedShelterCondition(opts.now, "verified_only")}
+      ))`
+        .mapWith(Number)
+        .as("n_indexable");
       const grouped = db
-        .select({ cityId: animals.cityId, ...counted })
+        .select({ cityId: animals.cityId, ...counted, n_indexable: indexable })
         .from(animals)
         .where(
           and(
@@ -503,7 +516,7 @@ export function galleryRepo(db: Database) {
       ) as Record<string, SQL.Aliased<number>>;
 
       const rows = await db
-        .select({ city: getTableColumns(cities), n: countColumns })
+        .select({ city: getTableColumns(cities), n: countColumns, indexable: grouped.n_indexable })
         .from(grouped)
         .innerJoin(cities, eq(cities.id, grouped.cityId))
         .orderBy(cities.id);
@@ -527,6 +540,7 @@ export function galleryRepo(db: Database) {
           cityId: row.city.id,
           city: rowToCity(row.city),
           count: row.n["n_loc"] ?? 0,
+          hasPage: row.indexable > 0,
         })),
         regions: [...perRegion].map(([regionId, count]) => ({ regionId, count })),
         ages: tally(AGE_BUCKETS, "age"),

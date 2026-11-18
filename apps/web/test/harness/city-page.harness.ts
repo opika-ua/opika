@@ -74,3 +74,18 @@ test("an animal page's way back is the city page", async ({ page }) => {
     "/tvaryny/misto/brovary",
   );
 });
+
+test("a card on the city page opens the animal in the overlay, over the city page", async ({
+  page,
+}) => {
+  await openRoute(page, CITY_PAGE, DESKTOP, { readySelector: CARD });
+  const card = page.locator(CARD).first();
+  const href = (await card.getAttribute("href")) as string;
+  await card.click();
+  await page.waitForURL((url) => url.pathname === href.split("?")[0]);
+  await expect(page.getByRole("dialog")).toBeVisible();
+  // The city page stays underneath: the overlay is drawn over it, not a full navigation.
+  await expect(page.getByRole("heading", { level: 1, name: "Шукають дім: Бровари" })).toHaveCount(
+    1,
+  );
+});

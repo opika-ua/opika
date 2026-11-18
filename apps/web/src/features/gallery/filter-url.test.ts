@@ -16,13 +16,13 @@ import {
   chipDisplayLabel,
   cityPageCanonicalPath,
   cityTokensOf,
+  galleryCanonicalPath,
   galleryHref,
   galleryPageHref,
   NO_PLACE_IDS,
   type PlaceIdsBySlug,
   parseGalleryQuery,
   redirectHrefForNonCanonicalCities,
-  regionTokensOf,
   resetFiltersHref,
   similarAnimalsHref,
   similarAnimalsLabel,
@@ -710,17 +710,42 @@ describe("cityPageCanonicalPath", () => {
   });
 });
 
-describe("withoutPlaceParams and regionTokensOf", () => {
-  it("drop the city and oblast params and keep the rest", () => {
+describe("withoutPlaceParams", () => {
+  it("drops the city and oblast params and keeps the rest", () => {
     expect(withoutPlaceParams({ misto: "a", obl: "b", vyd: "dog", stor: "2" })).toEqual({
       vyd: "dog",
       stor: "2",
     });
   });
+});
 
-  it("read the oblast tokens, empty ones dropped", () => {
-    expect(regionTokensOf({ obl: "kyivska,,lvivska" })).toEqual(["kyivska", "lvivska"]);
-    expect(regionTokensOf({ obl: "" })).toEqual([]);
-    expect(regionTokensOf({})).toEqual([]);
+describe("galleryCanonicalPath (SEO B3, owner 2026-11-18)", () => {
+  const WITH_PAGE: CitySlugsById = new Map<CityId | RegionId, string | CityWithPage>([
+    [CITY_A, { slug: SLUG_A, hasPage: true }],
+    [CITY_B, SLUG_B],
+    [KYIV_OBL, SLUG_KYIVSKA],
+  ]);
+  const oneCity = withToggledCity(NO_FILTERS, CITY_A);
+
+  it("one city with a page: the city page, filters and sort dropped, the page number kept", () => {
+    expect(galleryCanonicalPath(oneCity, 1, WITH_PAGE)).toBe(`/tvaryny/misto/${SLUG_A}`);
+    expect(galleryCanonicalPath(withOnlySpecies(oneCity, "dog"), 3, WITH_PAGE)).toBe(
+      `/tvaryny/misto/${SLUG_A}?stor=3`,
+    );
+  });
+
+  it("anything else keeps the bare gallery, whatever the page", () => {
+    expect(galleryCanonicalPath(NO_FILTERS, 3, WITH_PAGE)).toBe("/tvaryny");
+    expect(galleryCanonicalPath(withToggledCity(NO_FILTERS, CITY_B), 2, WITH_PAGE)).toBe(
+      "/tvaryny",
+    );
+    expect(galleryCanonicalPath(withToggledCity(oneCity, CITY_B), 1, WITH_PAGE)).toBe("/tvaryny");
+    expect(
+      galleryCanonicalPath(
+        { ...oneCity, regions: { kind: "oneOf", values: [KYIV_OBL] } },
+        1,
+        WITH_PAGE,
+      ),
+    ).toBe("/tvaryny");
   });
 });

@@ -1955,12 +1955,12 @@ export const en = {
       },
     },
   },
-  /** Page titles and meta descriptions; see the Ukrainian catalogue. */
   cityPage: {
     heading: "Looking for a home: {city}",
     intro:
       "Animals from shelters and volunteers in {city}. Choose an animal and write directly – the contacts are on every card.",
   },
+  /** Page titles and meta descriptions; see the Ukrainian catalogue. */
   seo: {
     titleWithSite: "{title} | {site}",
     nouns: {

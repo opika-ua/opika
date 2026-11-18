@@ -126,10 +126,11 @@ export async function galleryFacetCounts(
     now: context.now,
   });
   return {
-    cities: counts.cities.map(({ city, count }) => ({
+    cities: counts.cities.map(({ city, count, hasPage }) => ({
       cityId: city.id,
       count,
       label: cityLabelOf(city),
+      hasPage,
     })),
     regions: counts.regions.map(({ regionId, count }) => ({ regionId, count })),
     ages: { ...counts.ages },
