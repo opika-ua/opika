@@ -77,7 +77,7 @@ last updated, and the shelter's own contact.*
 
 | Supporting message | Adopter pain it answers | Proof (mechanism, not numbers) | Commitment it must respect |
 |---|---|---|---|
-| **«Перевірений» means a person checked.** Registration + a video call, or a video call + one independent reference (since 2026-11-10). | "Is this a real shelter or a seller?" | The page that says exactly what was checked (`forShelters.verification`) - link to it | Don't inflate to "certified", "partners", "ongoing control" |
+| **«Перевірений» means a person checked.** Open sources (site, pages, the organisation register, reviews); a reference or a short conversation when those fall short (wording since 2026-11-19, R5). | "Is this a real shelter or a seller?" | The page that says where the person looks (`forShelters.verification`) - link to it | Don't inflate to "certified", "partners", "ongoing control" |
 | **Every card says when it was last updated.** | "Is this animal still available?" | The pips + day count on every card; the shelter's own sentence on how often they update | #7 - "updated", never "confirmed" |
 | **You write to the shelter yourself.** No form, no queue, no one in between. | "Will I wait days for a reply from a middleman?" | The reveal screen: «Притулок не знає про цей запит, поки ви не напишете самі.» | #4 - never "we connect you" |
 | **Nothing here is paid for.** Order is by date; no shelter can buy a higher place. No money passes through the site. | "Is this an ad?" | `whatHappensToAnimals`: «Це все, що впливає на порядок.» | #1, #5 |

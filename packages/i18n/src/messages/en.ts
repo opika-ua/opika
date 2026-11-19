@@ -799,8 +799,9 @@ export const en = {
       donationNote: "https only. No money passes through the site: this is an external link.",
       donationPending: "The proposed link is waiting for me to check it.",
       pendingNote:
-        "I carry out the verification myself: I will write or call to arrange it. Until it is finished, only you can see your animals.",
-      pendingNoteLead: "I carry out the verification myself: I will write or call to arrange it.",
+        "I carry out the verification myself. If open sources don't give me enough information, I'll write to you. Until it is finished, only you can see your animals.",
+      pendingNoteLead:
+        "I carry out the verification myself. If open sources don't give me enough information, I'll write to you.",
       earlyListingBanner: "Your cards are shown with the label «under review» until {date}.",
       earlyListingEnded: "Showing your cards with the label «under review» ended on {date}.",
       lockedTitle: "Set during verification",
@@ -1367,7 +1368,7 @@ export const en = {
         body: "I checked your shelter – all is well. You can publish animals now:",
         action: "Open the cabinet",
         pending:
-          "For now the shelter's name carries the «Under verification» label. Within 60 days I'll finish the check – I'll write to you to arrange a short video call.",
+          "For now the shelter's name carries the «Under verification» label. If open sources don't give me enough information for the full check, I'll write to you.",
       },
       applicationRejected: {
         subject: "The application of the shelter «{name}»",

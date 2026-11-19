@@ -107,11 +107,14 @@ export const uk = {
       "Сайт не бере і не переказує грошей: ні комісії, ні оплати, ні збору донатів через сайт. " +
       "Якщо у вас є власна сторінка для донатів – банка в monobank, наприклад – на сторінці тварини " +
       "буде посилання на неї (коли притулок пройшов перевірку), і людина побачить, куди воно веде, ще до того як натисне.",
-    /** §6 - checked against DEFAULT_VERIFICATION_POLICY, not against prose. */
+    /**
+     * §6 - ¶2 is R5 (owner, 2026-11-19): it names where the operator looks, not an evidence type
+     * DEFAULT_VERIFICATION_POLICY requires, so it stays true while the policy's thresholds move.
+     */
     verification:
       "«Перевірений» означає, що вас перевіряла людина. Ось що це означає конкретно.\n\n" +
-      "Зареєстрована організація показує ЄДРПОУ і проходить відеодзвінок.\n\n" +
-      "Незареєстрована ініціатива проходить відеодзвінок і показує одну незалежну рекомендацію.\n\n" +
+      "Я дивлюся відкриті джерела: сайт і сторінки притулку, реєстр організацій, відгуки. " +
+      "Якщо їх не вистачає, я напишу вам і попрошу щось додати – наприклад, рекомендацію або коротку розмову.\n\n" +
       "Поки перевірка триває, я можу дозволити показ карток до 60 днів – з позначкою «на перевірці». " +
       "Позначку «перевірений» притулок отримує лише після повної перевірки.",
     /**
@@ -123,8 +126,7 @@ export const uk = {
      * opening on «потрібно небагато» must stay adjacent to it.
      */
     verificationOpenToVolunteers:
-      "Перевірка проходить дистанційно: відеодзвінок, на якому ви показуєте приміщення, тварин і людей. " +
-      "Якщо звʼязок не тягне відео – телефонна розмова і коротке відео приміщення, зняте того ж дня. Рекомендація має бути від когось іншого, ніж ви: " +
+      "Перевірка проходить дистанційно. Здебільшого вистачає відкритих джерел; якщо ні, я попрошу рекомендацію від когось іншого, ніж ви: " +
       "сусідній притулок, ветклініка, з якою ви працюєте, будь-хто, хто може підтвердити, що ви " +
       "існуєте і робите те, що кажете. Ваш другий номер телефону – не рекомендація.",
     /**
@@ -613,15 +615,16 @@ export const uk = {
       donationPending: "Запропоноване посилання чекає, поки я його перевірю.",
       /**
        * G3 (audit 2026-10-22): shown while the shelter is «На перевірці» (pending or under review).
-       * A claim about the operator's conduct, accepted by Oleksii as proposed.
+       * A claim about the operator's conduct; reworded in R5 (owner, 2026-11-19).
        */
       pendingNote:
-        "Перевірку проводжу я: напишу або зателефоную, щоб домовитися. Поки її не завершено, ваших тварин бачите лише ви.",
+        "Перевірку проводжу я. Якщо мені забракне інформації з відкритих джерел, я напишу вам. Поки її не завершено, ваших тварин бачите лише ви.",
       /**
-       * B5 while the dated banner (`earlyListingBanner`) shows (owner, 2026-11-06): only the first
-       * sentence, so the label is said once on the page.
+       * B5 while the dated banner (`earlyListingBanner`) shows (owner, 2026-11-06): `pendingNote`
+       * without its visibility sentence, so the label is said once on the page. R5 wording.
        */
-      pendingNoteLead: "Перевірку проводжу я: напишу або зателефоную, щоб домовитися.",
+      pendingNoteLead:
+        "Перевірку проводжу я. Якщо мені забракне інформації з відкритих джерел, я напишу вам.",
       /** N13, owner-approved 2026-11-04: the shelter may see the end date, the public never does. `{date}` is a Kyiv day. */
       earlyListingBanner: "Ваші картки показуються з позначкою «на перевірці» до {date}.",
       /** Owner-approved 2026-11-10 (gap 6): the period ran out, review still open. `{date}` is a Kyiv day. */
@@ -1457,7 +1460,7 @@ export const uk = {
      */
     email: {
       /**
-       * Self-registration emails (A4, approved; `applicationApproved.pending` is his Phase 0 text).
+       * Self-registration emails (A4, approved; `applicationApproved.pending` is his R5 text, 2026-11-19).
        * Subjects are filled with applicant text, so the sender strips CR, LF and control characters.
        */
       applicationConfirm: {
@@ -1473,7 +1476,7 @@ export const uk = {
         body: "Я перевірив ваш притулок – усе гаразд. Тепер можна публікувати тварин:",
         action: "Відкрити кабінет",
         pending:
-          "Поки біля назви притулку стоїть позначка «На перевірці». Протягом 60 днів я завершу перевірку – напишу вам, щоб домовитися про короткий відеодзвінок.",
+          "Поки біля назви притулку стоїть позначка «На перевірці». Якщо для повної перевірки мені забракне інформації з відкритих джерел, я напишу вам.",
       },
       applicationRejected: {
         subject: "Заявка притулку «{name}»",

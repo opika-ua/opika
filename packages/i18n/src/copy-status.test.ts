@@ -1576,9 +1576,9 @@ describe("listing before verification (owner's copy table, 2026-11-04, N1–N3 a
       "Строк показу карток до завершення перевірки минув",
     ],
     [
-      "kabinet.profile.pendingNoteLead (B5, first sentence while the banner shows)",
+      "kabinet.profile.pendingNoteLead (B5 while the banner shows; R5 wording)",
       uk.kabinet.profile.pendingNoteLead,
-      "Перевірку проводжу я: напишу або зателефоную, щоб домовитися.",
+      "Перевірку проводжу я. Якщо мені забракне інформації з відкритих джерел, я напишу вам.",
     ],
     [
       "kabinet.animalForm.publish.publishedListed (B6)",
@@ -2927,10 +2927,24 @@ describe("the copy audit of 2026-10-22", () => {
     );
   });
 
-  it("G1 reuses detail.rateLimited, G3, G4 and G5 are his proposed strings", () => {
+  it("R5 (owner, 2026-11-19): verification is described by open sources, with no promised call", () => {
+    expect(uk.forShelters.verification).toBe(
+      "«Перевірений» означає, що вас перевіряла людина. Ось що це означає конкретно.\n\n" +
+        "Я дивлюся відкриті джерела: сайт і сторінки притулку, реєстр організацій, відгуки. Якщо їх не вистачає, я напишу вам і попрошу щось додати – наприклад, рекомендацію або коротку розмову.\n\n" +
+        "Поки перевірка триває, я можу дозволити показ карток до 60 днів – з позначкою «на перевірці». Позначку «перевірений» притулок отримує лише після повної перевірки.",
+    );
+    expect(uk.forShelters.verificationOpenToVolunteers).toBe(
+      "Перевірка проходить дистанційно. Здебільшого вистачає відкритих джерел; якщо ні, я попрошу рекомендацію від когось іншого, ніж ви: сусідній притулок, ветклініка, з якою ви працюєте, будь-хто, хто може підтвердити, що ви існуєте і робите те, що кажете. Ваш другий номер телефону – не рекомендація.",
+    );
+    expect(uk.kabinet.email.applicationApproved.pending).toBe(
+      "Поки біля назви притулку стоїть позначка «На перевірці». Якщо для повної перевірки мені забракне інформації з відкритих джерел, я напишу вам.",
+    );
+  });
+
+  it("G1 reuses detail.rateLimited, G3 (R5 wording), G4 and G5 are his strings", () => {
     expect(uk.detail.rateLimited).toBe("Забагато запитів. Спробуйте ще раз пізніше.");
     expect(uk.kabinet.profile.pendingNote).toBe(
-      "Перевірку проводжу я: напишу або зателефоную, щоб домовитися. Поки її не завершено, ваших тварин бачите лише ви.",
+      "Перевірку проводжу я. Якщо мені забракне інформації з відкритих джерел, я напишу вам. Поки її не завершено, ваших тварин бачите лише ви.",
     );
     expect(uk.kabinet.signIn.failed).toBe(
       "Не вдалося звʼязатися із сайтом. Перевірте зʼєднання і спробуйте ще раз.",

@@ -124,6 +124,12 @@ Must establish: a person checks, and here is what checking is.
   references. The live text now reads «Зареєстрована організація показує ЄДРПОУ
   і проходить відеодзвінок.» and «Незареєстрована ініціатива проходить
   відеодзвінок і показує одну незалежну рекомендацію.»)
+- (Changed again 2026-11-19, R5, owner's wording: the page no longer names the
+  evidence. It reads «Я дивлюся відкриті джерела: сайт і сторінки притулку,
+  реєстр організацій, відгуки. Якщо їх не вистачає, я напишу вам і попрошу щось
+  додати – наприклад, рекомендацію або коротку розмову.», and §6b no longer
+  mentions a video call. The policy is unchanged; the bullets above
+  describe it, not the page.)
 - A reference has to be someone other than the shelter itself - a neighbouring
   shelter, a vet clinic they work with. Not their own second phone number.
 
