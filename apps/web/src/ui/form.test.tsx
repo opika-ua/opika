@@ -12,6 +12,15 @@ describe("form controls", () => {
     expect(document.getElementById("n-hint")?.textContent).toBe("Як вас звати");
   });
 
+  it("TextField: the error sits directly under the input, above the hint, its icon silent", () => {
+    render(<TextField id="n" label="Імʼя" hint="Як вас звати" error="Вкажіть назву притулку" />);
+    const input = screen.getByRole("textbox", { name: "Імʼя" });
+    const error = document.getElementById("n-error");
+    expect(input.nextElementSibling).toBe(error);
+    expect(error?.nextElementSibling).toBe(document.getElementById("n-hint"));
+    expect(error?.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
+  });
+
   it("TextField without error is not invalid", () => {
     render(<TextField id="n" label="Імʼя" />);
     const input = screen.getByRole("textbox", { name: "Імʼя" });

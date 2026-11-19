@@ -5,12 +5,12 @@ import { uk } from "@opika/i18n";
 import { type FormEvent, useId, useState } from "react";
 import { Button } from "../../../ui/Button";
 import { Heading } from "../../../ui/Heading";
+import { PasswordField } from "../../../ui/PasswordField";
 import { Text } from "../../../ui/Text";
 import { TextLink } from "../../../ui/TextLink";
 import { FORGOT_PATH } from "../routes";
 import { CARD_MESSAGE } from "./CardFrame";
 import { NewPasswordFields } from "./NewPasswordFields";
-import { PasswordField } from "./PasswordField";
 import { type ChangeOutcome, changeOutcomeOf, PASSWORD_ENDPOINTS, postJson } from "./password-api";
 import { refusalMessage } from "./password-copy";
 
@@ -111,8 +111,11 @@ export function ChangePasswordSection({
             id={`${id}-current`}
             label={uk.kabinet.changePassword.currentLabel}
             value={current}
-            onChange={setCurrent}
+            onChange={(event) => setCurrent(event.target.value)}
             autoComplete="current-password"
+            required
+            showLabel={uk.kabinet.signIn.showPassword}
+            hideLabel={uk.kabinet.signIn.hidePassword}
             error={
               feedback.kind === "wrong_current" ? uk.kabinet.changePassword.wrongCurrent : null
             }

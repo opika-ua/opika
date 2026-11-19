@@ -111,7 +111,6 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/password/InviteUnusableCard.tsx":
     "uses useTokenOutOfAddressBar (strips token from URL)",
   "features/kabinet/password/NewPasswordFields.tsx": "two controlled password inputs",
-  "features/kabinet/password/PasswordField.tsx": "show/hide toggle state",
   "features/kabinet/registration/ResendConfirmationButton.tsx":
     "resend press: pending state and the answer beside the button",
   "features/kabinet/password/ResetPasswordCard.tsx": "reset form, token strip",

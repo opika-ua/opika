@@ -73,7 +73,7 @@ What each of the five existing overlays needs to move over (done in its surface'
 | [FieldError](components/FieldError.md) | `form.tsx` | A field's error message. |
 | [TextField](components/TextField.md) | `form.tsx` | Label, input, hint and error as one unit. |
 | [TextArea](components/TextArea.md) | `form.tsx` | TextField for long text. |
-| [PasswordField](components/PasswordField.md) | `PasswordField.tsx` | A password input with its show/hide button, on the TextField frame (client). |
+| [PasswordField](components/PasswordField.md) | `PasswordField.tsx` | A password input with an eye toggle inside it, on the TextField frame (client). The only password input. |
 | [Select](components/Select.md) | `form.tsx` | A native select with the field frame. |
 | [DateField](components/DateField.md) | `DateField.tsx`, `date-field.ts` | A calendar date as day, month (by name) and year in one fieldset; the only date input. |
 | [Radio](components/Radio.md) | `form.tsx` | One option of a radio group; the whole row is the target. |
@@ -93,7 +93,9 @@ What each of the five existing overlays needs to move over (done in its surface'
 | [ToastProvider](components/ToastProvider.md) | `Toast.tsx` | Holds the toast queue and the live region. Wrap the page once; call `useToast().show(message, tone, { action?, durationMs?, onClose? })` from client components; it returns a handle that can dismiss that toast. Toasts sit above every fixed bottom bar marked `BOTTOM_BAR`. |
 | [CheckboxGroup](components/CheckboxGroup.md) | `groups.tsx` | A question with several choices: fieldset, legend, hint, error. |
 | [ChipGroup](components/ChipGroup.md) | `groups.tsx` | A question with many short answers as wrapping chips, in a fieldset. |
-| [ErrorSummary](components/ErrorSummary.md) | `ErrorSummary.tsx` | A refused save listed once at the top; each problem takes you to its field. |
+| [ErrorSummary](components/ErrorSummary.md) | `ErrorSummary.tsx` | A refused submit with two or more problems, at the top: a heading and each field's name as a link to it. |
+| [AuthCardFooter](components/AuthCardFooter.md) | `AuthCardFooter.tsx` | The tinted strip at the bottom inside an auth card: the switch to the other auth action. |
+| [AssistanceLine](components/AssistanceLine.md) | `AssistanceLine.tsx` | The help line under an auth card: chat icon, muted text, a link. |
 | [RadioGroup](components/RadioGroup.md) | `groups.tsx` | A question with one choice: fieldset, legend, hint, error. |
 | [Toggle](components/Toggle.md) | `Toggle.tsx` | A two-option switch made of two real links (the gallery sort). |
 | [Pagination](components/Pagination.md) | `Pagination.tsx` | Numbered pages as links. |

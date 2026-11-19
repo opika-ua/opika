@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
+import { AssistanceLine } from "../../../ui/AssistanceLine";
+import { AuthCardFooter } from "../../../ui/AuthCardFooter";
 import { Avatar } from "../../../ui/Avatar";
 import { Badge } from "../../../ui/Badge";
 import { BottomNav } from "../../../ui/BottomNav";
@@ -447,15 +449,54 @@ export default function DevUiPage() {
             Option C
           </Chip>
         </ChipGroup>
-        <ErrorSummary
-          ref={null}
-          items={[
-            { key: "a", message: "Enter a name.", target: "#chg-first" },
-            { key: "b", message: "Pick a kind.", target: "#chg-first" },
-          ]}
-        />
         <FieldHint id="h1">FieldHint on its own.</FieldHint>
         <FieldError id="e1">FieldError on its own.</FieldError>
+      </Group>
+
+      <Group id="g-auth" title="Form errors and the auth card">
+        <div className="mx-auto flex w-full max-w-md flex-col gap-4">
+          <Card tone="outline">
+            <div className="flex flex-col gap-5 p-5">
+              <ErrorSummary
+                ref={null}
+                heading="Заповніть 2 поля:"
+                items={[
+                  { key: "name", label: "Назва притулку чи ініціативи", target: "#a-name" },
+                  { key: "password", label: "Пароль", target: "#a-password" },
+                ]}
+              />
+              <TextField
+                id="a-name"
+                label="Назва притулку чи ініціативи"
+                error="Вкажіть назву притулку"
+              />
+              <TextField
+                id="a-site"
+                label="Сайт або сторінка в соцмережі"
+                hint="За цим посиланням я перевірю притулок."
+                placeholder="instagram.com/vash_prytulok"
+              />
+              <PasswordField
+                id="a-password"
+                label="Пароль"
+                autoComplete="new-password"
+                hint="Щонайменше 10 символів."
+                error="Пароль закороткий: щонайменше 10 символів"
+                showLabel="Показати пароль"
+                hideLabel="Сховати пароль"
+              />
+              <Button variant="primary" className="w-full">
+                Зареєструвати притулок
+              </Button>
+            </div>
+            <AuthCardFooter text="Уже маєте кабінет?" linkLabel="Увійти" href="/dev/ui#g-auth" />
+          </Card>
+          <AssistanceLine
+            text="Потрібна допомога?"
+            linkLabel="Напишіть мені"
+            href="/dev/ui#g-auth"
+          />
+        </div>
       </Group>
 
       <Group id="g-navigation" title="Navigation">

@@ -677,7 +677,7 @@ describe("a draft saves itself (T6)", () => {
     expect(client.calls.update).not.toHaveBeenCalled();
     // The summary's link lands on the date's first part.
     await user.click(
-      within(screen.getByRole("alert")).getByRole("button", {
+      within(screen.getByRole("alert")).getByRole("link", {
         name: "Такої дати в календарі немає.",
       }),
     );
@@ -2545,7 +2545,7 @@ describe("sections, steps and the error summary (kabinet redesign PR 3)", () => 
     await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
     const summary = screen.getByRole("alert");
     await waitFor(() => expect(document.activeElement).toBe(summary));
-    const item = within(summary).getByRole("button", {
+    const item = within(summary).getByRole("link", {
       name: "Щоб зберегти чернетку, потрібне імʼя.",
     });
     await user.click(item);

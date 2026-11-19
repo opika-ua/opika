@@ -246,7 +246,7 @@ describe("the error summary", () => {
     await user.click(screen.getByRole("tab", { name: /^Про тварину/ }));
     await user.click(screen.getByRole("button", { name: "Зберегти чернетку" }));
     await user.click(
-      await screen.findByRole("button", { name: "Щоб зберегти чернетку, потрібне імʼя." }),
+      await screen.findByRole("link", { name: "Щоб зберегти чернетку, потрібне імʼя." }),
     );
     expect(selectedTab()?.textContent).toMatch(/^Основне/);
     await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Імʼя")));
