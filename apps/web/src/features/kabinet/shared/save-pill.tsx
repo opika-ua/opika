@@ -51,6 +51,7 @@ function SaveDot({ tone }: { tone: SaveTone }) {
  */
 export function SavePill({
   state,
+  saveLabel,
   onSave,
   onCancel,
   onShow,
@@ -58,6 +59,8 @@ export function SavePill({
   onSavedElapsed,
 }: {
   state: SaveBarState | null;
+  /** The save button's label; «Зберегти» when left out. */
+  saveLabel?: string;
   onSave: () => void;
   onCancel: () => void;
   /** «Показати»: the page switches to the tab and focuses the first field that needs fixing. */
@@ -136,7 +139,7 @@ export function SavePill({
       buttons = (
         <>
           {cancel}
-          {primary(t.actions.save, onSave, saving)}
+          {primary(saveLabel ?? t.actions.save, onSave, saving)}
         </>
       );
       break;
@@ -146,7 +149,7 @@ export function SavePill({
           <Button variant={secondary} className={grow} onClick={onShow}>
             {t.saveBar.show}
           </Button>
-          {primary(t.actions.save, onSave)}
+          {primary(saveLabel ?? t.actions.save, onSave)}
         </>
       );
       break;

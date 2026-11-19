@@ -1830,8 +1830,6 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
     "kabinet.animalForm.draft.notSavedYet": "Щоб зберегти чернетку, потрібні імʼя та вид.",
     "kabinet.animalForm.draft.saveFailed":
       "Чернетку не збережено. Перевірте зʼєднання – усе, що ви ввели, лишається тут.",
-    "kabinet.animalForm.draft.save": "Зберегти чернетку",
-    "kabinet.animalForm.draft.saveShort": "Зберегти",
     "kabinet.animalForm.listed.liveOnSave": "Зміни зʼявляться на картці одразу після збереження.",
     "kabinet.animalForm.listed.notShownNow": "Цю картку зараз ніхто не бачить.",
     "kabinet.animalForm.listed.dateUnchanged":
@@ -1920,6 +1918,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
         ...Object.keys(PHOTO_TILE_PILL_COPY),
         // The upload's processing state, pinned in its own block below.
         ...Object.keys(UPLOAD_PROCESSING_COPY),
+        // The R4 autosave footer's one new label, pinned in its own block below.
+        ...Object.keys(R4_AUTOSAVE_FOOTER_COPY),
       ].sort(),
     );
     expect(Object.keys(uk.kabinet.listingStatus).sort()).toEqual([
@@ -2612,6 +2612,24 @@ const PHOTO_TILE_PILL_COPY: Record<string, string> = {
 const UPLOAD_PROCESSING_COPY: Record<string, string> = {
   "kabinet.animalForm.photos.processing": "Фото обробляється…",
 };
+
+/** A listed card's save button (R4): the owner-approved redesign, 2026-11-19 §5, verbatim. */
+const R4_AUTOSAVE_FOOTER_COPY: Record<string, string> = {
+  "kabinet.animalForm.listed.saveChanges": "Зберегти зміни",
+};
+
+describe("R4 autosave footer copy (owner-approved redesign 2026-11-19)", () => {
+  it.each(Object.entries(R4_AUTOSAVE_FOOTER_COPY))("%s is his text, exactly", (path, text) => {
+    const found = path
+      .split(".")
+      .slice(1)
+      .reduce<unknown>(
+        (node, key) => (node as Record<string, unknown> | undefined)?.[key],
+        uk.kabinet,
+      );
+    expect(found).toBe(text);
+  });
+});
 
 describe("upload processing copy (owner-given 2026-11-16)", () => {
   it.each(Object.entries(UPLOAD_PROCESSING_COPY))("%s is his text, exactly", (path, text) => {
