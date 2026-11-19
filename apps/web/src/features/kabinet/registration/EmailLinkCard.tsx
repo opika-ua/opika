@@ -40,9 +40,20 @@ export function EmailLinkCard({ purpose, initial, action, permalink }: Props) {
       </Heading>
       {(() => {
         switch (state.kind) {
-          case "form":
+          case "form": {
+            const prompt =
+              purpose === "not_me"
+                ? uk.registration.notMePrompt
+                : state.email === null
+                  ? null
+                  : fillTemplate(uk.registration.confirmEmailPrompt, { email: state.email });
             return (
               <form action={formAction} className="flex flex-col gap-6">
+                {prompt === null ? null : (
+                  <Text look="body" className="text-ink-2">
+                    {prompt}
+                  </Text>
+                )}
                 <input type="hidden" name="token" value={state.token} />
                 <Button
                   type="submit"
@@ -54,7 +65,18 @@ export function EmailLinkCard({ purpose, initial, action, permalink }: Props) {
                 </Button>
               </form>
             );
+          }
           case "expired":
+            // «Це не я» is for someone who never registered: no way into a kabinet they don't have.
+            if (purpose === "not_me") {
+              return (
+                <div role="alert">
+                  <Text look="body" className="text-ink-2">
+                    {fillTemplate(uk.registration.notMeLinkExpired, contact)}
+                  </Text>
+                </div>
+              );
+            }
             return (
               <>
                 <div role="alert">

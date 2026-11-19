@@ -3085,3 +3085,29 @@ describe("animal page photo strip copy (owner-given and owner-approved, 2026-11-
     expect(en.detail.photoRowCounter).toBe("{first}–{last} of {total}");
   });
 });
+
+/** The email-link pages' sentences (owner-approved, 2026-11-19), character-exact. */
+describe("self-registration email-link copy (owner-approved, 2026-11-19)", () => {
+  const EMAIL_LINK_COPY = {
+    confirmEmailPrompt: "Натисніть кнопку, щоб підтвердити адресу {email}.",
+    notMePrompt:
+      "Якщо ви не реєстрували притулок, натисніть кнопку – я видалю заявку, створену з вашою адресою.",
+    notMeLinkExpired:
+      "Посилання вже не діє. Якщо хтось зареєстрував притулок з вашою адресою – напишіть мені на {email}.",
+  } as const;
+
+  it.each(Object.entries(EMAIL_LINK_COPY))("%s is his text", (key, text) => {
+    expect(uk.registration[key as keyof typeof EMAIL_LINK_COPY]).toBe(text);
+  });
+
+  it("the «Це не я» dead link never sends its reader to sign in", () => {
+    expect(uk.registration.notMeLinkExpired).not.toContain("Увійдіть");
+  });
+
+  it("has English beside each", () => {
+    for (const key of Object.keys(EMAIL_LINK_COPY) as (keyof typeof EMAIL_LINK_COPY)[]) {
+      expect(en.registration[key], key).not.toBe("");
+      expect(en.registration[key], key).not.toContain(COPY_PENDING);
+    }
+  });
+});

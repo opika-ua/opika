@@ -335,6 +335,34 @@ describe("the confirmation email's links act only on an origin-checked POST", ()
     },
   );
 
+  it("each live link's page says what its button does; the confirm one names its address", async () => {
+    const registered = await register();
+    expect(await (await get(CONFIRM, registered.confirmToken)).text()).toContain(
+      "Натисніть кнопку, щоб підтвердити адресу olena@example.org.",
+    );
+    expect(await (await get(NOT_ME, registered.notMeToken)).text()).toContain(
+      "Якщо ви не реєстрували притулок, натисніть кнопку – я видалю заявку, створену з вашою адресою.",
+    );
+  });
+
+  it.each([
+    ["«Підтвердити email»", CONFIRM, "Посилання застаріло. Увійдіть у кабінет", true],
+    [
+      "«Це не я»",
+      NOT_ME,
+      "Посилання вже не діє. Якщо хтось зареєстрував притулок з вашою адресою – напишіть мені на hello@opika.org.ua.",
+      false,
+    ],
+  ] as const)(
+    "%s with a dead link: its own sentence, and a way into the kabinet only on the confirm link",
+    async (_name, path, sentence, kabinetLink) => {
+      const html = await (await get(path, newRegistrationToken())).text();
+      expect(html).toContain(sentence);
+      expect(html.includes("Увійдіть у кабінет")).toBe(kabinetLink);
+      expect(html.includes('href="/kabinet"')).toBe(kabinetLink);
+    },
+  );
+
   it.each([
     ["no Origin", null],
     ["Origin: null", "null"],
@@ -577,7 +605,19 @@ describe("the email-link pages' action adapter", () => {
       ),
     ).toEqual({
       kind: "page",
-      state: { kind: "form", token: registered.confirmToken },
+      state: { kind: "form", token: registered.confirmToken, email: "olena@example.org" },
+      status: 200,
+    });
+    // «Це не я» doesn't need the address, so its card isn't handed it.
+    expect(
+      await registrationLinkOutcomeOf(
+        "not_me",
+        { method: "GET", token: registered.notMeToken },
+        linkDeps(),
+      ),
+    ).toEqual({
+      kind: "page",
+      state: { kind: "form", token: registered.notMeToken, email: null },
       status: 200,
     });
     expect(await everything()).toEqual(before);

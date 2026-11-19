@@ -48,7 +48,8 @@ export type RegistrationLinkDeps = {
 };
 
 export type RegistrationLinkState =
-  | { kind: "form"; token: string }
+  /** `email`: the confirm link's own address, for its sentence (never logged); null for «Це не я». */
+  | { kind: "form"; token: string; email: string | null }
   | { kind: "expired" }
   | { kind: "confirmed" }
   | { kind: "withdrawn" }
@@ -61,6 +62,17 @@ const escapeHtml = (text: string) =>
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c,
   );
 
+/** The sentence above a live link's button; none on a confirm link whose address is unknown. */
+function linkPrompt(purpose: RegistrationTokenPurpose, email: string | null): string | null {
+  if (purpose === "not_me") return uk.registration.notMePrompt;
+  return email === null ? null : fillTemplate(uk.registration.confirmEmailPrompt, { email });
+}
+
+const formPrompt = (purpose: RegistrationTokenPurpose, email: string | null) => {
+  const text = linkPrompt(purpose, email);
+  return text === null ? "" : `<p>${escapeHtml(text)}</p>\n`;
+};
+
 function page(
   purpose: RegistrationTokenPurpose,
   state: RegistrationLinkState,
@@ -72,12 +84,14 @@ function page(
   const body = (() => {
     switch (state.kind) {
       case "form":
-        return `${purpose === "not_me" ? `<p>${escapeHtml(email.notYou)}</p>\n` : ""}<form method="post" action="${REGISTRATION_LINK_PATHS[purpose]}">
+        return `${formPrompt(purpose, state.email)}<form method="post" action="${REGISTRATION_LINK_PATHS[purpose]}">
 <input type="hidden" name="token" value="${escapeHtml(state.token)}">
 <button type="submit">${escapeHtml(heading)}</button>
 </form>`;
       case "expired":
-        return `<p role="alert">${escapeHtml(uk.registration.confirmLinkExpired)}</p>\n${kabinetLink}`;
+        return purpose === "not_me"
+          ? `<p role="alert">${escapeHtml(fillTemplate(uk.registration.notMeLinkExpired, { email: OPERATOR_CONTACT.email }))}</p>`
+          : `<p role="alert">${escapeHtml(uk.registration.confirmLinkExpired)}</p>\n${kabinetLink}`;
       case "confirmed":
         return `<p role="status">${escapeHtml(uk.registration.emailConfirmed)}</p>\n${kabinetLink}`;
       case "approved":
@@ -171,7 +185,10 @@ export async function registrationLinkOutcome(
     const token = new URL(request.url).searchParams.get("token") ?? "";
     if (!REGISTRATION_TOKEN.test(token)) return shown({ kind: "expired" }, 400);
     const userId = await deps.repo.tokenUser(purpose, hashRegistrationToken(token), deps.now);
-    return userId === null ? shown({ kind: "expired" }, 400) : shown({ kind: "form", token }, 200);
+    if (userId === null) return shown({ kind: "expired" }, 400);
+    const email =
+      purpose === "confirm_email" ? ((await deps.repo.applicationOf(userId))?.email ?? null) : null;
+    return shown({ kind: "form", token, email }, 200);
   }
   if (request.method !== "POST") {
     return { kind: "method_not_allowed" };

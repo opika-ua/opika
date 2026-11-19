@@ -25,39 +25,60 @@ function show(
 const heading = () => screen.getByRole("heading", { level: 1 }).textContent;
 
 describe("EmailLinkCard", () => {
-  it("«Підтвердити email» with a live link: the heading and one button that carries the token", () => {
-    show("confirm_email", { kind: "form", token: TOKEN });
+  it("«Підтвердити email» with a live link: the heading, its address and one button that carries the token", () => {
+    show("confirm_email", { kind: "form", token: TOKEN, email: "olena@example.org" });
     expect(heading()).toBe("Підтвердити email");
+    expect(
+      screen.getByText("Натисніть кнопку, щоб підтвердити адресу olena@example.org."),
+    ).toBeDefined();
     const button = screen.getByRole("button", { name: "Підтвердити email" });
     const form = button.closest("form");
     expect(new FormData(form ?? undefined).get("token")).toBe(TOKEN);
     expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 
-  it("«Це не я» with a live link: the heading and one button", () => {
-    show("not_me", { kind: "form", token: TOKEN });
+  it("a confirm link whose address is unknown: just the button, no sentence with a gap in it", () => {
+    show("confirm_email", { kind: "form", token: TOKEN, email: null });
+    expect(screen.queryByText(/Натисніть кнопку/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Підтвердити email" })).toBeDefined();
+  });
+
+  it("«Це не я» with a live link: the heading, what the button does, and one button", () => {
+    show("not_me", { kind: "form", token: TOKEN, email: null });
     expect(heading()).toBe("Це не я");
+    expect(
+      screen.getByText(
+        "Якщо ви не реєстрували притулок, натисніть кнопку – я видалю заявку, створену з вашою адресою.",
+      ),
+    ).toBeDefined();
     expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Це не я"]);
   });
 
-  it.each(["confirm_email", "not_me"] as const)(
-    "%s, used, expired or unknown: the sentence and a link into the kabinet",
-    (purpose) => {
-      show(purpose, { kind: "expired" });
-      expect(screen.getByRole("alert").textContent).toBe(
-        "Посилання застаріло. Увійдіть у кабінет і надішліть лист ще раз.",
-      );
-      expect(screen.getByRole("link", { name: "Увійти в кабінет" }).getAttribute("href")).toBe(
-        "/kabinet",
-      );
-      expect(screen.queryByRole("button")).toBeNull();
-    },
-  );
+  it("«Підтвердити email», used, expired or unknown: the sentence and a link into the kabinet", () => {
+    show("confirm_email", { kind: "expired" });
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Посилання застаріло. Увійдіть у кабінет і надішліть лист ще раз.",
+    );
+    expect(screen.getByRole("link", { name: "Увійти в кабінет" }).getAttribute("href")).toBe(
+      "/kabinet",
+    );
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("«Це не я», used, expired or unknown: who to write to, and no sign-in for someone who never registered", () => {
+    show("not_me", { kind: "expired" });
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Посилання вже не діє. Якщо хтось зареєстрував притулок з вашою адресою – напишіть мені на hello@opika.org.ua.",
+    );
+    expect(screen.queryByText(/Увійдіть у кабінет/)).toBeNull();
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
 
   it("after the confirm POST: announced as done, with the way into the kabinet", async () => {
     const action = show(
       "confirm_email",
-      { kind: "form", token: TOKEN },
+      { kind: "form", token: TOKEN, email: null },
       vi.fn(async (): Promise<RegistrationLinkState> => ({ kind: "confirmed" })),
     );
     await act(async () => {
@@ -74,14 +95,14 @@ describe("EmailLinkCard", () => {
   it("a press the link no longer allows: the expired message is announced", async () => {
     show(
       "not_me",
-      { kind: "form", token: TOKEN },
+      { kind: "form", token: TOKEN, email: null },
       vi.fn(async (): Promise<RegistrationLinkState> => ({ kind: "expired" })),
     );
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Це не я" }));
     });
     expect(screen.getByRole("alert").textContent).toBe(
-      "Посилання застаріло. Увійдіть у кабінет і надішліть лист ще раз.",
+      "Посилання вже не діє. Якщо хтось зареєстрував притулок з вашою адресою – напишіть мені на hello@opika.org.ua.",
     );
     expect(screen.queryByRole("button")).toBeNull();
   });

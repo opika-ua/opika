@@ -301,6 +301,13 @@ export const uk = {
     emailConfirmed: "Email підтверджено. Я перевірю притулок, зазвичай до 2 днів.",
     confirmLinkExpired: "Посилання застаріло. Увійдіть у кабінет і надішліть лист ще раз.",
     notMeDone: "Заявку видалено. Якщо це помилка – напишіть мені на {email}.",
+    /** Owner, 2026-11-19: above each link's button; `{email}` is the address the token belongs to. */
+    confirmEmailPrompt: "Натисніть кнопку, щоб підтвердити адресу {email}.",
+    notMePrompt:
+      "Якщо ви не реєстрували притулок, натисніть кнопку – я видалю заявку, створену з вашою адресою.",
+    /** «Це не я» with a dead link (owner, 2026-11-19): no sign-in hint; `{email}` from app config. */
+    notMeLinkExpired:
+      "Посилання вже не діє. Якщо хтось зареєстрував притулок з вашою адресою – напишіть мені на {email}.",
     /** «Це не я» once the operator has approved (owner, 2026-11-18); `{email}` from app config. */
     notMeAfterApproval:
       "Притулок уже схвалено, тому заявку не можна видалити за посиланням. Якщо ви не реєстрували цей притулок, напишіть мені на {email}.",
