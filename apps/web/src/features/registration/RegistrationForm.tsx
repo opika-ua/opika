@@ -247,9 +247,11 @@ export function RegistrationForm({
     const link = text.link.trim();
     if (link === "") errors.link = "required";
     else if (normalizePublicLink(link).kind === "invalid") errors.link = "link";
+    // The contact is optional (#531): only a typed value is checked.
     const contact = text.contact.trim();
-    if (contact === "") errors.contact = "required";
-    else if (normalizeAdopterContact(contact).kind === "invalid") errors.contact = "contact";
+    if (contact !== "" && normalizeAdopterContact(contact).kind === "invalid") {
+      errors.contact = "contact";
+    }
     if (Object.keys(errors).length > 0) {
       refuse(errors);
       return;

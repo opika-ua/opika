@@ -245,6 +245,15 @@ describe("RegistrationForm's two steps", () => {
     expect(document.activeElement).toBe(screen.getByLabelText(copy.labels.link));
   });
 
+  it("an empty contact passes step 1: it is optional (owner, 2026-11-19)", () => {
+    renderForm(action, { ...READY, values: { ...READY.values, contact: "" } });
+    expect(copy.labels.contact).toBe("Телефон або Telegram для людей · необовʼязково");
+    next();
+    expect(screen.queryByText(copy.errors.contact)).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: copy.steps.two }));
+    expect(visible(copy.submit)).toBe(true);
+  });
+
   it("a contact that is neither a phone nor a Telegram name stops at step 1", () => {
     renderForm(action);
     type(copy.labels.contact, "0671234");

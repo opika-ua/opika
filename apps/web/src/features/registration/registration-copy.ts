@@ -50,7 +50,6 @@ const REQUIRED_BY_FIELD: Partial<Record<RegistrationField, string>> = {
   name: r.errors.nameRequired,
   cityId: r.errors.city,
   link: r.errors.linkRequired,
-  contact: r.errors.contact,
 };
 
 export function registrationCopy() {
