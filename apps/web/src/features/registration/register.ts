@@ -222,9 +222,12 @@ export async function registerWith(
     });
     if (verdict.kind !== "ok") fields.password = VERDICT_ERRORS[verdict.kind];
   }
-  const contact = parsed.success
-    ? ShelterContactSchema.safeParse({ primary: parsed.data.contact, additional: [] })
-    : null;
+  // An empty field is valid and stores no contact; the shelter adds one before it can publish.
+  const contact = !parsed.success
+    ? null
+    : parsed.data.contact === null
+      ? ({ success: true, data: null } as const)
+      : ShelterContactSchema.safeParse({ primary: parsed.data.contact, additional: [] });
   if (contact?.success === false && fields.contact === undefined) fields.contact = "contact";
   if (!parsed.success || contact === null || !contact.success || Object.keys(fields).length > 0) {
     deps.log("invalid");

@@ -270,7 +270,7 @@ describe("shelter.profile", () => {
       expectedVersion: 0,
     });
     expect(result.status).toBe(200);
-    expect((await shelterRepo(db).findById(shelter.id))?.contact.primary).toEqual({
+    expect((await shelterRepo(db).findById(shelter.id))?.contact?.primary).toEqual({
       kind: "phone",
       e164: "+380671234567",
     });

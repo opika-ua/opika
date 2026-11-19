@@ -85,7 +85,8 @@ export async function animalsReveal(
   }
   // Verified, or listed before verification and still inside its period (read-time, no cron).
   const listing = shelter ? listingOf(shelter, context.now) : null;
-  if (!shelter || listing === null) {
+  // No contact means no public animal (`publishGateOf`), so this is a defensive refusal only.
+  if (!shelter || listing === null || !hasContact(shelter)) {
     throw errors.SHELTER_NOT_VISIBLE();
   }
 
@@ -148,10 +149,14 @@ async function isKabinetViewer(context: AppContext): Promise<boolean> {
   }
 }
 
+type ContactableShelter = Shelter & { contact: NonNullable<Shelter["contact"]> };
+
+const hasContact = (shelter: Shelter): shelter is ContactableShelter => shelter.contact !== null;
+
 function revealOf(
   adopterId: AdopterId,
   animal: Animal,
-  shelter: Shelter,
+  shelter: ContactableShelter,
   now: Date,
 ): ContactReveal {
   return {
@@ -181,7 +186,7 @@ function revealOf(
  * row, so the name above a number is that number's (RUI4-F1). For a shelter
  * the caller has already found visible.
  */
-const currentShelterContactOf = (shelter: Shelter): RevealShelterContactView => ({
+const currentShelterContactOf = (shelter: ContactableShelter): RevealShelterContactView => ({
   source: "current",
   displayName: shelter.displayName,
   contact: shelter.contact,
@@ -211,7 +216,10 @@ export const shelterContactOf = (
   shelter: Shelter | null | undefined,
   now: Date,
 ): RevealShelterContactView =>
-  shelter !== null && shelter !== undefined && listingOf(shelter, now) !== null
+  shelter !== null &&
+  shelter !== undefined &&
+  hasContact(shelter) &&
+  listingOf(shelter, now) !== null
     ? currentShelterContactOf(shelter)
     : {
         source: "first_reveal",

@@ -697,6 +697,28 @@ export async function verificationForNewAnimals(
   return stored.verification;
 }
 
+export type NewAnimalsCheck = { kind: "ok" } | { kind: "refused"; message: string };
+
+/**
+ * A re-run inserts animals as `published`, so it must hold the kabinet's no-contact publish gate
+ * too (owner, 2026-11-19): a stored shelter with no contact gets none, and nothing is written.
+ */
+export async function newAnimalsCheck(
+  db: Database,
+  shelter: Shelter,
+  insertResult: "inserted" | "exists",
+): Promise<NewAnimalsCheck> {
+  if (insertResult === "inserted") return { kind: "ok" };
+  const stored = await shelterRepo(db).findById(shelter.id);
+  if (stored === null || stored.contact !== null) return { kind: "ok" };
+  return {
+    kind: "refused",
+    message:
+      `ERROR: shelter ${shelter.id} has no contact for adopters, so no animal can be published. ` +
+      "Nothing was written. The shelter adds a contact in its kabinet first, then re-run.",
+  };
+}
+
 async function main(): Promise<void> {
   // First, before anything else this script checks or reads: which database
   // it would write to. Checked even on a dry run, because it costs nothing and
@@ -886,6 +908,11 @@ async function main(): Promise<void> {
   // S8-F5, Tier 1 review finding 1: see verificationForNewAnimals' own doc
   // comment for why this can't just be `shelter.verification`.
   const shelterVerification = await verificationForNewAnimals(db, shelter, insertResult);
+  const animalsCheck = await newAnimalsCheck(db, shelter, insertResult);
+  if (animalsCheck.kind === "refused") {
+    process.stderr.write(`${animalsCheck.message}\n`);
+    process.exit(1);
+  }
 
   // Existence checked BEFORE uploading, not after - round-1 review found
   // the original order (upload every animal's photos, then check
