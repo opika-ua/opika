@@ -61,7 +61,9 @@ export function ErrorSummary({
       <ul className="flex list-disc flex-col pl-6 text-ink">
         {items.map((item) => (
           <li key={item.key}>
+            {/* A list of text links, 36px apart (owner, 2026-11-19): exempt from the 48px floor as inline links. */}
             <a
+              data-inline-link=""
               href={item.target.startsWith("#") ? item.target : "#"}
               className="inline-flex min-h-9 items-center text-body text-ink underline underline-offset-4 focus-ring"
               onClick={(event) => {
