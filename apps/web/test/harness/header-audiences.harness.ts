@@ -119,13 +119,14 @@ test.describe("no sideways scroll and no overlap, visitor and shelter", () => {
 });
 
 test.describe("audience rules", () => {
-  test("a visitor has no «Кабінет» anywhere; a shelter has the pill and the drawer row", async ({
-    page,
-  }) => {
+  // Scenarios A (2026-11-19): «Кабінет» for everyone, sign-in for a visitor, never in the drawer.
+  test("a visitor's «Кабінет» goes to sign-in; a shelter's to the kabinet", async ({ page }) => {
     await openRoute(page, "/prytulkam", at(1440), { readySelector: HEADER });
-    await expect(page.locator("[data-testid^='nav-kabinet']")).toHaveCount(0);
-    // The visitor's way in is the link on this very page.
-    await expect(page.getByRole("link", { name: "Увійти в кабінет" })).toBeVisible();
+    await expect(page.locator("[data-testid='nav-kabinet']")).toBeVisible();
+    await expect(page.locator("[data-testid='nav-kabinet']")).toHaveAttribute(
+      "href",
+      "/kabinet/vkhid",
+    );
 
     await signInHint(page);
     await page.reload({ waitUntil: "load" });
@@ -150,16 +151,17 @@ test.describe("audience rules", () => {
     ).toHaveCount(1);
   });
 
-  test("the burger menu lists «Збережені» with its count and, for a shelter, «Кабінет» last", async ({
+  test("on a phone «Кабінет» is in the header row; the burger menu lists «Збережені» with its count", async ({
     page,
   }) => {
     await seedSaved(page, 3);
     await signInHint(page);
     await openRoute(page, "/tvaryny", at(393), { readySelector: HEADER });
+    await expect(page.locator("[data-testid='nav-kabinet']")).toBeVisible();
+    await expect(page.locator("[data-testid='nav-kabinet']")).toHaveAttribute("href", "/kabinet");
     await page.locator("[data-testid='nav-menu-trigger']").click();
     const rows = page.locator("[data-testid='nav-menu-sheet'] nav > a:visible");
-    await expect(rows).toHaveCount(5);
+    await expect(rows).toHaveCount(4);
     await expect(rows.nth(3)).toHaveAttribute("aria-label", "Збережені, 3");
-    await expect(rows.last()).toHaveAttribute("href", "/kabinet");
   });
 });

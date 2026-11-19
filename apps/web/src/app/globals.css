@@ -283,6 +283,11 @@
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   }
 }
+/* The header's «Кабінет» pill: the primary compact button's look as one class, since the header is
+   in every page's HTML and payload. A link is never disabled, so the disabled variants stay out. */
+@utility nav-kabinet {
+  @apply inline-flex shrink-0 items-center justify-center gap-2 text-label cursor-pointer focus-ring rounded-pill bg-ink text-on-ink min-h-target px-3 tablet:px-6;
+}
 @utility gcard {
   @apply relative flex flex-col gap-3 focus-ring tablet:block tablet:overflow-clip tablet:rounded-card;
 }

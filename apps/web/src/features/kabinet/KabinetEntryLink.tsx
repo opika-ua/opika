@@ -1,12 +1,13 @@
 import type { AnchorHTMLAttributes } from "react";
 import { type ButtonSize, type ButtonVariant, buttonClass } from "../../ui/Button";
 import { cx } from "../../ui/cx";
-import { FORGOT_PATH as FORGOT, SHELTER_HOME, SIGN_IN_PAGE_PATH } from "./routes";
+import { FORGOT_PATH as FORGOT, OPERATOR_HOME, SHELTER_HOME, SIGN_IN_PAGE_PATH } from "./routes";
 
 /** Where a public page may send someone into the kabinet. */
 // One line: guard 8 reads a constant's value from its declaration line. `forgot` is the
-// registration form's «Відновити пароль».
-const KABINET_ENTRIES = { home: SHELTER_HOME, signIn: SIGN_IN_PAGE_PATH, forgot: FORGOT } as const;
+// registration form's «Відновити пароль»; `operator` is /prytulkam's «До заявок».
+// biome-ignore format: guard 8 reads the value from this one line
+const KABINET_ENTRIES = { home: SHELTER_HOME, signIn: SIGN_IN_PAGE_PATH, forgot: FORGOT, operator: OPERATOR_HOME } as const;
 
 export type KabinetEntry = keyof typeof KABINET_ENTRIES;
 

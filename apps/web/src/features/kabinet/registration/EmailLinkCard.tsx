@@ -111,7 +111,7 @@ export function EmailLinkCard({ purpose, initial, action, permalink, kabinetEntr
                 <InlineStatus tone="success">{uk.registration.emailConfirmed}</InlineStatus>
                 <LinkButton href={SHELTER_HOME} size="lg" className="w-full">
                   {kabinetEntry === "go_to_kabinet"
-                    ? uk.registration.goToKabinet
+                    ? uk.registration.signedIn.toKabinet
                     : uk.forShelters.signInLink}
                 </LinkButton>
               </>

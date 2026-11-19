@@ -2,6 +2,7 @@ import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { OPERATOR_CONTACT } from "../../../brand";
 import { AuthPage } from "../../../features/kabinet/AuthPage";
 import { leavesSignIn } from "../../../features/kabinet/home";
 import { InviteUnusableCard } from "../../../features/kabinet/password/InviteUnusableCard";
@@ -14,6 +15,7 @@ import { invitePasswordLandingOf } from "../../../kabinet/invite-password";
 import { inviteTokensOf } from "../../../kabinet/invite-tokens";
 import { kabinetDb } from "../../../kabinet/kabinet-db";
 import { kabinetIdentityOf } from "../../../kabinet/principal";
+import { AssistanceLine } from "../../../ui/AssistanceLine";
 import { kabinetAuthOrNotFound } from "../available-auth";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -76,10 +78,18 @@ export default async function SignInPage({
   let card: React.ReactNode;
   if (token === null) {
     card = (
-      <>
-        <SignInCard contact={contact} />
-        <RegistrationSignInPrompt />
-      </>
+      <SignInCard
+        contact={contact}
+        footer={<RegistrationSignInPrompt />}
+        assistance={
+          // The one operator contact (#526), as the registration card's line: always shown.
+          <AssistanceLine
+            text={uk.kabinet.signInPage.assistance.text}
+            linkLabel={uk.kabinet.signInPage.assistance.link}
+            href={`mailto:${OPERATOR_CONTACT.email}`}
+          />
+        }
+      />
     );
   } else {
     const landing = await invitePasswordLandingOf(token, {

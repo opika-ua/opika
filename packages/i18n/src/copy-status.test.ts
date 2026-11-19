@@ -142,7 +142,6 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       shell: ["accountAndPassword", "label", "newTab", "operator", "toSite"],
       // PW-1: `send` (the magic-link button) gave way to his `useLink`; the password keys are his §A.
       signIn: [
-        "addressNote",
         "emailLabel",
         "failed",
         "forgot",
@@ -269,9 +268,6 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       "Листа немає? Перевірте «Спам» і «Промоакції». Надіслати ще раз можна через 60 секунд.",
     // row 11
     "signInCard.notArrived": "Якщо лист не прийшов за кілька хвилин, напишіть мені на {contact}.",
-    // row 6
-    "signIn.addressNote":
-      "Адресу додаю я, коли запрошую притулок. Якщо адреси немає в списку, лист не прийде – і ця сторінка про це не повідомляє, щоб не розкривати, хто зареєстрований.",
     // row 9
     "signIn.sentBody":
       "Якщо ця адреса є в списку, на {email} прийде посилання для входу. Воно діє 15 хвилин і відкривається на будь-якому пристрої.",
@@ -631,7 +627,6 @@ describe("CB-B1: the replaced strings name no «реєстр»", () => {
       en.kabinet.profileEdit.about.hint,
     ],
     "kabinet.signIn.intro": [uk.kabinet.signIn.intro, en.kabinet.signIn.intro],
-    "kabinet.signIn.addressNote": [uk.kabinet.signIn.addressNote, en.kabinet.signIn.addressNote],
     "kabinet.email.invite.intro": [uk.kabinet.email.invite.intro, en.kabinet.email.invite.intro],
     "kabinet.inviteLanding.expired": [
       uk.kabinet.inviteLanding.expired,
@@ -1455,21 +1450,33 @@ describe("/prytulkam §9 (forShelters.whenAnimalFindsHome)", () => {
 describe("/prytulkam A1 (forShelters.whatToPrepare)", () => {
   const paragraphs = uk.forShelters.whatToPrepare.split("\n\n");
 
-  it("carries his line directly before §7's last paragraph, which is his PR 6 text", () => {
+  it("carries his line directly before §7's last paragraph, which is his 2026-11-19 text", () => {
     expect(paragraphs.at(-2)).toBe(
       "Доступ до кабінету я надсилаю сам – листом на адресу, яку ви мені вкажете.",
     );
-    // pr6-copy-uk.md §1.1: the shelter keeps its animals and profile itself (commitment #6).
+    // The shelter keeps its animals and profile itself (commitment #6); cards publish after approval.
     expect(paragraphs.at(-1)).toBe(
-      "Тварин і профіль притулку ви ведете самі в кабінеті: додаєте картку, публікуєте – і її одразу видно. Якщо тварин багато, на старті можу внести перші картки сам – надішліть список і фото.",
+      "Тварин і профіль притулку ви ведете самі в кабінеті: картки можна додати одразу, а опублікувати – після схвалення, коли в профілі є контакт.",
     );
     expect(uk.forShelters.whatToPrepare).not.toContain("я внесу все сам");
     expect(uk.forShelters.whatToPrepare).not.toContain("Заповнювати анкету не треба");
+    expect(uk.forShelters.whatToPrepare).not.toContain("перші картки сам");
     expect(paragraphs.at(-3)).toBe("Фотографії використовуються тільки для сторінок ваших тварин.");
     expect(
       paragraphs.filter((paragraph) => paragraph.includes("Доступ до кабінету")),
       "once",
     ).toHaveLength(1);
+  });
+
+  it("opens on what registration needs, and the donation link waits for the check (owner, 2026-11-19)", () => {
+    expect(paragraphs[0]).toBe(
+      "Для реєстрації потрібні назва, місто й посилання на сайт чи сторінку притулку. Для карток тварин знадобляться:",
+    );
+    expect(paragraphs[1]?.split("\n")).toHaveLength(4);
+    expect(paragraphs[1]).not.toContain("донат");
+    expect(paragraphs[2]).toBe(
+      "Посилання на донати можна додати після перевірки притулку, якщо воно у вас є.",
+    );
   });
 });
 
@@ -1660,7 +1667,7 @@ describe("/prytulkam §8 B1 (forShelters.whyHowOften)", () => {
     }
   });
 
-  it("the §8 heading and §7's fifth bullet are the owner-approved 2026-11 text", () => {
+  it("the §8 heading and §7's last bullet are the owner-approved 2026-11 text", () => {
     expect(uk.forShelters.headings.whyHowOften).toBe("Навіщо розповідати, як ви оновлюєте картки");
     expect(uk.forShelters.whatToPrepare).toContain(
       "і кілька речень про притулок: хто ви, як працюєте і як часто оновлюєте картки – про це нижче.",
@@ -3086,7 +3093,7 @@ describe("animal page photo strip copy (owner-given and owner-approved, 2026-11-
   });
 });
 
-/** The email-link pages' sentences and the signed-in button (owner-approved, 2026-11-19). */
+/** The email-link pages' sentences (owner-approved, 2026-11-19). */
 describe("self-registration email-link copy (owner-approved, 2026-11-19)", () => {
   const EMAIL_LINK_COPY = {
     confirmEmailPrompt: "Натисніть кнопку, щоб підтвердити адресу {email}.",
@@ -3094,7 +3101,6 @@ describe("self-registration email-link copy (owner-approved, 2026-11-19)", () =>
       "Якщо ви не реєстрували притулок, натисніть кнопку\u00a0– я видалю заявку, створену з вашою адресою.",
     notMeLinkExpired:
       "Посилання вже не діє. Якщо хтось зареєстрував притулок з вашою адресою\u00a0– напишіть мені на {email}.",
-    goToKabinet: "Перейти в кабінет",
     notMeDone: "Заявку видалено. Якщо це помилка\u00a0– напишіть мені на {email}.",
   } as const;
 
@@ -3112,6 +3118,10 @@ describe("self-registration email-link copy (owner-approved, 2026-11-19)", () =>
       }
     },
   );
+
+  it("the confirmed card's signed-in button is R2's «Перейти в кабінет»", () => {
+    expect(uk.registration.signedIn.toKabinet).toBe("Перейти в кабінет");
+  });
 
   it("the «Це не я» dead link never sends its reader to sign in", () => {
     expect(uk.registration.notMeLinkExpired).not.toContain("Увійдіть");

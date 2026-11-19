@@ -190,7 +190,7 @@ test.describe("the invitation link sets a password (PW-2)", () => {
 
     // Sign in with the password, from that page's own link.
     await page.getByRole("link", { name: "Перейти до входу" }).click();
-    await expect(page.getByRole("heading", { level: 1, name: "Вхід до кабінету" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Вхід у кабінет" })).toBeVisible();
     await page.getByLabel("Електронна пошта").fill(email);
     await page.getByLabel("Пароль", { exact: true }).fill(PASSWORD);
     await Promise.all([

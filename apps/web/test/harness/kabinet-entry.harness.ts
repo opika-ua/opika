@@ -109,21 +109,17 @@ test.describe("public pages enter the kabinet by a full document load", () => {
     await expectKabinetDocument(page, documents);
   });
 
-  test("the phone drawer's «Кабінет» row, by keyboard", async ({ page }) => {
+  test("the phone header's «Кабінет» button, by keyboard", async ({ page }) => {
     await signedInHint(page);
     await page.setViewportSize({ width: 390, height: 844 });
     const documents = kabinetDocuments(page);
     await page.goto("/pro", { waitUntil: "load" });
-    const trigger = page.locator("[data-testid='nav-menu-trigger']");
-    const row = page.locator("[data-testid='nav-kabinet-menu']");
-    await hydrated(page, "[data-testid='nav-menu-trigger']");
-    await hydrated(page, "[data-testid='nav-kabinet-menu']");
+    const pill = page.locator("[data-testid='nav-kabinet']");
+    await hydrated(page, "[data-testid='nav-kabinet']");
+    await expect(pill).toBeVisible();
 
-    await expectReachableByTab(page, { label: "the drawer's toggle", locator: trigger });
-    await page.keyboard.press("Enter");
-    await expect(row).toBeVisible();
     await markDocument(page);
-    await expectReachableByTab(page, { label: "the drawer's «Кабінет» row", locator: row });
+    await expectReachableByTab(page, { label: "the header's «Кабінет» button", locator: pill });
     await page.keyboard.press("Enter");
 
     await expectKabinetDocument(page, documents);

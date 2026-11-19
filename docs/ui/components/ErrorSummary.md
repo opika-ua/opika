@@ -20,7 +20,8 @@ underlined bulleted list in `ink`.
 **Accessibility.** A live `role="alert"` that is a programmatic focus target (`tabIndex=-1`, visible
 focus). Focus it only when a person asks to submit and is refused, never on an autosave. Each item is
 a real link (`href` is the target when it is an id) that scrolls the field to the centre and focuses
-it; 48px tall.
+it; 36px tall, a tight list as in the mock (owner, 2026-11-19). The links carry `data-inline-link`, so
+the kit's 48px check (`dev-ui.harness.ts`) treats them as inline text links, as it does prose links.
 
 **`onSelect`.** Optional per item. When the field may sit in a hidden tab, the page switches the tab
 and focuses the field itself; without it the link focuses `target`.
