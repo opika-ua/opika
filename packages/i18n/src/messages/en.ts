@@ -611,13 +611,14 @@ export const en = {
     notMeDone: "The application is deleted. If this is a mistake, write to me at {email}.",
     confirmEmailPrompt: "Press the button to confirm the address {email}.",
     notMePrompt:
-      "If you didn't register a shelter, press the button – I'll delete the application made with your address.",
+      "If you didn't register a shelter, press the button – I'll delete the application created with your address.",
     notMeLinkExpired:
-      "The link no longer works. If someone registered a shelter with your address, write to me at {email}.",
+      "The link no longer works. If someone registered a shelter with your address – write to me at {email}.",
     notMeAfterApproval:
       "The shelter is already approved, so the application can't be deleted from the link. If you didn't register this shelter, write to me at {email}.",
     emailTakenSignIn: "Sign in",
     emailTakenReset: "Reset password",
+    goToKabinet: "Go to the cabinet",
   },
   kabinet: {
     application: {

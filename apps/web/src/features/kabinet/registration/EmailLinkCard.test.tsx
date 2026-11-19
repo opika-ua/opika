@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { RegistrationLinkState } from "../../../kabinet/registration/email-link-route";
-import { EmailLinkCard, type EmailLinkPurpose } from "./EmailLinkCard";
+import { EmailLinkCard, type EmailLinkPurpose, type KabinetEntry } from "./EmailLinkCard";
 
 /**
  * The email-link pages (R3): one card per state, a heading, at most one sentence, at most one
@@ -15,9 +15,16 @@ function show(
   purpose: EmailLinkPurpose,
   initial: RegistrationLinkState,
   action = vi.fn(async (): Promise<RegistrationLinkState> => initial),
+  kabinetEntry: KabinetEntry = "sign_in",
 ) {
   render(
-    <EmailLinkCard purpose={purpose} initial={initial} action={action} permalink={PATH[purpose]} />,
+    <EmailLinkCard
+      purpose={purpose}
+      initial={initial}
+      action={action}
+      permalink={PATH[purpose]}
+      kabinetEntry={kabinetEntry}
+    />,
   );
   return action;
 }
@@ -90,6 +97,22 @@ describe("EmailLinkCard", () => {
     );
     expect(screen.getByRole("link", { name: "Увійти в кабінет" })).toBeDefined();
     expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("confirmed while signed in to the kabinet: «Перейти в кабінет», not a sign-in", async () => {
+    show(
+      "confirm_email",
+      { kind: "form", token: TOKEN, email: null },
+      vi.fn(async (): Promise<RegistrationLinkState> => ({ kind: "confirmed" })),
+      "go_to_kabinet",
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Підтвердити email" }));
+    });
+    expect(screen.getByRole("link", { name: "Перейти в кабінет" }).getAttribute("href")).toBe(
+      "/kabinet",
+    );
+    expect(screen.queryByRole("link", { name: "Увійти в кабінет" })).toBeNull();
   });
 
   it("a press the link no longer allows: the expired message is announced", async () => {

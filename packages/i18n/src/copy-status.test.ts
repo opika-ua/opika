@@ -3086,7 +3086,7 @@ describe("animal page photo strip copy (owner-given and owner-approved, 2026-11-
   });
 });
 
-/** The email-link pages' sentences (owner-approved, 2026-11-19), character-exact. */
+/** The email-link pages' sentences and the signed-in button (owner-approved, 2026-11-19). */
 describe("self-registration email-link copy (owner-approved, 2026-11-19)", () => {
   const EMAIL_LINK_COPY = {
     confirmEmailPrompt: "Натисніть кнопку, щоб підтвердити адресу {email}.",
@@ -3094,6 +3094,7 @@ describe("self-registration email-link copy (owner-approved, 2026-11-19)", () =>
       "Якщо ви не реєстрували притулок, натисніть кнопку – я видалю заявку, створену з вашою адресою.",
     notMeLinkExpired:
       "Посилання вже не діє. Якщо хтось зареєстрував притулок з вашою адресою – напишіть мені на {email}.",
+    goToKabinet: "Перейти в кабінет",
   } as const;
 
   it.each(Object.entries(EMAIL_LINK_COPY))("%s is his text", (key, text) => {

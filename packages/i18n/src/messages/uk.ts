@@ -314,6 +314,8 @@ export const uk = {
     /** Beside `errors.emailTaken` (owner, 2026-11-18): plain links into the kabinet. */
     emailTakenSignIn: "Увійти",
     emailTakenReset: "Відновити пароль",
+    /** The confirmed card's button for a reader already signed in (owner, 2026-11-19). */
+    goToKabinet: "Перейти в кабінет",
   },
   kabinet: {
     /**

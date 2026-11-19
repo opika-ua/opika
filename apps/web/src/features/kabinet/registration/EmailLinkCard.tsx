@@ -14,19 +14,23 @@ import { SHELTER_HOME } from "../routes";
 
 export type EmailLinkPurpose = "confirm_email" | "not_me";
 
+/** The confirmed card's button (owner, 2026-11-19): a kabinet session goes straight in. */
+export type KabinetEntry = "go_to_kabinet" | "sign_in";
+
 type Props = {
   purpose: EmailLinkPurpose;
   initial: RegistrationLinkState;
   action: (previous: RegistrationLinkState, form: FormData) => Promise<RegistrationLinkState>;
   /** The bare path: without JS the form posts here, so the token travels only in the body. */
   permalink: string;
+  kabinetEntry: KabinetEntry;
 };
 
 /**
  * One card for both email links, before and after the button (R3): the GET's state first, then
  * whatever the action answered. A client island only for `useActionState`.
  */
-export function EmailLinkCard({ purpose, initial, action, permalink }: Props) {
+export function EmailLinkCard({ purpose, initial, action, permalink, kabinetEntry }: Props) {
   useTokenOutOfAddressBar();
   const [state, formAction, pending] = useActionState(action, initial, permalink);
   const email = uk.kabinet.email.applicationConfirm;
@@ -94,7 +98,9 @@ export function EmailLinkCard({ purpose, initial, action, permalink }: Props) {
               <>
                 <InlineStatus tone="success">{uk.registration.emailConfirmed}</InlineStatus>
                 <LinkButton href={SHELTER_HOME} size="lg" className="w-full">
-                  {uk.forShelters.signInLink}
+                  {kabinetEntry === "go_to_kabinet"
+                    ? uk.registration.goToKabinet
+                    : uk.forShelters.signInLink}
                 </LinkButton>
               </>
             );
