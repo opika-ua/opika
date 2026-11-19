@@ -700,8 +700,9 @@ export async function verificationForNewAnimals(
 export type NewAnimalsCheck = { kind: "ok" } | { kind: "refused"; message: string };
 
 /**
- * A re-run inserts animals as `published`, so it must hold the kabinet's no-contact publish gate
- * too (owner, 2026-11-19): a stored shelter with no contact gets none, and nothing is written.
+ * A re-run inserts animals as `published`, so it must hold the kabinet's publish gate too (owner,
+ * 2026-11-19): a stored shelter still at the application stage, or with no contact, gets none,
+ * and nothing is written. The application wins, as in `publishGateOf`.
  */
 export async function newAnimalsCheck(
   db: Database,
@@ -710,7 +711,16 @@ export async function newAnimalsCheck(
 ): Promise<NewAnimalsCheck> {
   if (insertResult === "inserted") return { kind: "ok" };
   const stored = await shelterRepo(db).findById(shelter.id);
-  if (stored === null || stored.contact !== null) return { kind: "ok" };
+  if (stored === null) return { kind: "ok" };
+  if (stored.verification.status === "application") {
+    return {
+      kind: "refused",
+      message:
+        `ERROR: shelter ${shelter.id} is still an application, so no animal can be published. ` +
+        "Nothing was written. Accept it in the operator's queue first, then re-run.",
+    };
+  }
+  if (stored.contact !== null) return { kind: "ok" };
   return {
     kind: "refused",
     message:
