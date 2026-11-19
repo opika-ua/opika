@@ -6,6 +6,8 @@ import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signe
 import { KabinetEntryLink } from "../../features/kabinet/KabinetEntryLink";
 import { isSelfRegistrationEnabled } from "../../features/registration/flag";
 import { RegistrationSection } from "../../features/registration/RegistrationSection";
+import { RegistrationSignedIn } from "../../features/registration/RegistrationSignedIn";
+import { registrationViewerOf } from "../../features/registration/registration-viewer";
 import { SelfRegistrationPage } from "../../features/registration/SelfRegistrationPage";
 import { seoMetadata, withSite } from "../../seo/page-metadata";
 import { Heading } from "../../ui/Heading";
@@ -153,7 +155,16 @@ export const dynamic = "force-dynamic";
 
 export default async function ForSheltersPage() {
   const kabinetSignedIn = await kabinetSessionCookiePresent();
-  return renderForSheltersPage(kabinetSignedIn, { selfRegistration: isSelfRegistrationEnabled() });
+  const selfRegistration = isSelfRegistrationEnabled();
+  // A2–A4: someone signed in gets their way in instead of a second registration.
+  const viewer = selfRegistration
+    ? await registrationViewerOf(kabinetSignedIn)
+    : ({ kind: "anonymous" } as const);
+  return renderForSheltersPage(kabinetSignedIn, {
+    selfRegistration,
+    registrationCard:
+      viewer.kind === "anonymous" ? undefined : <RegistrationSignedIn viewer={viewer} />,
+  });
 }
 
 /** The page body; exported so `page.test.tsx` can render it without a real request scope. */

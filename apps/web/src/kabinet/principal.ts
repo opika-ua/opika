@@ -36,11 +36,12 @@ export async function kabinetIdentityOf(
   headers: Headers,
   now: Date,
   production: boolean,
+  options: { refresh: boolean } = { refresh: true },
 ): Promise<KabinetIdentity> {
   // Every page load and API call reads through here: a failed query reaches the caller, and so
   // Next's error log, cleaned (PW1-F8): a support session's token is one of its parameters.
   const clean = withQueryErrorsCleaned(db);
-  const userId = await kabinetSessionUserIdOf(auth, clean, headers, now);
+  const userId = await kabinetSessionUserIdOf(auth, clean, headers, now, options);
   if (userId === null) return { principal: { kind: "anonymous" }, userId: null };
   const role = await kabinetActorRepo(clean).roleOf(userId);
   // A super_admin with an open support session is a support view (RG-Q4).
