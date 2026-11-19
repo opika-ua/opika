@@ -1,16 +1,29 @@
 "use client";
 
 import { fillTemplate, uk } from "@opika/i18n";
-import { useActionState } from "react";
+import { type ReactNode, useActionState } from "react";
 import { OPERATOR_CONTACT } from "../../../brand";
 import type { RegistrationLinkState } from "../../../kabinet/registration/email-link-route";
 import { Button, LinkButton } from "../../../ui/Button";
 import { InlineStatus } from "../../../ui/feedback";
 import { Heading } from "../../../ui/Heading";
 import { Text } from "../../../ui/Text";
+import { TextLink } from "../../../ui/TextLink";
 import { CardFrame } from "../password/CardFrame";
 import { useTokenOutOfAddressBar } from "../password/use-token-out-of-address-bar";
 import { SHELTER_HOME } from "../routes";
+
+/** A sentence whose `{email}` is the operator's address, written to by a click (owner, 2026-11-19). */
+function withOperatorAddress(template: string): ReactNode {
+  const [before, after = ""] = template.split("{email}");
+  return (
+    <>
+      {before}
+      <TextLink href={`mailto:${OPERATOR_CONTACT.email}`}>{OPERATOR_CONTACT.email}</TextLink>
+      {after}
+    </>
+  );
+}
 
 export type EmailLinkPurpose = "confirm_email" | "not_me";
 
@@ -35,7 +48,6 @@ export function EmailLinkCard({ purpose, initial, action, permalink, kabinetEntr
   const [state, formAction, pending] = useActionState(action, initial, permalink);
   const email = uk.kabinet.email.applicationConfirm;
   const heading = purpose === "confirm_email" ? email.action : email.notYouAction;
-  const contact = { email: OPERATOR_CONTACT.email };
   const titleId = `email-link-${purpose}-title`;
   return (
     <CardFrame titleId={titleId}>
@@ -76,7 +88,7 @@ export function EmailLinkCard({ purpose, initial, action, permalink, kabinetEntr
               return (
                 <div role="alert">
                   <Text look="body" className="text-ink-2">
-                    {fillTemplate(uk.registration.notMeLinkExpired, contact)}
+                    {withOperatorAddress(uk.registration.notMeLinkExpired)}
                   </Text>
                 </div>
               );
@@ -107,13 +119,13 @@ export function EmailLinkCard({ purpose, initial, action, permalink, kabinetEntr
           case "withdrawn":
             return (
               <InlineStatus tone="success">
-                {fillTemplate(uk.registration.notMeDone, contact)}
+                {withOperatorAddress(uk.registration.notMeDone)}
               </InlineStatus>
             );
           case "approved":
             return (
               <InlineStatus tone="info">
-                {fillTemplate(uk.registration.notMeAfterApproval, contact)}
+                {withOperatorAddress(uk.registration.notMeAfterApproval)}
               </InlineStatus>
             );
           /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind */

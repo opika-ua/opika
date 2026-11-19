@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, getDefaultNormalizer, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { RegistrationLinkState } from "../../../kabinet/registration/email-link-route";
 import { EmailLinkCard, type EmailLinkPurpose, type KabinetEntry } from "./EmailLinkCard";
@@ -55,7 +55,9 @@ describe("EmailLinkCard", () => {
     expect(heading()).toBe("Це не я");
     expect(
       screen.getByText(
-        "Якщо ви не реєстрували притулок, натисніть кнопку – я видалю заявку, створену з вашою адресою.",
+        "Якщо ви не реєстрували притулок, натисніть кнопку\u00a0– я видалю заявку, створену з вашою адресою.",
+        // Exact, the no-break space included (the default normalizer folds it into a space).
+        { normalizer: getDefaultNormalizer({ collapseWhitespace: false }) },
       ),
     ).toBeDefined();
     expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Це не я"]);
@@ -75,10 +77,14 @@ describe("EmailLinkCard", () => {
   it("«Це не я», used, expired or unknown: who to write to, and no sign-in for someone who never registered", () => {
     show("not_me", { kind: "expired" });
     expect(screen.getByRole("alert").textContent).toBe(
-      "Посилання вже не діє. Якщо хтось зареєстрував притулок з вашою адресою – напишіть мені на hello@opika.org.ua.",
+      "Посилання вже не діє. Якщо хтось зареєстрував притулок з вашою адресою\u00a0– напишіть мені на hello@opika.org.ua.",
     );
     expect(screen.queryByText(/Увійдіть у кабінет/)).toBeNull();
-    expect(screen.queryByRole("link")).toBeNull();
+    // The operator's address is the only link: a click writes to it, no way into a kabinet.
+    expect(screen.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
+      "mailto:hello@opika.org.ua",
+    ]);
+    expect(screen.getByRole("link", { name: "hello@opika.org.ua" })).toBeDefined();
     expect(screen.queryByRole("button")).toBeNull();
   });
 
@@ -125,26 +131,33 @@ describe("EmailLinkCard", () => {
       fireEvent.click(screen.getByRole("button", { name: "Це не я" }));
     });
     expect(screen.getByRole("alert").textContent).toBe(
-      "Посилання вже не діє. Якщо хтось зареєстрував притулок з вашою адресою – напишіть мені на hello@opika.org.ua.",
+      "Посилання вже не діє. Якщо хтось зареєстрував притулок з вашою адресою\u00a0– напишіть мені на hello@opika.org.ua.",
     );
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it("after «Це не я»: the deletion is announced, nothing to press", () => {
+  it("after «Це не я»: the deletion is announced, the operator's address a mailto link", () => {
     show("not_me", { kind: "withdrawn" });
     expect(heading()).toBe("Це не я");
     expect(screen.getByRole("status").textContent).toBe(
-      "Заявку видалено. Якщо це помилка – напишіть мені на hello@opika.org.ua.",
+      "Заявку видалено. Якщо це помилка\u00a0– напишіть мені на hello@opika.org.ua.",
     );
     expect(screen.queryByRole("button")).toBeNull();
-    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
+      "mailto:hello@opika.org.ua",
+    ]);
+    expect(screen.getByRole("link", { name: "hello@opika.org.ua" })).toBeDefined();
   });
 
-  it("«Це не я» once approved: says nothing was deleted, nothing to press", () => {
+  it("«Це не я» once approved: says nothing was deleted, the address a mailto link", () => {
     show("not_me", { kind: "approved" });
     expect(screen.getByRole("status").textContent).toBe(
       "Притулок уже схвалено, тому заявку не можна видалити за посиланням. Якщо ви не реєстрували цей притулок, напишіть мені на hello@opika.org.ua.",
     );
     expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
+      "mailto:hello@opika.org.ua",
+    ]);
+    expect(screen.getByRole("link", { name: "hello@opika.org.ua" })).toBeDefined();
   });
 });

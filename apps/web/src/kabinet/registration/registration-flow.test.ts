@@ -341,7 +341,7 @@ describe("the confirmation email's links act only on an origin-checked POST", ()
       "Натисніть кнопку, щоб підтвердити адресу olena@example.org.",
     );
     expect(await (await get(NOT_ME, registered.notMeToken)).text()).toContain(
-      "Якщо ви не реєстрували притулок, натисніть кнопку – я видалю заявку, створену з вашою адресою.",
+      "Якщо ви не реєстрували притулок, натисніть кнопку\u00a0– я видалю заявку, створену з вашою адресою.",
     );
   });
 
@@ -350,7 +350,7 @@ describe("the confirmation email's links act only on an origin-checked POST", ()
     [
       "«Це не я»",
       NOT_ME,
-      "Посилання вже не діє. Якщо хтось зареєстрував притулок з вашою адресою – напишіть мені на hello@opika.org.ua.",
+      'Посилання вже не діє. Якщо хтось зареєстрував притулок з вашою адресою\u00a0– напишіть мені на <a href="mailto:hello@opika.org.ua">hello@opika.org.ua</a>.',
       false,
     ],
   ] as const)(
@@ -429,7 +429,7 @@ describe("the confirmation email's links act only on an origin-checked POST", ()
     const answer = await post(NOT_ME, registered.notMeToken, BASE);
     expect(answer.status).toBe(200);
     expect(await answer.text()).toContain(
-      "Притулок уже схвалено, тому заявку не можна видалити за посиланням. Якщо ви не реєстрували цей притулок, напишіть мені на hello@opika.org.ua.",
+      'Притулок уже схвалено, тому заявку не можна видалити за посиланням. Якщо ви не реєстрували цей притулок, напишіть мені на <a href="mailto:hello@opika.org.ua">hello@opika.org.ua</a>.',
     );
     expect(deleted).toEqual([]);
     const lines = async () =>

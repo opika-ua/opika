@@ -62,6 +62,13 @@ const escapeHtml = (text: string) =>
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c,
   );
 
+/** `{email}` as a mailto link to the operator, the rest escaped (owner, 2026-11-19). */
+function withOperatorAddress(template: string): string {
+  const [before = "", after = ""] = template.split("{email}");
+  const address = escapeHtml(OPERATOR_CONTACT.email);
+  return `${escapeHtml(before)}<a href="mailto:${address}">${address}</a>${escapeHtml(after)}`;
+}
+
 /** The sentence above a live link's button; none on a confirm link whose address is unknown. */
 function linkPrompt(purpose: RegistrationTokenPurpose, email: string | null): string | null {
   if (purpose === "not_me") return uk.registration.notMePrompt;
@@ -90,14 +97,14 @@ function page(
 </form>`;
       case "expired":
         return purpose === "not_me"
-          ? `<p role="alert">${escapeHtml(fillTemplate(uk.registration.notMeLinkExpired, { email: OPERATOR_CONTACT.email }))}</p>`
+          ? `<p role="alert">${withOperatorAddress(uk.registration.notMeLinkExpired)}</p>`
           : `<p role="alert">${escapeHtml(uk.registration.confirmLinkExpired)}</p>\n${kabinetLink}`;
       case "confirmed":
         return `<p role="status">${escapeHtml(uk.registration.emailConfirmed)}</p>\n${kabinetLink}`;
       case "approved":
-        return `<p role="alert">${escapeHtml(fillTemplate(uk.registration.notMeAfterApproval, { email: OPERATOR_CONTACT.email }))}</p>`;
+        return `<p role="alert">${withOperatorAddress(uk.registration.notMeAfterApproval)}</p>`;
       case "withdrawn":
-        return `<p role="status">${escapeHtml(fillTemplate(uk.registration.notMeDone, { email: OPERATOR_CONTACT.email }))}</p>`;
+        return `<p role="status">${withOperatorAddress(uk.registration.notMeDone)}</p>`;
       /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
       default: {
         const unreachable: never = state;
