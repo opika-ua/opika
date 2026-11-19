@@ -154,10 +154,8 @@ export function SiteHeader({
         */}
         <KabinetEntryLink
           to={audience === "shelter" ? "home" : "signIn"}
-          variant="primary"
-          size="compact"
           data-testid="nav-kabinet"
-          className="shrink-0 tablet:px-6"
+          className="nav-kabinet"
         >
           {/* Text only below tablet, so the row fits at 320 px. */}
           <Icon name="user" size="md" className="hidden tablet:block" />
