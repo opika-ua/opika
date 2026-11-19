@@ -717,24 +717,8 @@ describe("the minimal shelter: created without legal data or address", () => {
     expect(changes).toHaveLength(2);
   });
 
-  /** No legal form yet: held to the initiative's lines (a call or open sources, and a reference). */
   it("allows listing before verification while the legal data and address are missing", async () => {
-    const reference = {
-      kind: "reference_contact",
-      name: "Ветклініка",
-      channel: { kind: "phone", e164: "+380501112233" },
-      relationship: "veterinary_clinic",
-    };
-    const callOnly = await call<RegistryShelterView>("registry.shelters.create", {
-      ...minimalInput(),
-      evidence: [VISIT],
-      firstAdmin: { name: "Ірина", email: "iryna@example.org" },
-    });
-    const refused = await call<{ data: unknown }>("registry.earlyListing.allow", {
-      shelterId: callOnly.body.id,
-    });
-    expect(refused.body.data).toEqual({ reason: "evidence_below_minimum" });
-    const input = { ...minimalInput(), evidence: [VISIT, reference] };
+    const input = { ...minimalInput(), evidence: [VISIT] };
     const result = await call<RegistryShelterView>("registry.shelters.create", input);
     const allowed = await call<RegistryShelterView>("registry.earlyListing.allow", {
       shelterId: result.body.id,
@@ -3000,16 +2984,9 @@ describe("registry.earlyListing", () => {
     visitedBy: OPERATOR as ModeratorId,
     notes: "Був на місці",
   } as const;
-  const REGISTRATION = {
-    kind: "edrpou_registration",
-    edrpou: "12345678" as never,
-    registeredName: "ГО Лапа",
-    documentKey: null,
-  } as const;
-  /** The fixture is a registered NGO: approval's evidence is a registry entry and a call. */
   const withVisit = (status: "pending" | "under_review"): ShelterVerification => ({
     ...STATES[status],
-    evidence: { items: [REGISTRATION, VISIT], submittedAt: NOW },
+    evidence: { items: [VISIT], submittedAt: NOW },
   });
   const allow = (shelterId: string, opts: { note?: string; now?: Date } = {}) =>
     call<RegistryShelterView & { data?: unknown }>(
@@ -3034,15 +3011,11 @@ describe("registry.earlyListing", () => {
     ]);
   });
 
-  /** Owner, 2026-11-19: approval's evidence for the form, open sources included. */
-  it("accepts open sources with the registry as the minimum too, and refuses anything below it", async () => {
+  /** Owner, 2026-11-19: any one of open sources (registry part or not), a call or a reference. */
+  it("accepts open sources or a reference as the minimum too, and refuses anything below it", async () => {
     const openSources = {
       kind: "open_sources_review",
-      registry: {
-        edrpou: "12345678" as never,
-        registeredName: "ГО Лапа",
-        registeredAddress: "м. Київ",
-      },
+      registry: null,
       pages: ["https://lapa.example.org/"],
       reviews: null,
       notes: "Сайт",
@@ -3053,11 +3026,16 @@ describe("registry.earlyListing", () => {
       verification: { ...STATES.pending, evidence: { items: [openSources], submittedAt: NOW } },
     });
     expect((await allow(ok.id)).status).toBe(200);
-    // No longer one piece of anything: a call alone falls short of a registered NGO's evidence.
-    const callOnly = await shelter({
-      verification: { ...STATES.pending, evidence: { items: [VISIT], submittedAt: NOW } },
+    const reference = {
+      kind: "reference_contact",
+      name: "Ветклініка",
+      channel: { kind: "phone", e164: "+380501112233" },
+      relationship: "veterinary_clinic",
+    } as const;
+    const withReference = await shelter({
+      verification: { ...STATES.pending, evidence: { items: [reference], submittedAt: NOW } },
     });
-    expect((await allow(callOnly.id)).body.data).toEqual({ reason: "evidence_below_minimum" });
+    expect((await allow(withReference.id)).status).toBe(200);
     const bare = await shelter({ verification: STATES.pending });
     const refused = await allow(bare.id);
     expect(refused.status).toBe(409);

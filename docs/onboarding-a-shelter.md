@@ -740,10 +740,10 @@ events (`early-listing.ts`).
 
 - **Who and where.** Operator only. Panel «Показ до завершення перевірки» on the shelter's registry
   page, shown in `pending` and `under_review` only.
-- **Minimum evidence.** Since 2026-11-19 (owner) the same evidence as approval for the shelter's
-  legal form, the table in "Evidence" (`earlyListingEvidenceGaps`); a shelter whose legal form is
-  not recorded yet is held to the initiative's line (a call or open sources, and a reference).
-  The legal data and the address are still not needed. Otherwise refused with «Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація.»
+- **Minimum evidence.** Any one of an `open_sources_review` (with or without its registry part),
+  a `site_visit` (video call) or a `reference_contact`, whatever the legal form, or none recorded
+  yet (`EARLY_LISTING_EVIDENCE_KINDS`; open sources since 2026-11-19, owner). This is weaker than
+  approval and is not the table in "Evidence". Otherwise refused with «Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок або рекомендація.»
 - **Length.** 60 days from the moment you allow it (`EARLY_LISTING_DAYS`), an exact instant sum with
   no calendar maths. Expiry is worked out when read, with no job: at the boundary instant the
   shelter is already hidden. While it runs the panel shows «До кінця показу: {n} день/дні/днів»,

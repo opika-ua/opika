@@ -1,4 +1,4 @@
-import { type EvidenceGap, KYIV_TIME_ZONE } from "@opika/domain";
+import { type EvidenceGap, type EvidenceKind, KYIV_TIME_ZONE } from "@opika/domain";
 import { uk } from "@opika/i18n";
 
 /**
@@ -64,12 +64,38 @@ const REGISTRY_ENTRY_KINDS = ["edrpou_registration", "open_sources_review"] as c
  */
 export function evidenceGapKinds(gap: EvidenceGap): string {
   const kind = uk.kabinet.operator.evidence.kind;
-  if (gap.rule === "kind") return kind[gap.kind];
-  const kinds = gap.rule === "any_of" ? gap.kinds : REGISTRY_ENTRY_KINDS;
-  disjunction ??= new Intl.ListFormat("uk", { type: "disjunction" });
-  return disjunction.format(kinds.map((each) => kind[each]));
+  const either = (kinds: readonly EvidenceKind[]): string => {
+    disjunction ??= new Intl.ListFormat("uk", { type: "disjunction" });
+    return disjunction.format(kinds.map((each) => kind[each]));
+  };
+  switch (gap.rule) {
+    case "kind":
+      return kind[gap.kind];
+    case "any_of":
+      return either(gap.kinds);
+    case "registry_entry":
+      return either(REGISTRY_ENTRY_KINDS);
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled rule; unreachable at runtime */
+    default: {
+      const unreachable: never = gap;
+      return unreachable;
+    }
+  }
 }
 
 /** A stable key for a gap line. */
-export const evidenceGapKey = (gap: EvidenceGap): string =>
-  gap.rule === "kind" ? gap.kind : gap.rule === "any_of" ? gap.kinds.join("|") : gap.rule;
+export function evidenceGapKey(gap: EvidenceGap): string {
+  switch (gap.rule) {
+    case "kind":
+      return gap.kind;
+    case "any_of":
+      return gap.kinds.join("|");
+    case "registry_entry":
+      return gap.rule;
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled rule; unreachable at runtime */
+    default: {
+      const unreachable: never = gap;
+      return unreachable;
+    }
+  }
+}

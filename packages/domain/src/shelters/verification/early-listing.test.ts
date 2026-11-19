@@ -58,8 +58,8 @@ const OPEN_SOURCES_REGISTRY: EvidenceItem = {
   ...OPEN_SOURCES,
   registry: { edrpou: EDRPOU, registeredName: "ГО «Лапа»", registeredAddress: "м. Київ" },
 } as EvidenceItem;
-/** The least an allow takes with no legal form on file: the initiative's call and reference. */
-const ENOUGH: EvidenceItem[] = [VISIT, REFERENCE];
+/** Any one qualifying item is enough to allow. */
+const ENOUGH: EvidenceItem[] = [VISIT];
 
 const pausedFacts = {
   verifiedAt: AT,
@@ -190,7 +190,6 @@ describe("keepsEarlyListing", () => {
 
 describe("allowEarlyListing", () => {
   const base = {
-    legalEntity: null,
     early: earlyListingOf(null),
     periodsUsed: 0,
     note: null,
@@ -209,53 +208,57 @@ describe("allowEarlyListing", () => {
   });
 
   /**
-   * Owner, 2026-11-19: the allow needs the legal form's approval evidence, so open sources count
-   * exactly as for approval. Every form against every set, held to `evidenceGaps` itself; a form
-   * not yet recorded is held to the initiative's lines.
+   * Owner, 2026-11-19: any ONE of open sources (registry part or not), a call or a reference
+   * allows, whatever the legal form (the input carries none); approval's rule (a′) is not applied.
    */
-  const SETS: Record<string, EvidenceItem[]> = {
-    nothing: [],
-    "a bank holder": [BANK],
-    "a call": [VISIT],
-    "a reference": [REFERENCE],
-    "open sources, no registry": [OPEN_SOURCES],
-    "open sources with the registry": [OPEN_SOURCES_REGISTRY],
-    "a call and a reference": [VISIT, REFERENCE],
-    "open sources and a reference": [OPEN_SOURCES, REFERENCE],
-    "a registration and a call": [REGISTRATION, VISIT],
-    "a registration and open sources": [REGISTRATION, OPEN_SOURCES],
+  const QUALIFYING: Record<string, EvidenceItem> = {
+    "open sources, no registry": OPEN_SOURCES,
+    "open sources with the registry": OPEN_SOURCES_REGISTRY,
+    "a call": VISIT,
+    "a reference": REFERENCE,
   };
-  const FORMS: Record<string, ShelterLegalEntity> = {
-    registered_ngo: {
-      kind: "registered_ngo",
-      legalName: "ГО «Лапа»",
-      edrpou: EDRPOU,
-      registeredAt: AT,
+  const NOT_QUALIFYING: Record<string, EvidenceItem> = {
+    "a bank holder": BANK,
+    "a registration": REGISTRATION,
+    "a public link": { kind: "public_link", url: "https://lapa.example.org/" },
+    "a document": {
+      kind: "supporting_document",
+      label: { uk: "Статут", en: null },
+      documentKey: "evidence/statute.pdf",
     },
-    sole_proprietor: { kind: "sole_proprietor", legalName: "ФОП Лапа", edrpou: EDRPOU },
-    unregistered_initiative: { kind: "unregistered_initiative", contactPersonName: "Олена" },
   };
-  const verdict = (legalEntity: ShelterLegalEntity | null, items: EvidenceItem[]) =>
-    allowEarlyListing({ ...base, legalEntity, verification: stateOf("pending", items) }).kind;
+  const FORMS: readonly ShelterLegalEntity[] = [
+    { kind: "registered_ngo", legalName: "ГО «Лапа»", edrpou: EDRPOU, registeredAt: AT },
+    { kind: "sole_proprietor", legalName: "ФОП Лапа", edrpou: EDRPOU },
+    { kind: "unregistered_initiative", contactPersonName: "Олена" },
+  ];
+  const verdict = (items: EvidenceItem[]) =>
+    allowEarlyListing({ ...base, verification: stateOf("pending", items) }).kind;
 
-  it.each(Object.keys(SETS))("%s: allowed exactly when approval's evidence is met", (name) => {
-    const items = SETS[name] ?? [];
-    for (const entity of Object.values(FORMS)) {
-      const meets = evidenceGaps(entity, { items, submittedAt: AT }, DEFAULT_VERIFICATION_POLICY);
-      expect(verdict(entity, items)).toBe(meets.length === 0 ? "ok" : "evidence_below_minimum");
-    }
-    expect(verdict(null, items)).toBe(verdict(FORMS.unregistered_initiative ?? null, items));
+  it.each(Object.keys(QUALIFYING))("%s alone allows, whatever the legal form", (name) => {
+    expect(verdict([QUALIFYING[name] as EvidenceItem])).toBe("ok");
   });
 
-  it("lets open sources qualify for every form, beside a reference for an initiative", () => {
-    expect(verdict(FORMS.registered_ngo ?? null, [OPEN_SOURCES_REGISTRY])).toBe("ok");
-    expect(verdict(FORMS.sole_proprietor ?? null, [OPEN_SOURCES_REGISTRY])).toBe("ok");
-    expect(verdict(FORMS.unregistered_initiative ?? null, [OPEN_SOURCES, REFERENCE])).toBe("ok");
-    expect(verdict(null, [OPEN_SOURCES, REFERENCE])).toBe("ok");
-    // No longer one piece of anything: a call alone or a reference alone falls short.
-    expect(verdict(FORMS.unregistered_initiative ?? null, [VISIT])).toBe("evidence_below_minimum");
-    expect(verdict(null, [REFERENCE])).toBe("evidence_below_minimum");
-    expect(verdict(FORMS.registered_ngo ?? null, [OPEN_SOURCES])).toBe("evidence_below_minimum");
+  it("leaves approval as it was: one call, reference or registry-less check is short for every form", () => {
+    for (const item of [VISIT, REFERENCE, OPEN_SOURCES]) {
+      expect(verdict([item])).toBe("ok");
+      for (const entity of FORMS) {
+        const approval = evidenceGaps(
+          entity,
+          { items: [item], submittedAt: AT },
+          DEFAULT_VERIFICATION_POLICY,
+        );
+        expect(approval.length, `${entity.kind} ${item.kind}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it.each(Object.keys(NOT_QUALIFYING))("%s alone does not allow", (name) => {
+    expect(verdict([NOT_QUALIFYING[name] as EvidenceItem])).toBe("evidence_below_minimum");
+  });
+
+  it("nothing on file allows nothing", () => {
+    expect(verdict([])).toBe("evidence_below_minimum");
   });
 
   it("does not restack a running permission", () => {

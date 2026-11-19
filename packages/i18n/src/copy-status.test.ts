@@ -1109,8 +1109,9 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.earlyListing.oneMoreLeft": "Можна дозволити ще один, останній період – з поясненням.",
     "operator.earlyListing.extendNote": "Чому подовжуєте показ",
     "operator.earlyListing.limitReached": "Показ до перевірки вже дозволяли двічі.",
+    // Owner-approved 2026-11-19, replacing the 2026-11-04 text (open sources count).
     "operator.earlyListing.evidenceMinimum":
-      "Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація.",
+      "Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок або рекомендація.",
   };
   /** Open sources as a verification basis: owner-approved 2026-11-19 as drafted (PR #545). */
   const OPEN_SOURCES_OPERATOR_COPY: Record<string, string> = {

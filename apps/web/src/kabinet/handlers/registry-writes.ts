@@ -547,7 +547,6 @@ export function registryAllowEarlyListing(
     async (shelter) => {
       const result = allowEarlyListing({
         verification: shelter.verification,
-        legalEntity: shelter.legalEntity,
         early: earlyListingOf(shelter.earlyListingSince),
         periodsUsed: await kabinetShelterRepo(deps.db).earlyListingPeriodsUsed(shelter.id),
         note: input.note ?? null,

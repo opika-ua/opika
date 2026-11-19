@@ -2207,7 +2207,9 @@ export const uk = {
         oneMoreLeft: "Можна дозволити ще один, останній період – з поясненням.",
         extendNote: "Чому подовжуєте показ",
         limitReached: "Показ до перевірки вже дозволяли двічі.",
-        evidenceMinimum: "Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація.",
+        /** Owner-approved 2026-11-19 (open sources count for the allow). */
+        evidenceMinimum:
+          "Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок або рекомендація.",
       },
       /** The weekly «непідтверджені картки» email's switch on S4 (approved by the owner, 2026-11-11). */
       reminder: {

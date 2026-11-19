@@ -73,8 +73,8 @@ Moved verbatim from CLAUDE.md in DS PR 5. Settled decisions (M1, M4, gallery con
    (an `edrpou_registration`, or an open-sources check whose `registry` is filled: never weaker
    than a registration) + any-of(`site_visit`, `open_sources_review`); unregistered initiative =
    any-of(`site_visit`, `open_sources_review`) + 1 reference. No form needs the call
-   unconditionally. Early listing needs the same evidence as approval (a form not yet recorded is
-   held to the initiative's lines). `approvalGaps` still asks for the legal entity and the exact
+   unconditionally; (a′) is approval's rule only. Early listing needs any one of open sources (registry
+   part or not), a call or a reference, for any form. `approvalGaps` still asks for the legal entity and the exact
    address before any evidence (0024).
 7. **`RejectionReason` and `SuspensionReason` are separate code lists**
    (+ optional free-text note). A shelter is rejected for reasons about its

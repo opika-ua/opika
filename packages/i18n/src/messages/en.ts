@@ -1918,7 +1918,8 @@ export const en = {
         oneMoreLeft: "One more, final period can be allowed – with an explanation.",
         extendNote: "Why are you extending the showing",
         limitReached: "Showing before the review has already been allowed twice.",
-        evidenceMinimum: "To allow showing, at least a video call or one reference is needed.",
+        evidenceMinimum:
+          "To allow showing, at least one is needed: open sources, a video call or a reference.",
       },
       reminder: {
         title: "Email about unconfirmed cards",
