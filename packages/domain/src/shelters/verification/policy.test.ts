@@ -6,8 +6,11 @@ import type { EvidenceItem, VerificationEvidence } from "./evidence";
 import {
   approvalGaps,
   DEFAULT_VERIFICATION_POLICY,
+  type EvidenceGap,
+  EvidenceGapSchema,
   evidenceGaps,
   meetsEvidenceRequirements,
+  type VerificationPolicy,
 } from "./policy";
 
 const AT = new Date("2026-01-01T00:00:00.000Z");
@@ -58,63 +61,171 @@ const BANK: EvidenceItem = {
 
 const FOP: ShelterLegalEntity = { kind: "sole_proprietor", legalName: "ФОП Тест", edrpou: EDRPOU };
 
+const OPEN_SOURCES: EvidenceItem = {
+  kind: "open_sources_review",
+  edrpou: EDRPOU,
+  registeredName: "ГО «Тестовий притулок»",
+  registeredAddress: "м. Київ, вул. Тестова, 1",
+  pages: ["https://prytulok.example.org/"],
+  reviews: "Відгуки в Google: тварин віддають після стерилізації",
+  notes: "Сайт і сторінка ведуться з 2022 року, адреса збігається з ЄДР",
+  checkedAt: AT,
+  checkedBy: MODERATOR,
+};
+
+const REGISTRY_ENTRY_GAP = {
+  rule: "any_of",
+  kinds: ["edrpou_registration", "open_sources_review"],
+  minimum: 1,
+  provided: 0,
+} as const;
+const CALL_OR_OPEN_SOURCES_GAP = {
+  rule: "any_of",
+  kinds: ["site_visit", "open_sources_review"],
+  minimum: 1,
+  provided: 0,
+} as const;
+const NO_CALL = { rule: "kind", kind: "site_visit", minimum: 1, provided: 0 } as const;
+const NO_REFERENCE = { rule: "kind", kind: "reference_contact", minimum: 1, provided: 0 } as const;
+
+/**
+ * Every legal form against every evidence set that matters to the rule, with the exact gaps.
+ * The table is the policy as data: a changed line shows up here as a changed row.
+ */
+const TABLE: ReadonlyArray<{
+  name: string;
+  items: readonly EvidenceItem[];
+  registered: readonly EvidenceGap[];
+  initiative: readonly EvidenceGap[];
+}> = [
+  {
+    name: "nothing",
+    items: [],
+    registered: [REGISTRY_ENTRY_GAP, CALL_OR_OPEN_SOURCES_GAP],
+    initiative: [NO_CALL, NO_REFERENCE],
+  },
+  {
+    name: "registration and a video call",
+    items: [EDRPOU_ITEM, VIDEO_CALL],
+    registered: [],
+    initiative: [NO_REFERENCE],
+  },
+  {
+    name: "an open-sources check alone",
+    items: [OPEN_SOURCES],
+    registered: [],
+    initiative: [NO_CALL, NO_REFERENCE],
+  },
+  {
+    name: "registration and an open-sources check",
+    items: [EDRPOU_ITEM, OPEN_SOURCES],
+    registered: [],
+    initiative: [NO_CALL, NO_REFERENCE],
+  },
+  {
+    name: "an open-sources check and a reference",
+    items: [OPEN_SOURCES, reference("Ветклініка")],
+    registered: [],
+    initiative: [NO_CALL],
+  },
+  {
+    name: "registration, banking and a reference",
+    items: [EDRPOU_ITEM, BANK, reference("Ветклініка")],
+    registered: [CALL_OR_OPEN_SOURCES_GAP],
+    initiative: [NO_CALL],
+  },
+  {
+    name: "a video call alone",
+    items: [VIDEO_CALL],
+    registered: [REGISTRY_ENTRY_GAP],
+    initiative: [NO_REFERENCE],
+  },
+  {
+    name: "a video call and a reference",
+    items: [VIDEO_CALL, reference("Ветклініка")],
+    registered: [REGISTRY_ENTRY_GAP],
+    initiative: [],
+  },
+  {
+    name: "two references",
+    items: [reference("Ветклініка"), reference("Сусідня організація")],
+    registered: [REGISTRY_ENTRY_GAP, CALL_OR_OPEN_SOURCES_GAP],
+    initiative: [NO_CALL],
+  },
+];
+
+const kindsOf = (gap: EvidenceGap): readonly string[] =>
+  gap.rule === "kind" ? [gap.kind] : gap.kinds;
+
+describe("evidence requirements, every legal form against the table", () => {
+  it.each(TABLE)("registered NGO and ФОП: $name", ({ items, registered }) => {
+    for (const entity of [NGO, FOP]) {
+      expect(evidenceGaps(entity, evidence(items), DEFAULT_VERIFICATION_POLICY)).toEqual(
+        registered,
+      );
+      expect(meetsEvidenceRequirements(entity, evidence(items), DEFAULT_VERIFICATION_POLICY)).toBe(
+        registered.length === 0,
+      );
+    }
+  });
+
+  it.each(TABLE)("unregistered initiative: $name", ({ items, initiative }) => {
+    expect(evidenceGaps(INITIATIVE, evidence(items), DEFAULT_VERIFICATION_POLICY)).toEqual(
+      initiative,
+    );
+    expect(
+      meetsEvidenceRequirements(INITIATIVE, evidence(items), DEFAULT_VERIFICATION_POLICY),
+    ).toBe(initiative.length === 0);
+  });
+});
+
 describe("evidence requirements", () => {
-  it("accepts a registered NGO or a ФОП with registration and one video call", () => {
+  it("makes the video call optional for a registered form once open sources are checked", () => {
     for (const entity of [NGO, FOP]) {
-      const submitted = evidence([EDRPOU_ITEM, VIDEO_CALL]);
-      expect(meetsEvidenceRequirements(entity, submitted, DEFAULT_VERIFICATION_POLICY)).toBe(true);
+      expect(evidenceGaps(entity, evidence([OPEN_SOURCES]), DEFAULT_VERIFICATION_POLICY)).toEqual(
+        [],
+      );
     }
   });
 
-  it("no longer accepts registration, banking and a reference without a video call", () => {
-    for (const entity of [NGO, FOP]) {
-      const submitted = evidence([EDRPOU_ITEM, BANK, reference("Ветклініка")]);
-      expect(evidenceGaps(entity, submitted, DEFAULT_VERIFICATION_POLICY)).toEqual([
-        { kind: "site_visit", minimum: 1, provided: 0 },
-      ]);
+  it("never lets open sources stand in for an unregistered group's call or reference", () => {
+    const twice = evidence([OPEN_SOURCES, { ...OPEN_SOURCES, checkedAt: new Date(2) }]);
+    expect(meetsEvidenceRequirements(INITIATIVE, twice, DEFAULT_VERIFICATION_POLICY)).toBe(false);
+    const lines = DEFAULT_VERIFICATION_POLICY.requirementsByLegalEntity.unregistered_initiative;
+    for (const line of lines) {
+      expect(line.rule === "kind" ? [line.kind] : line.kinds).not.toContain("open_sources_review");
     }
   });
 
-  it("reports which item a registered form is missing rather than a bare refusal", () => {
-    for (const entity of [NGO, FOP]) {
-      expect(evidenceGaps(entity, evidence([VIDEO_CALL]), DEFAULT_VERIFICATION_POLICY)).toEqual([
-        { kind: "edrpou_registration", minimum: 1, provided: 0 },
-      ]);
-    }
+  it("counts items of either kind together under an any-of line", () => {
+    const policy: VerificationPolicy = {
+      requirementsByLegalEntity: {
+        ...DEFAULT_VERIFICATION_POLICY.requirementsByLegalEntity,
+        registered_ngo: [
+          { rule: "any_of", kinds: ["site_visit", "reference_contact"], minimum: 3 },
+        ],
+      },
+    };
+    expect(
+      evidenceGaps(NGO, evidence([VIDEO_CALL, reference("Ветклініка"), BANK]), policy),
+    ).toEqual([
+      { rule: "any_of", kinds: ["site_visit", "reference_contact"], minimum: 3, provided: 2 },
+    ]);
   });
 
   it("requires neither banking nor a reference from a registered form", () => {
     for (const entity of [NGO, FOP]) {
-      const kinds = evidenceGaps(entity, evidence([]), DEFAULT_VERIFICATION_POLICY).map(
-        (gap) => gap.kind,
+      const kinds = evidenceGaps(entity, evidence([]), DEFAULT_VERIFICATION_POLICY).flatMap(
+        kindsOf,
       );
-      expect(kinds).toEqual(["edrpou_registration", "site_visit"]);
+      expect(kinds).not.toContain("bank_account_holder");
+      expect(kinds).not.toContain("reference_contact");
     }
-  });
-
-  it("lets an unregistered group qualify on one video call and one reference", () => {
-    const submitted = evidence([VIDEO_CALL, reference("Ветклініка")]);
-    expect(meetsEvidenceRequirements(INITIATIVE, submitted, DEFAULT_VERIFICATION_POLICY)).toBe(
-      true,
-    );
-  });
-
-  it("does not let an unregistered group qualify on references alone", () => {
-    const submitted = evidence([reference("Ветклініка"), reference("Сусідня організація")]);
-    expect(evidenceGaps(INITIATIVE, submitted, DEFAULT_VERIFICATION_POLICY)).toEqual([
-      { kind: "site_visit", minimum: 1, provided: 0 },
-    ]);
-  });
-
-  it("does not let an unregistered group qualify on a video call alone", () => {
-    expect(evidenceGaps(INITIATIVE, evidence([VIDEO_CALL]), DEFAULT_VERIFICATION_POLICY)).toEqual([
-      { kind: "reference_contact", minimum: 1, provided: 0 },
-    ]);
   });
 
   it("does not require registration paperwork from an unregistered group", () => {
     const gaps = evidenceGaps(INITIATIVE, evidence([]), DEFAULT_VERIFICATION_POLICY);
-    expect(gaps.map((gap) => gap.kind)).not.toContain("edrpou_registration");
+    expect(gaps.flatMap(kindsOf)).not.toContain("edrpou_registration");
   });
 
   it("refuses an empty submission from every legal form", () => {
@@ -122,6 +233,14 @@ describe("evidence requirements", () => {
       expect(meetsEvidenceRequirements(entity, evidence([]), DEFAULT_VERIFICATION_POLICY)).toBe(
         false,
       );
+    }
+  });
+
+  it("gives every gap a shape the API error can carry", () => {
+    for (const entity of [NGO, FOP, INITIATIVE]) {
+      for (const gap of evidenceGaps(entity, evidence([]), DEFAULT_VERIFICATION_POLICY)) {
+        expect(EvidenceGapSchema.parse(gap)).toEqual(gap);
+      }
     }
   });
 });
@@ -165,7 +284,7 @@ describe("approval gaps", () => {
     );
     expect(gaps).toEqual([
       { on: "verified_data", field: "exact_address" },
-      { on: "evidence", kind: "edrpou_registration", minimum: 1, provided: 0 },
+      { on: "evidence", ...REGISTRY_ENTRY_GAP },
     ]);
   });
 
@@ -176,5 +295,39 @@ describe("approval gaps", () => {
       DEFAULT_VERIFICATION_POLICY,
     );
     expect(gaps).toEqual([]);
+  });
+  /**
+   * The 0024 rule holds for the new basis too: open sources prove the registry entry, but
+   * «перевірений» still needs the legal entity and the exact address on the shelter itself.
+   */
+  it("never approves on open sources while the legal entity is missing", () => {
+    const gaps = approvalGaps(
+      { legalEntity: null, exactAddress: ADDRESS },
+      evidence([OPEN_SOURCES, EDRPOU_ITEM, VIDEO_CALL]),
+      DEFAULT_VERIFICATION_POLICY,
+    );
+    expect(gaps).toEqual([{ on: "verified_data", field: "legal_entity" }]);
+  });
+
+  it("never approves on open sources while the exact address is missing", () => {
+    for (const entity of [NGO, FOP]) {
+      const gaps = approvalGaps(
+        { legalEntity: entity, exactAddress: null },
+        evidence([OPEN_SOURCES]),
+        DEFAULT_VERIFICATION_POLICY,
+      );
+      expect(gaps).toEqual([{ on: "verified_data", field: "exact_address" }]);
+    }
+  });
+
+  it("is empty for a registered form with its data on file and open sources checked", () => {
+    for (const entity of [NGO, FOP]) {
+      const gaps = approvalGaps(
+        { legalEntity: entity, exactAddress: ADDRESS },
+        evidence([OPEN_SOURCES]),
+        DEFAULT_VERIFICATION_POLICY,
+      );
+      expect(gaps).toEqual([]);
+    }
   });
 });

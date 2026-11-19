@@ -1112,6 +1112,28 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.earlyListing.evidenceMinimum":
       "Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація.",
   };
+  /**
+   * Open sources as a registered form's verification basis (owner decision 2026-11-19). The
+   * BUILDER'S DRAFT, not yet his words: shipped as real text because no `kabinet.*` string may be
+   * pending (above), operator-only, and listed in the PR for his confirm-or-replace. Move this
+   * record's doc to "owner-approved" (or replace the values) once he answers.
+   */
+  const OPEN_SOURCES_OPERATOR_COPY: Record<string, string> = {
+    "operator.evidence.kind.open_sources_review": "Відкриті джерела",
+    "operator.evidence.field.registeredAddress": "Адреса в ЄДР",
+    "operator.evidence.field.pages": "Переглянуті сторінки",
+    "operator.evidence.field.reviews": "Відгуки",
+    "operator.evidence.field.reviewsOptional": "Відгуки · необовʼязково",
+    "operator.evidence.field.checkedOn": "Дата перевірки",
+    "operator.evidence.checkedOnHint": "Дата перевірки не може бути в майбутньому.",
+    "operator.evidence.pagesHint": "Одне посилання в рядку, з https://. Щонайбільше 10.",
+    "operator.evidence.reviewsHint": "Де читали відгуки і що в них.",
+    "operator.evidence.openSourcesNotesHint":
+      "Що перевірили і що збіглося з ЄДР: назва, адреса, як давно ведуться сторінки.",
+    "operator.create.errors.openSourcesCheckInFuture": "Дата перевірки не може бути в майбутньому.",
+    "operator.create.errors.pagesInvalid": "Кожен рядок – посилання, що починається з https://.",
+    "operator.create.errors.pagesTooMany": "Щонайбільше 10 сторінок.",
+  };
   /** Pet card PR 3b. His final text (2026-10-27): the builder's draft, approved as written. */
   const PET_CARD_PR3B_LOGO_CHANGED: Record<string, string> = {
     "operator.history.logo_changed": "Змінено логотип притулку",
@@ -1152,6 +1174,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(MINIMAL_CREATE_COPY).filter((path) => path.startsWith("operator.")),
         ...Object.keys(WEEKLY_REMINDER_OPERATOR_COPY),
         ...Object.keys(DATE_FIELD_OPERATOR_COPY),
+        ...Object.keys(OPEN_SOURCES_OPERATOR_COPY),
       ].sort(),
     );
   });
@@ -1198,6 +1221,13 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
 
   it.each(Object.entries(DATE_FIELD_OPERATOR_COPY))(
     "%s is the owner-approved text",
+    (path, text) => {
+      expect(valueAt(path)).toBe(text);
+    },
+  );
+
+  it.each(Object.entries(OPEN_SOURCES_OPERATOR_COPY))(
+    "%s is the builder's draft awaiting his answer",
     (path, text) => {
       expect(valueAt(path)).toBe(text);
     },

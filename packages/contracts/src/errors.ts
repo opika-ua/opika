@@ -249,15 +249,21 @@ export const apiErrors = {
     message: "That confirmation can no longer be undone.",
   },
   /**
-   * Evidence input refused (`data.reason`): a site visit dated in the future
-   * (`toVerificationEvidence`), or, once the registry writers land in this PR, a
+   * Evidence input refused (`data.reason`): a site visit or an open-sources
+   * check dated in the future (`toVerificationEvidence`), or, once the registry writers land in this PR, a
    * `documentKey` before the private evidence bucket exists (RG-Q5,
    * `document_not_supported_yet`).
    */
   INVALID_EVIDENCE: {
     status: 422,
     message: "The evidence couldn't be accepted.",
-    data: z.object({ reason: z.enum(["site_visit_in_future", "document_not_supported_yet"]) }),
+    data: z.object({
+      reason: z.enum([
+        "site_visit_in_future",
+        "open_sources_check_in_future",
+        "document_not_supported_yet",
+      ]),
+    }),
   },
   /**
    * Evidence can be added only while the shelter is pending or under review

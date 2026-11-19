@@ -3,6 +3,7 @@ import {
   EdrpouSchema,
   type EvidenceItemInput,
   isSiteVisitInFuture,
+  OPEN_SOURCES_MAX_PAGES,
   type ReferenceRelationship,
 } from "@opika/domain";
 import { type DateFieldValue, EMPTY_DATE } from "../../../../ui/date-field";
@@ -15,9 +16,9 @@ import { requiredDateError, type TypedDateError } from "../../shared/kabinet-dat
  * contract's `EvidenceItemInputSchema` input. No React, no I/O; the server
  * checks everything again.
  *
- * Four kinds, each needing no document (Oleksii, 2026-10-17, answer 3,
- * verbatim: "Yes: the four document-free evidence types. Document upload is
- * a later R2 block."). `acceptEvidence` refuses every `documentKey` until the
+ * The document-free kinds (Oleksii, 2026-10-17, answer 3, verbatim: "Yes:
+ * the four document-free evidence types. Document upload is a later R2
+ * block."), plus open sources (owner, 2026-11-19), which needs none either. `acceptEvidence` refuses every `documentKey` until the
  * private bucket exists (RG-Q5), so nothing here can produce one: the output
  * type has no such field and no `supporting_document` variant.
  */
@@ -27,6 +28,7 @@ export const EDITABLE_EVIDENCE_KINDS = [
   "bank_account_holder",
   "reference_contact",
   "site_visit",
+  "open_sources_review",
 ] as const satisfies readonly EvidenceItemInput["kind"][];
 export type EditableEvidenceKind = (typeof EDITABLE_EVIDENCE_KINDS)[number];
 
@@ -67,7 +69,19 @@ export type EvidenceRow =
       /** Empty until one is picked: no default, so the choice is the operator's. */
       relationship: ReferenceRelationship | "";
     }
-  | { id: string; kind: "site_visit"; visitedOn: DateFieldValue; notes: string };
+  | { id: string; kind: "site_visit"; visitedOn: DateFieldValue; notes: string }
+  | {
+      id: string;
+      kind: "open_sources_review";
+      edrpou: string;
+      registeredName: string;
+      registeredAddress: string;
+      /** One link per line, as typed. */
+      pages: string;
+      reviews: string;
+      notes: string;
+      checkedOn: DateFieldValue;
+    };
 
 /**
  * What the editor sends: the contract's evidence input, minus everything a
@@ -83,7 +97,17 @@ export type DocumentFreeEvidenceInput =
       channel: ContactChannel;
       relationship: ReferenceRelationship;
     }
-  | { kind: "site_visit"; visitedOn: string; notes: string };
+  | { kind: "site_visit"; visitedOn: string; notes: string }
+  | {
+      kind: "open_sources_review";
+      edrpou: string;
+      registeredName: string;
+      registeredAddress: string;
+      pages: string[];
+      reviews: string | null;
+      notes: string;
+      checkedOn: string;
+    };
 
 export function emptyEvidenceRow(kind: EditableEvidenceKind, id: string): EvidenceRow {
   switch (kind) {
@@ -95,6 +119,18 @@ export function emptyEvidenceRow(kind: EditableEvidenceKind, id: string): Eviden
       return { id, kind, name: "", channelKind: "phone", channelValue: "", relationship: "" };
     case "site_visit":
       return { id, kind, visitedOn: EMPTY_DATE, notes: "" };
+    case "open_sources_review":
+      return {
+        id,
+        kind,
+        edrpou: "",
+        registeredName: "",
+        registeredAddress: "",
+        pages: "",
+        reviews: "",
+        notes: "",
+        checkedOn: EMPTY_DATE,
+      };
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
     default: {
       const unreachable: never = kind;
@@ -111,6 +147,9 @@ export type EvidenceFieldError =
   | "required"
   | "edrpouFormat"
   | "siteVisitInFuture"
+  | "openSourcesCheckInFuture"
+  | "pagesInvalid"
+  | "pagesTooMany"
   | TypedDateError
   | FieldError;
 
@@ -124,7 +163,11 @@ export type EvidenceField =
   | "channelValue"
   | "relationship"
   | "visitedOn"
-  | "notes";
+  | "notes"
+  | "registeredAddress"
+  | "pages"
+  | "reviews"
+  | "checkedOn";
 
 export type EvidenceCheck =
   | { kind: "ok"; items: DocumentFreeEvidenceInput[] }
@@ -140,6 +183,23 @@ export const normalizeEdrpou = (raw: string): string => raw.replace(/\s/g, "");
 export const trimmedOrNull = (raw: string): string | null => {
   const value = raw.trim();
   return value === "" ? null : value;
+};
+
+/** The lines of the pages box, blank ones dropped. */
+export const pageLines = (raw: string): string[] =>
+  raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line !== "");
+
+/** An https link the contract's `z.url({ protocol: /^https$/ })` will take. */
+const isHttpsLink = (line: string): boolean => {
+  if (/\s/.test(line)) return false;
+  try {
+    return new URL(line).protocol === "https:";
+  } catch {
+    return false;
+  }
 };
 
 type RowResult =
@@ -202,6 +262,49 @@ function rowResult(row: EvidenceRow, now: Date): RowResult {
         return { kind: "invalid", errors };
       }
       return { kind: "ok", item: { kind: row.kind, visitedOn: visitedOn.date, notes } };
+    }
+    case "open_sources_review": {
+      const edrpou = normalizeEdrpou(row.edrpou);
+      const registeredName = trimmedOrNull(row.registeredName);
+      const registeredAddress = trimmedOrNull(row.registeredAddress);
+      const notes = trimmedOrNull(row.notes);
+      const pages = pageLines(row.pages);
+      const checkedOn = row.checkedOn;
+      if (edrpou === "") errors.edrpou = "required";
+      else if (!EdrpouSchema.safeParse(edrpou).success) errors.edrpou = "edrpouFormat";
+      if (registeredName === null) errors.registeredName = "required";
+      if (registeredAddress === null) errors.registeredAddress = "required";
+      if (pages.length === 0) errors.pages = "required";
+      else if (!pages.every(isHttpsLink)) errors.pages = "pagesInvalid";
+      else if (pages.length > OPEN_SOURCES_MAX_PAGES) errors.pages = "pagesTooMany";
+      if (notes === null) errors.notes = "required";
+      const dateError = requiredDateError(checkedOn, "openSourcesCheckInFuture");
+      if (dateError !== null) errors.checkedOn = dateError;
+      else if (checkedOn.kind === "date" && isSiteVisitInFuture(checkedOn.date, now)) {
+        errors.checkedOn = "openSourcesCheckInFuture";
+      }
+      if (
+        Object.keys(errors).length > 0 ||
+        registeredName === null ||
+        registeredAddress === null ||
+        notes === null ||
+        checkedOn.kind !== "date"
+      ) {
+        return { kind: "invalid", errors };
+      }
+      return {
+        kind: "ok",
+        item: {
+          kind: row.kind,
+          edrpou,
+          registeredName,
+          registeredAddress,
+          pages,
+          reviews: trimmedOrNull(row.reviews),
+          notes,
+          checkedOn: checkedOn.date,
+        },
+      };
     }
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
     default: {

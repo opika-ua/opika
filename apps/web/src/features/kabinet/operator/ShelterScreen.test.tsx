@@ -124,11 +124,18 @@ describe("S4 evidence", () => {
     renderScreen();
     const evidence = section("Докази для перевірки");
     expect(within(evidence).getByText("Доказів поки немає.")).toBeTruthy();
-    // A registered NGO needs its registration and a video call (DEFAULT_VERIFICATION_POLICY).
+    // A registered NGO needs its registry entry and a video call or open sources
+    // (DEFAULT_VERIFICATION_POLICY); an any-of line names its kinds joined by «або».
     expect(
-      within(evidence).getByText("Для схвалення бракує: Реєстрація · ЄДРПОУ – 0 з 1."),
+      within(evidence).getByText(
+        "Для схвалення бракує: Реєстрація · ЄДРПОУ або Відкриті джерела – 0 з 1.",
+      ),
     ).toBeTruthy();
-    expect(within(evidence).getByText("Для схвалення бракує: Відеодзвінок – 0 з 1.")).toBeTruthy();
+    expect(
+      within(evidence).getByText(
+        "Для схвалення бракує: Відеодзвінок або Відкриті джерела – 0 з 1.",
+      ),
+    ).toBeTruthy();
   });
 
   it("shows each item's facts, and that no document is attached where that is allowed", () => {
@@ -177,6 +184,41 @@ describe("S4 evidence", () => {
     expect(within(evidence).getByText("12 жовтня 2026 р.")).toBeTruthy();
     expect(within(evidence).getAllByText("додано 15 жовтня 2026 р.")).toHaveLength(4);
     // Everything the NGO's policy asks for is there: no gap line.
+    expect(within(evidence).queryByText(/Для схвалення бракує/)).toBeNull();
+  });
+
+  it("shows an open-sources check's facts and opens its pages; with it an NGO needs no video call", () => {
+    renderScreen({
+      verification: {
+        status: "under_review",
+        startedAt: NOW,
+        reviewerId: ME,
+        evidence: {
+          submittedAt: new Date("2026-10-15T09:00:00Z"),
+          items: [
+            {
+              kind: "open_sources_review",
+              edrpou: "43218765" as never,
+              registeredName: "ГО ДОМІВКА",
+              registeredAddress: "м. Вишгород, вул. Мечникова, 4",
+              pages: ["https://domivka.example.org/"],
+              reviews: "Відгуки в Google",
+              notes: "Сайт веде організація.",
+              checkedAt: new Date("2026-10-12T00:00:00Z"),
+              checkedBy: ME,
+            },
+          ],
+        },
+      },
+    });
+    const evidence = section("Докази для перевірки");
+    expect(within(evidence).getByText("Відкриті джерела")).toBeTruthy();
+    expect(within(evidence).getByText("43 218 765")).toBeTruthy();
+    expect(within(evidence).getByText("м. Вишгород, вул. Мечникова, 4")).toBeTruthy();
+    expect(within(evidence).getByText("Відгуки в Google")).toBeTruthy();
+    expect(within(evidence).getByText("12 жовтня 2026 р.")).toBeTruthy();
+    const page = within(evidence).getByRole("link", { name: "https://domivka.example.org/" });
+    expect(page.getAttribute("rel")).toContain("noopener");
     expect(within(evidence).queryByText(/Для схвалення бракує/)).toBeNull();
   });
 

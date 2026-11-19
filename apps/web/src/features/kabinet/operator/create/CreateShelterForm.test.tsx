@@ -785,7 +785,7 @@ describe("what happens next", () => {
 });
 
 describe("the evidence editor", () => {
-  it("offers the four document-free kinds only, adds a card of the picked kind, and removes it", async () => {
+  it("offers the document-free kinds only, adds a card of the picked kind, and removes it", async () => {
     renderForm(async () => createdView(null));
     const u = user();
     const picker = screen.getByLabelText("Тип доказу");
@@ -798,6 +798,7 @@ describe("the evidence editor", () => {
       "Власник банківського рахунку",
       "Рекомендація",
       "Відеодзвінок",
+      "Відкриті джерела",
     ]);
     await u.selectOptions(picker, "Власник банківського рахунку");
     await u.click(screen.getByRole("button", { name: "+ Додати доказ" }));
@@ -822,6 +823,86 @@ describe("the evidence editor", () => {
     );
     expect(within(card).getByRole("group", { name: "Дата дзвінка" })).toBeDefined();
     expect(labels).toEqual(["День", "Місяць", "Рік", "Нотатка"]);
+  });
+
+  it("records open sources: the registry facts, the pages, optional reviews, a note and the day, no one's name", async () => {
+    const fns = renderForm(async () => createdView({ kind: "sent", blockCheck: "clear" }, null));
+    const u = await fillInitiative();
+    // The rehearsal shelter's evidence, plus an open-sources card.
+    await u.selectOptions(screen.getByLabelText("Тип доказу"), "Відкриті джерела");
+    await u.click(screen.getByRole("button", { name: "+ Додати доказ" }));
+    const group = screen.getByRole("group", { name: "Відкриті джерела" });
+    const card = within(group);
+    expect(document.activeElement).toBe(card.getByLabelText("Код ЄДРПОУ"));
+    const labels = [...group.querySelectorAll("input, textarea, select")].map(
+      (control) => (control as HTMLInputElement).labels?.[0]?.textContent,
+    );
+    expect(labels).toEqual([
+      "Код ЄДРПОУ",
+      "Назва в ЄДР",
+      "Адреса в ЄДР",
+      "Переглянуті сторінки",
+      "Відгуки · необовʼязково",
+      "Нотатка",
+      "День",
+      "Місяць",
+      "Рік",
+    ]);
+
+    // Empty: every required field says so, the reviews do not, nothing is sent.
+    await u.click(submit());
+    expect(fns.create).not.toHaveBeenCalled();
+    expect(card.getAllByText("Це поле потрібне.")).toHaveLength(6);
+
+    await u.type(card.getByLabelText("Код ЄДРПОУ"), "43 218 765");
+    await u.type(card.getByLabelText("Назва в ЄДР"), "ГО «ДОМІВКА»");
+    await u.type(card.getByLabelText("Адреса в ЄДР"), "м. Вишгород, вул. Мечникова, 4");
+    await u.type(card.getByLabelText("Переглянуті сторінки"), "domivka.example.org");
+    await u.type(card.getByLabelText("Нотатка"), "Сайт веде організація з 2022 року.");
+    await typeDate(u, group, "Дата перевірки", "2026-10-12");
+    await u.click(submit());
+    expect(fns.create).not.toHaveBeenCalled();
+    expect(card.getByText("Кожен рядок – посилання, що починається з https://.")).toBeDefined();
+
+    await u.clear(card.getByLabelText("Переглянуті сторінки"));
+    await u.type(
+      card.getByLabelText("Переглянуті сторінки"),
+      "https://domivka.example.org/{Enter}{Enter}https://www.facebook.com/domivka",
+    );
+    await u.click(submit());
+    expect(fns.create).toHaveBeenCalledTimes(1);
+    const input = fns.create.mock.calls[0]?.[0] as { evidence: unknown[] };
+    expect(createInputSchema.safeParse(input).success).toBe(true);
+    expect(input.evidence.at(-1)).toEqual({
+      kind: "open_sources_review",
+      edrpou: "43218765",
+      registeredName: "ГО «ДОМІВКА»",
+      registeredAddress: "м. Вишгород, вул. Мечникова, 4",
+      pages: ["https://domivka.example.org/", "https://www.facebook.com/domivka"],
+      reviews: null,
+      notes: "Сайт веде організація з 2022 року.",
+      checkedOn: "2026-10-12",
+    });
+    expect(JSON.stringify(input)).not.toMatch(/checkedBy|visitedBy/);
+  });
+
+  it("refuses an open-sources check dated tomorrow in Kyiv on its date field", async () => {
+    const justAfterKyivMidnight = new Date("2026-10-07T22:30:00.000Z");
+    const fns = renderForm(async () => createdView(null), justAfterKyivMidnight);
+    const u = await fillInitiative("2026-10-08");
+    await u.selectOptions(screen.getByLabelText("Тип доказу"), "Відкриті джерела");
+    await u.click(screen.getByRole("button", { name: "+ Додати доказ" }));
+    const group = screen.getByRole("group", { name: "Відкриті джерела" });
+    const card = within(group);
+    await u.type(card.getByLabelText("Код ЄДРПОУ"), "43218765");
+    await u.type(card.getByLabelText("Назва в ЄДР"), "ГО «ДОМІВКА»");
+    await u.type(card.getByLabelText("Адреса в ЄДР"), "м. Вишгород");
+    await u.type(card.getByLabelText("Переглянуті сторінки"), "https://domivka.example.org/");
+    await u.type(card.getByLabelText("Нотатка"), "Сайт.");
+    await typeDate(u, group, "Дата перевірки", "2026-10-09");
+    await u.click(submit());
+    expect(fns.create).not.toHaveBeenCalled();
+    expect(card.getByText("Дата перевірки не може бути в майбутньому.")).toBeDefined();
   });
 
   it("explains what the notes should say on a video call, and on no other kind", async () => {

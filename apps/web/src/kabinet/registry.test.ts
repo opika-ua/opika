@@ -587,6 +587,15 @@ describe("the minimal shelter: created without legal data or address", () => {
     firstAdmin: { name: "Олена", email: "olena@example.org" },
   });
   const VISIT = { kind: "site_visit", visitedOn: "2026-10-12", notes: "Відеодзвінок" };
+  const OPEN_SOURCES = {
+    kind: "open_sources_review",
+    edrpou: "12345678",
+    registeredName: "ГО «Лапа»",
+    registeredAddress: "м. Вишгород, вул. Київська, 300",
+    pages: ["https://lapa.example.org/"],
+    notes: "Сайт і сторінка ведуться з 2022 року.",
+    checkedOn: "2026-10-12",
+  };
   const LEGAL = {
     kind: "registered_ngo",
     legalName: "ГО «Лапа»",
@@ -653,12 +662,46 @@ describe("the minimal shelter: created without legal data or address", () => {
       code: "EVIDENCE_INSUFFICIENT",
       data: {
         gaps: [
-          { kind: "edrpou_registration", minimum: 1, provided: 0 },
-          { kind: "site_visit", minimum: 1, provided: 0 },
+          {
+            rule: "any_of",
+            kinds: ["edrpou_registration", "open_sources_review"],
+            minimum: 1,
+            provided: 0,
+          },
+          { rule: "any_of", kinds: ["site_visit", "open_sources_review"], minimum: 1, provided: 0 },
         ],
       },
     });
     expect((await reload(id)).verification.status).toBe("under_review");
+  });
+
+  /** Owner, 2026-11-19: open sources stand in for the call, never for the legal entity (0024). */
+  it("approves a registered NGO on open sources alone, but only once the legal entity and address are in", async () => {
+    const { id } = await created();
+    const evidence = await call("registry.verification.addEvidence", {
+      shelterId: id,
+      evidence: [OPEN_SOURCES],
+    });
+    expect(evidence.status).toBe(200);
+    const onFile = (await reload(id)).verification.evidence.items;
+    expect(onFile).toEqual([expect.objectContaining({ kind: "open_sources_review" })]);
+    expect((await call("registry.verification.startReview", { shelterId: id })).status).toBe(200);
+    const approve = () =>
+      call<{ code: string; data: unknown }>("registry.verification.approve", { shelterId: id });
+
+    expect((await approve()).body).toMatchObject({
+      code: "VERIFIED_DATA_MISSING",
+      data: { missing: ["legal_entity", "exact_address"] },
+    });
+    const version = (await reload(id)).version;
+    expect((await update(id, version, { field: "legal_entity", next: LEGAL })).status).toBe(200);
+    expect((await approve()).body).toMatchObject({
+      code: "VERIFIED_DATA_MISSING",
+      data: { missing: ["exact_address"] },
+    });
+    await update(id, version + 1, { field: "exact_address", next: { ...ADDRESS, cityId } });
+    expect((await approve()).status).toBe(200);
+    expect((await reload(id)).verification.status).toBe("verified");
   });
 
   it("records an added legal entity and address with a null previous", async () => {
@@ -1226,8 +1269,13 @@ describe("registry.verification.*", () => {
     });
     expect(refused.status).toBe(422);
     expect(refused.body.data.gaps).toEqual([
-      { kind: "edrpou_registration", minimum: 1, provided: 0 },
-      { kind: "site_visit", minimum: 1, provided: 0 },
+      {
+        rule: "any_of",
+        kinds: ["edrpou_registration", "open_sources_review"],
+        minimum: 1,
+        provided: 0,
+      },
+      { rule: "any_of", kinds: ["site_visit", "open_sources_review"], minimum: 1, provided: 0 },
     ]);
     expect((await reload(s.id)).verification.status).toBe("under_review");
   });

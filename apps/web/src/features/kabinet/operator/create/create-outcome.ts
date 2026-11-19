@@ -21,8 +21,8 @@ type EvidenceRefusalReason = z.infer<typeof apiErrors.INVALID_EVIDENCE.data>["re
  * - `address_has_a_role`: ADDRESS_HAS_A_ROLE (409), the first admin's address
  *   already belongs to a shelter, is an operator's, or holds a live invitation
  *   elsewhere (RG-T10). Checked before anything is created.
- * - `site_visit_in_future`: INVALID_EVIDENCE (422) for a visit dated after
- *   Kyiv's today. The form checks the same rule first; this is the server's
+ * - `site_visit_in_future` / `open_sources_check_in_future`: INVALID_EVIDENCE
+ *   (422) for a visit or an open-sources check dated after Kyiv's today. The form checks the same rule first; this is the server's
  *   word when the two clocks disagree.
  * - `unknown_city`: the undeclared 400 for a city id that resolves to nothing
  *   (RG-T5), told apart from oRPC's input-validation 400 by its message.
@@ -48,6 +48,7 @@ type EvidenceRefusalReason = z.infer<typeof apiErrors.INVALID_EVIDENCE.data>["re
 export type CreateRefusal =
   | { kind: "address_has_a_role"; reason: AddressRoleReason }
   | { kind: "site_visit_in_future" }
+  | { kind: "open_sources_check_in_future" }
   | { kind: "unknown_city" }
   | { kind: "name_too_long" }
   | { kind: "description_too_long" }
@@ -71,6 +72,7 @@ const shapeOf = (error: unknown): ErrorShape | null => {
 /** Each evidence refusal the contract declares, as S2 reads it. */
 const EVIDENCE_REFUSALS: Record<EvidenceRefusalReason, CreateRefusal> = {
   site_visit_in_future: { kind: "site_visit_in_future" },
+  open_sources_check_in_future: { kind: "open_sources_check_in_future" },
   // The form never sends a document (RU-Q3), so this one is a fault it can't
   // cause: the plain failure, not a message about something the operator did.
   document_not_supported_yet: { kind: "failed" },
@@ -113,6 +115,8 @@ export function refusalMessage(refusal: CreateRefusal): string {
       return ADDRESS_ROLE_MESSAGES[refusal.reason];
     case "site_visit_in_future":
       return t.siteVisitInFuture;
+    case "open_sources_check_in_future":
+      return t.openSourcesCheckInFuture;
     case "unknown_city":
       return t.unknownCity;
     case "name_too_long":

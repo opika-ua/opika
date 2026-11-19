@@ -60,7 +60,10 @@ type EarlyListingRefusal =
   | "note_required"
   | "limit_reached";
 type AddressRoleReason = "shelter_admin" | "operator" | "invited_elsewhere";
-type InvalidEvidenceReason = "site_visit_in_future" | "document_not_supported_yet";
+type InvalidEvidenceReason =
+  | "site_visit_in_future"
+  | "open_sources_check_in_future"
+  | "document_not_supported_yet";
 
 const fieldOf = (error: unknown, field: "code" | "data"): unknown =>
   typeof error === "object" && error !== null && field in error

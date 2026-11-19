@@ -45,6 +45,23 @@ const visit = (visitedAt = VISIT, notes = "Були", visitedBy = MOD): Evidence
   notes,
 });
 
+const openSources = (
+  checkedAt = VISIT,
+  code = "12345678",
+  notes = "ЄДР, сайт, відгуки",
+  checkedBy = MOD,
+): EvidenceItem => ({
+  kind: "open_sources_review",
+  edrpou: EdrpouSchema.parse(code),
+  registeredName: "ГО «Лапа»",
+  registeredAddress: "м. Київ, вул. Тестова, 1",
+  pages: ["https://lapa.example.org/"],
+  reviews: null,
+  notes,
+  checkedAt,
+  checkedBy,
+});
+
 const evidence = (items: EvidenceItem[]): VerificationEvidence => ({ items, submittedAt: T0 });
 
 const pending = (items: EvidenceItem[] = []): ShelterVerification => ({
@@ -237,6 +254,18 @@ describe("addEvidence: duplicates (same kind + same key field, notes ignored)", 
     });
     const next = addEvidence(state, [visit(new Date("2026-03-11T00:00:00.000Z"), "Були")]);
     expect(next.kind).toBe("ok");
+  });
+
+  it("open sources: same code and date is a duplicate whatever the notes; another date or code is new", () => {
+    const state = pending([openSources()]);
+    expect(addEvidence(state, [openSources(VISIT, "12345678", "Інше", OTHER_MOD)])).toEqual({
+      kind: "nothing_new",
+    });
+    const later = new Date("2026-03-11T00:00:00.000Z");
+    expect(addEvidence(state, [openSources(later)]).kind).toBe("ok");
+    expect(addEvidence(state, [openSources(VISIT, "87654321")]).kind).toBe("ok");
+    // Not the visit of the same day: another kind.
+    expect(addEvidence(state, [visit()]).kind).toBe("ok");
   });
 
   it("a different kind with a lookalike key is never a duplicate", () => {

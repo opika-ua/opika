@@ -17,7 +17,7 @@ import type { EvidenceItem, VerificationEvidence } from "@opika/domain";
  *   either. (No record holds such a key today: every writer refuses one.)
  *   The cost, until documents can be managed: a resubmit can't remove a
  *   document.
- * - **Who made a site visit.** Never typed (`toEvidenceItem`: the recording
+ * - **Who made a site visit or an open-sources check.** Never typed (`toEvidenceItem`: the recording
  *   operator vouches for the visit). A visit that comes back unchanged, the
  *   same day and the same notes, keeps whoever recorded it; a new or changed
  *   one is the resubmitting operator's, who is vouching for it as now written
@@ -41,11 +41,12 @@ export function withEvidenceOnFile(
   };
   const items = sent.items.map((item): EvidenceItem => {
     switch (item.kind) {
-      case "site_visit": {
-        // An unchanged visit stays exactly as on file: its recorder, and its
-        // notes as stored (the script stores them untrimmed; the editor trims).
+      case "site_visit":
+      case "open_sources_review": {
+        // An unchanged visit or check stays exactly as on file: its recorder, and its
+        // text as stored (the script stores it untrimmed; the editor trims).
         const pair = pairOf(item);
-        return pair?.kind === "site_visit" ? pair : item;
+        return pair !== undefined && pair.kind === item.kind ? pair : item;
       }
       case "edrpou_registration":
       case "bank_account_holder": {
@@ -76,6 +77,18 @@ function sameTypedFacts(onFile: EvidenceItem, sent: EvidenceItem): boolean {
       return (
         sent.kind === "site_visit" &&
         sent.visitedAt.getTime() === onFile.visitedAt.getTime() &&
+        sameText(sent.notes, onFile.notes)
+      );
+    case "open_sources_review":
+      return (
+        sent.kind === "open_sources_review" &&
+        sent.checkedAt.getTime() === onFile.checkedAt.getTime() &&
+        sent.edrpou === onFile.edrpou &&
+        sameText(sent.registeredName, onFile.registeredName) &&
+        sameText(sent.registeredAddress, onFile.registeredAddress) &&
+        sent.pages.length === onFile.pages.length &&
+        sent.pages.every((page, index) => page === onFile.pages[index]) &&
+        sameText(sent.reviews ?? "", onFile.reviews ?? "") &&
         sameText(sent.notes, onFile.notes)
       );
     case "edrpou_registration":

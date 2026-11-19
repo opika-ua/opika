@@ -139,7 +139,14 @@ script - `buildShelter` checks against it and refuses to produce a
 | Legal shape | Needs |
 |---|---|
 | `unregistered_initiative` (most volunteer groups) | 1× `site_visit` (a video call), 1× `reference_contact` |
-| `registered_ngo` / `sole_proprietor` | 1× `edrpou_registration`, 1× `site_visit` (a video call) |
+| `registered_ngo` / `sole_proprietor` | 1× `edrpou_registration` + 1× `site_visit` (a video call), **or** 1× `open_sources_review` alone |
+
+(Changed 2026-11-19, owner decision: open sources are a registered form's alternative to the
+video call. Each registered line is an any-of: the registry entry is an `edrpou_registration`
+or an `open_sources_review`, and the second check is a `site_visit` or that same
+`open_sources_review`, so one open-sources item clears both and the call becomes optional. An
+unregistered initiative is unchanged: open sources count for neither of its lines. Approval
+still needs the legal entity and the exact address first, whatever the evidence.)
 
 (Changed 2026-11-10, owner decision: previously an initiative needed two references, and a
 registered shape needed a `bank_account_holder` and a `reference_contact` instead of the video
@@ -172,6 +179,26 @@ actually happened, not the day you're filling in this file. A date after
 today is refused, because a call that hasn't happened can't back a
 verification. The script records you (its founder stand-in) as the person
 who vouches for it; there's no field for that.
+
+**An `open_sources_review`** records what you checked in open sources, all of it required
+except `reviews`: `edrpou` and `registeredName` exactly as for an `edrpou_registration`,
+`registeredAddress` (the address as ЄДР shows it), `pages` (1 to 10 https links you opened:
+the site, social pages; the server never fetches them), `reviews` (where you read reviews and
+what they say, or leave it out), `notes` (what matched: the name, the address, how long the
+pages have been kept) and `checkedOn` (`YYYY-MM-DD`, the day you checked, not in the future).
+As with a call, the script records you as the person who checked; there's no field for that.
+
+```json
+{
+  "kind": "open_sources_review",
+  "edrpou": "12345678",
+  "registeredName": "ГРОМАДСЬКА ОРГАНІЗАЦІЯ «ДОМІВКА»",
+  "registeredAddress": "м. Вишгород, вул. Мечникова, 4",
+  "pages": ["https://domivka.example.org/", "https://www.facebook.com/domivka"],
+  "notes": "Сайт і сторінка ведуться з 2022 року, назва й адреса збігаються з ЄДР.",
+  "checkedOn": "2026-11-19"
+}
+```
 
 **An `edrpou_registration` needs `registeredName`**: the name exactly as ЄДР
 shows it on the day you check the code. A reviewer compares it with the

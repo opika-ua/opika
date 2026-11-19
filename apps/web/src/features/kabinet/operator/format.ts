@@ -1,4 +1,5 @@
-import { KYIV_TIME_ZONE } from "@opika/domain";
+import { type EvidenceGap, KYIV_TIME_ZONE } from "@opika/domain";
+import { uk } from "@opika/i18n";
 
 /**
  * Dates and times on the operator's pages: native `Intl`, never a hand-rolled
@@ -51,3 +52,16 @@ export const formatDateTime = lazyFormat({
   hour: "2-digit",
   minute: "2-digit",
 });
+
+let disjunction: Intl.ListFormat | undefined;
+
+/**
+ * What an evidence gap asks for, by name: one kind, or an any-of line's kinds joined with
+ * «або» by `Intl.ListFormat` («Відеодзвінок або Відкриті джерела»).
+ */
+export function evidenceGapKinds(gap: EvidenceGap): string {
+  const kind = uk.kabinet.operator.evidence.kind;
+  if (gap.rule === "kind") return kind[gap.kind];
+  disjunction ??= new Intl.ListFormat("uk", { type: "disjunction" });
+  return disjunction.format(gap.kinds.map((each) => kind[each]));
+}

@@ -11,7 +11,7 @@ import { Panel } from "../../../../ui/Panel";
 import { Text } from "../../../../ui/Text";
 import { VerificationStatusChip } from "../../StatusChips";
 import { operatorStatusLabel } from "../../verification-label";
-import { formatDate } from "../format";
+import { evidenceGapKinds, formatDate } from "../format";
 import { DECISION_OWNER, type DecisionOutcome } from "./decision-outcome";
 import { type OfferedAction, offeredActionsOf } from "./offered-actions";
 import { useOperatorActions } from "./operator-actions";
@@ -39,12 +39,13 @@ const gapText = (gap: ApprovalGap): string =>
       ? uk.kabinet.operator.create.legalTitle
       : uk.kabinet.profile.address
     : fillTemplate(uk.kabinet.operator.evidence.gapItem, {
-        kind: uk.kabinet.operator.evidence.kind[gap.kind],
+        kind: evidenceGapKinds(gap),
         provided: String(gap.provided),
         minimum: String(gap.minimum),
       });
 
-const gapKey = (gap: ApprovalGap): string => (gap.on === "verified_data" ? gap.field : gap.kind);
+const gapKey = (gap: ApprovalGap): string =>
+  gap.on === "verified_data" ? gap.field : gap.rule === "kind" ? gap.kind : gap.kinds.join("|");
 
 /** What a single-tap move's lost answer must find on the re-read record to count as done. */
 const landedFor = (action: "start_review" | "approve" | "reinstate", view: RegistryShelterView) => {

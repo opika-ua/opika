@@ -491,6 +491,11 @@ export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: 
       `site_visit.visitedOn ${recorded.visitedOn} is after today - a visit that hasn't happened can't back a verification.`,
     );
   }
+  if (recorded.kind === "open_sources_check_in_future") {
+    throw new Error(
+      `open_sources_review.checkedOn ${recorded.checkedOn} is after today - a check that hasn't happened can't back a verification.`,
+    );
+  }
   const evidence = recorded.evidence;
   const exactAddress = { ...input.exactAddress, coordinates: null };
 

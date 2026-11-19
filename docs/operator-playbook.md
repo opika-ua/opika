@@ -67,19 +67,23 @@ return of a verified shelter to review, no reject from paused or verified (suspe
 
 1. **«Взяти на розгляд»** (pending to under review). One click, no dialog. Changes nothing public.
 2. **Evidence.** Section «Докази для перевірки» lists what is on file. Kinds, with the label you see:
-   «Реєстрація · ЄДРПОУ», «Власник банківського рахунку», «Рекомендація», «Відеодзвінок», «Документ».
-   The editor offers the four kinds that need no file; document upload is not built, and the server refuses
+   «Реєстрація · ЄДРПОУ», «Власник банківського рахунку», «Рекомендація», «Відеодзвінок»,
+   «Відкриті джерела», «Документ». The editor offers the five kinds that need no file; document upload is not built, and the server refuses
    any item carrying a document key. A video call (stored as `site_visit`) is stamped with you as the person who made it and its
    date cannot be in the future. If the connection can't carry video, a phone call plus a short video of
-   the premises filmed the same day counts; say which video in the notes.
+   the premises filmed the same day counts; say which video in the notes. «Відкриті джерела»
+   (stored as `open_sources_review`) records a registry check (code, name and address as ЄДР shows
+   them), the pages you opened (https, one per line, up to 10), optional reviews, a note and the
+   day; it too is stamped with you, and its date cannot be in the future.
 3. **Minimum to approve**, by legal form («Юридичні дані»):
 
    | Legal form | Required |
    |---|---|
-   | «Громадська організація чи фонд», «ФОП» | 1 EDRPOU registration, 1 video call |
+   | «Громадська організація чи фонд», «ФОП» | 1 EDRPOU registration and 1 video call, or 1 open-sources check alone |
    | «Ініціатива без реєстрації» | 1 video call, 1 reference |
 
-   (Owner decision, 2026-11-10. A bank account holder can still be added but counts toward no minimum, and
+   (Open sources: owner decision, 2026-11-19; the gap list names such a line as «Відеодзвінок або
+   Відкриті джерела – 0 з 1». Open sources never count for an initiative. Owner decision, 2026-11-10: a bank account holder can still be added but counts toward no minimum, and
    a second reference is extra. You check the account holder by hand when approving a donation link, section 15.)
 
    When short, «Схвалити» is blocked and the screen says «Схвалити поки не можна – бракує:» and

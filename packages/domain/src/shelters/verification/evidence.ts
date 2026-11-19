@@ -50,6 +50,26 @@ export const EvidenceItemSchema = z.discriminatedUnion("kind", [
     notes: z.string().min(1),
   }),
   /**
+   * A registered organisation checked in open sources (owner, 2026-11-19): the operator's
+   * alternative to the video call. The registry fields are at least what `edrpou_registration`
+   * holds, plus the address as ЄДР shows it, so this item also stands as the registry entry.
+   * `pages` are https links the operator opened; the server never fetches them (SSRF).
+   */
+  z.object({
+    kind: z.literal("open_sources_review"),
+    edrpou: EdrpouSchema,
+    registeredName: z.string().min(1),
+    registeredAddress: z.string().min(1),
+    pages: z
+      .array(z.url({ protocol: /^https$/ }))
+      .min(1)
+      .readonly(),
+    reviews: z.string().min(1).nullable(),
+    notes: z.string().min(1),
+    checkedAt: z.date(),
+    checkedBy: ModeratorIdSchema,
+  }),
+  /**
    * The site or social page a self-registered shelter submitted, normalised (`normalizePublicLink`).
    * The operator opens it; the server never fetches it (SSRF).
    */
@@ -71,6 +91,7 @@ export const EVIDENCE_KINDS = [
   "bank_account_holder",
   "reference_contact",
   "site_visit",
+  "open_sources_review",
   "public_link",
   "supporting_document",
 ] as const satisfies readonly EvidenceKind[];
