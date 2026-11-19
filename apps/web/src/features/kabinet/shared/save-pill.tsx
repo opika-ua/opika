@@ -208,7 +208,21 @@ export function SavePill({
           <SaveDot tone={saveToneOf(state)} />
           <span className="min-w-0">{saveBarTextOf(state)}</span>
         </p>
-        {buttons === null ? null : <div className="flex items-center gap-2">{buttons}</div>}
+        {buttons === null ? null : (
+          <div
+            className={cx(
+              "flex items-center gap-2",
+              // Equal phone columns (a flexed pair differs by the outline's border); «Спробувати ще
+              // раз» is wider than half a 360 bar, so a failed save keeps the flexed pair.
+              state.kind !== "blocked" &&
+                state.kind !== "failed" &&
+                !oneRow &&
+                "max-tablet:grid max-tablet:grid-cols-2",
+            )}
+          >
+            {buttons}
+          </div>
+        )}
       </div>
     </StickyActionBar>
   );
