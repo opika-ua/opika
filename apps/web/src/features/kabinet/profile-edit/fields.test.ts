@@ -45,6 +45,13 @@ describe("contactsFormOf (answer 3: nothing stored is hidden)", () => {
   });
 });
 
+describe("a shelter that registered without a contact (owner, 2026-11-19)", () => {
+  it("opens an empty form, and an empty form is never a contact to save", () => {
+    expect(contactsFormOf(null)).toEqual(form());
+    expect(contactOfForm(contactsFormOf(null)).kind).toBe("invalid");
+  });
+});
+
 describe("contactOfForm", () => {
   it("normalises silently (answer 4): spaced and dashed numbers, @handle, t.me links", () => {
     for (const telegram of ["@lapa_shelter", "t.me/lapa_shelter", "https://t.me/lapa_shelter"]) {

@@ -90,6 +90,16 @@ describe("RegistrationForm", () => {
     expect(attr(copy.labels.passwordRepeat, "autocomplete")).toBe("new-password");
   });
 
+  it("the adopter contact is the one optional text field, and its label says so", () => {
+    renderForm(async (previous) => previous);
+    const contact = screen.getByLabelText(copy.labels.contact);
+    expect(contact.hasAttribute("required")).toBe(false);
+    expect(copy.labels.contact).toContain("необовʼязково");
+    for (const label of [copy.labels.name, copy.labels.link, copy.labels.email]) {
+      expect(screen.getByLabelText(label).hasAttribute("required")).toBe(true);
+    }
+  });
+
   it("the honeypot is out of reach: hidden from assistive tech and the tab order", () => {
     const { container } = renderForm(async (previous) => previous);
     const honeypot = container.querySelector(`input[name="${HONEYPOT_NAME}"]`);

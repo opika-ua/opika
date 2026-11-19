@@ -13,6 +13,7 @@ import { InlineList } from "../../../ui/InlineList";
 import { Menu, MenuItem } from "../../../ui/Menu";
 import { Photo } from "../../../ui/Photo";
 import { Text } from "../../../ui/Text";
+import { TextLink } from "../../../ui/TextLink";
 import { Tooltip } from "../../../ui/Tooltip";
 import { ListingStatusChip } from "../StatusChips";
 import type {
@@ -297,6 +298,11 @@ export function AnimalManageCard({
                   <Text look="hint" id={gapsId}>
                     {card.publish.sentence}
                   </Text>
+                ) : null}
+                {card.publish.kind === "no_contact" ? (
+                  <TextLink href={card.publish.link.href} className="self-start text-label">
+                    {card.publish.link.label}
+                  </TextLink>
                 ) : null}
               </>
             ) : (

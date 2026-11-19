@@ -1,8 +1,13 @@
 import type { ModeratorId, ShelterAdminId } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { insertOnboardedShelter, verificationForNewAnimals } from "../src/onboard-shelter";
+import {
+  insertOnboardedShelter,
+  newAnimalsCheck,
+  verificationForNewAnimals,
+} from "../src/onboard-shelter";
 import { cityRepo } from "../src/repos/city-repo";
 import { kabinetShelterRepo } from "../src/repos/kabinet-shelter-repo";
+import { shelterRepo } from "../src/repos/shelter-repo";
 import { insertSeedData } from "../src/seed";
 import {
   makeAnimal,
@@ -154,5 +159,32 @@ describe("verificationForNewAnimals", () => {
     await expect(verificationForNewAnimals(db, shelter, "exists")).rejects.toThrow(
       /was reported as existing but not found/,
     );
+  });
+});
+
+/** A re-run publishes its new animals, so it holds the no-contact gate (owner, 2026-11-19). */
+describe("newAnimalsCheck", () => {
+  it("refuses a re-run against a stored shelter with no contact, and passes one with a contact", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const located = { ...makeShelter().publicLocation, cityId: city.id };
+    const bare = makeShelter({
+      publicLocation: located,
+      contact: null,
+      verification: {
+        status: "application",
+        appliedAt: NOW,
+        evidence: { items: [], submittedAt: NOW },
+      },
+    });
+    await shelterRepo(db).insert(bare);
+    const refused = await newAnimalsCheck(db, bare, "exists");
+    expect(refused.kind).toBe("refused");
+    expect(refused.kind === "refused" && refused.message).toContain("no contact for adopters");
+
+    const reachable = makeShelter({ publicLocation: located });
+    const result = await insertOnboardedShelter(db, reachable, { moderatorId: MOD, now: NOW });
+    expect(await newAnimalsCheck(db, reachable, result)).toEqual({ kind: "ok" });
+    expect(await newAnimalsCheck(db, reachable, "exists")).toEqual({ kind: "ok" });
   });
 });

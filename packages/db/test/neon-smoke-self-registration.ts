@@ -42,14 +42,19 @@ export async function runSelfRegistrationSmoke(db: Database): Promise<Outcome[]>
     bareRenames?.n === 0,
     `${bareRenames?.n} in the old shape`,
   );
-  const [sources] = await executeRows<{ operator: number; other: number }>(
+  // Production has real applications now (owner, 2026-11-19), so the shape is checked, not the count.
+  const [sources] = await executeRows<{ operator: number; registered: number; other: number }>(
     db,
-    sql`SELECT count(*) FILTER (WHERE registration_source = 'operator')::int AS operator, count(*) FILTER (WHERE registration_source <> 'operator')::int AS other FROM shelters`,
+    sql`SELECT
+      count(*) FILTER (WHERE registration_source = 'operator')::int AS operator,
+      count(*) FILTER (WHERE registration_source = 'self_registration' AND applied_at IS NOT NULL AND registrant_user_id IS NOT NULL)::int AS registered,
+      count(*) FILTER (WHERE NOT (registration_source = 'operator' OR (registration_source = 'self_registration' AND applied_at IS NOT NULL AND registrant_user_id IS NOT NULL)))::int AS other
+    FROM shelters`,
   );
   check(
-    "0028: every existing shelter reads as operator-created",
+    "0028: every shelter is operator-created, or self-registered with applied_at and a registrant",
     sources?.other === 0,
-    `${sources?.operator} operator, ${sources?.other} other`,
+    `${sources?.operator} operator, ${sources?.registered} self-registered, ${sources?.other} other`,
   );
 
   const city = makeCity({ id: randomUUID() as CityId, slug: `smoke-${randomUUID()}` as never });

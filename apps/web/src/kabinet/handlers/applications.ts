@@ -78,7 +78,9 @@ const candidateOf = (source: DuplicateSourceRow): DuplicateCandidate => ({
   emails: source.emails,
   links: [
     ...publicLinksOf(source.verification),
-    ...[source.contact.primary, ...source.contact.additional].flatMap(linksOfContact),
+    ...(source.contact === null
+      ? []
+      : [source.contact.primary, ...source.contact.additional].flatMap(linksOfContact)),
   ],
 });
 
@@ -116,7 +118,7 @@ function queueItemOf(
     cityId: row.cityId,
     appliedAt: row.verification.appliedAt,
     link,
-    contact: row.contact.primary,
+    contact: row.contact?.primary ?? null,
     email: row.registrant?.email ?? ERASED_ADMIN_EMAIL,
     emailStatus: row.registrant?.emailVerified === true ? "confirmed" : "unconfirmed",
     duplicates: signals.map((signal) => ({
