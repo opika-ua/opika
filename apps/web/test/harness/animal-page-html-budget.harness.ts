@@ -37,8 +37,22 @@ const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harne
  * flags, AVIF on) and measured 84,221 in CI at 7993491, so the budget is 85,000. The logo and 176w
  * fixes that followed leave the fixture as it was: its shelter has no logo, and the hero never had
  * a 176w entry (a `100vw` slot starts the srcset at 400w). A live page with a logo saves ~600 bytes.
+ * 2026-11-19 (owner): the budget counts content only (`contentBytesOf`), so a bundler re-split no
+ * longer trips it. Main measured 84,898 whole and 82,964 as content; the budget is that plus ~1 KB.
  */
-export const ANIMAL_PAGE_HTML_BUDGET_BYTES = 85_000;
+export const ANIMAL_PAGE_HTML_BUDGET_BYTES = 84_000;
+
+/**
+ * The document without its chunk references: the `<script src>` tags and preloads, and the chunk
+ * paths inside the flight data. They change with any shared-module edit, not with the page.
+ */
+export const contentBytesOf = (html: string): number =>
+  Buffer.byteLength(
+    html
+      .replace(/<script src="\/_next\/static\/[^"]*"[^>]*><\/script>/g, "")
+      .replace(/<link rel="preload" as="script"[^>]*\/>/g, "")
+      .replace(/\/_next\/static\/chunks\/[\w.~-]+\.js/g, ""),
+  );
 
 const SENTENCE = "Лагідний, грайливий песик, який дуже любить прогулянки та людей. ";
 const textOf = (characters: number): string =>
@@ -94,10 +108,11 @@ test("the heaviest realistic animal page stays within its HTML budget", async ({
   try {
     const response = await page.goto(`/tvaryny/${animal.id}`, { waitUntil: "load" });
     expect(response?.status()).toBe(200);
-    const bytes = Buffer.byteLength((await response?.text()) ?? "");
+    const html = (await response?.text()) ?? "";
+    const bytes = contentBytesOf(html);
     expect(
       bytes,
-      `/tvaryny/<id> HTML is ${bytes} bytes; the budget is ${ANIMAL_PAGE_HTML_BUDGET_BYTES}`,
+      `/tvaryny/<id> content is ${bytes} bytes (${Buffer.byteLength(html)} whole); the budget is ${ANIMAL_PAGE_HTML_BUDGET_BYTES}`,
     ).toBeLessThan(ANIMAL_PAGE_HTML_BUDGET_BYTES);
   } finally {
     // No delete on the repo; a withdrawn animal is in no gallery.
