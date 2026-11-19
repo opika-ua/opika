@@ -521,8 +521,8 @@ export const en = {
     money: `${COPY_PENDING} 5. Money – never touched.`,
     verification: `${COPY_PENDING} 6. What "verified" means.`,
     verificationOpenToVolunteers:
-      "The check is done remotely. I look at open sources and ask for one reference from someone other than you: " +
-      "a neighbouring shelter, a vet clinic you work with, anyone who can confirm that you " +
+      "I verify unregistered initiatives remotely too. I look at open sources and ask for one reference " +
+      "from someone other than you – a neighbouring shelter, a vet clinic you work with, anyone who can confirm that you " +
       "exist and do what you say. Your second phone number is not a reference. " +
       "If open sources aren't enough, we'll arrange a short conversation.",
     whatToPrepare: `${COPY_PENDING} 7. What to prepare.`,
