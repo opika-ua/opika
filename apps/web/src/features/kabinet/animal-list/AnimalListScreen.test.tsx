@@ -21,6 +21,9 @@ const shelterIn = (
   verification: KabinetShelterView["verification"],
   earlyListing: KabinetShelterView["earlyListing"],
   registration: KabinetShelterView["registration"] = { source: "operator" },
+  contact: KabinetShelterView["contact"] = {
+    primary: { kind: "telegram", handle: "domivka" },
+  } as KabinetShelterView["contact"],
 ) =>
   ({
     id: "s",
@@ -28,6 +31,7 @@ const shelterIn = (
     verification,
     earlyListing,
     registration,
+    contact,
   }) as unknown as KabinetShelterView;
 
 const NO_CARDS = { draft: 0, published: 0, reserved: 0, adopted: 0, withdrawn: 0 };
@@ -201,6 +205,25 @@ describe("a self-registered shelter's banners (spec §2, Q3, P0-1)", () => {
     const close = screen.getByRole("button", { name: "Закрити" });
     expect(close.getAttribute("type")).toBe("submit");
     expect(close.closest("form")).not.toBeNull();
+  });
+
+  it("approved with no contact: the banner asks for one and links to «Контакти»", () => {
+    renderScreen(
+      shelterIn(
+        { status: "pending", since: AT } as KabinetShelterView["verification"],
+        { kind: "running", expiresAt: new Date("2026-12-01T09:00:00Z"), daysLeft: 22 },
+        SELF("confirmed"),
+        null,
+      ),
+    );
+    expect(screen.queryByText(APPROVED_TEXT)).toBeNull();
+    expect(
+      screen.getByText("Притулок схвалено. Щоб публікувати тварин, додайте контакт."),
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Додати контакт" }).getAttribute("href")).toBe(
+      "/kabinet/prytulok?tab=kontakty",
+    );
+    expect(screen.getByRole("button", { name: "Закрити" })).toBeTruthy();
   });
 
   it("once this browser closed it, «Притулок схвалено» is gone and the days left stay", () => {

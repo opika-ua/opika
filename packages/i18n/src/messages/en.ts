@@ -520,7 +520,11 @@ export const en = {
     noObligation: `${COPY_PENDING} 4b. No lead queue, nothing to answer.`,
     money: `${COPY_PENDING} 5. Money – never touched.`,
     verification: `${COPY_PENDING} 6. What "verified" means.`,
-    verificationOpenToVolunteers: `${COPY_PENDING} 6b. Open to unregistered volunteer groups.`,
+    verificationOpenToVolunteers:
+      "The check is done remotely. I look at open sources and ask for one reference from someone other than you: " +
+      "a neighbouring shelter, a vet clinic you work with, anyone who can confirm that you " +
+      "exist and do what you say. Your second phone number is not a reference. " +
+      "If open sources aren't enough, we'll arrange a short conversation.",
     whatToPrepare: `${COPY_PENDING} 7. What to prepare.`,
     whyHowOften: `${COPY_PENDING} 8. Why say how often you update your cards.`,
     whenAnimalFindsHome: `${COPY_PENDING} 9. When an animal finds a home.`,
@@ -547,13 +551,13 @@ export const en = {
       help: "I check the shelter through this link.",
     },
     contact: {
-      label: "Phone or Telegram for people",
+      label: "Phone or Telegram for people · optional",
       placeholder: "+380… or @name",
       help: "People who want to adopt will write here.",
     },
     email: {
       label: "Email",
-      help: "For signing in to the cabinet. Not shown on the site.",
+      help: "You will sign in to the cabinet with it. Not shown on the site.",
     },
     password: {
       label: "Password",
@@ -568,9 +572,11 @@ export const en = {
     help: "Want me to help? Write to me on Telegram {telegram} or at {email}",
     errors: {
       required: "Fill in this field.",
+      nameRequired: "Enter the name of the shelter or initiative.",
       city: "Choose a city from the list.",
+      linkRequired: "Add a link to a website or a social media page.",
       link: "That doesn't look like a link. For example: instagram.com/your_shelter",
-      contact: "Enter a phone (+380…) or a Telegram name (@name).",
+      contact: "Enter a phone as +380… or a Telegram name with @.",
       email: "Check the email.",
       passwordShort: "The password is too short: at least {min} characters.",
       passwordMismatch: "The passwords don't match.",
@@ -581,7 +587,7 @@ export const en = {
       dailyCap:
         "Too many applications right now. Please try again tomorrow or write to me at {email}.",
     },
-    signInPrompt: "No cabinet yet? Register a shelter",
+    signInPrompt: { text: "No cabinet yet?", link: "Register a shelter" },
     whatToPrepareAccess:
       "You create the cabinet yourself, with the form on this page. If you prefer, write to me and I'll create it for you.",
     howToStart:
@@ -613,6 +619,55 @@ export const en = {
       "The shelter is already approved, so the application can't be deleted from the link. If you didn't register this shelter, write to me at {email}.",
     emailTakenSignIn: "Sign in",
     emailTakenReset: "Reset password",
+    steps: { one: "Step 1 of 2 · About the shelter", two: "Step 2 of 2 · Your account" },
+    next: "Next",
+    recap: "{name}, {city}.",
+    change: "Change",
+    back: "← Back",
+    footer: { text: "Already have a cabinet?", link: "Sign in" },
+    assistance: { text: "Need help?", link: "Write to me" },
+    signedIn: {
+      admin: "You are already signed in as {email}.",
+      toKabinet: "Go to the cabinet",
+      signOut: "Sign out",
+      operator: "You are signed in as the operator. Registration is for shelters.",
+      toApplications: "To applications",
+    },
+    page: {
+      lead: "List your shelter's or initiative's animals on {site} – people will find them by city, age and size.",
+      leadShort: "Free, no ads or fees. Registration takes 3 minutes.",
+      benefits: [
+        "Free, no ads or fees",
+        "Registration takes 3 minutes, you add animals right away",
+        "I check the shelter, usually within 2 days",
+        "People write to you directly",
+      ],
+      jump: { verification: "How I check a shelter", rules: "Rules", questions: "Questions" },
+      howItWorks: {
+        title: "How it works",
+        steps: [
+          {
+            title: "You register the shelter",
+            body: "A few fields and a password, the cabinet right away.",
+          },
+          {
+            title: "You add animals",
+            body: "Photos, age, temperament. While I check – as drafts.",
+          },
+          { title: "People write to you", body: "Contacts on the card, no middlemen." },
+        ],
+      },
+      questions: {
+        overline: "Shelters' questions",
+        title: "Everything worth knowing",
+        groups: {
+          moneyContacts: "Money and contacts",
+          verificationRules: "Checks and rules",
+          animalCards: "Animal cards",
+          aboutProject: "About the project",
+        },
+      },
+    },
   },
   kabinet: {
     application: {
@@ -622,8 +677,11 @@ export const en = {
         "Confirm your email – I sent a message to {email}. Without it I can't approve the shelter.",
       confirmEmailResend: "Send again",
       approved: "The shelter is approved. You can publish animals now.",
+      approvedNoContact: "The shelter is approved. To publish animals, add a contact.",
       approvedClose: "Close",
       publishBlocked: "You can publish after the shelter is checked.",
+      publishNoContact: "Add at least one contact so people can reach you.",
+      publishNoContactLink: "Add contact",
       draftCap: "Before the check you can add at most 30 drafts.",
       donationBlocked: "You can add a fundraising link after the shelter is checked.",
       earlyListingDaysLeft: {
@@ -640,6 +698,7 @@ export const en = {
     },
     applications: {
       title: "Applications ({count})",
+      noContact: "Contacts: not provided",
       emailConfirmed: "Email confirmed",
       emailUnconfirmed: "Email not confirmed",
       duplicate: "Possible duplicate: {name} ({why})",
@@ -708,6 +767,10 @@ export const en = {
       operator: "Operator",
       newTab: "(opens in a new tab)",
     },
+    signInPage: {
+      subtitle: "For shelters and volunteers who are already registered.",
+      assistance: { text: "Can't sign in?", link: "Write to me" },
+    },
     signIn: {
       pageTitle: "Sign in to the cabinet",
       title: "Sign in to the cabinet",
@@ -723,8 +786,6 @@ export const en = {
       wrongCredentials:
         "Couldn't sign in. Check the address and password, or send yourself a sign-in link.",
       throttled: "Too many sign-in attempts. Try again in {minutes} min.",
-      addressNote:
-        "I add your address when I invite your shelter. If the address is not on the list no email arrives, and this page does not say so, so that it never reveals who is registered.",
       failed: "Could not reach the site. Check your connection and try again.",
       sendFailed: "The link could not be sent. Check your connection and try again.",
       sentTitle: "Check your email",
@@ -1611,6 +1672,7 @@ export const en = {
           bank_account_holder: "Bank account holder",
           reference_contact: "Reference",
           site_visit: "Video call",
+          open_sources_review: "Open sources",
           public_link: "Website or social media page",
           supporting_document: "Document",
         },
@@ -1624,6 +1686,11 @@ export const en = {
           visitedOn: "Call date",
           notes: "Note",
           label: "Label",
+          registeredAddress: "Address in the EDR",
+          pages: "Pages checked",
+          reviews: "Reviews",
+          reviewsOptional: "Reviews · optional",
+          checkedOn: "Date checked",
         },
         relationship: {
           veterinary_clinic: "Veterinary clinic",
@@ -1642,6 +1709,11 @@ export const en = {
         remove: "Remove",
         typePicker: "Kind of evidence",
         siteVisitDateHint: "The call date can't be in the future.",
+        checkedOnHint: "The date checked can't be in the future.",
+        pagesHint: "One link per line, starting https://. At most 10.",
+        reviewsHint: "Where the reviews were read and what they say.",
+        openSourcesNotesHint:
+          "What was checked and what matched the EDR: the name, the address, how long the pages have been kept.",
         videoCallNotesHint:
           "What was shown on the call: the premises, the animals, the people. If the call was by phone, add which video was sent.",
         addTitle: "Add evidence",
@@ -1790,6 +1862,9 @@ export const en = {
               "A live invitation to another shelter was already sent to this address.",
           },
           siteVisitInFuture: "The call date can't be in the future.",
+          openSourcesCheckInFuture: "The date checked can't be in the future.",
+          pagesInvalid: "Each line must be a link starting https://.",
+          pagesTooMany: "At most 10 pages.",
           registeredAtFuture: "The registration date can't be in the future.",
           unknownCity: "That settlement isn't in the list.",
           lostAnswer:
@@ -1901,7 +1976,8 @@ export const en = {
         oneMoreLeft: "One more, final period can be allowed – with an explanation.",
         extendNote: "Why are you extending the showing",
         limitReached: "Showing before the review has already been allowed twice.",
-        evidenceMinimum: "To allow showing, at least a video call or one reference is needed.",
+        evidenceMinimum:
+          "To allow showing, at least one is needed: open sources, a video call or a reference.",
       },
       reminder: {
         title: "Email about unconfirmed cards",

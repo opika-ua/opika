@@ -9,6 +9,7 @@ import {
   type DonationRemovalCode,
   donationOnSuspension,
   donationUrlProblemOf,
+  type EvidenceGap,
   type EvidenceItemInput,
   type ExactAddress,
   earlyListingOf,
@@ -284,7 +285,13 @@ export function acceptEvidence(
   by: { moderatorId: ModeratorId; now: Date },
 ):
   | { kind: "ok"; evidence: VerificationEvidence }
-  | { kind: "refused"; reason: "site_visit_in_future" | "document_not_supported_yet" } {
+  | {
+      kind: "refused";
+      reason:
+        | "site_visit_in_future"
+        | "open_sources_check_in_future"
+        | "document_not_supported_yet";
+    } {
   const carriesDocument = inputs.some(
     (input) =>
       input.kind === "supporting_document" ||
@@ -293,7 +300,7 @@ export function acceptEvidence(
   );
   if (carriesDocument) return { kind: "refused", reason: "document_not_supported_yet" };
   const result = toVerificationEvidence(inputs, { recordedBy: by.moderatorId, recordedAt: by.now });
-  if (result.kind === "site_visit_in_future") return { kind: "refused", reason: result.kind };
+  if (result.kind !== "ok") return { kind: "refused", reason: result.kind };
   return { kind: "ok", evidence: result.evidence };
 }
 
@@ -396,11 +403,11 @@ export const registryApprove = (
       );
       if (missing !== undefined)
         throw errors.VERIFIED_DATA_MISSING({ data: { missing: [missing, ...moreMissing] } });
-      const [first, ...rest] = gaps.flatMap((gap) =>
-        gap.on === "evidence"
-          ? [{ kind: gap.kind, minimum: gap.minimum, provided: gap.provided }]
-          : [],
-      );
+      const [first, ...rest] = gaps.flatMap((gap): EvidenceGap[] => {
+        if (gap.on !== "evidence") return [];
+        const { on: _on, ...evidenceGap } = gap;
+        return [evidenceGap];
+      });
       if (first !== undefined)
         throw errors.EVIDENCE_INSUFFICIENT({ data: { gaps: [first, ...rest] } });
     },

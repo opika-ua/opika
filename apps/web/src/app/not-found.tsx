@@ -1,30 +1,26 @@
 import { ukPublic as uk } from "@opika/i18n/public";
 import type { Metadata } from "next";
-import { kabinetSessionCookiePresent } from "../features/chrome/kabinet-signed-in";
-import { SiteHeader } from "../features/chrome/SiteHeader";
+import { NotFoundHeader } from "../features/chrome/NotFoundHeader";
 import { LinkButton } from "../ui/Button";
 import { Container } from "../ui/Container";
 import { Heading } from "../ui/Heading";
-import { Mascot } from "../ui/Mascot";
 import { Panel } from "../ui/Panel";
 import { Text } from "../ui/Text";
 
 /**
- * The 404 for any address no route owns, and for `notFound()` calls with no nearer `not-found.tsx`
- * (the wrong-role `/kabinet/*` pages). Next serves it with a real 404 status; a segment that has its
- * own (`tvaryny/[animalId]`, `prytulky/[shelterId]`) keeps it. Same shape as the animal 404, plus the
- * site header so a visitor is never left without navigation.
+ * Kept small on purpose: Next serialises this element into every page's payload. Unknown addresses
+ * get `[...rest]/not-found.tsx` with the full header; this one only answers a `notFound()` with no
+ * nearer `not-found.tsx` (the wrong-role `/kabinet/*` pages), with the plain header.
  */
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
-export default async function NotFound() {
+export default function NotFound() {
   const copy = uk.siteNotFound;
   return (
     <div className="min-h-dvh bg-page">
-      <SiteHeader kabinetSignedIn={await kabinetSessionCookiePresent()} />
+      <NotFoundHeader />
       <Container as="main" className="flex justify-center py-8 desktop:py-14">
         <Panel padding="lg" className="flex w-full max-w-140 flex-col items-start gap-4">
-          <Mascot kind="cat" pose="sit" variant="collar" size={64} />
           <Text look="hint" className="uppercase tracking-wider">
             {copy.eyebrow}
           </Text>

@@ -130,9 +130,11 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/profile-edit/PauseControl.tsx": "pause/unpause dialog",
   "features/kabinet/profile-edit/ProfileEditor.tsx": "editor shell: section states, browser client",
   "features/registration/RegistrationForm.tsx":
-    "registration form: useActionState, kept values, blur checks, city picker, full-load exit",
-  "features/registration/RegistrationAnchorButton.tsx":
-    "smooth scroll to the form and focus on its heading (a plain anchor without JS)",
+    "registration form: two steps, useActionState, kept values, blur checks, city picker, full-load exit",
+  "features/registration/RegistrationSignOut.tsx":
+    "«Вийти» on /prytulkam: the sign-out call, busy and failed state, then a reload",
+  "features/registration/OpenAnchoredDetails.tsx":
+    "opens the /prytulkam question an anchor names (load, hashchange, same-page link click)",
   "features/likes/SaveButton.tsx": "toggles saved state in localStorage",
   "features/likes/SavedButton.tsx": "reads saved count from localStorage after hydration",
   "features/likes/SavedCards.tsx":

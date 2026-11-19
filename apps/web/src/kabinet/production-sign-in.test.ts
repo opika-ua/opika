@@ -215,7 +215,9 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   shell: 5,
 
-  signIn: 21,
+  signIn: 20,
+
+  signInPage: 3,
 
   setPassword: 10,
 
@@ -267,18 +269,19 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   history: 2,
 
-  operator: 286,
+  // +13: open sources (2026-11-19).
+  operator: 299,
 
   verificationDecision: 8,
 
   animalHistoryLabels: 17,
 
   // Self-registration (2026-11-18): A3's banners and location lines, the operator's queue.
-  application: 11,
+  application: 14,
 
   location: 4,
 
-  applications: 24,
+  applications: 25,
 };
 
 /**

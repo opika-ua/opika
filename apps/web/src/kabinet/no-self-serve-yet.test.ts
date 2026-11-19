@@ -221,13 +221,13 @@ describe(`a shelter membership is created by the automatic accept only – ${COP
     ]) {
       expect(uk.forShelters.whenAnimalFindsHome, `${gone}. ${COPY_GATE}`).not.toContain(gone);
     }
-    // A1 (row 91): his line, in §7, and §7's last paragraph his PR 6 text
-    // (pr6-copy-uk.md §1.1) in place of «ви розкажете, а я внесу все сам».
+    // A1 (row 91): his line, in §7, and §7's last paragraph his 2026-11-19 text
+    // in place of «ви розкажете, а я внесу все сам» (and no first-cards offer).
     expect(uk.forShelters.whatToPrepare, COPY_GATE).toContain(
       "Доступ до кабінету я надсилаю сам – листом на адресу, яку ви мені вкажете.",
     );
     expect(uk.forShelters.whatToPrepare, COPY_GATE).toContain(
-      "Тварин і профіль притулку ви ведете самі в кабінеті: додаєте картку, публікуєте – і її одразу видно. Якщо тварин багато, на старті можу внести перші картки сам – надішліть список і фото.",
+      "Тварин і профіль притулку ви ведете самі в кабінеті: картки можна додати одразу, а опублікувати – після схвалення, коли в профілі є контакт.",
     );
     expect(uk.forShelters.whatToPrepare, COPY_GATE).not.toContain("я внесу все сам");
     // B1 (pr6-copy-uk.md §1.3): what moves the date, named, and a text edit not among it.

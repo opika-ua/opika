@@ -112,10 +112,11 @@ side and it has to mean something specific here.
 
 Must establish: a person checks, and here is what checking is.
 
-- A registered organisation shows its EDRPOU registration and has a video call.
+- A registered organisation shows its ЄДР entry, and has a video call or is checked in
+  open sources instead (its site and pages, reviews; 2026-11-19).
 - An unregistered volunteer group - most groups - is **not excluded**. It has a
-  video call and gives one independent reference who can confirm the group is
-  real and does what it says.
+  video call or is checked in open sources, and gives one independent reference who can
+  confirm the group is real and does what it says (2026-11-19, (a′)).
 - The video call is remote; nobody has to travel. If the connection can't carry
   video, a phone call plus a short video of the premises filmed the same day
   counts.
@@ -124,12 +125,21 @@ Must establish: a person checks, and here is what checking is.
   references. The live text now reads «Зареєстрована організація показує ЄДРПОУ
   і проходить відеодзвінок.» and «Незареєстрована ініціатива проходить
   відеодзвінок і показує одну незалежну рекомендацію.»)
-- (Changed again 2026-11-19, R5, owner's wording: the page no longer names the
-  evidence. It reads «Я дивлюся відкриті джерела: сайт і сторінки притулку,
-  реєстр організацій, відгуки. Якщо їх не вистачає, я напишу вам і попрошу щось
-  додати – наприклад, рекомендацію або коротку розмову.», and §6b no longer
-  mentions a video call. The policy is unchanged; the bullets above
-  describe it, not the page.)
+- (Narrowed 2026-11-19, owner decision: a registered organisation may be verified on open
+  sources (ЄДР, its site and pages, reviews) instead of the video call, which made «і проходить
+  відеодзвінок» false for it. Deleted under standing-constraints' "Removing a false claim"; the
+  live text reads «Зареєстрована організація показує ЄДРПОУ.» until his fuller sentence lands.
+  The same day (a′) made the call optional for an initiative too: «проходить відеодзвінок і» left
+  its sentence, and §6b lost its two opening sentences about the call; PR #541 brings his
+  replacement text. `verification-claim.test.ts` holds the rule: no sentence presents a call as
+  always required while no form needs one.)
+- (Restored 2026-11-19 by PR #541, his R5 text: the page names where the operator looks, not
+  each form's evidence. §6 ¶2: «Я дивлюся відкриті джерела: сайт і сторінки притулку, реєстр
+  організацій, відгуки. Якщо їх не вистачає, я напишу вам і попрошу щось додати – наприклад,
+  рекомендацію або коротку розмову.» §6b: «Перевірка проходить дистанційно. Я дивлюся відкриті
+  джерела і прошу одну рекомендацію від когось іншого, ніж ви: … Ваш другий номер телефону – не
+  рекомендація. Якщо відкритих джерел замало, домовимося про коротку розмову.» The bullets above
+  describe the policy, not the page.)
 - A reference has to be someone other than the shelter itself - a neighbouring
   shelter, a vet clinic they work with. Not their own second phone number.
 

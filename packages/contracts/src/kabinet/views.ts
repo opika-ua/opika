@@ -461,7 +461,8 @@ export const ApplicationQueueItemViewSchema = z.object({
   cityId: CityIdSchema,
   appliedAt: z.date(),
   link: z.url({ protocol: /^https$/ }).nullable(),
-  contact: ContactChannelSchema,
+  /** Null when the registrant left the optional contact field empty. */
+  contact: ContactChannelSchema.nullable(),
   email: z.email(),
   emailStatus: EmailStatusSchema,
   duplicates: z

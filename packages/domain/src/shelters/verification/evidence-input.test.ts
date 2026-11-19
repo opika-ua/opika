@@ -9,6 +9,7 @@ import {
   type EvidenceItemInput,
   EvidenceItemInputSchema,
   isSiteVisitInFuture,
+  OPEN_SOURCES_MAX_PAGES,
   toEvidenceItem,
   toVerificationEvidence,
 } from "./evidence-input";
@@ -65,6 +66,89 @@ describe("EvidenceItemInputSchema", () => {
   it("still requires the document on a supporting document", () => {
     expect(
       EvidenceItemInputSchema.safeParse({ kind: "supporting_document", labelUk: "Статут" }).success,
+    ).toBe(false);
+  });
+});
+
+describe("EvidenceItemInputSchema: open sources", () => {
+  const check = (patch: Record<string, unknown> = {}) => ({
+    kind: "open_sources_review",
+    registry: {
+      edrpou: "12345678",
+      registeredName: "ГО «Лапа»",
+      registeredAddress: "м. Київ, вул. Тестова, 1",
+    },
+    pages: ["https://lapa.example.org/"],
+    notes: "Сайт веде організація",
+    checkedOn: "2026-10-01",
+    ...patch,
+  });
+
+  it("accepts a check with no reviews, as null", () => {
+    expect(EvidenceItemInputSchema.parse(check())).toMatchObject({ reviews: null });
+  });
+
+  it("a registry part is never weaker than a registration: a valid code, the name and the address", () => {
+    const registry = (patch: Record<string, unknown>) =>
+      check({ registry: { ...check().registry, ...patch } });
+    expect(EvidenceItemInputSchema.safeParse(registry({ edrpou: "1234" })).success).toBe(false);
+    expect(EvidenceItemInputSchema.safeParse(registry({ registeredName: "" })).success).toBe(false);
+    expect(EvidenceItemInputSchema.safeParse(registry({ registeredAddress: "" })).success).toBe(
+      false,
+    );
+    expect(
+      EvidenceItemInputSchema.safeParse(registry({ registeredAddress: undefined })).success,
+    ).toBe(false);
+  });
+
+  it("takes no registry part at all, as null (an initiative has no ЄДР entry)", () => {
+    const { registry: _registry, ...noRegistry } = check();
+    expect(EvidenceItemInputSchema.parse(noRegistry)).toMatchObject({ registry: null });
+    expect(EvidenceItemInputSchema.parse(check({ registry: null }))).toMatchObject({
+      registry: null,
+    });
+  });
+
+  it("needs at least one https page and at most the cap", () => {
+    expect(EvidenceItemInputSchema.safeParse(check({ pages: [] })).success).toBe(false);
+    expect(
+      EvidenceItemInputSchema.safeParse(check({ pages: ["http://lapa.example.org/"] })).success,
+    ).toBe(false);
+    expect(EvidenceItemInputSchema.safeParse(check({ pages: ["lapa.example.org"] })).success).toBe(
+      false,
+    );
+    const pages = (n: number) => Array.from({ length: n }, (_, i) => `https://e.example.org/${i}`);
+    expect(
+      EvidenceItemInputSchema.safeParse(check({ pages: pages(OPEN_SOURCES_MAX_PAGES) })).success,
+    ).toBe(true);
+    expect(
+      EvidenceItemInputSchema.safeParse(check({ pages: pages(OPEN_SOURCES_MAX_PAGES + 1) }))
+        .success,
+    ).toBe(false);
+  });
+
+  it("stores each page as its canonical href, never as typed", () => {
+    for (const typed of ["https:lapa.example.org", "https:/lapa.example.org"]) {
+      const parsed = EvidenceItemInputSchema.parse(check({ pages: [typed] }));
+      expect(parsed).toMatchObject({ pages: ["https://lapa.example.org/"] });
+    }
+    expect(
+      EvidenceItemInputSchema.parse(check({ pages: ["https://Lapa.Example.org/a b"] })),
+    ).toMatchObject({ pages: ["https://lapa.example.org/a%20b"] });
+  });
+
+  it("refuses a page with another protocol or no host", () => {
+    for (const typed of ["http:lapa.example.org", "javascript:alert(1)", "https://", "/relative"]) {
+      expect(EvidenceItemInputSchema.safeParse(check({ pages: [typed] })).success, typed).toBe(
+        false,
+      );
+    }
+  });
+
+  it("needs the note and a calendar date", () => {
+    expect(EvidenceItemInputSchema.safeParse(check({ notes: "" })).success).toBe(false);
+    expect(
+      EvidenceItemInputSchema.safeParse(check({ checkedOn: "2026-10-01T10:00:00Z" })).success,
     ).toBe(false);
   });
 });
@@ -150,6 +234,33 @@ describe("toEvidenceItem", () => {
       },
     ],
     [
+      {
+        kind: "open_sources_review",
+        registry: {
+          edrpou: EDRPOU,
+          registeredName: "ГО «Лапа»",
+          registeredAddress: "м. Київ, вул. Тестова, 1",
+        },
+        pages: ["https://lapa.example.org/", "https://www.facebook.com/lapa"],
+        reviews: "Відгуки в Google",
+        notes: "Сайт і сторінка ведуться з 2022 року",
+        checkedOn: "2026-09-30",
+      },
+      {
+        kind: "open_sources_review",
+        registry: {
+          edrpou: EDRPOU,
+          registeredName: "ГО «Лапа»",
+          registeredAddress: "м. Київ, вул. Тестова, 1",
+        },
+        pages: ["https://lapa.example.org/", "https://www.facebook.com/lapa"],
+        reviews: "Відгуки в Google",
+        notes: "Сайт і сторінка ведуться з 2022 року",
+        checkedAt: new Date("2026-09-30T00:00:00.000Z"),
+        checkedBy: OPERATOR,
+      },
+    ],
+    [
       { kind: "supporting_document", labelUk: "Статут", documentKey: "evidence/statute.pdf" },
       {
         kind: "supporting_document",
@@ -209,6 +320,27 @@ describe("toVerificationEvidence", () => {
         BY,
       ),
     ).toEqual({ kind: "site_visit_in_future", visitedOn: "2026-10-09" });
+  });
+
+  it("refuses an open-sources check dated after the day it is recorded, on Kyiv's calendar", () => {
+    const check = (checkedOn: string): EvidenceItemInput => ({
+      kind: "open_sources_review",
+      registry: {
+        edrpou: EDRPOU,
+        registeredName: "ГО «Лапа»",
+        registeredAddress: "м. Київ, вул. Тестова, 1",
+      },
+      pages: ["https://lapa.example.org/"],
+      reviews: null,
+      notes: "Перевірив",
+      checkedOn,
+    });
+    // RECORDED_AT is already the 8th in Kyiv.
+    expect(toVerificationEvidence([check("2026-10-08")], BY).kind).toBe("ok");
+    expect(toVerificationEvidence([check("2026-10-09")], BY)).toEqual({
+      kind: "open_sources_check_in_future",
+      checkedOn: "2026-10-09",
+    });
   });
 });
 

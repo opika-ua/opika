@@ -5,7 +5,7 @@ import {
   kyivCalendarDateOf,
 } from "../../primitives/calendar-date";
 import { EdrpouSchema, type ModeratorId } from "../../primitives/ids";
-import { ContactChannelInputSchema } from "../contact";
+import { CONTACT_INPUT_MAX_LENGTH, ContactChannelInputSchema } from "../contact";
 import {
   type EvidenceItem,
   ReferenceRelationshipSchema,
@@ -34,6 +34,23 @@ export const EVIDENCE_NAME_MAX_LENGTH = 300;
 export const EVIDENCE_NOTES_MAX_LENGTH = 2000;
 export const EVIDENCE_LABEL_MAX_LENGTH = 200;
 export const EVIDENCE_DOCUMENT_KEY_MAX_LENGTH = 200;
+export const EVIDENCE_ADDRESS_MAX_LENGTH = 300;
+/** The most pages one open-sources check lists. */
+export const OPEN_SOURCES_MAX_PAGES = 10;
+
+/**
+ * A page as stored: the parsed URL's own `href`, so `https:example.com` is kept as
+ * `https://example.com/`, never as typed (which a browser would resolve against our origin).
+ * Null unless it parses with the https protocol and a host.
+ */
+export const canonicalHttpsPage = (raw: string): string | null => {
+  try {
+    const url = new URL(raw.trim());
+    return url.protocol === "https:" && url.hostname !== "" ? url.href : null;
+  } catch {
+    return null;
+  }
+};
 
 export const EvidenceItemInputSchema = z.discriminatedUnion("kind", [
   z.object({
@@ -63,6 +80,39 @@ export const EvidenceItemInputSchema = z.discriminatedUnion("kind", [
     kind: z.literal("site_visit"),
     visitedOn: z.iso.date(),
     notes: z.string().min(1).max(EVIDENCE_NOTES_MAX_LENGTH),
+  }),
+  /**
+   * `checkedOn` is the day checked, a calendar date like `visitedOn` (H2-9). `registry` is all
+   * three ЄДР facts or none (an initiative has no entry).
+   */
+  z.object({
+    kind: z.literal("open_sources_review"),
+    registry: z
+      .object({
+        edrpou: EdrpouSchema,
+        registeredName: z.string().min(1).max(EVIDENCE_NAME_MAX_LENGTH),
+        registeredAddress: z.string().min(1).max(EVIDENCE_ADDRESS_MAX_LENGTH),
+      })
+      .nullable()
+      .default(null),
+    pages: z
+      .array(
+        z
+          .string()
+          .max(CONTACT_INPUT_MAX_LENGTH)
+          .transform((raw, ctx) => {
+            const href = canonicalHttpsPage(raw);
+            if (href === null) ctx.addIssue({ code: "custom", message: "Not an https page." });
+            return href ?? raw;
+          })
+          .pipe(z.url({ protocol: /^https$/ })),
+      )
+      .min(1)
+      .max(OPEN_SOURCES_MAX_PAGES)
+      .readonly(),
+    reviews: z.string().min(1).max(EVIDENCE_NOTES_MAX_LENGTH).nullable().default(null),
+    notes: z.string().min(1).max(EVIDENCE_NOTES_MAX_LENGTH),
+    checkedOn: z.iso.date(),
   }),
   z.object({
     kind: z.literal("supporting_document"),
@@ -115,6 +165,17 @@ export const toEvidenceItem = (input: EvidenceItemInput, by: EvidenceAttribution
         visitedBy: by.recordedBy,
         notes: input.notes,
       };
+    case "open_sources_review":
+      return {
+        kind: "open_sources_review",
+        registry: input.registry,
+        pages: input.pages,
+        reviews: input.reviews,
+        notes: input.notes,
+        checkedAt: instantOfCalendarDate(input.checkedOn),
+        // As with a visit: whoever records the check vouches for it.
+        checkedBy: by.recordedBy,
+      };
     case "supporting_document":
       return {
         kind: "supporting_document",
@@ -131,7 +192,8 @@ export const toEvidenceItem = (input: EvidenceItemInput, by: EvidenceAttribution
 
 export type EvidenceInputResult =
   | { kind: "ok"; evidence: VerificationEvidence }
-  | { kind: "site_visit_in_future"; visitedOn: string };
+  | { kind: "site_visit_in_future"; visitedOn: string }
+  | { kind: "open_sources_check_in_future"; checkedOn: string };
 
 /**
  * Whether a visit dated `visitedOn` lies after the day `recordedAt` falls on
@@ -148,9 +210,9 @@ export const isSiteVisitInFuture = (visitedOn: CalendarDate, recordedAt: Date): 
 /**
  * The whole evidence bundle, stamped with when it was recorded.
  *
- * Refuses a site visit dated after the day it is recorded
- * (`isSiteVisitInFuture`): that is a typo, not a fact, and it would let a
- * reviewer approve on a visit that hasn't happened. A result rather than a
+ * Refuses a site visit or an open-sources check dated after the day it is
+ * recorded (`isSiteVisitInFuture`): that is a typo, not a fact, and it would
+ * let a reviewer approve on a check that hasn't happened. A result rather than a
  * throw, as in the verification FSM, so every caller handles the refusal.
  */
 export const toVerificationEvidence = (
@@ -160,6 +222,12 @@ export const toVerificationEvidence = (
   for (const input of inputs) {
     if (input.kind === "site_visit" && isSiteVisitInFuture(input.visitedOn, by.recordedAt)) {
       return { kind: "site_visit_in_future", visitedOn: input.visitedOn };
+    }
+    if (
+      input.kind === "open_sources_review" &&
+      isSiteVisitInFuture(input.checkedOn, by.recordedAt)
+    ) {
+      return { kind: "open_sources_check_in_future", checkedOn: input.checkedOn };
     }
   }
   return {

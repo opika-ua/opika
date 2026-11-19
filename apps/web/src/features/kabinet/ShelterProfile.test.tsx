@@ -92,6 +92,13 @@ describe("ShelterProfile (K4, read-only)", () => {
     expect(rowValue(t.donationLink)).toBe("Не записано");
   });
 
+  it("reads «Не записано» under «Контакти» for a shelter that registered without one", () => {
+    renderProfile({ contact: null });
+    expect(
+      within(screen.getByRole("region", { name: "Контакти" })).getByText("Не записано"),
+    ).toBeTruthy();
+  });
+
   it("reads «Не записано» under «Про притулок» when the shelter has no text", () => {
     renderProfile({ description: null });
     expect(within(aboutRegion()).getByText("Не записано")).toBeTruthy();

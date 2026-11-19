@@ -124,7 +124,13 @@ test.describe("shelter passwords, end to end (PW-1)", () => {
     await page.getByRole("link", { name: "Перейти до входу" }).click();
 
     // A wrong password: the one sentence for every refusal.
-    await expect(page.getByRole("heading", { level: 1, name: "Вхід до кабінету" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Вхід у кабінет" })).toBeVisible();
+    // The assistance line under the card (spec §2), to the one operator contact.
+    await expect(page.getByText("Не вдається увійти?")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Напишіть мені" })).toHaveAttribute(
+      "href",
+      "mailto:hello@opika.org.ua",
+    );
     await page.getByLabel("Електронна пошта").fill(email);
     await page.getByLabel("Пароль", { exact: true }).fill("зовсім-не-той-пароль");
     await page.getByRole("button", { name: "Увійти", exact: true }).click();

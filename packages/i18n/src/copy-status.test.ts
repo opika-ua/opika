@@ -142,7 +142,6 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       shell: ["accountAndPassword", "label", "newTab", "operator", "toSite"],
       // PW-1: `send` (the magic-link button) gave way to his `useLink`; the password keys are his §A.
       signIn: [
-        "addressNote",
         "emailLabel",
         "failed",
         "forgot",
@@ -269,9 +268,6 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       "Листа немає? Перевірте «Спам» і «Промоакції». Надіслати ще раз можна через 60 секунд.",
     // row 11
     "signInCard.notArrived": "Якщо лист не прийшов за кілька хвилин, напишіть мені на {contact}.",
-    // row 6
-    "signIn.addressNote":
-      "Адресу додаю я, коли запрошую притулок. Якщо адреси немає в списку, лист не прийде – і ця сторінка про це не повідомляє, щоб не розкривати, хто зареєстрований.",
     // row 9
     "signIn.sentBody":
       "Якщо ця адреса є в списку, на {email} прийде посилання для входу. Воно діє 15 хвилин і відкривається на будь-якому пристрої.",
@@ -631,7 +627,6 @@ describe("CB-B1: the replaced strings name no «реєстр»", () => {
       en.kabinet.profileEdit.about.hint,
     ],
     "kabinet.signIn.intro": [uk.kabinet.signIn.intro, en.kabinet.signIn.intro],
-    "kabinet.signIn.addressNote": [uk.kabinet.signIn.addressNote, en.kabinet.signIn.addressNote],
     "kabinet.email.invite.intro": [uk.kabinet.email.invite.intro, en.kabinet.email.invite.intro],
     "kabinet.inviteLanding.expired": [
       uk.kabinet.inviteLanding.expired,
@@ -1109,8 +1104,26 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.earlyListing.oneMoreLeft": "Можна дозволити ще один, останній період – з поясненням.",
     "operator.earlyListing.extendNote": "Чому подовжуєте показ",
     "operator.earlyListing.limitReached": "Показ до перевірки вже дозволяли двічі.",
+    // Owner-approved 2026-11-19, replacing the 2026-11-04 text (open sources count).
     "operator.earlyListing.evidenceMinimum":
-      "Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація.",
+      "Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок або рекомендація.",
+  };
+  /** Open sources as a verification basis: owner-approved 2026-11-19 as drafted (PR #545). */
+  const OPEN_SOURCES_OPERATOR_COPY: Record<string, string> = {
+    "operator.evidence.kind.open_sources_review": "Відкриті джерела",
+    "operator.evidence.field.registeredAddress": "Адреса в ЄДР",
+    "operator.evidence.field.pages": "Переглянуті сторінки",
+    "operator.evidence.field.reviews": "Відгуки",
+    "operator.evidence.field.reviewsOptional": "Відгуки · необовʼязково",
+    "operator.evidence.field.checkedOn": "Дата перевірки",
+    "operator.evidence.checkedOnHint": "Дата перевірки не може бути в майбутньому.",
+    "operator.evidence.pagesHint": "Одне посилання в рядку, з https://. Щонайбільше 10.",
+    "operator.evidence.reviewsHint": "Де читали відгуки і що в них.",
+    "operator.evidence.openSourcesNotesHint":
+      "Що перевірили і що збіглося з ЄДР: назва, адреса, як давно ведуться сторінки.",
+    "operator.create.errors.openSourcesCheckInFuture": "Дата перевірки не може бути в майбутньому.",
+    "operator.create.errors.pagesInvalid": "Кожен рядок – посилання, що починається з https://.",
+    "operator.create.errors.pagesTooMany": "Щонайбільше 10 сторінок.",
   };
   /** Pet card PR 3b. His final text (2026-10-27): the builder's draft, approved as written. */
   const PET_CARD_PR3B_LOGO_CHANGED: Record<string, string> = {
@@ -1152,6 +1165,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(MINIMAL_CREATE_COPY).filter((path) => path.startsWith("operator.")),
         ...Object.keys(WEEKLY_REMINDER_OPERATOR_COPY),
         ...Object.keys(DATE_FIELD_OPERATOR_COPY),
+        ...Object.keys(OPEN_SOURCES_OPERATOR_COPY),
       ].sort(),
     );
   });
@@ -1197,6 +1211,13 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   );
 
   it.each(Object.entries(DATE_FIELD_OPERATOR_COPY))(
+    "%s is the owner-approved text",
+    (path, text) => {
+      expect(valueAt(path)).toBe(text);
+    },
+  );
+
+  it.each(Object.entries(OPEN_SOURCES_OPERATOR_COPY))(
     "%s is the owner-approved text",
     (path, text) => {
       expect(valueAt(path)).toBe(text);
@@ -1455,21 +1476,33 @@ describe("/prytulkam §9 (forShelters.whenAnimalFindsHome)", () => {
 describe("/prytulkam A1 (forShelters.whatToPrepare)", () => {
   const paragraphs = uk.forShelters.whatToPrepare.split("\n\n");
 
-  it("carries his line directly before §7's last paragraph, which is his PR 6 text", () => {
+  it("carries his line directly before §7's last paragraph, which is his 2026-11-19 text", () => {
     expect(paragraphs.at(-2)).toBe(
       "Доступ до кабінету я надсилаю сам – листом на адресу, яку ви мені вкажете.",
     );
-    // pr6-copy-uk.md §1.1: the shelter keeps its animals and profile itself (commitment #6).
+    // The shelter keeps its animals and profile itself (commitment #6); cards publish after approval.
     expect(paragraphs.at(-1)).toBe(
-      "Тварин і профіль притулку ви ведете самі в кабінеті: додаєте картку, публікуєте – і її одразу видно. Якщо тварин багато, на старті можу внести перші картки сам – надішліть список і фото.",
+      "Тварин і профіль притулку ви ведете самі в кабінеті: картки можна додати одразу, а опублікувати – після схвалення, коли в профілі є контакт.",
     );
     expect(uk.forShelters.whatToPrepare).not.toContain("я внесу все сам");
     expect(uk.forShelters.whatToPrepare).not.toContain("Заповнювати анкету не треба");
+    expect(uk.forShelters.whatToPrepare).not.toContain("перші картки сам");
     expect(paragraphs.at(-3)).toBe("Фотографії використовуються тільки для сторінок ваших тварин.");
     expect(
       paragraphs.filter((paragraph) => paragraph.includes("Доступ до кабінету")),
       "once",
     ).toHaveLength(1);
+  });
+
+  it("opens on what registration needs, and the donation link waits for the check (owner, 2026-11-19)", () => {
+    expect(paragraphs[0]).toBe(
+      "Для реєстрації потрібні назва, місто й посилання на сайт чи сторінку притулку. Для карток тварин знадобляться:",
+    );
+    expect(paragraphs[1]?.split("\n")).toHaveLength(4);
+    expect(paragraphs[1]).not.toContain("донат");
+    expect(paragraphs[2]).toBe(
+      "Посилання на донати можна додати після перевірки притулку, якщо воно у вас є.",
+    );
   });
 });
 
@@ -1660,7 +1693,7 @@ describe("/prytulkam §8 B1 (forShelters.whyHowOften)", () => {
     }
   });
 
-  it("the §8 heading and §7's fifth bullet are the owner-approved 2026-11 text", () => {
+  it("the §8 heading and §7's last bullet are the owner-approved 2026-11 text", () => {
     expect(uk.forShelters.headings.whyHowOften).toBe("Навіщо розповідати, як ви оновлюєте картки");
     expect(uk.forShelters.whatToPrepare).toContain(
       "і кілька речень про притулок: хто ви, як працюєте і як часто оновлюєте картки – про це нижче.",
@@ -2927,14 +2960,14 @@ describe("the copy audit of 2026-10-22", () => {
     );
   });
 
-  it("R5 (owner, 2026-11-19): verification is described by open sources, with no promised call", () => {
+  it("R5 (owner, 2026-11-19): verification is described by open sources, a call only as a fallback", () => {
     expect(uk.forShelters.verification).toBe(
       "«Перевірений» означає, що вас перевіряла людина. Ось що це означає конкретно.\n\n" +
         "Я дивлюся відкриті джерела: сайт і сторінки притулку, реєстр організацій, відгуки. Якщо їх не вистачає, я напишу вам і попрошу щось додати – наприклад, рекомендацію або коротку розмову.\n\n" +
         "Поки перевірка триває, я можу дозволити показ карток до 60 днів – з позначкою «на перевірці». Позначку «перевірений» притулок отримує лише після повної перевірки.",
     );
     expect(uk.forShelters.verificationOpenToVolunteers).toBe(
-      "Перевірка проходить дистанційно. Здебільшого вистачає відкритих джерел; якщо ні, я попрошу рекомендацію від когось іншого, ніж ви: сусідній притулок, ветклініка, з якою ви працюєте, будь-хто, хто може підтвердити, що ви існуєте і робите те, що кажете. Ваш другий номер телефону – не рекомендація.",
+      "Перевірка проходить дистанційно. Я дивлюся відкриті джерела і прошу одну рекомендацію від когось іншого, ніж ви: сусідній притулок, ветклініка, з якою ви працюєте, будь-хто, хто може підтвердити, що ви існуєте і робите те, що кажете. Ваш другий номер телефону – не рекомендація. Якщо відкритих джерел замало, домовимося про коротку розмову.",
     );
     expect(uk.kabinet.email.applicationApproved.pending).toBe(
       "Поки біля назви притулку стоїть позначка «На перевірці». Якщо для повної перевірки мені забракне інформації з відкритих джерел, я напишу вам.",

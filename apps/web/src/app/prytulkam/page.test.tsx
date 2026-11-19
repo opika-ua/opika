@@ -1,3 +1,4 @@
+import { uk } from "@opika/i18n";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { forSheltersMetadata, renderForSheltersPage, whatToPrepareFor } from "./page";
@@ -76,28 +77,84 @@ describe("/prytulkam with self-registration on (commitment #6's exception)", () 
     expect(on.replace(ACCESS_ON, A1)).toBe(whatToPrepareFor(false));
   });
 
-  it("says how to start with the form, keeping the write-to-me path", () => {
-    render(renderForSheltersPage(false, ON));
-    expect(screen.getByText(HOW_TO_START_ON)).toBeTruthy();
-    expect(screen.queryByText(HOW_TO_START_OFF)).toBeNull();
+  it("drops «Як почати»: the form replaces it", () => {
+    const { container } = render(renderForSheltersPage(false, ON));
+    expect(container.textContent).not.toContain(HOW_TO_START_ON);
+    expect(container.textContent).not.toContain(HOW_TO_START_OFF);
+    expect(container.textContent).not.toContain(uk.forShelters.headings.howToStart);
   });
 
-  it("shows «Правила» at #pravyla, all six rules and what happens when they are broken", () => {
+  it("keeps «Правила» at #pravyla as a closed question: all six rules and the enforcement", () => {
     const { container } = render(renderForSheltersPage(false, ON));
-    const section = container.querySelector("#pravyla");
-    expect(section).not.toBeNull();
-    expect(screen.getByRole("heading", { level: 2, name: "Правила для притулків" })).toBeTruthy();
-    expect(section?.querySelectorAll("li")).toHaveLength(6);
-    expect(section?.textContent).toContain("Opika – не для продажу тварин.");
-    expect(section?.textContent).toContain(
+    const question = container.querySelector("details#pravyla");
+    expect(question).not.toBeNull();
+    expect(question?.hasAttribute("open")).toBe(false);
+    expect(question?.querySelector("summary")?.textContent).toBe("Правила для притулків");
+    expect(question?.querySelectorAll("li")).toHaveLength(6);
+    expect(question?.textContent).toContain("Opika – не для продажу тварин.");
+    expect(question?.textContent).toContain(
       "Якщо правила порушуються, я можу призупинити притулок і напишу вам чому.",
     );
   });
 
-  it("repeats «Зареєструвати притулок» at the end, pointing at the form's anchor", () => {
+  it("has no «Увійти в кабінет» button at the top: the card's footer signs in", () => {
     render(renderForSheltersPage(false, ON));
-    // The last on the page: the registration slot may hold its own anchor button above.
-    const button = screen.getAllByRole("link", { name: "Зареєструвати притулок" }).at(-1);
-    expect(button?.getAttribute("href")).toBe("#reyestratsiia");
+    expect(screen.queryByRole("link", { name: uk.forShelters.signInLink })).toBeNull();
+    expect(screen.getByRole("heading", { level: 1, name: uk.forShelters.title })).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: uk.registration.footer.link }).getAttribute("href"),
+    ).toBe("/kabinet/vkhid");
+  });
+
+  it("explains how it works in three steps", () => {
+    render(renderForSheltersPage(false, ON));
+    const steps = uk.registration.page.howItWorks.steps;
+    for (const step of steps) {
+      expect(screen.getByRole("heading", { level: 3, name: step.title })).toBeTruthy();
+      expect(screen.getByText(step.body)).toBeTruthy();
+    }
+  });
+
+  it("every existing section is a closed question with its text verbatim in the HTML", () => {
+    const { container } = render(renderForSheltersPage(false, ON));
+    const h = uk.forShelters.headings;
+    const titles = [...container.querySelectorAll("details > summary")].map((s) => s.textContent);
+    expect(titles).toEqual([
+      h.cost,
+      h.whoContactsWhom,
+      h.money,
+      h.verification,
+      h.whatToPrepare,
+      "Правила для притулків",
+      h.whatHappensToAnimals,
+      h.whyHowOften,
+      h.whenAnimalFindsHome,
+      h.whatThisIs,
+      h.whoIsBehindThis,
+      h.howToLeave,
+    ]);
+    expect(container.querySelectorAll("details[open]")).toHaveLength(0);
+    const text = container.textContent ?? "";
+    for (const body of [
+      uk.forShelters.cost,
+      uk.forShelters.money,
+      uk.forShelters.verification,
+      uk.forShelters.whatHappensToAnimals,
+      uk.forShelters.whyHowOften,
+      uk.forShelters.whenAnimalFindsHome,
+      uk.forShelters.howToLeave,
+    ]) {
+      expect(text).toContain(body);
+    }
+    expect(text).toContain(ACCESS_ON);
+  });
+
+  it("the hero's jump links point at questions that exist", () => {
+    const { container } = render(renderForSheltersPage(false, ON));
+    const jump = uk.registration.page.jump;
+    for (const label of [jump.verification, jump.rules, jump.questions]) {
+      const href = screen.getByRole("link", { name: `${label} ↓` }).getAttribute("href") ?? "";
+      expect(container.querySelector(href)).not.toBeNull();
+    }
   });
 });

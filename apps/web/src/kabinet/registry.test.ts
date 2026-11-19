@@ -587,6 +587,17 @@ describe("the minimal shelter: created without legal data or address", () => {
     firstAdmin: { name: "Олена", email: "olena@example.org" },
   });
   const VISIT = { kind: "site_visit", visitedOn: "2026-10-12", notes: "Відеодзвінок" };
+  const OPEN_SOURCES = {
+    kind: "open_sources_review",
+    registry: {
+      edrpou: "12345678",
+      registeredName: "ГО «Лапа»",
+      registeredAddress: "м. Вишгород, вул. Київська, 300",
+    },
+    pages: ["https://lapa.example.org/"],
+    notes: "Сайт і сторінка ведуться з 2022 року.",
+    checkedOn: "2026-10-12",
+  };
   const LEGAL = {
     kind: "registered_ngo",
     legalName: "ГО «Лапа»",
@@ -653,12 +664,41 @@ describe("the minimal shelter: created without legal data or address", () => {
       code: "EVIDENCE_INSUFFICIENT",
       data: {
         gaps: [
-          { kind: "edrpou_registration", minimum: 1, provided: 0 },
-          { kind: "site_visit", minimum: 1, provided: 0 },
+          { rule: "registry_entry", minimum: 1, provided: 0 },
+          { rule: "any_of", kinds: ["site_visit", "open_sources_review"], minimum: 1, provided: 0 },
         ],
       },
     });
     expect((await reload(id)).verification.status).toBe("under_review");
+  });
+
+  /** Owner, 2026-11-19: open sources stand in for the call, never for the legal entity (0024). */
+  it("approves a registered NGO on open sources alone, but only once the legal entity and address are in", async () => {
+    const { id } = await created();
+    const evidence = await call("registry.verification.addEvidence", {
+      shelterId: id,
+      evidence: [OPEN_SOURCES],
+    });
+    expect(evidence.status).toBe(200);
+    const onFile = (await reload(id)).verification.evidence.items;
+    expect(onFile).toEqual([expect.objectContaining({ kind: "open_sources_review" })]);
+    expect((await call("registry.verification.startReview", { shelterId: id })).status).toBe(200);
+    const approve = () =>
+      call<{ code: string; data: unknown }>("registry.verification.approve", { shelterId: id });
+
+    expect((await approve()).body).toMatchObject({
+      code: "VERIFIED_DATA_MISSING",
+      data: { missing: ["legal_entity", "exact_address"] },
+    });
+    const version = (await reload(id)).version;
+    expect((await update(id, version, { field: "legal_entity", next: LEGAL })).status).toBe(200);
+    expect((await approve()).body).toMatchObject({
+      code: "VERIFIED_DATA_MISSING",
+      data: { missing: ["exact_address"] },
+    });
+    await update(id, version + 1, { field: "exact_address", next: { ...ADDRESS, cityId } });
+    expect((await approve()).status).toBe(200);
+    expect((await reload(id)).verification.status).toBe("verified");
   });
 
   it("records an added legal entity and address with a null previous", async () => {
@@ -1226,8 +1266,8 @@ describe("registry.verification.*", () => {
     });
     expect(refused.status).toBe(422);
     expect(refused.body.data.gaps).toEqual([
-      { kind: "edrpou_registration", minimum: 1, provided: 0 },
-      { kind: "site_visit", minimum: 1, provided: 0 },
+      { rule: "registry_entry", minimum: 1, provided: 0 },
+      { rule: "any_of", kinds: ["site_visit", "open_sources_review"], minimum: 1, provided: 0 },
     ]);
     expect((await reload(s.id)).verification.status).toBe("under_review");
   });
@@ -2874,7 +2914,7 @@ describe("Ukrainian phone rule on the operator's write paths", () => {
     local.contact = { primary: { kind: "phone", e164: LOCAL }, additional: [] } as never;
     const created = await call<RegistryShelterView>("registry.shelters.create", local);
     expect(created.status).toBe(200);
-    expect((await reload(created.body.id)).contact.primary).toEqual({
+    expect((await reload(created.body.id)).contact?.primary).toEqual({
       kind: "phone",
       e164: NORMALISED,
     });
@@ -2913,7 +2953,7 @@ describe("Ukrainian phone rule on the operator's write paths", () => {
     expect((await send(TOO_LONG)).status).toBe(400);
     expect((await reload(s.id)).contact).toEqual(s.contact);
     expect((await send(LOCAL)).status).toBe(200);
-    expect((await reload(s.id)).contact.primary).toEqual({ kind: "phone", e164: NORMALISED });
+    expect((await reload(s.id)).contact?.primary).toEqual({ kind: "phone", e164: NORMALISED });
   });
 
   it("resubmit: a reference contact with extra digits is refused", async () => {
@@ -2971,17 +3011,31 @@ describe("registry.earlyListing", () => {
     ]);
   });
 
-  it("accepts a reference as the minimum too, and refuses anything below it", async () => {
+  /** Owner, 2026-11-19: any one of open sources (registry part or not), a call or a reference. */
+  it("accepts open sources or a reference as the minimum too, and refuses anything below it", async () => {
+    const openSources = {
+      kind: "open_sources_review",
+      registry: null,
+      pages: ["https://lapa.example.org/"],
+      reviews: null,
+      notes: "Сайт",
+      checkedAt: NOW,
+      checkedBy: OPERATOR as ModeratorId,
+    } as const;
+    const ok = await shelter({
+      verification: { ...STATES.pending, evidence: { items: [openSources], submittedAt: NOW } },
+    });
+    expect((await allow(ok.id)).status).toBe(200);
     const reference = {
       kind: "reference_contact",
       name: "Ветклініка",
       channel: { kind: "phone", e164: "+380501112233" },
       relationship: "veterinary_clinic",
     } as const;
-    const ok = await shelter({
+    const withReference = await shelter({
       verification: { ...STATES.pending, evidence: { items: [reference], submittedAt: NOW } },
     });
-    expect((await allow(ok.id)).status).toBe(200);
+    expect((await allow(withReference.id)).status).toBe(200);
     const bare = await shelter({ verification: STATES.pending });
     const refused = await allow(bare.id);
     expect(refused.status).toBe(409);
@@ -3357,6 +3411,7 @@ describe("the shelter description: both write paths", () => {
 
   it("an old freshness_sentence_changed line still reads in both histories", async () => {
     const s = await shelter();
+    if (s.contact === null) throw new Error("the fixture shelter has a contact");
     // Nothing writes this kind any more; an entry from before is written straight to the log.
     const written = await kabinetShelterRepo(db).applyAudited({
       shelterId: s.id,

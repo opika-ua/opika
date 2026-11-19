@@ -1,4 +1,5 @@
-import { KYIV_TIME_ZONE } from "@opika/domain";
+import { type EvidenceGap, type EvidenceKind, KYIV_TIME_ZONE } from "@opika/domain";
+import { uk } from "@opika/i18n";
 
 /**
  * Dates and times on the operator's pages: native `Intl`, never a hand-rolled
@@ -51,3 +52,50 @@ export const formatDateTime = lazyFormat({
   hour: "2-digit",
   minute: "2-digit",
 });
+
+let disjunction: Intl.ListFormat | undefined;
+
+/** The kinds a registry entry can come in (`holdsRegistryEntry`), as the gap names them. */
+const REGISTRY_ENTRY_KINDS = ["edrpou_registration", "open_sources_review"] as const;
+
+/**
+ * What an evidence gap asks for, by name: one kind, or several joined with «або» by
+ * `Intl.ListFormat` («Відеодзвінок або Відкриті джерела»).
+ */
+export function evidenceGapKinds(gap: EvidenceGap): string {
+  const kind = uk.kabinet.operator.evidence.kind;
+  const either = (kinds: readonly EvidenceKind[]): string => {
+    disjunction ??= new Intl.ListFormat("uk", { type: "disjunction" });
+    return disjunction.format(kinds.map((each) => kind[each]));
+  };
+  switch (gap.rule) {
+    case "kind":
+      return kind[gap.kind];
+    case "any_of":
+      return either(gap.kinds);
+    case "registry_entry":
+      return either(REGISTRY_ENTRY_KINDS);
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled rule; unreachable at runtime */
+    default: {
+      const unreachable: never = gap;
+      return unreachable;
+    }
+  }
+}
+
+/** A stable key for a gap line. */
+export function evidenceGapKey(gap: EvidenceGap): string {
+  switch (gap.rule) {
+    case "kind":
+      return gap.kind;
+    case "any_of":
+      return gap.kinds.join("|");
+    case "registry_entry":
+      return gap.rule;
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled rule; unreachable at runtime */
+    default: {
+      const unreachable: never = gap;
+      return unreachable;
+    }
+  }
+}

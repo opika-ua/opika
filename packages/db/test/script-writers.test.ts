@@ -1,8 +1,15 @@
-import type { ModeratorId, ShelterAdminId } from "@opika/domain";
+import { randomUUID } from "node:crypto";
+import { type ModeratorId, type ShelterAdminId, transition } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { insertOnboardedShelter, verificationForNewAnimals } from "../src/onboard-shelter";
+import {
+  insertOnboardedShelter,
+  newAnimalsCheck,
+  verificationForNewAnimals,
+} from "../src/onboard-shelter";
+import { applicationsRepo } from "../src/repos/applications-repo";
 import { cityRepo } from "../src/repos/city-repo";
 import { kabinetShelterRepo } from "../src/repos/kabinet-shelter-repo";
+import { shelterRepo } from "../src/repos/shelter-repo";
 import { insertSeedData } from "../src/seed";
 import {
   makeAnimal,
@@ -154,5 +161,57 @@ describe("verificationForNewAnimals", () => {
     await expect(verificationForNewAnimals(db, shelter, "exists")).rejects.toThrow(
       /was reported as existing but not found/,
     );
+  });
+});
+
+/** A re-run publishes its new animals, so it holds the no-contact gate (owner, 2026-11-19). */
+describe("newAnimalsCheck", () => {
+  const application = {
+    status: "application",
+    appliedAt: NOW,
+    evidence: { items: [], submittedAt: NOW },
+  } as const;
+
+  it("refuses a re-run against a stored application, with a contact or without (it wins)", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const located = { ...makeShelter().publicLocation, cityId: city.id };
+    for (const contact of [makeShelter().contact, null]) {
+      const applied = makeShelter({ publicLocation: located, contact, verification: application });
+      await shelterRepo(db).insert(applied);
+      const refused = await newAnimalsCheck(db, applied, "exists");
+      expect(refused.kind === "refused" && refused.message).toContain("is still an application");
+    }
+  });
+
+  it("refuses a re-run against an accepted shelter with no contact, and passes one with a contact", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const located = { ...makeShelter().publicLocation, cityId: city.id };
+    const bare = makeShelter({ publicLocation: located, contact: null, verification: application });
+    await shelterRepo(db).insert(bare);
+    const event = { type: "accept_application", at: NOW, moderatorId: MOD } as const;
+    const moved = transition(bare.verification, event);
+    if (moved.kind !== "ok") throw new Error(moved.kind);
+    const accepted = await applicationsRepo(db).decide({
+      shelterId: bare.id,
+      expectedVersion: bare.version,
+      decision: { kind: "accept", verification: moved.next, earlyListingSince: NOW },
+      entries: [
+        {
+          id: randomUUID(),
+          entry: { kind: "verification", event, from: "application", to: moved.next.status },
+        },
+      ],
+      now: NOW,
+    });
+    expect(accepted).toBe("ok");
+    const refused = await newAnimalsCheck(db, bare, "exists");
+    expect(refused.kind === "refused" && refused.message).toContain("no contact for adopters");
+
+    const reachable = makeShelter({ publicLocation: located });
+    const result = await insertOnboardedShelter(db, reachable, { moderatorId: MOD, now: NOW });
+    expect(await newAnimalsCheck(db, reachable, result)).toEqual({ kind: "ok" });
+    expect(await newAnimalsCheck(db, reachable, "exists")).toEqual({ kind: "ok" });
   });
 });

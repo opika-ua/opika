@@ -22,6 +22,8 @@ export type PasswordFieldProps = FieldSlots &
     hideLabel: string;
     /** A live line under the hint (how many characters are missing), announced politely. */
     status?: ReactNode | undefined;
+    /** A link at the end of the label's row (sign-in's «Забули пароль?»). */
+    labelAside?: ReactNode;
     ref?: Ref<HTMLInputElement>;
   };
 
@@ -38,6 +40,7 @@ export function PasswordField({
   showLabel,
   hideLabel,
   status,
+  labelAside,
   className,
   ref,
   ...props
@@ -46,9 +49,18 @@ export function PasswordField({
   const slots = { id, label, hint, error, describedBy };
   return (
     <div className="flex min-w-0 flex-col gap-2">
-      <label htmlFor={id} className={LABEL}>
-        {label}
-      </label>
+      {labelAside === undefined ? (
+        <label htmlFor={id} className={LABEL}>
+          {label}
+        </label>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-x-3">
+          <label htmlFor={id} className={LABEL}>
+            {label}
+          </label>
+          {labelAside}
+        </div>
+      )}
       <div className="relative min-w-0">
         <input
           id={id}
@@ -63,7 +75,6 @@ export function PasswordField({
         <button
           type="button"
           aria-label={shown ? hideLabel : showLabel}
-          aria-pressed={shown}
           aria-controls={id}
           onPointerDown={(event) => event.preventDefault()}
           onClick={() => setShown((now) => !now)}

@@ -24,12 +24,13 @@ import {
   REFERENCE_RELATIONSHIPS,
 } from "./evidence-rows";
 
-/** A text field of a card: every field but the visit's date. */
-type TextFieldName = Exclude<EvidenceField, "visitedOn">;
+/** A text field of a card: every field but the dates. */
+type TextFieldName = Exclude<EvidenceField, "visitedOn" | "checkedOn">;
 
 /** A change to a card's typed fields: its own fields only, never `id` or `kind`. */
 type RowPatch = Partial<Record<TextFieldName | "channelKind", string>> & {
   visitedOn?: DateFieldValue;
+  checkedOn?: DateFieldValue;
 };
 
 /** The message for a field, from `create.errors.*` or, for a reference's channel, K4's contact errors. */
@@ -43,6 +44,12 @@ export function evidenceFieldMessage(error: EvidenceFieldError | undefined): str
       return create.edrpouFormat;
     case "siteVisitInFuture":
       return create.siteVisitInFuture;
+    case "openSourcesCheckInFuture":
+      return create.openSourcesCheckInFuture;
+    case "pagesInvalid":
+      return create.pagesInvalid;
+    case "pagesTooMany":
+      return create.pagesTooMany;
     case "dateIncomplete":
     case "dateNoSuchDate":
       return typedDateMessage(error);
@@ -55,6 +62,7 @@ export function evidenceFieldMessage(error: EvidenceFieldError | undefined): str
 const firstFieldId = (idPrefix: string, row: EvidenceRow): string => {
   switch (row.kind) {
     case "edrpou_registration":
+    case "open_sources_review":
       return `${idPrefix}-${row.id}-edrpou`;
     case "bank_account_holder":
       return `${idPrefix}-${row.id}-holderName`;
@@ -73,8 +81,8 @@ const firstFieldId = (idPrefix: string, row: EvidenceRow): string => {
 /**
  * The evidence step (N22): a list of cards, one per item, added one at a time
  * by kind («Тип доказу», then «+ Додати доказ»), each with its own
- * «Прибрати». The four document-free kinds only (answer 3); a site visit has
- * no visitor field, because whoever records it is the visitor. Controlled:
+ * «Прибрати». The document-free kinds only (answer 3); a site visit and an
+ * open-sources check have no "who" field, because whoever records it vouches. Controlled:
  * the caller holds the rows, so S2 starts it empty and R-UI 3's resubmit can
  * start it prefilled. Checked by `evidenceOfRows`, again by the server.
  *
@@ -306,6 +314,65 @@ function EvidenceCard({
             onChange={(event) => patch({ notes: event.target.value })}
             hint={errors.notes === undefined ? t.videoCallNotesHint : undefined}
             error={evidenceFieldMessage(errors.notes)}
+          />
+        </>
+      ) : null}
+      {row.kind === "open_sources_review" ? (
+        <>
+          <TextField
+            id={id("edrpou")}
+            label={uk.kabinet.profile.edrpou}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            value={row.edrpou}
+            onChange={(event) => patch({ edrpou: event.target.value })}
+            error={evidenceFieldMessage(errors.edrpou)}
+          />
+          {field(
+            "registeredName",
+            row.registeredName,
+            t.field.registeredName,
+            errors.registeredName,
+          )}
+          {field(
+            "registeredAddress",
+            row.registeredAddress,
+            t.field.registeredAddress,
+            errors.registeredAddress,
+          )}
+          <TextArea
+            id={id("pages")}
+            label={t.field.pages}
+            value={row.pages}
+            onChange={(event) => patch({ pages: event.target.value })}
+            hint={errors.pages === undefined ? t.pagesHint : undefined}
+            error={evidenceFieldMessage(errors.pages)}
+          />
+          <TextArea
+            id={id("reviews")}
+            label={t.field.reviewsOptional}
+            value={row.reviews}
+            onChange={(event) => patch({ reviews: event.target.value })}
+            hint={t.reviewsHint}
+          />
+          <TextArea
+            id={id("notes")}
+            label={t.field.notes}
+            value={row.notes}
+            onChange={(event) => patch({ notes: event.target.value })}
+            hint={errors.notes === undefined ? t.openSourcesNotesHint : undefined}
+            error={evidenceFieldMessage(errors.notes)}
+          />
+          <DateField
+            id={id("checkedOn")}
+            legend={t.field.checkedOn}
+            labels={DATE_FIELD_LABELS}
+            today={today}
+            value={row.checkedOn}
+            onChange={(checkedOn) => patch({ checkedOn })}
+            hint={errors.checkedOn === undefined ? t.checkedOnHint : undefined}
+            error={evidenceFieldMessage(errors.checkedOn)}
           />
         </>
       ) : null}
