@@ -48,9 +48,6 @@ const ERRORS: Record<RegistrationFieldError, string> = {
 export function registrationCopy() {
   const picker = uk.kabinet.cityPicker;
   return {
-    title: r.title,
-    lead: r.lead,
-    ctaScroll: r.ctaScroll,
     labels: {
       name: r.name.label,
       cityId: r.city.label,
@@ -74,8 +71,6 @@ export function registrationCopy() {
     consentPrivacy: r.consentPrivacy,
     submit: r.submit,
     submitting: r.submitting,
-    help: templateParts(r.help),
-    contact: OPERATOR_CONTACT,
     errors: ERRORS,
     summary: r.errors.summary,
     rateLimited: r.errors.rateLimited,
@@ -87,6 +82,12 @@ export function registrationCopy() {
     showPassword: uk.kabinet.signIn.showPassword,
     hidePassword: uk.kabinet.signIn.hidePassword,
     passwordMin: PASSWORD_MIN_CHARACTERS,
+    nameMax: SHELTER_DISPLAY_NAME_MAX_CHARACTERS,
+    steps: r.steps,
+    next: r.next,
+    recap: templateParts(r.recap),
+    change: r.change,
+    back: r.back,
     cityPicker: {
       placeholder: picker.placeholder,
       tooShort: picker.tooShort,

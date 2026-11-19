@@ -8,7 +8,8 @@ describe("the registration section on /prytulkam", () => {
     const { container } = render(<RegistrationSection />);
     const section = container.querySelector("section#reyestratsiia");
     expect(section).not.toBeNull();
-    const heading = screen.getByRole("heading", { level: 2, name: uk.registration.title });
+    // No card title: the first step's label names the region (Update 2).
+    const heading = screen.getByRole("heading", { level: 2, name: uk.registration.steps.one });
     expect(section?.getAttribute("aria-labelledby")).toBe(heading.id);
     expect(heading.getAttribute("tabindex")).toBe("-1");
   });
@@ -29,18 +30,26 @@ describe("the registration section on /prytulkam", () => {
     ]);
   });
 
-  it("offers help by Telegram and email under the form", () => {
+  it("switches to sign-in inside the card, a full load into the kabinet", () => {
+    render(<RegistrationSection />);
+    const footer = screen.getByText(
+      (_text, element) =>
+        element?.tagName === "P" && (element.textContent ?? "").startsWith(uk.registration.footer.text),
+    );
+    const link = within(footer).getByRole("link", { name: uk.registration.footer.link });
+    expect(link.getAttribute("href")).toBe("/kabinet/vkhid");
+    expect(footer.closest("section")?.querySelector("form")?.contains(footer)).toBe(false);
+  });
+
+  it("offers help by email under the card", () => {
     render(<RegistrationSection />);
     const help = screen.getByText(
       (_text, element) =>
         element?.tagName === "P" &&
-        (element.textContent ?? "").startsWith("Хочете, щоб я допоміг?"),
-    );
-    expect(within(help).getByRole("link", { name: "@oleshaz" }).getAttribute("href")).toBe(
-      "https://t.me/oleshaz",
+        (element.textContent ?? "").startsWith(uk.registration.assistance.text),
     );
     expect(
-      within(help).getByRole("link", { name: "hello@opika.org.ua" }).getAttribute("href"),
+      within(help).getByRole("link", { name: uk.registration.assistance.link }).getAttribute("href"),
     ).toBe("mailto:hello@opika.org.ua");
   });
 });

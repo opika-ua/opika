@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   EMPTY_VALUES,
@@ -11,10 +12,16 @@ import { registrationCopy } from "./registration-copy";
 
 const copy = registrationCopy();
 const INITIAL: RegistrationFormState = { result: null, values: EMPTY_VALUES, formStamp: "s1" };
+/** A refused answer can echo a picked city; the tests start from one so «Далі» can pass. */
+const CITY = { id: "c-1", label: "Тестове" };
+const READY: RegistrationFormState = {
+  ...INITIAL,
+  values: { ...EMPTY_VALUES, name: "Тестовий хвіст", city: CITY, link: "x.ua", contact: "@t" },
+};
 
 afterEach(() => vi.restoreAllMocks());
 
-function renderForm(action: RegistrationAction, initial = INITIAL) {
+function renderForm(action: RegistrationAction, initial = READY) {
   return render(
     <RegistrationForm
       action={action}
@@ -26,7 +33,12 @@ function renderForm(action: RegistrationAction, initial = INITIAL) {
   );
 }
 
+const next = () => fireEvent.click(screen.getByRole("button", { name: copy.next }));
+
+/** From whichever step is showing: «Далі» first when step 1 is, then the submit. */
 const submit = async () => {
+  const onStepOne = screen.queryByRole("button", { name: copy.next });
+  if (onStepOne !== null) fireEvent.click(onStepOne);
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: copy.submit }));
   });
@@ -90,8 +102,11 @@ describe("RegistrationForm", () => {
     type(copy.labels.password, "ялинка-під-вікном");
     await submit();
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain(copy.errors.link);
-    expect(alert.textContent).toContain(copy.errors.password_mismatch);
+    // The summary names the fields; each field says its own problem.
+    expect(alert.textContent).toContain(copy.labels.link);
+    expect(alert.textContent).toContain(copy.labels.passwordRepeat);
+    expect(screen.getByText(copy.errors.link)).toBeTruthy();
+    expect(screen.getByText(copy.errors.password_mismatch)).toBeTruthy();
     await waitFor(() => expect(document.activeElement).toBe(alert));
     expect((screen.getByLabelText(copy.labels.link) as HTMLInputElement).value).toBe("@handle");
     expect((screen.getByLabelText(copy.labels.password) as HTMLInputElement).value).toBe(
@@ -163,11 +178,108 @@ describe("RegistrationForm", () => {
 
   it("the consent links to the rules and to the privacy section", () => {
     renderForm(async (previous) => previous);
+    next();
     expect(screen.getByRole("link", { name: copy.consentRules }).getAttribute("href")).toBe(
       "/prytulkam#pravyla",
     );
     expect(screen.getByRole("link", { name: copy.consentPrivacy }).getAttribute("href")).toBe(
       "/pro#dani",
     );
+  });
+});
+
+describe("RegistrationForm's two steps", () => {
+  const action: RegistrationAction = async (previous) => previous;
+  const visible = (name: string) => screen.queryByRole("button", { name }) !== null;
+
+  it("starts on step 1: its label, «Далі», and no submit in sight", () => {
+    renderForm(action, INITIAL);
+    expect(screen.getByRole("heading", { name: copy.steps.one })).toBeTruthy();
+    expect(visible(copy.next)).toBe(true);
+    expect(visible(copy.submit)).toBe(false);
+  });
+
+  it("«Далі» checks step 1 first: 2+ problems list the fields and take focus, no step 2", () => {
+    renderForm(action, INITIAL);
+    next();
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toContain(copy.labels.name);
+    expect(alert.textContent).toContain(copy.labels.cityId);
+    expect(document.activeElement).toBe(alert);
+    expect(visible(copy.submit)).toBe(false);
+  });
+
+  it("one problem: no summary, focus on that field", () => {
+    renderForm(action, { ...READY, values: { ...READY.values, link: "" } });
+    next();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText(copy.errors.required)).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByLabelText(copy.labels.link));
+  });
+
+  it("a passed step 1 shows step 2 with the recap, focus on its label", () => {
+    renderForm(action);
+    next();
+    const label = screen.getByRole("heading", { name: copy.steps.two });
+    expect(document.activeElement).toBe(label);
+    const recap = screen.getByText(
+      (_text, element) =>
+        element?.tagName === "P" &&
+        (element.textContent ?? "").startsWith("Тестовий хвіст, Тестове."),
+    );
+    expect(recap).toBeTruthy();
+    expect(visible(copy.submit)).toBe(true);
+  });
+
+  it("«Назад» and «Змінити» go back to step 1 with every value kept", () => {
+    renderForm(action);
+    type(copy.labels.name, "Хвіст і лапи");
+    next();
+    type(copy.labels.email, "olena@example.org");
+    fireEvent.click(screen.getByRole("button", { name: copy.back }));
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: copy.steps.one }));
+    expect((screen.getByLabelText(copy.labels.name) as HTMLInputElement).value).toBe(
+      "Хвіст і лапи",
+    );
+    next();
+    expect((screen.getByLabelText(copy.labels.email) as HTMLInputElement).value).toBe(
+      "olena@example.org",
+    );
+    fireEvent.click(screen.getByRole("button", { name: copy.change }));
+    expect(visible(copy.next)).toBe(true);
+    expect((screen.getByLabelText(copy.labels.email) as HTMLInputElement).value).toBe(
+      "olena@example.org",
+    );
+  });
+
+  it("a server refusal on a step-1 field brings step 1 back", async () => {
+    renderForm(async (previous) => ({
+      ...previous,
+      result: { kind: "invalid", fields: { link: "link" } },
+    }));
+    await submit();
+    await waitFor(() => expect(visible(copy.next)).toBe(true));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByLabelText(copy.labels.link)),
+    );
+  });
+
+  it("without JS both steps are one form: all seven fields, no «Далі», no recap, nothing hidden", () => {
+    const html = renderToStaticMarkup(
+      <RegistrationForm
+        action={action}
+        searchCities={async () => ({ kind: "too_short" })}
+        initial={READY}
+        copy={copy}
+        headingId="reyestratsiia-title"
+      />,
+    );
+    const host = document.createElement("div");
+    host.innerHTML = html;
+    expect(host.querySelectorAll("[hidden]")).toHaveLength(0);
+    expect(host.textContent).not.toContain(copy.next);
+    expect(host.textContent).not.toContain(copy.change);
+    expect(host.querySelectorAll("form input:not([type=hidden])").length).toBeGreaterThanOrEqual(7);
+    expect(host.querySelector('button[type="submit"]')?.textContent).toBe(copy.submit);
   });
 });

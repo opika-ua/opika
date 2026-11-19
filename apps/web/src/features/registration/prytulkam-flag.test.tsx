@@ -15,6 +15,6 @@ describe("/prytulkam and the self-registration flag", () => {
   it("with it on: the section and its form are there", () => {
     const { container } = render(renderForSheltersPage(false, { selfRegistration: true }));
     expect(container.querySelector("section#reyestratsiia form")).not.toBeNull();
-    expect(screen.getByRole("heading", { name: uk.registration.title })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: uk.registration.steps.one })).toBeTruthy();
   });
 });

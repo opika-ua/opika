@@ -230,7 +230,7 @@ export const uk = {
     },
     email: {
       label: "Email",
-      help: "Для входу в кабінет. На сайті не показується.",
+      help: "З ним ви входитимете в кабінет. На сайті не показується.",
     },
     password: {
       label: "Пароль",
@@ -307,6 +307,52 @@ export const uk = {
     /** Beside `errors.emailTaken` (owner, 2026-11-18): plain links into the kabinet. */
     emailTakenSignIn: "Увійти",
     emailTakenReset: "Відновити пароль",
+    /** The two-step card (R2, owner-approved 2026-11-19). `recap` takes the step-1 values. */
+    steps: { one: "Крок 1 з 2 · Про притулок", two: "Крок 2 з 2 · Ваш акаунт" },
+    next: "Далі",
+    recap: "{name}, {city}.",
+    change: "Змінити",
+    back: "← Назад",
+    footer: { text: "Уже маєте кабінет?", link: "Увійти" },
+    assistance: { text: "Потрібна допомога?", link: "Напишіть мені" },
+    /** A2–A4: /prytulkam for someone already signed in. */
+    signedIn: {
+      admin: "Ви вже увійшли як {email}.",
+      toKabinet: "Перейти в кабінет",
+      signOut: "Вийти",
+      operator: "Ви увійшли як оператор. Реєстрація – для притулків.",
+      toApplications: "До заявок",
+    },
+    /** /prytulkam's hero and the content below it with the flag on. */
+    page: {
+      lead: "Розмістіть тварин свого притулку чи ініціативи на {site} – люди шукатимуть їх за містом, віком і розміром.",
+      leadShort: "Безкоштовно, без реклами й комісій. Реєстрація – 3 хвилини.",
+      benefits: [
+        "Безкоштовно, без реклами й комісій",
+        "Реєстрація – 3 хвилини, тварин додаєте одразу",
+        "Я перевіряю притулок, зазвичай до 2 днів",
+        "Люди пишуть вам напряму",
+      ],
+      jump: { verification: "Як я перевіряю притулок", rules: "Правила", questions: "Питання" },
+      howItWorks: {
+        title: "Як це працює",
+        steps: [
+          { title: "Реєструєте притулок", body: "Кілька полів і пароль, кабінет одразу." },
+          { title: "Додаєте тварин", body: "Фото, вік, характер. Поки я перевіряю – як чернетки." },
+          { title: "Люди пишуть вам", body: "Контакти на картці, без посередників." },
+        ],
+      },
+      questions: {
+        overline: "Питання притулків",
+        title: "Усе, що варто знати",
+        groups: {
+          moneyContacts: "Гроші й контакти",
+          verificationRules: "Перевірка й правила",
+          animalCards: "Картки тварин",
+          aboutProject: "Про проєкт",
+        },
+      },
+    },
   },
   kabinet: {
     /**
