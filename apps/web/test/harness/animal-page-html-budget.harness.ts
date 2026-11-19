@@ -39,8 +39,10 @@ const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harne
  * a 176w entry (a `100vw` slot starts the srcset at 400w). A live page with a logo saves ~600 bytes.
  * 2026-11-19 (owner): the budget counts content only (`contentBytesOf`), so a bundler re-split no
  * longer trips it. Main measured 84,898 whole and 82,964 as content; the budget is that plus ~1 KB.
+ * #538 (2026-11-19): the root 404 stopped serialising the full header into every page; content
+ * measured 78,158. The owner set 80,000 so R2 (#535) can land, then main's measure plus ~1 KB.
  */
-export const ANIMAL_PAGE_HTML_BUDGET_BYTES = 84_000;
+export const ANIMAL_PAGE_HTML_BUDGET_BYTES = 80_000;
 
 /**
  * The document without its chunk references: the `<script src>` tags and preloads, and the chunk
