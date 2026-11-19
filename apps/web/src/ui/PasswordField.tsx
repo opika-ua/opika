@@ -75,7 +75,6 @@ export function PasswordField({
         <button
           type="button"
           aria-label={shown ? hideLabel : showLabel}
-          aria-pressed={shown}
           aria-controls={id}
           onPointerDown={(event) => event.preventDefault()}
           onClick={() => setShown((now) => !now)}

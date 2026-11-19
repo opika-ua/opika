@@ -521,8 +521,6 @@ export const uk = {
         "Не вдалося увійти. Перевірте адресу й пароль або надішліть собі посилання для входу.",
       /** `{minutes}` is the wait, whole minutes rounded up. */
       throttled: "Забагато спроб входу. Спробуйте ще раз через {minutes} хв.",
-      addressNote:
-        "Адресу додаю я, коли запрошую притулок. Якщо адреси немає в списку, лист не прийде – і ця сторінка про це не повідомляє, щоб не розкривати, хто зареєстрований.",
       /**
        * G4 (audit 2026-10-22): a request that got no answer at all (the fetch threw),
        * on the sign-in, set-password and reset forms. Never for a refused sign-in,

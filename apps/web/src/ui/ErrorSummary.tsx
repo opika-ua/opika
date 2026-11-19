@@ -63,7 +63,7 @@ export function ErrorSummary({
           <li key={item.key}>
             <a
               href={item.target.startsWith("#") ? item.target : "#"}
-              className="inline-flex min-h-target items-center text-body text-ink underline underline-offset-4 focus-ring"
+              className="inline-flex min-h-9 items-center text-body text-ink underline underline-offset-4 focus-ring"
               onClick={(event) => {
                 event.preventDefault();
                 focusErrorField(item);

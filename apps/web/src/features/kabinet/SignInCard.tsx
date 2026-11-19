@@ -272,7 +272,6 @@ export function SignInCard({
               >
                 {uk.kabinet.signIn.useLink}
               </button>
-              <Text look="hint">{uk.kabinet.signIn.addressNote}</Text>
             </div>
           </div>
           {footer}

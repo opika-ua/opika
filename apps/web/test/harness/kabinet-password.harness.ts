@@ -124,7 +124,7 @@ test.describe("shelter passwords, end to end (PW-1)", () => {
     await page.getByRole("link", { name: "Перейти до входу" }).click();
 
     // A wrong password: the one sentence for every refusal.
-    await expect(page.getByRole("heading", { level: 1, name: "Вхід до кабінету" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Вхід у кабінет" })).toBeVisible();
     await page.getByLabel("Електронна пошта").fill(email);
     await page.getByLabel("Пароль", { exact: true }).fill("зовсім-не-той-пароль");
     await page.getByRole("button", { name: "Увійти", exact: true }).click();

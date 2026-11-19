@@ -22,6 +22,8 @@ const NOW = new Date("2026-11-19T10:00:00Z");
 /** Any use of the database outside the injected `roleOf` throws: the read must not write. */
 const untouchableDb = new Proxy({} as Database, {
   get: (_target, key) => {
+    // What Vitest's printer reads when a failed call shows its arguments; anything else is a read.
+    if (key === "$$typeof" || key === "then" || key === "asymmetricMatch") return undefined;
     throw new Error(`database touched: ${String(key)}`);
   },
 });

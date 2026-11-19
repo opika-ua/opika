@@ -52,8 +52,13 @@ const PATHS = {
   globe: (
     <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
   ),
-  // Feather "alert-circle": a field's error message.
-  alert: <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 8v4M12 16h.01" />,
+  // A filled circle with «!» knocked out in the surface colour: a field's error message (the mock).
+  alert: (
+    <>
+      <circle cx="12" cy="12" r="10" fill="currentColor" />
+      <path d="M12 7v6M12 17h.01" stroke="var(--color-surface)" strokeWidth="2.5" />
+    </>
+  ),
   // Feather "eye" and "eye-off": the password field's show/hide toggle.
   eye: <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />,
   "eye-off": (

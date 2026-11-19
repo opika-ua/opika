@@ -142,7 +142,6 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       shell: ["accountAndPassword", "label", "newTab", "operator", "toSite"],
       // PW-1: `send` (the magic-link button) gave way to his `useLink`; the password keys are his §A.
       signIn: [
-        "addressNote",
         "emailLabel",
         "failed",
         "forgot",
@@ -269,9 +268,6 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       "Листа немає? Перевірте «Спам» і «Промоакції». Надіслати ще раз можна через 60 секунд.",
     // row 11
     "signInCard.notArrived": "Якщо лист не прийшов за кілька хвилин, напишіть мені на {contact}.",
-    // row 6
-    "signIn.addressNote":
-      "Адресу додаю я, коли запрошую притулок. Якщо адреси немає в списку, лист не прийде – і ця сторінка про це не повідомляє, щоб не розкривати, хто зареєстрований.",
     // row 9
     "signIn.sentBody":
       "Якщо ця адреса є в списку, на {email} прийде посилання для входу. Воно діє 15 хвилин і відкривається на будь-якому пристрої.",
@@ -631,7 +627,6 @@ describe("CB-B1: the replaced strings name no «реєстр»", () => {
       en.kabinet.profileEdit.about.hint,
     ],
     "kabinet.signIn.intro": [uk.kabinet.signIn.intro, en.kabinet.signIn.intro],
-    "kabinet.signIn.addressNote": [uk.kabinet.signIn.addressNote, en.kabinet.signIn.addressNote],
     "kabinet.email.invite.intro": [uk.kabinet.email.invite.intro, en.kabinet.email.invite.intro],
     "kabinet.inviteLanding.expired": [
       uk.kabinet.inviteLanding.expired,

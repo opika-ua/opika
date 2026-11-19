@@ -776,8 +776,6 @@ export const en = {
       wrongCredentials:
         "Couldn't sign in. Check the address and password, or send yourself a sign-in link.",
       throttled: "Too many sign-in attempts. Try again in {minutes} min.",
-      addressNote:
-        "I add your address when I invite your shelter. If the address is not on the list no email arrives, and this page does not say so, so that it never reveals who is registered.",
       failed: "Could not reach the site. Check your connection and try again.",
       sendFailed: "The link could not be sent. Check your connection and try again.",
       sentTitle: "Check your email",
