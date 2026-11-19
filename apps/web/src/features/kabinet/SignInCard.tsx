@@ -7,8 +7,8 @@ import { Button, LinkButton } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { TextField } from "../../ui/form";
 import { Heading } from "../../ui/Heading";
+import { PasswordField } from "../../ui/PasswordField";
 import { Text } from "../../ui/Text";
-import { PasswordField } from "./password/PasswordField";
 import {
   PASSWORD_ENDPOINTS,
   postJson,
@@ -230,8 +230,11 @@ export function SignInCard({
               id={passwordId}
               label={uk.kabinet.signIn.passwordLabel}
               value={password}
-              onChange={setPassword}
+              onChange={(event) => setPassword(event.target.value)}
               autoComplete="current-password"
+              required
+              showLabel={uk.kabinet.signIn.showPassword}
+              hideLabel={uk.kabinet.signIn.hidePassword}
             />
             {state.error !== null ? (
               <p role="alert" className="text-label text-ink">

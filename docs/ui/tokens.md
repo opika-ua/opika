@@ -5,7 +5,7 @@ One set, defined in `apps/web/src/app/globals.css` (`@theme`). Class names have 
 
 | Group | Tokens | Use |
 |---|---|---|
-| Colour | `page`, `surface`, `ink`, `ink-2`, `muted`, `line`, `accent`, `accent-strong`, `accent-text`, `on-ink`, `species-dog`, `species-cat`, `focus`, `success`, `warning`, `danger` | `ink` text and primary fills; `ink-2` secondary text and hints; `muted` placeholders only (not for text that carries meaning); `line` borders and quiet fills; `accent` the call to action (fill only; text on it is `on-ink`, white; orange as text on a light background, and the focus ring, is `accent-text`); `accent-strong` #D9531A the fill of the primary accent Button only, with `on-accent-strong` #FFFFFF as its label colour (nothing else uses either) |
+| Colour | `page`, `surface`, `ink`, `ink-2`, `muted`, `line`, `accent`, `accent-strong`, `accent-text`, `on-ink`, `species-dog`, `species-cat`, `focus`, `success`, `warning`, `danger`, `danger-bg`, `tint` | `ink` text and primary fills; `ink-2` secondary text and hints; `muted` placeholders only (not for text that carries meaning); `line` borders and quiet fills; `accent` the call to action (fill only; text on it is `on-ink`, white; orange as text on a light background, and the focus ring, is `accent-text`); `accent-strong` #D9531A the fill of the primary accent Button only, with `on-accent-strong` #FFFFFF as its label colour (nothing else uses either); `danger` and `danger-bg` form errors (below); `tint` the auth card's footer strip |
 | Radius | `tag` 8, `field` 12, `bar` 16 (the page save bar only), `panel` 20, `card` 24, `sheet` 48, `pill` | tags, inputs, grouped boxes, cards, tablet sheets, buttons and chips |
 | Shadow | `float` | floating layers only |
 | Motion | `--duration-quick/settle/reveal`, `--ease-standard` | all go to 0 under reduced motion |
@@ -39,6 +39,24 @@ From the owner's foundations sheet (2026-11-12). Columns are fluid (`1fr`): the 
 - **Full bleed:** only photos in the animal viewer and nav dividers ignore the margin (`-mx-margin`).
 - **Spacing roles** (Tailwind steps, the sheet's scale is 1, 2, 3, 4, 6, 8, 12, 16): inside a group 12
   or less; between groups 16 to 24; between sections 32 on a phone, 48 on desktop; the page bottom 64.
+
+## Form errors
+
+A form error is the one place red belongs (2026-11-19). The "never red" rule in
+`docs/design/brand-constraints.md` is about **freshness only**: a stale card is never red, a refused
+field is. The field in error gets a 2px `danger` border and the `danger-bg` fill; its message under the
+input is `danger`, weight 600, with the `alert` icon; the summary is a `danger` frame on `danger-bg`.
+No dark mode: the token set has none.
+
+| Token | Value | Use | Contrast |
+|---|---|---|---|
+| `danger` | #B3261E | error text and the invalid border | 6.2:1 on `surface`, 6.1:1 on `page`, 6.5:1 on white, 5.7:1 on `danger-bg` |
+| `danger-bg` | #FDECEB | the invalid field's fill, the error summary's fill | `ink` on it 15.8:1 |
+| `tint` | #F6F1F3 | the auth card's footer strip (`AuthCardFooter`) | `ink-2` on it 6.0:1, `ink` 16.2:1 |
+
+The invalid look keys on the control's own `aria-invalid="true"` (the `aria-invalid:` variant in
+`globals.css`), so it outranks the control's `line` border and `surface` fill. A placeholder on
+`danger-bg` stays `muted`: placeholders carry no meaning.
 
 ## Mascot colours
 
