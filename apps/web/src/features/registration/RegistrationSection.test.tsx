@@ -34,7 +34,8 @@ describe("the registration section on /prytulkam", () => {
     render(<RegistrationSection />);
     const footer = screen.getByText(
       (_text, element) =>
-        element?.tagName === "P" && (element.textContent ?? "").startsWith(uk.registration.footer.text),
+        element?.tagName === "P" &&
+        (element.textContent ?? "").startsWith(uk.registration.footer.text),
     );
     const link = within(footer).getByRole("link", { name: uk.registration.footer.link });
     expect(link.getAttribute("href")).toBe("/kabinet/vkhid");
@@ -49,7 +50,9 @@ describe("the registration section on /prytulkam", () => {
         (element.textContent ?? "").startsWith(uk.registration.assistance.text),
     );
     expect(
-      within(help).getByRole("link", { name: uk.registration.assistance.link }).getAttribute("href"),
+      within(help)
+        .getByRole("link", { name: uk.registration.assistance.link })
+        .getAttribute("href"),
     ).toBe("mailto:hello@opika.org.ua");
   });
 });
