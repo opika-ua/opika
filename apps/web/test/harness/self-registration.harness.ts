@@ -43,7 +43,7 @@ test.describe("/prytulkam's registration form", () => {
   }
 
   async function fillStepTwo(page: Page): Promise<void> {
-    await page.getByLabel("Email").fill("olena@example.org");
+    await page.getByLabel("Електронна пошта").fill("olena@example.org");
     await page.getByLabel("Пароль", { exact: true }).fill("ялинка-під-вікном-у-грудні");
     await page.getByLabel("Повторіть пароль").fill("ялинка-під-вікном-у-грудні");
   }
@@ -103,7 +103,7 @@ test.describe("/prytulkam's registration form", () => {
       await expect(page.getByText("Не вдалося зареєструвати.", { exact: false })).toBeVisible();
       expect(new URL(page.url()).search).toBe("");
       // What was typed survives the round trip (never the passwords).
-      await expect(page.getByLabel("Email")).toHaveValue("olena@example.org");
+      await expect(page.getByLabel("Електронна пошта")).toHaveValue("olena@example.org");
       await expect(page.getByLabel("Пароль", { exact: true })).toHaveValue("");
     } finally {
       await context.close();

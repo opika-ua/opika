@@ -2,6 +2,7 @@ import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { OPERATOR_CONTACT } from "../../../brand";
 import { AuthPage } from "../../../features/kabinet/AuthPage";
 import { leavesSignIn } from "../../../features/kabinet/home";
 import { InviteUnusableCard } from "../../../features/kabinet/password/InviteUnusableCard";
@@ -81,13 +82,12 @@ export default async function SignInPage({
         contact={contact}
         footer={<RegistrationSignInPrompt />}
         assistance={
-          contact === null ? null : (
-            <AssistanceLine
-              text={uk.kabinet.signInPage.assistance.text}
-              linkLabel={uk.kabinet.signInPage.assistance.link}
-              href={`mailto:${contact}`}
-            />
-          )
+          // The one operator contact (#526), as the registration card's line: always shown.
+          <AssistanceLine
+            text={uk.kabinet.signInPage.assistance.text}
+            linkLabel={uk.kabinet.signInPage.assistance.link}
+            href={`mailto:${OPERATOR_CONTACT.email}`}
+          />
         }
       />
     );
