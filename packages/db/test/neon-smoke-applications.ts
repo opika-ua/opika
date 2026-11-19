@@ -71,6 +71,11 @@ export async function runApplicationsSmoke(db: Database): Promise<Outcome[]> {
   const draft = makeDraftAnimal({ shelterId: accepted });
   await animalRepo(db).insert(draft, city.id);
   await animalRepo(db).insert(makeDraftAnimal({ shelterId: accepted }), city.id);
+  const [original] = await db
+    .select({ photos: animals.photos })
+    .from(animals)
+    .where(eq(animals.id, draft.id));
+  if (original === undefined) throw new Error("no draft");
   await db
     .update(animals)
     .set({ photos: sql`'[{}, {}, {}]'::jsonb` })
@@ -90,6 +95,8 @@ export async function runApplicationsSmoke(db: Database): Promise<Outcome[]> {
       mine.drafts.photos === 3,
     JSON.stringify(mine?.drafts ?? null),
   );
+  // Keyless photo elements left behind crash the R2 clean-up on a reused branch's next run.
+  await db.update(animals).set({ photos: original.photos }).where(eq(animals.id, draft.id));
 
   const plan = async (shelterId: ShelterId, kind: "accept" | "reject") => {
     const shelter = await shelterRepo(db).findById(shelterId);
