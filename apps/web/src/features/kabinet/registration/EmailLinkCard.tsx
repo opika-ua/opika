@@ -2,7 +2,7 @@
 
 import { fillTemplate, uk } from "@opika/i18n";
 import { useActionState } from "react";
-import { OPERATOR_CONTACT, WORDMARK } from "../../../brand";
+import { OPERATOR_CONTACT } from "../../../brand";
 import type { RegistrationLinkState } from "../../../kabinet/registration/email-link-route";
 import { Button, LinkButton } from "../../../ui/Button";
 import { InlineStatus } from "../../../ui/feedback";
@@ -43,11 +43,6 @@ export function EmailLinkCard({ purpose, initial, action, permalink }: Props) {
           case "form":
             return (
               <form action={formAction} className="flex flex-col gap-6">
-                {purpose === "not_me" ? (
-                  <Text look="body" className="text-ink-2">
-                    {fillTemplate(uk.registration.notMeIntro, { site: WORDMARK })}
-                  </Text>
-                ) : null}
                 <input type="hidden" name="token" value={state.token} />
                 <Button
                   type="submit"

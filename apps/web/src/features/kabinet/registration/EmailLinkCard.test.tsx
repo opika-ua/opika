@@ -34,14 +34,9 @@ describe("EmailLinkCard", () => {
     expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 
-  it("«Це не я» with a live link: the heading, his sentence and one button", () => {
+  it("«Це не я» with a live link: the heading and one button", () => {
     show("not_me", { kind: "form", token: TOKEN });
     expect(heading()).toBe("Це не я");
-    expect(
-      screen.getByText(
-        "Якщо ви не реєстрували притулок на Opika, натисніть кнопку – я видалю заявку.",
-      ),
-    ).toBeDefined();
     expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Це не я"]);
   });
 
