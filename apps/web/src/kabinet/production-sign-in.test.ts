@@ -217,6 +217,8 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   signIn: 21,
 
+  signInPage: 3,
+
   setPassword: 10,
 
   password: 5,
