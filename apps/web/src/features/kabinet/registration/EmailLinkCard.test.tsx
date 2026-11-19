@@ -44,9 +44,9 @@ describe("EmailLinkCard", () => {
     "%s, used, expired or unknown: the sentence and a link into the kabinet",
     (purpose) => {
       show(purpose, { kind: "expired" });
-      expect(
-        screen.getByText("Посилання застаріло. Увійдіть у кабінет і надішліть лист ще раз."),
-      ).toBeDefined();
+      expect(screen.getByRole("alert").textContent).toBe(
+        "Посилання застаріло. Увійдіть у кабінет і надішліть лист ще раз.",
+      );
       expect(screen.getByRole("link", { name: "Увійти в кабінет" }).getAttribute("href")).toBe(
         "/kabinet",
       );
@@ -68,6 +68,21 @@ describe("EmailLinkCard", () => {
       "Email підтверджено. Я перевірю притулок, зазвичай до 2 днів.",
     );
     expect(screen.getByRole("link", { name: "Увійти в кабінет" })).toBeDefined();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("a press the link no longer allows: the expired message is announced", async () => {
+    show(
+      "not_me",
+      { kind: "form", token: TOKEN },
+      vi.fn(async (): Promise<RegistrationLinkState> => ({ kind: "expired" })),
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Це не я" }));
+    });
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Посилання застаріло. Увійдіть у кабінет і надішліть лист ще раз.",
+    );
     expect(screen.queryByRole("button")).toBeNull();
   });
 

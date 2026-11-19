@@ -8,8 +8,8 @@ import { servedRegistrationLinkOutcome } from "./email-link-runtime";
 
 /**
  * The button's POST on the email-link pages: the token from the form body, the request's own
- * Origin, and the same decisions the route handler made. A refused Origin acts on nothing and
- * shows the expired card, as a token that no longer works would.
+ * Origin, through `registrationLinkOutcome`. A refused Origin acts on nothing and shows the
+ * expired card, as a token that no longer works would.
  */
 async function submit(
   purpose: RegistrationTokenPurpose,

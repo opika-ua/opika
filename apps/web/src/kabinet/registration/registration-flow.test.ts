@@ -33,6 +33,7 @@ import { shelterPasswordVerdictOf } from "../password-checks";
 import { inMemoryDelayStore } from "../password-limits";
 import { capturingPasswordMail } from "../password-mail";
 import { handleRegistrationLink, type RegistrationLinkDeps } from "./email-link-route";
+import { registrationLinkOutcomeOf } from "./email-link-runtime";
 import { hashRegistrationToken, newRegistrationToken } from "./registration-links";
 import {
   confirmationDedupKey,
@@ -491,5 +492,84 @@ describe("the day's cap on confirmation emails", () => {
       }),
     ).toBe(false);
     await expect(Promise.all(scheduled)).resolves.toBeDefined();
+  });
+});
+
+/**
+ * R3: the pages' server action rebuilds the POST from its own Origin and the form body
+ * (`registrationLinkOutcomeOf`); the served path, not the route-shaped wrapper above.
+ */
+describe("the email-link pages' action adapter", () => {
+  const press = (
+    purpose: "confirm_email" | "not_me",
+    origin: string | null,
+    fields: Record<string, string>,
+  ) => {
+    const form = new FormData();
+    for (const [name, value] of Object.entries(fields)) form.set(name, value);
+    return registrationLinkOutcomeOf(purpose, { method: "POST", origin, form }, linkDeps());
+  };
+  const verified = async (userId: string) =>
+    (await db.select().from(authUser)).find((u) => u.id === userId)?.emailVerified;
+
+  it("a same-origin press confirms the address and shows the confirmed card", async () => {
+    const registered = await register();
+    expect(await press("confirm_email", BASE, { token: registered.confirmToken })).toEqual({
+      kind: "page",
+      state: { kind: "confirmed" },
+      status: 200,
+    });
+    expect(await verified(registered.userId)).toBe(true);
+  });
+
+  it("a same-origin «Це не я» deletes the application", async () => {
+    deleted.length = 0;
+    const registered = await register();
+    expect(await press("not_me", BASE, { token: registered.notMeToken })).toMatchObject({
+      state: { kind: "withdrawn" },
+    });
+    expect(deleted).toEqual([registered.shelterId]);
+  });
+
+  it.each([
+    ["another site's Origin", "https://evil.example"],
+    ["no Origin", null],
+  ])("with %s, a press writes nothing", async (_name, origin) => {
+    deleted.length = 0;
+    const registered = await register();
+    const before = await everything();
+    expect((await press("confirm_email", origin, { token: registered.confirmToken })).kind).toBe(
+      "forbidden",
+    );
+    expect((await press("not_me", origin, { token: registered.notMeToken })).kind).toBe(
+      "forbidden",
+    );
+    expect(await everything()).toEqual(before);
+    expect(deleted).toEqual([]);
+  });
+
+  it("reads the token from the form body only", async () => {
+    const registered = await register();
+    const before = await everything();
+    const outcome = await press("confirm_email", BASE, { other: registered.confirmToken });
+    expect(outcome).toMatchObject({ state: { kind: "expired" }, status: 400 });
+    expect(await everything()).toEqual(before);
+  });
+
+  it("a GET through it reads only: the form card, nothing written", async () => {
+    const registered = await register();
+    const before = await everything();
+    expect(
+      await registrationLinkOutcomeOf(
+        "confirm_email",
+        { method: "GET", token: registered.confirmToken },
+        linkDeps(),
+      ),
+    ).toEqual({
+      kind: "page",
+      state: { kind: "form", token: registered.confirmToken },
+      status: 200,
+    });
+    expect(await everything()).toEqual(before);
   });
 });

@@ -57,9 +57,11 @@ export function EmailLinkCard({ purpose, initial, action, permalink }: Props) {
           case "expired":
             return (
               <>
-                <Text look="body" className="text-ink-2">
-                  {uk.registration.confirmLinkExpired}
-                </Text>
+                <div role="alert">
+                  <Text look="body" className="text-ink-2">
+                    {uk.registration.confirmLinkExpired}
+                  </Text>
+                </div>
                 <LinkButton href={SHELTER_HOME} size="lg" className="w-full">
                   {uk.forShelters.signInLink}
                 </LinkButton>

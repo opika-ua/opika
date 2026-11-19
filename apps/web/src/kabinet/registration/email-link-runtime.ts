@@ -3,24 +3,29 @@ import { applicationDeletionRepo, funnelRepo, selfRegistrationRepo } from "@opik
 import { isSelfRegistrationEnabled } from "../../features/registration/flag";
 import { kabinetAuthAvailability } from "../auth-route";
 import { kabinetDb } from "../kabinet-db";
-import { type RegistrationLinkOutcome, registrationLinkOutcome } from "./email-link-route";
+import {
+  type RegistrationLinkDeps,
+  type RegistrationLinkOutcome,
+  registrationLinkOutcome,
+} from "./email-link-route";
 import { REGISTRATION_LINK_PATHS } from "./registration-links";
 import { sendOperatorNotification, servedTransactionalMail } from "./registration-mail";
 
-/** Both links' decisions, on the served database, mail and flag. */
-export async function servedRegistrationLinkOutcome(
+export type RegistrationLinkInput =
+  | { method: "GET"; token: string }
+  | { method: "POST"; origin: string | null; form: FormData };
+
+/**
+ * The page and its action hand over what a route handler's Request carried (the GET's token, the
+ * POST's own Origin and form body), so the one decision function serves both.
+ */
+export function registrationLinkOutcomeOf(
   purpose: RegistrationTokenPurpose,
-  request:
-    | { method: "GET"; token: string }
-    | { method: "POST"; origin: string | null; form: FormData },
+  request: RegistrationLinkInput,
+  deps: RegistrationLinkDeps,
 ): Promise<RegistrationLinkOutcome> {
-  const availability = kabinetAuthAvailability(process.env);
-  const enabled = isSelfRegistrationEnabled();
-  // Off, or sign-in unavailable: 404 before the database is touched.
-  if (availability.kind === "unavailable" || !enabled) return { kind: "not_found" };
-  // The page and its action hand over what a route handler's Request carried, so the one decision
-  // function (and its tests) serves both.
-  const url = new URL(REGISTRATION_LINK_PATHS[purpose], availability.baseURL);
+  if (deps.availability.kind === "unavailable") return Promise.resolve({ kind: "not_found" });
+  const url = new URL(REGISTRATION_LINK_PATHS[purpose], deps.availability.baseURL);
   let asRequest: Request;
   if (request.method === "GET") {
     url.searchParams.set("token", request.token);
@@ -30,9 +35,21 @@ export async function servedRegistrationLinkOutcome(
     if (request.origin !== null) headers.set("origin", request.origin);
     asRequest = new Request(url, { method: "POST", headers, body: request.form });
   }
+  return registrationLinkOutcome(asRequest, purpose, deps);
+}
+
+/** Both links' decisions, on the served database, mail and flag. */
+export async function servedRegistrationLinkOutcome(
+  purpose: RegistrationTokenPurpose,
+  request: RegistrationLinkInput,
+): Promise<RegistrationLinkOutcome> {
+  const availability = kabinetAuthAvailability(process.env);
+  const enabled = isSelfRegistrationEnabled();
+  // Off, or sign-in unavailable: 404 before the database is touched.
+  if (availability.kind === "unavailable" || !enabled) return { kind: "not_found" };
   const db = kabinetDb();
   const now = new Date();
-  return registrationLinkOutcome(asRequest, purpose, {
+  return registrationLinkOutcomeOf(purpose, request, {
     availability,
     enabled,
     now,
