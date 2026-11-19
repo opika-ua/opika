@@ -450,6 +450,7 @@ export const en = {
     forShelters: "For shelters",
     saved: "Saved",
     kabinet: "Dashboard",
+    kabinetEntry: "Shelter dashboard",
     menu: "Menu",
     skipToContent: "Skip to content",
   },

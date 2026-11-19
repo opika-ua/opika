@@ -1049,6 +1049,8 @@ export const ukPublic = {
     saved: "Збережені",
     /** Designer feedback batch D, his own text: the signed-in shelter admin/operator's header link, replacing `saved`. */
     kabinet: "Кабінет",
+    /** Owner-approved 2026-11-19 («Кабінет притулку», D2/M2): the header's kabinet button, desktop and the phone menu. */
+    kabinetEntry: "Кабінет притулку",
     /** Proposed, not yet owner-approved - see the PR's copy table. The mobile nav drawer
      * toggle's accessible name, below `tablet:` - the standard Ukrainian word for a site's
      * navigation menu, same register as this file's other short UI labels. */

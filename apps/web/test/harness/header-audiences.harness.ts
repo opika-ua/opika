@@ -119,10 +119,15 @@ test.describe("no sideways scroll and no overlap, visitor and shelter", () => {
 });
 
 test.describe("audience rules", () => {
-  // Scenarios A (2026-11-19): «Кабінет» for everyone, sign-in for a visitor, never in the drawer.
-  test("a visitor's «Кабінет» goes to sign-in; a shelter's to the kabinet", async ({ page }) => {
+  // D2 (owner, 2026-11-19): «Кабінет притулку» for everyone, sign-in for a visitor; in the row from desktop.
+  test("a visitor's «Кабінет притулку» goes to sign-in; a shelter's to the kabinet", async ({
+    page,
+  }) => {
     await openRoute(page, "/prytulkam", at(1440), { readySelector: HEADER });
     await expect(page.locator("[data-testid='nav-kabinet']")).toBeVisible();
+    await expect(page.locator("[data-testid='nav-kabinet']")).toHaveAccessibleName(
+      "Кабінет притулку",
+    );
     await expect(page.locator("[data-testid='nav-kabinet']")).toHaveAttribute(
       "href",
       "/kabinet/vkhid",
@@ -151,17 +156,37 @@ test.describe("audience rules", () => {
     ).toHaveCount(1);
   });
 
-  test("on a phone «Кабінет» is in the header row; the burger menu lists «Збережені» with its count", async ({
-    page,
-  }) => {
-    await seedSaved(page, 3);
-    await signInHint(page);
-    await openRoute(page, "/tvaryny", at(393), { readySelector: HEADER });
-    await expect(page.locator("[data-testid='nav-kabinet']")).toBeVisible();
-    await expect(page.locator("[data-testid='nav-kabinet']")).toHaveAttribute("href", "/kabinet");
-    await page.locator("[data-testid='nav-menu-trigger']").click();
-    const rows = page.locator("[data-testid='nav-menu-sheet'] nav > a:visible");
-    await expect(rows).toHaveCount(4);
-    await expect(rows.nth(3)).toHaveAttribute("aria-label", "Збережені, 3");
-  });
+  // M2 (owner, 2026-11-19): the phone row is the logo and the menu trigger; the entry ends the menu.
+  for (const width of [320, 393, 1023]) {
+    test(`at ${width} the header row has no kabinet button; the menu lists «Збережені», then «Кабінет притулку»`, async ({
+      page,
+    }) => {
+      await seedSaved(page, 3);
+      await signInHint(page);
+      await openRoute(page, "/tvaryny", at(width), { readySelector: HEADER });
+      await expect(page.locator("[data-testid='nav-kabinet']")).toBeHidden();
+      await page.locator("[data-testid='nav-menu-trigger']").click();
+      const rows = page.locator("[data-testid='nav-menu-sheet'] nav > a:visible");
+      await expect(rows).toHaveCount(4);
+      await expect(rows.nth(3)).toHaveAttribute("aria-label", "Збережені, 3");
+      const entry = page.locator("[data-testid='nav-kabinet-menu']");
+      await expect(entry).toBeVisible();
+      await expect(entry).toHaveAccessibleName("Кабінет притулку");
+      await expect(entry).toHaveAttribute("href", "/kabinet");
+      // After the list, in reading order.
+      expect(
+        await rows
+          .nth(3)
+          .evaluate(
+            (row, id) =>
+              Boolean(
+                row.compareDocumentPosition(
+                  document.querySelector(`[data-testid='${id}']`) as Node,
+                ) & Node.DOCUMENT_POSITION_FOLLOWING,
+              ),
+            "nav-kabinet-menu",
+          ),
+      ).toBe(true);
+    });
+  }
 });

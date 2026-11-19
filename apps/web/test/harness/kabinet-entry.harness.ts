@@ -95,31 +95,41 @@ test.describe("public pages enter the kabinet by a full document load", () => {
     expect(new URL(page.url()).pathname).toBe("/kabinet/vkhid");
   });
 
-  test("the header's «Кабінет» pill for a signed-in shelter, clicked", async ({ page }) => {
+  test("the header's «Кабінет притулку» button for a signed-in shelter, clicked", async ({
+    page,
+  }) => {
     await signedInHint(page);
     const documents = kabinetDocuments(page);
     await page.goto("/pro", { waitUntil: "load" });
-    const pill = page.locator("[data-testid='nav-kabinet']");
-    await expect(pill).toBeVisible();
+    const button = page.locator("[data-testid='nav-kabinet']");
+    await expect(button).toBeVisible();
+    await expect(button).toHaveAccessibleName("Кабінет притулку");
     await hydrated(page, "[data-testid='nav-kabinet']");
 
     await markDocument(page);
-    await pill.click();
+    await button.click();
 
     await expectKabinetDocument(page, documents);
   });
 
-  test("the phone header's «Кабінет» button, by keyboard", async ({ page }) => {
+  // Phone (M2, 2026-11-19): the entry is the menu's last item, not in the header row.
+  test("the phone menu's «Кабінет притулку», by keyboard", async ({ page }) => {
     await signedInHint(page);
     await page.setViewportSize({ width: 390, height: 844 });
     const documents = kabinetDocuments(page);
     await page.goto("/pro", { waitUntil: "load" });
-    const pill = page.locator("[data-testid='nav-kabinet']");
-    await hydrated(page, "[data-testid='nav-kabinet']");
-    await expect(pill).toBeVisible();
+    await expect(page.locator("[data-testid='nav-kabinet']")).toBeHidden();
+    const trigger = page.locator("[data-testid='nav-menu-trigger']");
+    await hydrated(page, "[data-testid='nav-menu-trigger']");
+
+    await expectReachableByTab(page, { label: "the menu trigger", locator: trigger });
+    await page.keyboard.press("Enter");
+    const entry = page.locator("[data-testid='nav-kabinet-menu']");
+    await expect(entry).toBeVisible();
+    await expect(entry).toHaveAccessibleName("Кабінет притулку");
 
     await markDocument(page);
-    await expectReachableByTab(page, { label: "the header's «Кабінет» button", locator: pill });
+    await expectReachableByTab(page, { label: "the menu's «Кабінет притулку»", locator: entry });
     await page.keyboard.press("Enter");
 
     await expectKabinetDocument(page, documents);

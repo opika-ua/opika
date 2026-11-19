@@ -3052,11 +3052,13 @@ describe("kabinet UX round 2 copy (the owner's text)", () => {
   });
 });
 
-/** Header option B (owner-approved 2026-11-01): the two new nav strings, transcribed; the rest of `nav` is not pending. */
+/** Header option B (owner-approved 2026-11-01) and the kabinet entry (2026-11-19), transcribed; the rest of `nav` is not pending. */
 describe("site header nav copy (the owner's text)", () => {
   it.each([
     [uk.nav.animals, "Тварини"],
     [uk.nav.savedWithCount, "Збережені, {count}"],
+    // Owner-approved 2026-11-19: the header's kabinet button (D2 desktop, M2 phone menu).
+    [uk.nav.kabinetEntry, "Кабінет притулку"],
   ])("%s", (actual, expected) => {
     expect(actual).toBe(expected);
   });

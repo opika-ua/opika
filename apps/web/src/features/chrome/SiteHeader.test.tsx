@@ -73,26 +73,43 @@ describe("SiteHeader", () => {
     }
   });
 
-  // Scenarios A (2026-11-19): the button works the same everywhere, outside the phone menu.
-  it("a visitor's «Кабінет» button goes to sign-in, a full load, once, outside the menu", () => {
+  // D2/M2 (owner, 2026-11-19): one entry in the row (shown from desktop), one closing the phone menu.
+  it("a visitor's «Кабінет притулку» goes to sign-in, a full load, in the row and in the menu", () => {
     render(<SiteHeader kabinetSignedIn={false} />);
 
-    const pill = screen.getByTestId("nav-kabinet");
-    expect(pill.getAttribute("href")).toBe("/kabinet/vkhid");
-    expect(pill.closest("nav")).toBeNull();
-    expect(screen.getAllByRole("link", { name: uk.nav.kabinet, hidden: true })).toHaveLength(1);
+    const links = screen.getAllByRole("link", { name: uk.nav.kabinetEntry, hidden: true });
+    expect(links.map((l) => l.getAttribute("data-testid"))).toEqual([
+      "nav-kabinet",
+      "nav-kabinet-menu",
+    ]);
+    for (const link of links) expect(link.getAttribute("href")).toBe("/kabinet/vkhid");
+    const sheet = screen.getByTestId("nav-menu-sheet");
+    expect(sheet.contains(screen.getByTestId("nav-kabinet"))).toBe(false);
+    expect(screen.getByTestId("nav-kabinet").closest("nav")).toBeNull();
+    expect(sheet.contains(screen.getByTestId("nav-kabinet-menu"))).toBe(true);
   });
 
-  it("a signed-in shelter gets the «Кабінет» pill and the same links as a visitor", () => {
+  it("a signed-in shelter's entries lead to the kabinet, with the same label and links as a visitor's", () => {
     render(<SiteHeader kabinetSignedIn={true} />);
 
-    const pill = screen.getByTestId("nav-kabinet");
-    expect(pill.getAttribute("href")).toBe("/kabinet");
-    expect(pill.textContent).toBe(uk.nav.kabinet);
-    expect(screen.getAllByRole("link", { name: uk.nav.kabinet, hidden: true })).toHaveLength(1);
+    const links = screen.getAllByRole("link", { name: uk.nav.kabinetEntry, hidden: true });
+    expect(links).toHaveLength(2);
+    for (const link of links) {
+      expect(link.getAttribute("href")).toBe("/kabinet");
+      expect(link.textContent).toBe(uk.nav.kabinetEntry);
+    }
     expect(screen.getByRole("link", { name: uk.nav.about })).toBeTruthy();
     expect(screen.getByRole("link", { name: uk.nav.forShelters })).toBeTruthy();
     expect(screen.getByRole("link", { name: uk.nav.animals })).toBeTruthy();
+  });
+
+  it("the entry's person icon is decorative, so the name is the label alone", () => {
+    render(<SiteHeader kabinetSignedIn={false} />);
+
+    for (const id of ["nav-kabinet", "nav-kabinet-menu"]) {
+      const icon = screen.getByTestId(id).querySelector("svg");
+      expect(icon?.getAttribute("aria-hidden")).toBe("true");
+    }
   });
 
   /**
@@ -141,8 +158,7 @@ describe("SiteHeader", () => {
     expect(button.getAttribute("aria-current")).toBe("page");
   });
 
-  // «Кабінет» left the drawer for the header row itself (R2: one tap on a phone).
-  it("the drawer carries the same entries and a «Збережені» row with its count; «Кабінет» is beside it", async () => {
+  it("the drawer carries the same entries and a «Збережені» row with its count, then «Кабінет притулку»", async () => {
     toggleSavedAnimal("a1", new Date());
     toggleSavedAnimal("a2", new Date());
     render(<SiteHeader kabinetSignedIn={true} />);
@@ -150,16 +166,17 @@ describe("SiteHeader", () => {
     const row = await screen.findByTestId("nav-saved-menu");
     expect(row.getAttribute("aria-label")).toBe("Збережені, 2");
     expect(row.getAttribute("href")).toBe("/zberezheni");
-    const rows = Array.from(screen.getByTestId("nav-menu-sheet").querySelectorAll("nav > a"));
+    const sheet = screen.getByTestId("nav-menu-sheet");
+    const rows = Array.from(sheet.querySelectorAll("nav > a"));
     expect(rows.map((r) => r.getAttribute("href"))).toEqual([
       "/tvaryny",
       "/prytulkam",
       "/pro",
       "/zberezheni",
     ]);
-    const pill = screen.getByTestId("nav-kabinet");
-    expect(pill.getAttribute("href")).toBe("/kabinet");
-    expect(screen.getByTestId("nav-menu-sheet").contains(pill)).toBe(false);
+    const entry = screen.getByTestId("nav-kabinet-menu");
+    expect(entry.getAttribute("href")).toBe("/kabinet");
+    expect(row.compareDocumentPosition(entry) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   /**

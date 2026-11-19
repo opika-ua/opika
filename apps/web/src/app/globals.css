@@ -283,10 +283,17 @@
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   }
 }
-/* The header's «Кабінет» pill: the primary compact button's look as one class, since the header is
-   in every page's HTML and payload. A link is never disabled, so the disabled variants stay out. */
+/* The header's kabinet entry: the secondary compact button's look as one class, since the header is
+   in every page's HTML and payload. A link is never disabled, so the disabled variants stay out.
+   `nav-kabinet` is the header row's copy (from desktop), `nav-kabinet-row` the phone menu's. */
+@utility nav-kabinet-look {
+  @apply shrink-0 items-center justify-center gap-2 text-label cursor-pointer focus-ring rounded-pill border-2 border-ink bg-transparent text-ink min-h-target px-3;
+}
 @utility nav-kabinet {
-  @apply inline-flex shrink-0 items-center justify-center gap-2 text-label cursor-pointer focus-ring rounded-pill bg-ink text-on-ink min-h-target px-3 tablet:px-6;
+  @apply nav-kabinet-look hidden desktop:inline-flex;
+}
+@utility nav-kabinet-row {
+  @apply nav-kabinet-look flex w-full;
 }
 @utility gcard {
   @apply relative flex flex-col gap-3 focus-ring tablet:block tablet:overflow-clip tablet:rounded-card;

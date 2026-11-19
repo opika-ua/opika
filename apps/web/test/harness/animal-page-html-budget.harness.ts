@@ -41,8 +41,10 @@ const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harne
  * longer trips it. Main measured 84,898 whole and 82,964 as content; the budget is that plus ~1 KB.
  * #538 (2026-11-19): the root 404 stopped serialising the full header into every page; content
  * measured 78,158. The owner set 80,000 so R2 (#535) can land, then main's measure plus ~1 KB.
+ * #546 (owner, 2026-11-19): the planned header entry «Кабінет притулку» (desktop button plus the phone
+ * menu's row) adds 885 bytes, 78,917 -> 79,802; the budget is 81,000.
  */
-export const ANIMAL_PAGE_HTML_BUDGET_BYTES = 80_000;
+export const ANIMAL_PAGE_HTML_BUDGET_BYTES = 81_000;
 
 /**
  * The document without its chunk references: the `<script src>` tags and preloads, and the chunk

@@ -207,7 +207,7 @@ describe("/tvaryny (renderGallery)", () => {
     expect(screen.queryByText("Гортати")).toBeNull();
   });
 
-  it("kabinetSignedIn=true still shows «Кабінет», not «Збережені», in the header", async () => {
+  it("kabinetSignedIn=true still shows «Кабінет притулку», not «Збережені», in the header", async () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
     const shelter = makeShelter({
@@ -224,7 +224,9 @@ describe("/tvaryny (renderGallery)", () => {
     const element = await renderGallery(anonymousRouterClient(h.db), {}, true);
     render(<WithMockRouter>{element}</WithMockRouter>);
 
-    expect(screen.getByRole("link", { name: "Кабінет" }).getAttribute("href")).toBe("/kabinet");
+    expect(screen.getByRole("link", { name: "Кабінет притулку" }).getAttribute("href")).toBe(
+      "/kabinet",
+    );
     expect(screen.queryByRole("link", { name: "Збережені" })).toBeNull();
   });
 });
