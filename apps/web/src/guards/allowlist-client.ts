@@ -114,6 +114,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/password/PasswordField.tsx": "show/hide toggle state",
   "features/kabinet/registration/ResendConfirmationButton.tsx":
     "resend press: pending state and the answer beside the button",
+  "features/kabinet/registration/EmailLinkCard.tsx":
+    "email-link pages: useActionState for the button's answer, token strip",
   "features/kabinet/password/ResetPasswordCard.tsx": "reset form, token strip",
   "features/kabinet/password/SetPasswordCard.tsx": "set-password form, token strip",
   "features/kabinet/password/use-token-out-of-address-bar.ts":

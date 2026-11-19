@@ -609,6 +609,8 @@ export const en = {
     emailConfirmed: "Email confirmed. I'll check the shelter, usually within 2 days.",
     confirmLinkExpired: "The link has expired. Sign in to the cabinet and send the email again.",
     notMeDone: "The application is deleted. If this is a mistake, write to me at {email}.",
+    notMeIntro:
+      "If you did not register a shelter on {site}, press the button and I will delete the application.",
     notMeAfterApproval:
       "The shelter is already approved, so the application can't be deleted from the link. If you didn't register this shelter, write to me at {email}.",
     emailTakenSignIn: "Sign in",

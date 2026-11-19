@@ -301,6 +301,8 @@ export const uk = {
     emailConfirmed: "Email підтверджено. Я перевірю притулок, зазвичай до 2 днів.",
     confirmLinkExpired: "Посилання застаріло. Увійдіть у кабінет і надішліть лист ще раз.",
     notMeDone: "Заявку видалено. Якщо це помилка – напишіть мені на {email}.",
+    /** The «Це не я» page's sentence above its button (owner, 2026-11-19). */
+    notMeIntro: "Якщо ви не реєстрували притулок на {site}, натисніть кнопку – я видалю заявку.",
     /** «Це не я» once the operator has approved (owner, 2026-11-18); `{email}` from app config. */
     notMeAfterApproval:
       "Притулок уже схвалено, тому заявку не можна видалити за посиланням. Якщо ви не реєстрували цей притулок, напишіть мені на {email}.",
