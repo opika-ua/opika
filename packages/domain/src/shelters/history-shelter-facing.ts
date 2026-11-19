@@ -63,7 +63,7 @@ export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("contact_changed"),
     ...base,
-    previous: ShelterContactSchema,
+    previous: ShelterContactSchema.nullable(),
     next: ShelterContactSchema,
   }),
   z.object({

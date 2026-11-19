@@ -744,13 +744,18 @@ export async function animalsTransition(
     ORPCErrorConstructorMap<{
       PUBLISH_REQUIREMENTS_UNMET: typeof apiErrors.PUBLISH_REQUIREMENTS_UNMET;
       AWAITING_APPROVAL: typeof apiErrors.AWAITING_APPROVAL;
+      CONTACT_REQUIRED: typeof apiErrors.CONTACT_REQUIRED;
     }>,
 ): Promise<KabinetAnimalView> {
   const event = { ...input.event, at: deps.now } as ListingEvent;
-  // Only a publish is gated (D2): an application's drafts stay drafts until the operator approves.
+  // Only a publish is gated: it is the one move from hidden to listed (pinned in the listing
+  // FSM's tests). An application's drafts stay drafts (D2); so do those of a shelter with no contact.
   const publishing = event.type === "publish" ? await publishStageOf(deps, scope) : null;
-  if (publishing !== null && publishGateOf(publishing.lifecycle).kind === "blocked") {
-    throw errors.AWAITING_APPROVAL({ data: { action: "publish" } });
+  const gate = publishing === null ? null : publishGateOf(publishing.lifecycle, publishing.contact);
+  if (gate?.kind === "blocked") {
+    throw gate.why === "application"
+      ? errors.AWAITING_APPROVAL({ data: { action: "publish" } })
+      : errors.CONTACT_REQUIRED();
   }
   const next = await tap(
     deps,
@@ -792,7 +797,7 @@ export async function animalsTransition(
 async function publishStageOf(deps: AnimalDeps, scope: ShelterWriteScope) {
   const shelter = await shelterRepo(deps.db).findById(scope.shelterId);
   if (shelter === null) throw new Error(`Scope names missing shelter ${scope.shelterId}`);
-  return shelterStageOf(deps, shelter);
+  return { ...(await shelterStageOf(deps, shelter)), contact: shelter.contact };
 }
 
 /**

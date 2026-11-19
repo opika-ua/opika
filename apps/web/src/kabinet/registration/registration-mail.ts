@@ -1,5 +1,6 @@
 import type { ApplicationSummary } from "@opika/db/repos";
 import type { ShelterId } from "@opika/domain";
+import { uk } from "@opika/i18n";
 import { after } from "next/server";
 import type { RateLimiter } from "../../api/rate-limit";
 import { OPERATOR_CONTACT, SITE_ORIGIN } from "../../brand";
@@ -102,7 +103,11 @@ export async function sendOperatorNotification(
       name: application.displayName,
       cityName: application.cityName,
       link: application.link ?? "",
-      contact: channelText(application.contact),
+      // The queue card's wording for an application that gave no contact.
+      contact:
+        application.contact === null
+          ? uk.kabinet.applications.noContact
+          : channelText(application.contact),
       email: application.email,
       queueUrl: new URL(OPERATOR_HOME, mail.baseURL).toString(),
     },

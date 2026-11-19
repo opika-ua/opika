@@ -51,7 +51,8 @@ export function ContactsSection({
   reload,
 }: {
   contact: KabinetShelterView["contact"];
-  save: (next: KabinetShelterView["contact"]) => Promise<WriteResult>;
+  /** Never null: once a shelter has a contact it can't go back to none (owner, 2026-11-19). */
+  save: (next: NonNullable<KabinetShelterView["contact"]>) => Promise<WriteResult>;
   reload: () => Promise<KabinetShelterView | null>;
 }) {
   const t = uk.kabinet.profileEdit;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ShelterContact } from "../contact";
 import {
   type EarlyListing,
   earlyListingRemaining,
@@ -91,8 +92,22 @@ export type ShelterGate = { kind: "open" } | { kind: "blocked"; why: "applicatio
 const gateOf = (lifecycle: ShelterLifecycle): ShelterGate =>
   lifecycle.stage === "application" ? { kind: "blocked", why: "application" } : { kind: "open" };
 
-/** Publishing an animal: nothing goes public before the operator approves (D2). */
-export const publishGateOf = gateOf;
+/** A shelter gate, plus the one only publishing has: nobody could write to a shelter with no contact. */
+export type PublishGate = ShelterGate | { kind: "blocked"; why: "no_contact" };
+
+/**
+ * Putting an animal on the site: nothing before the operator approves (D2), and nothing while the
+ * shelter has no adopter contact (owner, 2026-11-19). The application wins when both apply: it is
+ * the first thing the shelter has to wait out, and adding a contact alone wouldn't open the gate.
+ */
+export const publishGateOf = (
+  lifecycle: ShelterLifecycle,
+  contact: ShelterContact | null,
+): PublishGate => {
+  const gate = gateOf(lifecycle);
+  if (gate.kind === "blocked") return gate;
+  return contact === null ? { kind: "blocked", why: "no_contact" } : gate;
+};
 
 /** Proposing a donation link: none may be pending before approval (§5). */
 export const donationProposalGateOf = gateOf;

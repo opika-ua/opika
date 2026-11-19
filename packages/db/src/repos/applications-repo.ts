@@ -25,7 +25,8 @@ export type ApplicationRow = {
   /** The `applied_at` column itself, so a row whose verification can't be read still sorts. */
   appliedAt: Date | null;
   verification: ShelterVerification;
-  contact: ShelterContact;
+  /** Null when the registrant gave none (0030). */
+  contact: ShelterContact | null;
   /** The registrant's address and `email_verified`; null once that account is erased. */
   registrant: { email: string; emailVerified: boolean } | null;
   drafts: { animals: number; photos: number };
@@ -36,7 +37,7 @@ export type DuplicateSourceRow = {
   shelterId: ShelterId;
   name: string;
   cityId: CityId;
-  contact: ShelterContact;
+  contact: ShelterContact | null;
   verification: ShelterVerification;
   /** Members', invitees' and the registrant's addresses, as stored. */
   emails: readonly string[];

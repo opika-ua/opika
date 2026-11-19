@@ -274,11 +274,11 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
   animalHistoryLabels: 17,
 
   // Self-registration (2026-11-18): A3's banners and location lines, the operator's queue.
-  application: 11,
+  application: 14,
 
   location: 4,
 
-  applications: 24,
+  applications: 25,
 };
 
 /**
