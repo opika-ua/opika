@@ -2922,7 +2922,7 @@ describe("Ukrainian phone rule on the operator's write paths", () => {
     local.contact = { primary: { kind: "phone", e164: LOCAL }, additional: [] } as never;
     const created = await call<RegistryShelterView>("registry.shelters.create", local);
     expect(created.status).toBe(200);
-    expect((await reload(created.body.id)).contact.primary).toEqual({
+    expect((await reload(created.body.id)).contact?.primary).toEqual({
       kind: "phone",
       e164: NORMALISED,
     });
@@ -2961,7 +2961,7 @@ describe("Ukrainian phone rule on the operator's write paths", () => {
     expect((await send(TOO_LONG)).status).toBe(400);
     expect((await reload(s.id)).contact).toEqual(s.contact);
     expect((await send(LOCAL)).status).toBe(200);
-    expect((await reload(s.id)).contact.primary).toEqual({ kind: "phone", e164: NORMALISED });
+    expect((await reload(s.id)).contact?.primary).toEqual({ kind: "phone", e164: NORMALISED });
   });
 
   it("resubmit: a reference contact with extra digits is refused", async () => {
@@ -3405,6 +3405,7 @@ describe("the shelter description: both write paths", () => {
 
   it("an old freshness_sentence_changed line still reads in both histories", async () => {
     const s = await shelter();
+    if (s.contact === null) throw new Error("the fixture shelter has a contact");
     // Nothing writes this kind any more; an entry from before is written straight to the log.
     const written = await kabinetShelterRepo(db).applyAudited({
       shelterId: s.id,

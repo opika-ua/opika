@@ -77,6 +77,8 @@ async function shelterAt(
   stage: Stage,
   /** A self-registered shelter has no address on file unless the operator adds one. */
   address: "none" | "verified" = stage === "operator" ? "verified" : "none",
+  /** A self-registered shelter may have registered without one (owner, 2026-11-19). */
+  contact: "given" | "none" = "given",
 ): Promise<Shelter> {
   const verification: ShelterVerification =
     stage === "operator"
@@ -85,6 +87,7 @@ async function shelterAt(
   const fixture = makeShelter({
     verification,
     publicLocation: { ...makeShelter().publicLocation, cityId } as never,
+    ...(contact === "none" ? { contact: null } : {}),
   });
   const shelter: Shelter =
     address === "verified"
@@ -229,6 +232,52 @@ describe("an application publishes nothing (D2)", () => {
     const result = await publish(shelter, animal);
     expect(result.status).toBe(200);
     expect(await listingOf(animal)).toBe("published");
+  });
+});
+
+describe("a shelter with no adopter contact publishes nothing (owner, 2026-11-19)", () => {
+  it("an accepted shelter without a contact is refused CONTACT_REQUIRED; nothing is written", async () => {
+    const shelter = await shelterAt("accepted", "none", "none");
+    const animal = await readyDraft(shelter);
+    const result = await publish(shelter, animal);
+    expect(result.status).toBe(409);
+    expect(result.body.code).toBe("CONTACT_REQUIRED");
+    expect(await listingOf(animal)).toBe("draft");
+    expect(await funnelOf(shelter)).toEqual([]);
+    expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toHaveLength(1);
+  });
+
+  it("an application without a contact is told about the application first", async () => {
+    const shelter = await shelterAt("application", "none", "none");
+    const result = await publish(shelter, await readyDraft(shelter));
+    expect(result.body.code).toBe("AWAITING_APPROVAL");
+  });
+
+  it("once a contact is added, the same draft publishes", async () => {
+    const bare = await shelterAt("accepted", "none", "none");
+    const animal = await readyDraft(bare);
+    const added = await call(bare, "shelter.profile.updateContact", {
+      contact: { primary: { kind: "telegram", handle: "lapa_shelter" }, additional: [] },
+      expectedVersion: bare.version,
+    });
+    expect(added.status).toBe(200);
+    expect((await publish(bare, animal)).status).toBe(200);
+    expect(await listingOf(animal)).toBe("published");
+  });
+
+  it("the editor can't take a shelter back to no contact: an empty one is BAD_REQUEST", async () => {
+    // Operator-created, and self-registered with a contact given: neither may clear it.
+    for (const shelter of [await shelterAt("operator"), await shelterAt("accepted")]) {
+      expect(shelter.contact).not.toBeNull();
+      for (const contact of [null, { primary: null, additional: [] }]) {
+        const cleared = await call(shelter, "shelter.profile.updateContact", {
+          contact,
+          expectedVersion: shelter.version,
+        });
+        expect(cleared.status).toBe(400);
+      }
+      expect((await shelterRepo(db).findById(shelter.id))?.contact).toEqual(shelter.contact);
+    }
   });
 });
 

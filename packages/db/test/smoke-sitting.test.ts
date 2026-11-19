@@ -8,6 +8,7 @@ import {
   renderProductionImportSitting,
   renderSmokeSitting,
   type SmokeSittingInput,
+  sittingWorktreePath,
 } from "../src/tools/smoke-sitting";
 
 const BASE: SmokeSittingInput = {
@@ -19,7 +20,6 @@ const BASE: SmokeSittingInput = {
   migrationNote:
     "Migration kind: NONE - the SQL did change (an IN clause), so this waits for a smoke.",
   pointOfThisSmoke: "The new sex filter runs a plain IN over animals.sex.",
-  worktreeSlug: "sex-filter-smoke",
   expectedTotal: 55,
   previousTotal: 54,
   newCheckDescription: "step 44b, the sex filter check",
@@ -36,13 +36,48 @@ describe("renderSmokeSitting", () => {
 
   it("stops the setup when pnpm i failed or left no packages/db/node_modules", () => {
     const text = renderSmokeSitting(BASE);
-    const lines = text.split(/\r?\n/);
+    const lines = text.split(/\r?\n/).map((line) => line.trim());
     const install = lines.indexOf("pnpm i");
     expect(install).toBeGreaterThan(-1);
-    expect(lines[install + 1]).toContain("if ($LASTEXITCODE -ne 0)");
+    expect(lines[install + 1]).toContain("if ($LASTEXITCODE -ne 0) { $setupOk = $false;");
     expect(lines[install + 1]).toContain("STOP");
     expect(lines[install + 2]).toContain("Test-Path packages\\db\\node_modules");
-    expect(lines[install + 2]).toContain("STOP");
+    expect(lines[install + 2]).toContain("$setupOk = $false;");
+  });
+
+  it("checks out into a folder named after the PR and the head (owner, 2026-11-19)", () => {
+    const text = renderSmokeSitting(BASE);
+    const folder = "D:\\opika-worktrees\\pr223-smoke-898b0f5";
+    expect(sittingWorktreePath(223, BASE.sha)).toBe(folder);
+    expect(text).toContain(`git worktree add --detach ${folder} ${BASE.sha}`);
+    expect(text).toContain(`elseif (Test-Path ${folder}) {`);
+    expect(text).toContain(
+      `if ("$(git rev-parse HEAD)".StartsWith('${BASE.sha}')) { $setupOk = $true }`,
+    );
+  });
+
+  it("says first to make a fresh child branch, naming the retired ones", () => {
+    const head = (text: string) => text.slice(0, text.indexOf("---- Setup"));
+    expect(head(renderSmokeSitting(BASE))).toContain(
+      "FIRST: create a fresh Neon child branch from production (the Neon console). Never reuse a branch from an earlier sitting.",
+    );
+    expect(head(renderSmokeSitting({ ...BASE, retiredBranches: ["ep-a-1", "ep-b-2"] }))).toContain(
+      "Never reuse ep-a-1 or ep-b-2 (earlier sittings), or any other used branch.",
+    );
+  });
+
+  it("checks the setup, the folder and the head before any database step", () => {
+    const text = renderSmokeSitting({ ...BASE, migration: { tag: "0019_x" } });
+    const guard = text.indexOf("if ($problems.Count -eq 0) {");
+    for (const line of [
+      `if (-not $setupOk) { $problems += "the setup block stopped or was not run" }`,
+      `if ((Get-Location).Path -ne 'D:\\opika-worktrees\\pr223-smoke-898b0f5') {`,
+      `if (-not "$(git rev-parse HEAD)".StartsWith('${BASE.sha}')) {`,
+    ]) {
+      expect(text.indexOf(line), line).toBeGreaterThan(text.indexOf("$problems = @()"));
+      expect(text.indexOf(line), line).toBeLessThan(guard);
+    }
+    expect(text.indexOf("db:migrate --expect $child")).toBeGreaterThan(guard);
   });
 
   it("includes every input field somewhere in the output", () => {
@@ -55,7 +90,6 @@ describe("renderSmokeSitting", () => {
       BASE.sha,
       BASE.migrationNote,
       BASE.pointOfThisSmoke,
-      BASE.worktreeSlug,
       String(BASE.expectedTotal),
       String(BASE.previousTotal),
       BASE.newCheckDescription,
@@ -154,7 +188,7 @@ describe("renderSmokeSitting, typed child endpoint guard", () => {
 
       it("runs the commands only inside the guard, and removes the URL in a finally", () => {
         const guard = at("if ($problems.Count -eq 0) {");
-        const elseAt = at("} else {");
+        const elseAt = text.indexOf("} else {", guard);
         const finallyAt = at("} finally {");
         expect(guard).toBeGreaterThan(at("$problems = @()"));
         const commands = ["db:neon-smoke --expect $child"];
@@ -185,7 +219,36 @@ const PROD = "ep-prod-654321";
 const urlFor = (ep: string) =>
   `postgres://u:${PW}@${ep}.eu-central-1.aws.neon.tech/db?sslmode=require`;
 
-function runBlock(text: string, ids: [string, string], url: string) {
+/** The window the smoke block runs in: whether the setup passed, where it is, its HEAD, a failing pnpm step. */
+type Window = { setupOk?: boolean; path?: string; head?: string; failing?: string };
+
+/** Stubs for git, the folder and pnpm: `T_FAIL` / `T_GIT_FAIL` name the one command that exits 1. */
+const SHELL_STUBS = [
+  "function git { if ($args -contains '--short') { $env:T_HEAD.Substring(0, 7) } elseif ($args[0] -eq 'rev-parse') { $env:T_HEAD } else { 'GIT-RAN ' + ($args -join ' '); $global:LASTEXITCODE = $(if ($args[0] -eq $env:T_GIT_FAIL) { 1 } else { 0 }) } }",
+  "function Get-Location { [pscustomobject]@{ Path = $env:T_PATH } }",
+  "function pnpm { $line = $args -join ' '; $global:LASTEXITCODE = $(if ($env:T_FAIL -and $line.Contains($env:T_FAIL)) { 1 } else { 0 }); 'PNPM-RAN ' + $line }",
+];
+
+function runPowerShell(script: string, env: Record<string, string>) {
+  const dir = mkdtempSync(join(tmpdir(), "sitting-"));
+  const file = join(dir, "block.ps1");
+  writeFileSync(file, `﻿${script}`, "utf8");
+  try {
+    const r = spawnSync(
+      POWERSHELL as string,
+      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", file],
+      { encoding: "utf8", env: { ...process.env, ...env } },
+    );
+    return {
+      out: `${r.stdout}\n${r.stderr}`,
+      ran: (r.stdout.match(/PNPM-RAN .*/g) ?? []) as string[],
+    };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+function runBlock(text: string, ids: [string, string], url: string, window: Window = {}) {
   const start = text.indexOf("function Read-Secret");
   const fnEnd = text.indexOf("\n", start);
   const blockStart = text.indexOf("[Console]::OutputEncoding", fnEnd);
@@ -198,32 +261,51 @@ function runBlock(text: string, ids: [string, string], url: string) {
     "  if ($AsSecureString) { return ConvertTo-SecureString $env:T_URL -AsPlainText -Force }",
     "  $v = $global:ids[0]; $global:ids = @($global:ids | Select-Object -Skip 1); return $v",
     "}",
-    "function pnpm { 'PNPM-RAN ' + ($args -join ' ') }",
+    ...SHELL_STUBS,
     "function Invoke-WebRequest { }",
     "function Get-FileHash { [pscustomobject]@{ Hash = 'ABC123' } }",
     "$global:ids = @($env:T_CHILD, $env:T_PROD)",
+    `$setupOk = $${window.setupOk ?? true}`,
     text.slice(start, fnEnd),
     "try {",
     text.slice(blockStart, end),
     "} catch { 'CAUGHT' }",
     "'URLSET=' + [bool]$env:DATABASE_URL",
+    "'SMOKEOK=' + $smokeOk",
   ].join("\n");
-  const dir = mkdtempSync(join(tmpdir(), "sitting-"));
-  const file = join(dir, "block.ps1");
-  writeFileSync(file, `﻿${script}`, "utf8");
-  try {
-    const r = spawnSync(
-      POWERSHELL as string,
-      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", file],
-      { encoding: "utf8", env: { ...process.env, T_URL: url, T_CHILD: ids[0], T_PROD: ids[1] } },
-    );
-    return {
-      out: `${r.stdout}\n${r.stderr}`,
-      ran: (r.stdout.match(/PNPM-RAN .*/g) ?? []) as string[],
-    };
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
+  return runPowerShell(script, {
+    T_URL: url,
+    T_CHILD: ids[0],
+    T_PROD: ids[1],
+    T_PATH: window.path ?? sittingWorktreePath(BASE.prNumber, BASE.sha),
+    T_HEAD: window.head ?? BASE.sha,
+    T_FAIL: window.failing ?? "",
+    T_GIT_FAIL: "",
+  });
+}
+
+/** The setup block alone, with `Test-Path` saying whether the head's folder already exists. */
+function runSetup(
+  text: string,
+  env: { exists: boolean; head: string; gitFail?: string; pnpmFail?: string },
+) {
+  const start = text.indexOf("$setupOk = $false");
+  const end = text.indexOf("function Read-Secret", start);
+  const script = [
+    ...SHELL_STUBS,
+    "function nvm { }",
+    "function Set-Location { 'CD ' + ($args -join ' ') }",
+    "function Test-Path($p) { if ($p -like '*node_modules*') { $true } else { $env:T_EXISTS -eq '1' } }",
+    text.slice(start, end),
+    "'SETUPOK=' + $setupOk",
+  ].join("\n");
+  return runPowerShell(script, {
+    T_EXISTS: env.exists ? "1" : "0",
+    T_HEAD: env.head,
+    T_PATH: "",
+    T_FAIL: env.pnpmFail ?? "",
+    T_GIT_FAIL: env.gitFail ?? "",
+  });
 }
 
 describe.skipIf(POWERSHELL === null)(
@@ -275,8 +357,83 @@ describe.skipIf(POWERSHELL === null)(
             expect(out).toContain("URLSET=False");
           });
         }
+
+        const wrongWindow: Array<[string, Window, string]> = [
+          [
+            "an older head",
+            { head: "c3d963dd11ea28e1e0dacbef2ff3a589e952cff8" },
+            "the checkout is at c3d963d, not 898b0f5",
+          ],
+          ["another folder", { path: "D:\\opika-worktrees\\pr223-smoke" }, "this window is not in"],
+          ["a setup that stopped", { setupOk: false }, "the setup block stopped or was not run"],
+        ];
+        for (const [label, window, reason] of wrongWindow) {
+          it(`runs nothing in ${label}`, () => {
+            const { out, ran } = runBlock(text, [CHILD, PROD], urlFor(CHILD), window);
+            expect(out).toContain("STOP, nothing was run");
+            expect(out).toContain(reason);
+            expect(ran).toEqual([]);
+            expect(out).toContain("SMOKEOK=False");
+          });
+        }
       });
     }
+
+    it("a failed child migration stops the rest, and the smoke is not marked passed", () => {
+      const text = renderSmokeSitting({ ...BASE, migration: { tag: "0019_x" } });
+      const { out, ran } = runBlock(text, [CHILD, PROD], urlFor(CHILD), { failing: "db:migrate" });
+      expect(ran.map((l) => l.split(" ")[3])).toEqual(["db:migrate"]);
+      expect(out).toContain("STOP: the step above failed, so nothing after it ran.");
+      expect(out).toContain("SMOKEOK=False");
+    });
+
+    it("a passing smoke is marked passed, which the production migration block requires", () => {
+      const text = renderSmokeSitting({ ...BASE, migration: { tag: "0019_x" } });
+      expect(runBlock(text, [CHILD, PROD], urlFor(CHILD)).out).toContain("SMOKEOK=True");
+      const production = text.slice(text.indexOf("---- Production migration"));
+      expect(production.indexOf("if ($smokeOk) {")).toBeLessThan(
+        production.indexOf("db:migrate --prod"),
+      );
+    });
+
+    describe("the setup block", () => {
+      const text = renderSmokeSitting(BASE);
+      const OLD = "c3d963dd11ea28e1e0dacbef2ff3a589e952cff8";
+
+      it("adds the head's folder and installs when it does not exist yet", () => {
+        const { out, ran } = runSetup(text, { exists: false, head: BASE.sha });
+        expect(out).toContain(
+          `GIT-RAN worktree add --detach D:\\opika-worktrees\\pr223-smoke-898b0f5 ${BASE.sha}`,
+        );
+        expect(ran).toEqual(["PNPM-RAN i"]);
+        expect(out).toContain("SETUPOK=True");
+      });
+
+      it("reuses an existing folder only when it is at this head", () => {
+        const same = runSetup(text, { exists: true, head: BASE.sha });
+        expect(same.out).not.toContain("worktree add");
+        expect(same.out).toContain("SETUPOK=True");
+
+        const old = runSetup(text, { exists: true, head: OLD });
+        expect(old.out).toContain(
+          "STOP: D:\\opika-worktrees\\pr223-smoke-898b0f5 exists at c3d963d, not 898b0f5.",
+        );
+        expect(old.ran).toEqual([]);
+        expect(old.out).toContain("SETUPOK=False");
+      });
+
+      it("stops when git fetch, git worktree add or pnpm i fails, and installs nothing after a git failure", () => {
+        for (const step of ["fetch", "worktree"]) {
+          const failed = runSetup(text, { exists: false, head: BASE.sha, gitFail: step });
+          expect(failed.out, step).toContain("STOP: git");
+          expect(failed.ran, step).toEqual([]);
+          expect(failed.out, step).toContain("SETUPOK=False");
+        }
+        const install = runSetup(text, { exists: false, head: BASE.sha, pnpmFail: "i" });
+        expect(install.out).toContain("STOP: pnpm i failed.");
+        expect(install.out).toContain("SETUPOK=False");
+      });
+    });
   },
 );
 
@@ -449,7 +606,6 @@ describe("renderProductionImportSitting (the combined rehearsal + production sit
       prNumber: 290,
       branch: "feat/prod-import-enable",
       sha: "1111111111111111111111111111111111111111",
-      worktreeSlug: "prod-import-run",
       download: { url: "https://example.org/k.xlsx", sha256: "abc123" },
       restoreBranchName: "pre-import-restore",
       lastMigrationTag: "0020_nationwide_geography_schema",
@@ -473,11 +629,20 @@ describe("renderProductionImportSitting (the combined rehearsal + production sit
     expect(header).toContain(INPUT.production.sha);
     expect(header).toContain("Confirm BOTH SHAs");
     expect(
-      at("git worktree add --detach D:\\opika-worktrees\\sex-filter-smoke 5ec7ea3"),
+      at("git worktree add --detach D:\\opika-worktrees\\pr282-smoke-5ec7ea3 5ec7ea3"),
     ).toBeGreaterThan(-1);
     expect(
-      at("git worktree add --detach D:\\opika-worktrees\\prod-import-run 1111111"),
+      at("git worktree add --detach D:\\opika-worktrees\\pr290-smoke-1111111 1111111"),
     ).toBeGreaterThan(at("PART 2:"));
+  });
+
+  it("Part 2 checks its folder and head, and the one write needs that too", () => {
+    const part2 = text.slice(at("PART 2:"));
+    expect(part2.indexOf("$headOk = ($problems.Count -eq 0)")).toBeLessThan(
+      part2.indexOf("Production connection"),
+    );
+    expect(part2).toContain(`StartsWith('${INPUT.production.sha}')`);
+    expect(part2).toContain("$go = $headOk -and $hashOk -and $epOk");
   });
 
   it("contains Part 1 exactly as the ordinary child-branch sitting renders it", () => {
@@ -506,10 +671,11 @@ describe("renderProductionImportSitting (the combined rehearsal + production sit
   it("puts the restore prompt, the typed confirmation and the only --commit in ONE block, gated by every check", () => {
     const part2 = at("PART 2:");
     const dry = at("db:import-settlements --prod --expect $ep --file $xlsx\n", part2);
-    const open = at("if ($true) {", part2);
+    // The setup block opens with `if ($true) {` too: the write's block is the one after the dry run.
+    const open = at("if ($true) {", dry);
     const restore = at("$named = Read-Host", part2);
     const typed = at("$typed = Read-Host", part2);
-    const gate = at("$go = $hashOk -and $epOk -and ($dryExit -eq 0)", part2);
+    const gate = at("$go = $headOk -and $hashOk -and $epOk -and ($dryExit -eq 0)", part2);
     const refusal = at("if (-not $go) {", part2);
     const commit = at("--file $xlsx --commit", part2);
     const marks = [dry, open, restore, typed, gate, refusal, commit];

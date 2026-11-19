@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ModeratorIdSchema } from "../../primitives/ids";
+import type { ShelterContact } from "../contact";
 import { EARLY_LISTING_DAYS, type EarlyListing } from "../verification/early-listing";
 import type { VerificationEvidence } from "../verification/evidence";
 import { type ShelterVerification, VERIFICATION_STATUSES } from "../verification/state";
@@ -17,6 +18,10 @@ const NOW = new Date("2026-12-01T00:00:00.000Z");
 const DAY = 24 * 60 * 60 * 1000;
 const EVIDENCE: VerificationEvidence = { items: [], submittedAt: NOW };
 const NONE: EarlyListing = { kind: "not_allowed" };
+const CONTACT: ShelterContact = {
+  primary: { kind: "phone", e164: "+380671234567" },
+  additional: [],
+};
 
 const stateOf = (status: ShelterVerification["status"]): ShelterVerification => {
   switch (status) {
@@ -110,8 +115,21 @@ describe("the application's restrictions (D2, D5, §5)", () => {
         lifecycle.stage === "application"
           ? { kind: "blocked", why: "application" }
           : { kind: "open" };
-      expect(publishGateOf(lifecycle)).toEqual(expected);
+      expect(publishGateOf(lifecycle, CONTACT)).toEqual(expected);
       expect(donationProposalGateOf(lifecycle)).toEqual(expected);
+    }
+  });
+
+  it("blocks publishing without a contact at every stage, the application reason winning", () => {
+    for (const lifecycle of lifecycles) {
+      const application = lifecycle.stage === "application";
+      // application / no contact / both / neither
+      expect(publishGateOf(lifecycle, null)).toEqual(
+        application
+          ? { kind: "blocked", why: "application" }
+          : { kind: "blocked", why: "no_contact" },
+      );
+      expect(publishGateOf(lifecycle, CONTACT).kind).toBe(application ? "blocked" : "open");
     }
   });
 

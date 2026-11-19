@@ -267,13 +267,17 @@ function AddressCard({
 function ContactsCard({ view }: { view: RegistryShelterView }) {
   return (
     <Section id="operator-contacts" title={uk.kabinet.profile.contactsTitle}>
-      <dl className="flex flex-col gap-3">
-        {[view.contact.primary, ...view.contact.additional].map((channel, index) => (
-          <Fact key={`${channel.kind}-${index}`} label={uk.kabinet.profileChannel[channel.kind]}>
-            {channelValue(channel)}
-          </Fact>
-        ))}
-      </dl>
+      {view.contact === null ? (
+        <Text>{notRecorded}</Text>
+      ) : (
+        <dl className="flex flex-col gap-3">
+          {[view.contact.primary, ...view.contact.additional].map((channel, index) => (
+            <Fact key={`${channel.kind}-${index}`} label={uk.kabinet.profileChannel[channel.kind]}>
+              {channelValue(channel)}
+            </Fact>
+          ))}
+        </dl>
+      )}
     </Section>
   );
 }

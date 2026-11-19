@@ -294,6 +294,11 @@ describe("S4 legal data, address, contacts, description", () => {
     expect(within(section("Про притулок")).getByText("Опис притулку для тесту.")).toBeTruthy();
   });
 
+  it("reads «Не записано» under «Контакти» for a shelter that registered without one", () => {
+    renderScreen({ contact: null });
+    expect(within(section("Контакти")).getByText("Не записано")).toBeTruthy();
+  });
+
   it("reads «Не записано» under «Про притулок» when the shelter has no text", () => {
     renderScreen({ description: null });
     expect(within(section("Про притулок")).getByText("Не записано")).toBeTruthy();

@@ -359,6 +359,14 @@ export const apiErrors = {
     message: "This shelter is awaiting approval.",
     data: z.object({ action: z.enum(["publish", "propose_donation"]) }),
   },
+  /**
+   * The shelter has no adopter contact yet (it registered without one), so nothing of it may go
+   * public: nobody could write to it (`publishGateOf`, owner 2026-11-19).
+   */
+  CONTACT_REQUIRED: {
+    status: 409,
+    message: "This shelter has no contact for adopters yet.",
+  },
   /** An application already holds the most drafts it may before approval (D5; `data.max`). */
   DRAFT_LIMIT_REACHED: {
     status: 409,

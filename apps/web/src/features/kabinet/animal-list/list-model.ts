@@ -268,6 +268,7 @@ export type ActionFailure =
   | { kind: "undo_expired" }
   | { kind: "was_published" }
   | { kind: "awaiting_approval" }
+  | { kind: "contact_required" }
   | { kind: "rate_limited" }
   | { kind: "no_answer" }
   | { kind: "failed" };
@@ -298,6 +299,9 @@ export function actionFailureOf(error: unknown): ActionFailure {
     // The shelter is still an application (D2); the screen read it before approval.
     case "AWAITING_APPROVAL":
       return { kind: "awaiting_approval" };
+    // The server's no-contact gate (`publishGateOf`); the page's own copy of it says so first.
+    case "CONTACT_REQUIRED":
+      return { kind: "contact_required" };
     case "TOO_MANY_REQUESTS":
       return { kind: "rate_limited" };
     default:
