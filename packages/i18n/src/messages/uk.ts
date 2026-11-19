@@ -108,9 +108,8 @@ export const uk = {
       "Якщо у вас є власна сторінка для донатів – банка в monobank, наприклад – на сторінці тварини " +
       "буде посилання на неї (коли притулок пройшов перевірку), і людина побачить, куди воно веде, ще до того як натисне.",
     /**
-     * §6 - checked against DEFAULT_VERIFICATION_POLICY, not against prose. Narrowed 2026-11-19:
-     * «і проходить відеодзвінок» deleted when open sources became a registered form's alternative
-     * to the call (standing-constraints, "Removing a false claim"); his fuller sentence is pending.
+     * §6 - names a call only where DEFAULT_VERIFICATION_POLICY requires one (`verification-claim.test.ts`).
+     * Narrowed 2026-11-19 (open sources): the registered sentence lost «і проходить відеодзвінок».
      */
     verification:
       "«Перевірений» означає, що вас перевіряла людина. Ось що це означає конкретно.\n\n" +

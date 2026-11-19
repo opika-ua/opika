@@ -38,6 +38,20 @@ export const EVIDENCE_ADDRESS_MAX_LENGTH = 300;
 /** The most pages one open-sources check lists. */
 export const OPEN_SOURCES_MAX_PAGES = 10;
 
+/**
+ * A page as stored: the parsed URL's own `href`, so `https:example.com` is kept as
+ * `https://example.com/`, never as typed (which a browser would resolve against our origin).
+ * Null unless it parses with the https protocol and a host.
+ */
+export const canonicalHttpsPage = (raw: string): string | null => {
+  try {
+    const url = new URL(raw.trim());
+    return url.protocol === "https:" && url.hostname !== "" ? url.href : null;
+  } catch {
+    return null;
+  }
+};
+
 export const EvidenceItemInputSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("edrpou_registration"),
@@ -78,6 +92,11 @@ export const EvidenceItemInputSchema = z.discriminatedUnion("kind", [
         z
           .string()
           .max(CONTACT_INPUT_MAX_LENGTH)
+          .transform((raw, ctx) => {
+            const href = canonicalHttpsPage(raw);
+            if (href === null) ctx.addIssue({ code: "custom", message: "Not an https page." });
+            return href ?? raw;
+          })
           .pipe(z.url({ protocol: /^https$/ })),
       )
       .min(1)

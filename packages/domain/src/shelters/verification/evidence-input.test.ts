@@ -110,6 +110,24 @@ describe("EvidenceItemInputSchema: open sources", () => {
     ).toBe(false);
   });
 
+  it("stores each page as its canonical href, never as typed", () => {
+    for (const typed of ["https:lapa.example.org", "https:/lapa.example.org"]) {
+      const parsed = EvidenceItemInputSchema.parse(check({ pages: [typed] }));
+      expect(parsed).toMatchObject({ pages: ["https://lapa.example.org/"] });
+    }
+    expect(
+      EvidenceItemInputSchema.parse(check({ pages: ["https://Lapa.Example.org/a b"] })),
+    ).toMatchObject({ pages: ["https://lapa.example.org/a%20b"] });
+  });
+
+  it("refuses a page with another protocol or no host", () => {
+    for (const typed of ["http:lapa.example.org", "javascript:alert(1)", "https://", "/relative"]) {
+      expect(EvidenceItemInputSchema.safeParse(check({ pages: [typed] })).success, typed).toBe(
+        false,
+      );
+    }
+  });
+
   it("needs the note and a calendar date", () => {
     expect(EvidenceItemInputSchema.safeParse(check({ notes: "" })).success).toBe(false);
     expect(

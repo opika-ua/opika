@@ -138,6 +138,43 @@ describe("buildShelter's public location", () => {
   });
 });
 
+describe("buildShelter: a registered NGO on open sources (2026-11-19)", () => {
+  const openSources = (checkedOn: string) => ({
+    kind: "open_sources_review" as const,
+    edrpou: EdrpouSchema.parse("43218765"),
+    registeredName: "ГО «ДОМІВКА»",
+    registeredAddress: "м. Бровари, вул. Незалежності, 12",
+    pages: ["https://domivka.example.org/"],
+    reviews: null,
+    notes: "Сайт і сторінка ведуться з 2022 року.",
+    checkedOn,
+  });
+  const ngoWith = (checkedOn: string) => ({
+    ...SHELTER_INPUT,
+    legalEntity: {
+      kind: "registered_ngo" as const,
+      legalName: "ГО «Домівка»",
+      edrpou: EdrpouSchema.parse("43218765"),
+      registeredAt: new Date("2020-01-01T00:00:00Z"),
+    },
+    evidence: [openSources(checkedOn)],
+  });
+
+  it("builds a verified shelter on one open-sources check, with no video call", () => {
+    const shelter = buildShelter(ngoWith("2026-09-06"), now, SECRET_A);
+    expect(shelter.verification.status).toBe("verified");
+    expect(shelter.verification.evidence.items.map((item) => item.kind)).toEqual([
+      "open_sources_review",
+    ]);
+  });
+
+  it("refuses an open-sources check dated after the day it is recorded", () => {
+    expect(() => buildShelter(ngoWith("2026-09-07"), now, SECRET_A)).toThrow(
+      /open_sources_review\.checkedOn 2026-09-07 is after today/,
+    );
+  });
+});
+
 describe("buildShelter's evidence requirement", () => {
   it("throws when the supplied evidence doesn't meet DEFAULT_VERIFICATION_POLICY for the legal entity kind", () => {
     const insufficientInput = {

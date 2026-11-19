@@ -1,5 +1,6 @@
 import {
   type ContactChannel,
+  canonicalHttpsPage,
   EdrpouSchema,
   type EvidenceItemInput,
   isSiteVisitInFuture,
@@ -192,16 +193,6 @@ export const pageLines = (raw: string): string[] =>
     .map((line) => line.trim())
     .filter((line) => line !== "");
 
-/** An https link the contract's `z.url({ protocol: /^https$/ })` will take. */
-const isHttpsLink = (line: string): boolean => {
-  if (/\s/.test(line)) return false;
-  try {
-    return new URL(line).protocol === "https:";
-  } catch {
-    return false;
-  }
-};
-
 type RowResult =
   | { kind: "ok"; item: DocumentFreeEvidenceInput }
   | { kind: "invalid"; errors: EvidenceRowErrors };
@@ -268,14 +259,19 @@ function rowResult(row: EvidenceRow, now: Date): RowResult {
       const registeredName = trimmedOrNull(row.registeredName);
       const registeredAddress = trimmedOrNull(row.registeredAddress);
       const notes = trimmedOrNull(row.notes);
-      const pages = pageLines(row.pages);
+      const lines = pageLines(row.pages);
+      const pages = lines.flatMap((line) => {
+        const href = canonicalHttpsPage(line);
+        return href === null ? [] : [href];
+      });
       const checkedOn = row.checkedOn;
       if (edrpou === "") errors.edrpou = "required";
       else if (!EdrpouSchema.safeParse(edrpou).success) errors.edrpou = "edrpouFormat";
       if (registeredName === null) errors.registeredName = "required";
       if (registeredAddress === null) errors.registeredAddress = "required";
-      if (pages.length === 0) errors.pages = "required";
-      else if (!pages.every(isHttpsLink)) errors.pages = "pagesInvalid";
+      // The domain's own rule, so the form sends the href the server would store.
+      if (lines.length === 0) errors.pages = "required";
+      else if (pages.length < lines.length) errors.pages = "pagesInvalid";
       else if (pages.length > OPEN_SOURCES_MAX_PAGES) errors.pages = "pagesTooMany";
       if (notes === null) errors.notes = "required";
       const dateError = requiredDateError(checkedOn, "openSourcesCheckInFuture");

@@ -124,21 +124,17 @@ export function ResubmitPanel({
           today={kyivCalendarDateOf(now())}
         />
       </section>
-      {error === "failed" ? (
+      {error === "none" ? null : (
         <p role="alert" className={NOTICE}>
-          {t.errors.failed}
+          {
+            {
+              failed: t.errors.failed,
+              site_visit_in_future: t.create.errors.siteVisitInFuture,
+              open_sources_check_in_future: t.create.errors.openSourcesCheckInFuture,
+            }[error]
+          }
         </p>
-      ) : null}
-      {error === "site_visit_in_future" ? (
-        <p role="alert" className={NOTICE}>
-          {t.create.errors.siteVisitInFuture}
-        </p>
-      ) : null}
-      {error === "open_sources_check_in_future" ? (
-        <p role="alert" className={NOTICE}>
-          {t.create.errors.openSourcesCheckInFuture}
-        </p>
-      ) : null}
+      )}
       <Button
         variant="primary"
         className="self-start"
