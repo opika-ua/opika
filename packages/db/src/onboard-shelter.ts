@@ -910,7 +910,8 @@ async function main(): Promise<void> {
   const shelterVerification = await verificationForNewAnimals(db, shelter, insertResult);
   const animalsCheck = await newAnimalsCheck(db, shelter, insertResult);
   if (animalsCheck.kind === "refused") {
-    console.error(animalsCheck.message);
+    process.stderr.write(`${animalsCheck.message}
+`);
     process.exit(1);
   }
 
