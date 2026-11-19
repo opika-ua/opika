@@ -449,7 +449,7 @@ export const en = {
     about: "About",
     forShelters: "For shelters",
     saved: "Saved",
-    kabinet: "Cabinet",
+    kabinet: "Dashboard",
     menu: "Menu",
     skipToContent: "Skip to content",
   },
@@ -470,7 +470,7 @@ export const en = {
     free: "The site is free for shelters, with no paid tiers. If that ever changes, every shelter will know well in advance, not after the fact.",
     money:
       '{site} never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) – the site only shows the link; the money goes directly, and you can see exactly where. The button exists only for verified shelters.',
-    data: "Data a shelter enters – address, contact details, animal listings – belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with cabinet access, the site keeps the administrator's name and email address. That address receives invitations, sign-in or new-password links, password-change notices, notices of verification decisions and fundraising links, and a weekly reminder about unconfirmed cards. A technical record of the browser and device used to sign in is kept separately. For shelter cabinet administrators only an irreversible hash of the password is stored, never the password itself. IP addresses are not stored. A sign-in to a shelter's cabinet lasts 30 days from the last visit and no longer than 90 days, after which you sign in again. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the cabinet is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the cabinet are stored without location data, at addresses that can't be guessed. So that a photo can be cropped again, an uncropped copy of it is kept too – without metadata, including where it was taken. It is deleted together with the photo. A photo removed from a card is no longer shown, and its files are deleted automatically in about a week. If something breaks on the site, only a technical description is sent to the error-tracking service Sentry (servers in the EU): the error type, the place in the code, the page address without parameters, the browser and the operating system. Contacts, email addresses, phone numbers, form contents and cookies are never sent there, and IP addresses are not stored.",
+    data: "Data a shelter enters – address, contact details, animal listings – belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with dashboard access, the site keeps the administrator's name and email address. That address receives invitations, sign-in or new-password links, password-change notices, notices of verification decisions and fundraising links, and a weekly reminder about unconfirmed cards. A technical record of the browser and device used to sign in is kept separately. For shelter dashboard administrators only an irreversible hash of the password is stored, never the password itself. IP addresses are not stored. A sign-in to a shelter's dashboard lasts 30 days from the last visit and no longer than 90 days, after which you sign in again. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the dashboard is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the dashboard are stored without location data, at addresses that can't be guessed. So that a photo can be cropped again, an uncropped copy of it is kept too – without metadata, including where it was taken. It is deleted together with the photo. A photo removed from a card is no longer shown, and its files are deleted automatically in about a week. If something breaks on the site, only a technical description is sent to the error-tracking service Sentry (servers in the EU): the error type, the place in the code, the page address without parameters, the browser and the operating system. Contacts, email addresses, phone numbers, form contents and cookies are never sent there, and IP addresses are not stored.",
     analytics:
       "The site collects basic visit statistics – how many people visit and how fast the pages load – with no advertising.",
     /** Template: "Get in touch: {contact}" */
@@ -527,7 +527,7 @@ export const en = {
     howToLeave: `${COPY_PENDING} 9b. How to leave – write, and everything is removed; no reason needed, only a confirming email.`,
     whoIsBehindThis: `${COPY_PENDING} 10. Who is behind this.`,
     howToStart: `${COPY_PENDING} 11. How to start – write to {contact}.`,
-    signInLink: `Sign in to the cabinet`,
+    signInLink: `Sign in to the dashboard`,
   },
   registration: {
     title: "Register your shelter",
@@ -539,7 +539,7 @@ export const en = {
     },
     city: {
       label: "City",
-      help: "You can change the city for individual animals in the cabinet.",
+      help: "You can change the city for individual animals in the dashboard.",
     },
     link: {
       label: "Website or social media page",
@@ -553,7 +553,7 @@ export const en = {
     },
     email: {
       label: "Email",
-      help: "You will sign in to the cabinet with it. Not shown on the site.",
+      help: "You will sign in to the dashboard with it. Not shown on the site.",
     },
     password: {
       label: "Password",
@@ -583,9 +583,9 @@ export const en = {
       dailyCap:
         "Too many applications right now. Please try again tomorrow or write to me at {email}.",
     },
-    signInPrompt: { text: "No cabinet yet?", link: "Register a shelter" },
+    signInPrompt: { text: "No dashboard yet?", link: "Register a shelter" },
     whatToPrepareAccess:
-      "You create the cabinet yourself, with the form on this page. If you prefer, write to me and I'll create it for you.",
+      "You create the dashboard yourself, with the form on this page. If you prefer, write to me and I'll create it for you.",
     howToStart:
       "Register the shelter with the form on this page – it takes 3 minutes. Then I check the shelter, usually within 2 days. If you prefer, write to {contact}: who you are and how many animals you have – and I'll create the shelter myself.",
     rules: {
@@ -609,7 +609,7 @@ export const en = {
       other: "Other: {text}",
     },
     emailConfirmed: "Email confirmed. I'll check the shelter, usually within 2 days.",
-    confirmLinkExpired: "The link has expired. Sign in to the cabinet and send the email again.",
+    confirmLinkExpired: "The link has expired. Sign in to the dashboard and send the email again.",
     notMeDone: "The application is deleted. If this is a mistake, write to me at {email}.",
     notMeAfterApproval:
       "The shelter is already approved, so the application can't be deleted from the link. If you didn't register this shelter, write to me at {email}.",
@@ -620,11 +620,11 @@ export const en = {
     recap: "{name}, {city}.",
     change: "Change",
     back: "← Back",
-    footer: { text: "Already have a cabinet?", link: "Sign in" },
+    footer: { text: "Already have a dashboard?", link: "Sign in" },
     assistance: { text: "Need help?", link: "Write to me" },
     signedIn: {
       admin: "You are already signed in as {email}.",
-      toKabinet: "Go to the cabinet",
+      toKabinet: "Go to the dashboard",
       signOut: "Sign out",
       operator: "You are signed in as the operator. Registration is for shelters.",
       toApplications: "To applications",
@@ -644,7 +644,7 @@ export const en = {
         steps: [
           {
             title: "You register the shelter",
-            body: "A few fields and a password, the cabinet right away.",
+            body: "A few fields and a password, the dashboard right away.",
           },
           {
             title: "You add animals",
@@ -757,7 +757,7 @@ export const en = {
     operatorFallbackName: "Site administrator",
     operatorFallbackNameInSentence: "site administrator",
     shell: {
-      label: "Cabinet",
+      label: "Dashboard",
       toSite: "To the site",
       accountAndPassword: "Account and password",
       operator: "Operator",
@@ -768,8 +768,8 @@ export const en = {
       assistance: { text: "Can't sign in?", link: "Write to me" },
     },
     signIn: {
-      pageTitle: "Sign in to the cabinet",
-      title: "Sign in to the cabinet",
+      pageTitle: "Sign in to the dashboard",
+      title: "Sign in to the dashboard",
       intro:
         "For shelters and the site administrator. Sign in with a password or with a link that arrives by email.",
       emailLabel: "Email address",
@@ -794,7 +794,7 @@ export const en = {
     },
     setPassword: {
       title: "Create a password",
-      intro: "The password for the cabinet of «{shelter}». You sign in as: {email}.",
+      intro: "The password for the dashboard of «{shelter}». You sign in as: {email}.",
       newLabel: "Password",
       repeatLabel: "Repeat the password",
       hint: "At least {min} characters",
@@ -816,9 +816,9 @@ export const en = {
     },
     forgot: {
       title: "Forgot your password?",
-      intro: "Enter the email address you sign in to the cabinet with.",
+      intro: "Enter the email address you sign in to the dashboard with.",
       submit: "Send the link",
-      sent: "If this is a shelter cabinet administrator's address, a link for a new password has been sent to it. It works for {minutes} min.",
+      sent: "If this is a shelter dashboard administrator's address, a link for a new password has been sent to it. It works for {minutes} min.",
       throttled: "Too many requests. Try again later.",
     },
     reset: {
@@ -833,7 +833,7 @@ export const en = {
       currentLabel: "Current password",
       newLabel: "New password",
       submit: "Change password",
-      done: "Password changed. Other devices have been signed out; you stay in the cabinet here.",
+      done: "Password changed. Other devices have been signed out; you stay in the dashboard here.",
       wrongCurrent: "The current password is wrong.",
       noPasswordYet:
         "There is no password yet. You can create one through «Forgot your password?» on the sign-in page.",
@@ -1392,7 +1392,7 @@ export const en = {
       },
     },
     nav: {
-      label: "Cabinet sections",
+      label: "Dashboard sections",
       animals: "Animals",
     },
     deleteDraft: {
@@ -1402,8 +1402,8 @@ export const en = {
       },
     },
     support: {
-      title: "You are viewing the cabinet of «{shelter}»: view only, nothing can be changed",
-      body: "This is how the shelter's administrator sees the cabinet.",
+      title: "You are viewing the dashboard of «{shelter}»: view only, nothing can be changed",
+      body: "This is how the shelter's administrator sees the dashboard.",
       exit: "Leave support mode",
       exitFailed: "Could not leave support mode. Try again.",
       viewingAs: "as the shelter administrator",
@@ -1422,7 +1422,7 @@ export const en = {
       applicationApproved: {
         subject: "The shelter «{name}» is approved",
         body: "I checked your shelter – all is well. You can publish animals now:",
-        action: "Open the cabinet",
+        action: "Open the dashboard",
         pending:
           "For now the shelter's name carries the «Under verification» label. Within 60 days I'll finish the check – I'll write to you to arrange a short video call.",
       },
@@ -1443,31 +1443,31 @@ export const en = {
         action: "Open «Заявки»",
       },
       signIn: {
-        subject: `A sign-in link for the shelter's cabinet`,
-        intro: `Hello. A sign-in link for the shelter's cabinet was requested for this address.`,
+        subject: `A sign-in link for the shelter's dashboard`,
+        intro: `Hello. A sign-in link for the shelter's dashboard was requested for this address.`,
         action: `Open the sign-in page`,
         expiry: `The link works once and expires in {minutes}.`,
         notYou: `If you didn't ask for this, just ignore the email: nothing happens without the link.\n{operator}`,
       },
       invite: {
-        subject: `Your access to the shelter's cabinet`,
-        intro: `Hello. I am opening access to the cabinet of the shelter «{shelter}» on the site {site} for this address.`,
-        what: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the «About the shelter» text and your animal cards yourself, and the changes appear as soon as you save. A donation link goes live as soon as I've checked it. To change the verification details, write to me.`,
-        whatBeforeVerification: `In the cabinet you see the shelter's details: both what people see and the verification details. You change your contacts, the «About the shelter» text and your animal cards yourself. People looking for an animal will see them once the shelter has passed verification, or once I allow them to be shown with the label «under review». The fundraising link appears once I have checked it and the shelter has passed verification. To change the verification details, write to me.`,
+        subject: `Your access to the shelter's dashboard`,
+        intro: `Hello. I am opening access to the dashboard of the shelter «{shelter}» on the site {site} for this address.`,
+        what: `In the dashboard you see the shelter's details: both what people see and the verification details. You change your contacts, the «About the shelter» text and your animal cards yourself, and the changes appear as soon as you save. A donation link goes live as soon as I've checked it. To change the verification details, write to me.`,
+        whatBeforeVerification: `In the dashboard you see the shelter's details: both what people see and the verification details. You change your contacts, the «About the shelter» text and your animal cards yourself. People looking for an animal will see them once the shelter has passed verification, or once I allow them to be shown with the label «under review». The fundraising link appears once I have checked it and the shelter has passed verification. To change the verification details, write to me.`,
         action: `Open the invitation`,
         expiry: `The invitation is valid for {hours}. If you miss it, I will send a new one.`,
         notYou: `If you weren't expecting this email, just ignore it and don't forward it to anyone: while the invitation is valid, this link lets someone create a password for this address, once.\n{operator}`,
       },
       reset: {
-        subject: `A new password for the shelter's cabinet`,
-        intro: `A new password for the shelter's cabinet was requested for this address.`,
+        subject: `A new password for the shelter's dashboard`,
+        intro: `A new password for the shelter's dashboard was requested for this address.`,
         action: `Create a new password`,
         expiry: `The link works once and expires in {minutes} min.`,
         notYou: `If you didn't make this request, just ignore this email: your password stays the same.\n{operator}`,
       },
       passwordChanged: {
-        subject: `Shelter cabinet: password changed`,
-        body: `The password to the shelter's cabinet for this address has just been changed. Other devices have been signed out.`,
+        subject: `Shelter dashboard: password changed`,
+        body: `The password to the shelter's dashboard for this address has just been changed. Other devices have been signed out.`,
         notYou: `If this wasn't you, write to me: {contact}\n{operator}`,
       },
       /** The English sense of the notification emails (see the Ukrainian catalogue); signed `{operator}` where the Ukrainian is. */
@@ -1502,7 +1502,7 @@ export const en = {
       approved: {
         subject: `The shelter has passed verification`,
         body: `Hello. The shelter «{shelter}» has passed verification. Everyone looking for an animal can now see the published cards.`,
-        action: `Open the cabinet`,
+        action: `Open the dashboard`,
         help: `If anything is unclear, just reply to this email.\n{operator}`,
       },
       earlyListingAllowed: {
@@ -1542,7 +1542,7 @@ export const en = {
     },
     /** The invite landing (IN-Q11, KS-Q2 A); see the Ukrainian catalogue. */
     inviteLanding: {
-      pageTitle: `Invitation to the cabinet`,
+      pageTitle: `Invitation to the dashboard`,
       unusableTitle: `This invitation can't be used`,
       expired: `The link no longer works. If you've already created a password, sign in. If not, write to me and I'll send a new invitation.`,
       signIn: `Go to sign-in`,
@@ -1555,7 +1555,7 @@ export const en = {
     },
     /** The confirm page an emailed sign-in link opens (IN-Q11). */
     confirm: {
-      title: `Sign in to the shelters' cabinet`,
+      title: `Sign in to the shelters' dashboard`,
       intro: `Press the button to finish signing in.`,
       submit: `Sign in`,
       invalid: `This link has already been used or has expired.`,
@@ -1567,8 +1567,8 @@ export const en = {
     },
     /** History lines (IN-Q14); see the Ukrainian catalogue. */
     history: {
-      adminJoined: `{email} now has access to the cabinet`,
-      adminJoinedErased: `Cabinet access opened: address deleted`,
+      adminJoined: `{email} now has access to the dashboard`,
+      adminJoinedErased: `Dashboard access opened: address deleted`,
     },
     /** R-UI, the operator's screens: the English sense of uk.ts's final Ukrainian (2026-10-17). */
     operator: {
@@ -1638,7 +1638,7 @@ export const en = {
         },
         removeDialog: {
           title: "Remove the fundraising link of «{shelter}»?",
-          body: "The link disappears from the pages at once. The shelter sees the reason in its cabinet and can propose a new one. A pending proposal disappears too.",
+          body: "The link disappears from the pages at once. The shelter sees the reason in its dashboard and can propose a new one. A pending proposal disappears too.",
           shelterSeesNote: "The shelter will see this text.",
           confirm: "Remove",
         },
@@ -1651,8 +1651,8 @@ export const en = {
         none: "No administrators",
         remove: "Remove",
         removeConfirm: {
-          title: "Close access? {name} will no longer be able to sign in to the cabinet.",
-          body: "Access to the cabinet closes at once, and every session ends.",
+          title: "Close access? {name} will no longer be able to sign in to the dashboard.",
+          body: "Access to the dashboard closes at once, and every session ends.",
         },
         inviteAnother: "Invite another",
         inviteFirst: "Invite an administrator",
@@ -1876,7 +1876,7 @@ export const en = {
       verification: {
         decisionTitle: "Decision",
         decisionCaption:
-          "The shelter will see the decision and the explanation verbatim in its cabinet.",
+          "The shelter will see the decision and the explanation verbatim in its dashboard.",
         startReview: "Take under review",
         approve: "Approve → «Verified»",
         approveShort: "Approve",
@@ -1907,9 +1907,9 @@ export const en = {
         rejectTitle: "Reject «{shelter}»?",
         suspendTitle: "Suspend «{shelter}»?",
         rejectBody:
-          "The shelter will see this explanation verbatim in its cabinet. Its animals won't be in the gallery.",
+          "The shelter will see this explanation verbatim in its dashboard. Its animals won't be in the gallery.",
         suspendBody:
-          "The shelter's animals leave the gallery at once. The shelter will see this explanation in its cabinet. It can be reinstated at any time. The fundraising link stops being shown too; after reinstatement it must be approved again.",
+          "The shelter's animals leave the gallery at once. The shelter will see this explanation in its dashboard. It can be reinstated at any time. The fundraising link stops being shown too; after reinstatement it must be approved again.",
         codeLabel: "Reason",
         reasonLabel: "Explanation",
         reasonHint: "Required. Write it so the person knows what to do next.",
