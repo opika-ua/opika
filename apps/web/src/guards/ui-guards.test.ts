@@ -221,6 +221,7 @@ describe("guard 8: no client navigation into /kabinet from outside it", () => {
       "<Link\n  href={\n    SHELTER_HOME\n  }\n>",
       '<Form action="/kabinet/vkhid">',
       '<Form\n  className="x"\n  action={SIGN_IN_PAGE_PATH}\n>',
+      '<AuthCardFooter text="x" />\nconst entry = { href: "/kabinet" };',
     ]) {
       expect(hitsIn(written), written).not.toEqual([]);
     }
@@ -238,6 +239,8 @@ describe("guard 8: no client navigation into /kabinet from outside it", () => {
       "<Link href={publicShelterPath(id)}>",
       '<form method="post" action="/kabinet/vkhid">',
       'import { PUBLIC_GALLERY_PATH as GALLERY } from "../kabinet/routes";\n<Link href={GALLERY}>',
+      // The kit's auth footer is a plain <a> by contract (R1).
+      '<AuthCardFooter\n  text="x"\n  linkLabel="y"\n  href={kabinetEntryHref("signIn")}\n/>',
     ]) {
       expect(hitsIn(other), other).toEqual([]);
     }

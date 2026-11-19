@@ -5,8 +5,8 @@ import { ContentPageLayout } from "../../features/chrome/ContentPageLayout";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { KabinetEntryLink } from "../../features/kabinet/KabinetEntryLink";
 import { isSelfRegistrationEnabled } from "../../features/registration/flag";
-import { RegistrationAnchorButton } from "../../features/registration/RegistrationAnchorButton";
 import { RegistrationSection } from "../../features/registration/RegistrationSection";
+import { SelfRegistrationPage } from "../../features/registration/SelfRegistrationPage";
 import { seoMetadata, withSite } from "../../seo/page-metadata";
 import { Heading } from "../../ui/Heading";
 import { Panel } from "../../ui/Panel";
@@ -62,11 +62,8 @@ export function whatToPrepareFor(selfRegistration: boolean): string {
     .join(PARAGRAPH);
 }
 
-/** §11: the form, or the operator's own path with the flag off. */
-const howToStartFor = (selfRegistration: boolean): string =>
-  fillTemplate(selfRegistration ? uk.registration.howToStart : uk.forShelters.howToStart, {
-    contact: OPERATOR_CONTACT.email,
-  });
+/** §11, flag off only: with the flag on the form replaces «Як почати» (§1a). */
+const HOW_TO_START = fillTemplate(uk.forShelters.howToStart, { contact: OPERATOR_CONTACT.email });
 
 /**
  * «Для притулків» - Phase T, closing critique finding E3.
@@ -162,8 +159,22 @@ export default async function ForSheltersPage() {
 /** The page body; exported so `page.test.tsx` can render it without a real request scope. */
 export function renderForSheltersPage(
   kabinetSignedIn: boolean,
-  { selfRegistration }: { selfRegistration: boolean } = { selfRegistration: false },
+  {
+    selfRegistration,
+    registrationCard,
+  }: { selfRegistration: boolean; registrationCard?: React.ReactNode } = {
+    selfRegistration: false,
+  },
 ) {
+  if (selfRegistration) {
+    return (
+      <SelfRegistrationPage
+        kabinetSignedIn={kabinetSignedIn}
+        card={registrationCard ?? <RegistrationSection />}
+        whatToPrepare={whatToPrepareFor(true)}
+      />
+    );
+  }
   return (
     <ContentPageLayout
       kabinetSignedIn={kabinetSignedIn}
@@ -178,9 +189,6 @@ export function renderForSheltersPage(
       <KabinetEntryLink to="signIn" variant="secondary" className="self-start">
         {uk.forShelters.signInLink}
       </KabinetEntryLink>
-
-      {/* Self-registration's one slot (Agent 1's); with the flag off the page is as it was. */}
-      {selfRegistration ? <RegistrationSection /> : null}
 
       <Text look="hint">{INDEPENDENT}</Text>
 
@@ -213,7 +221,7 @@ export function renderForSheltersPage(
           these two adjacent.
         */}
       <Section heading={h.whatToPrepare}>
-        <Body>{whatToPrepareFor(selfRegistration)}</Body>
+        <Body>{whatToPrepareFor(false)}</Body>
       </Section>
 
       {/*
@@ -245,45 +253,14 @@ export function renderForSheltersPage(
       <Section heading={h.whoIsBehindThis}>
         <Body>{WHO_IS_BEHIND_THIS}</Body>
       </Section>
-      {selfRegistration ? <RulesSection /> : null}
 
       {/*
           `OPERATOR_CONTACT.email` is live (Cloudflare Email Routing, tested 2026-09-02): a
           shelter is sent to this page, so a bouncing address would be worse than none.
         */}
       <Section heading={h.howToStart}>
-        <Body>{howToStartFor(selfRegistration)}</Body>
-        {/* §13.1: the end of the page repeats the button; it scrolls smoothly unless motion is reduced. */}
-        {selfRegistration ? (
-          <RegistrationAnchorButton label={uk.registration.ctaScroll} className="self-start" />
-        ) : null}
+        <Body>{HOW_TO_START}</Body>
       </Section>
     </ContentPageLayout>
-  );
-}
-
-/** Q6's «Правила» (A6), the anchor the registration's consent line links to. */
-function RulesSection() {
-  const r = uk.registration.rules;
-  return (
-    <section
-      id="pravyla"
-      aria-labelledby="pravyla-title"
-      className="flex scroll-mt-24 flex-col gap-3"
-    >
-      <Heading level={2} look="title" id="pravyla-title">
-        {r.title}
-      </Heading>
-      <ul className="flex list-disc flex-col gap-2 pl-6">
-        {r.items.map((item) => (
-          <li key={item}>
-            <Text look="lead" as="span" className="text-ink-2">
-              {item}
-            </Text>
-          </li>
-        ))}
-      </ul>
-      <Body>{r.enforcement}</Body>
-    </section>
   );
 }
