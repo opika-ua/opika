@@ -5,7 +5,9 @@ import { Heading } from "../../../ui/Heading";
 import { Icon } from "../../../ui/Icon";
 import { Panel } from "../../../ui/Panel";
 import { Text } from "../../../ui/Text";
+import { TextLink } from "../../../ui/TextLink";
 import { ResendConfirmation } from "../registration/ResendConfirmation";
+import { SHELTER_CONTACTS_PATH } from "../routes";
 import type { ApplicationBanner } from "./application-banners";
 import { dismissApprovedBanner } from "./dismiss-approved";
 
@@ -53,9 +55,18 @@ export function ApplicationBanners({ banners }: { banners: readonly ApplicationB
             padding="md"
             className="flex items-start justify-between gap-3"
           >
-            <Text look="label" className="self-center">
-              {t.approved}
-            </Text>
+            {banner.contact === "present" ? (
+              <Text look="label" className="self-center">
+                {t.approved}
+              </Text>
+            ) : (
+              <div className="flex flex-col items-start gap-1">
+                <Text look="label">{t.approvedNoContact}</Text>
+                <TextLink href={SHELTER_CONTACTS_PATH} className="text-label">
+                  {t.publishNoContactLink}
+                </TextLink>
+              </div>
+            )}
             {/* A native form post: works without JavaScript and needs no client component. */}
             <form action={dismissApprovedBanner.bind(null, banner.shelterId)}>
               <Button type="submit" variant="icon" aria-label={t.approvedClose}>

@@ -7,7 +7,7 @@ import {
   isDiscoverable,
   kyivCalendarDateOf,
   type PublishGap,
-  type ShelterGate,
+  type PublishGate,
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -24,8 +24,10 @@ import { Heading } from "../../../ui/Heading";
 import { StickyActionBar } from "../../../ui/StickyActionBar";
 import { Tabs } from "../../../ui/Tabs";
 import { Text } from "../../../ui/Text";
+import { TextLink } from "../../../ui/TextLink";
+import { PUBLISH_BLOCKED_SENTENCE, type PublishBlock } from "../application/application-banners";
 import type { CompressedPhoto } from "../photos/compress-photo";
-import { publicAnimalPath } from "../routes";
+import { publicAnimalPath, SHELTER_CONTACTS_PATH } from "../routes";
 import { ListingStatusChip } from "../StatusChips";
 import { useCityPicker } from "../shared/city-picker";
 import { SavePill, SaveStatusLine } from "../shared/save-pill";
@@ -151,7 +153,7 @@ export function AnimalForm({
   /** Where the shelter's cards stand with the public (`shelterVisibilityOf`). */
   shelterVisibility: ShelterVisibility;
   /** Blocked while the shelter is an application (D2); the server's gate decides, this says why. */
-  publishGate?: ShelterGate;
+  publishGate?: PublishGate;
   back: { href: string; label: string };
   /** The tab `?tab=` named; «Публікація» is only there for a shelter that can write. */
   initialTab?: AnimalTab;
@@ -540,17 +542,18 @@ export function AnimalForm({
   // shelter, which has passed): `publishedAnnouncementOf`.
   const publishedAnnouncement = publishedAnnouncementOf(shelterVisibility);
 
-  const awaitingApproval = publishGate.kind === "blocked";
+  const blockedBy = publishGate.kind === "blocked" ? publishGate.why : null;
   // Why «Опублікувати» is disabled, written beside it: the gate first, as this form can't fix it.
-  const publishReason = awaitingApproval
-    ? uk.kabinet.application.publishBlocked
-    : gaps.length > 0
-      ? missingSentence(gaps)
-      : null;
+  const publishReason =
+    blockedBy !== null
+      ? PUBLISH_BLOCKED_SENTENCE[blockedBy]
+      : gaps.length > 0
+        ? missingSentence(gaps)
+        : null;
   const publish = async () => {
     if (!editable || publishing) return;
-    if (awaitingApproval) {
-      setAnnouncement(uk.kabinet.application.publishBlocked);
+    if (blockedBy !== null) {
+      setAnnouncement(PUBLISH_BLOCKED_SENTENCE[blockedBy]);
       return;
     }
     if (gaps.length > 0) {
@@ -581,7 +584,10 @@ export function AnimalForm({
           setAnnouncement(t.publish.stateChanged);
           break;
         case "AWAITING_APPROVAL":
-          setAnnouncement(uk.kabinet.application.publishBlocked);
+          setAnnouncement(PUBLISH_BLOCKED_SENTENCE.application);
+          break;
+        case "CONTACT_REQUIRED":
+          setAnnouncement(PUBLISH_BLOCKED_SENTENCE.no_contact);
           break;
         default:
           // The save before it went through (a failed save returns above),
@@ -694,7 +700,6 @@ export function AnimalForm({
       <FormSection framing="flush" id="publication" title={t.sections.publication} titleless>
         {isDraft ? (
           <DraftPublication
-            awaitingApproval={awaitingApproval}
             gaps={gaps}
             onGo={(gap) => goTo(GAP_TAB[gap.kind], GAP_TARGET[gap.kind])}
           />
@@ -776,6 +781,7 @@ export function AnimalForm({
             save={save}
             status={draftStatus}
             publishReason={publishReason}
+            blockedBy={blockedBy}
             publishing={publishing}
             onRetry={() => void saveFromButton()}
             onShow={() => shownItems[0]?.onSelect?.()}
@@ -831,23 +837,20 @@ const fieldOfTarget = (target: EventTarget | null): FieldProblem["field"] | null
 };
 
 /**
- * «Публікація» on a draft: who sees it (nobody yet) and what is still missing, the way the
- * disabled «Опублікувати» is described. Each gap is a link that switches to its tab and focuses
- * the field, so the list is a route, not just a sentence.
+ * «Публікація» on a draft: who sees it (nobody yet) and what is still missing. Each gap is a link
+ * that switches to its tab and focuses the field, so the list is a route, not just a sentence. The
+ * gate's reason is the footer's, beside «Опублікувати» (R4).
  */
 function DraftPublication({
-  awaitingApproval,
   gaps,
   onGo,
 }: {
-  awaitingApproval: boolean;
   gaps: readonly PublishGap[];
   onGo: (gap: PublishGap) => void;
 }) {
   return (
     <>
       <Text look="hint">{t.draft.notVisible}</Text>
-      {awaitingApproval ? <Text look="label">{uk.kabinet.application.publishBlocked}</Text> : null}
       <MissingPanel gaps={gaps} onGo={onGo} />
     </>
   );
@@ -919,6 +922,7 @@ function DraftActions({
   save,
   status,
   publishReason,
+  blockedBy,
   publishing,
   onRetry,
   onShow,
@@ -928,6 +932,8 @@ function DraftActions({
   save: SaveState;
   status: DraftStatus | null;
   publishReason: string | null;
+  /** «Додати контакт» joins the reason when the shelter has no adopter contact. */
+  blockedBy: PublishBlock | null;
   publishing: boolean;
   onRetry: () => void;
   onShow: () => void;
@@ -945,6 +951,11 @@ function DraftActions({
               {publishReason}
             </p>
           )}
+          {blockedBy === "no_contact" ? (
+            <TextLink href={SHELTER_CONTACTS_PATH} placement="standalone" className="self-start">
+              {uk.kabinet.application.publishNoContactLink}
+            </TextLink>
+          ) : null}
         </div>
         <div className="flex gap-2 tablet:shrink-0">
           {status?.state?.kind === "invalid" ? (

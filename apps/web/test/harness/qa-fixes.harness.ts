@@ -23,6 +23,9 @@ test.describe("an address no route owns", () => {
       page.getByText("Можливо, посилання застаріло або в адресі помилка."),
     ).toBeVisible();
     await expect(page.getByRole("banner")).toBeVisible();
+    // The full site header (`[...rest]/not-found.tsx`), not the root's plain one: its menu trigger.
+    await expect(page.getByTestId("nav-menu-trigger")).toBeAttached();
+    await expect(page.locator('meta[name="robots"][content*="noindex"]').first()).toBeAttached();
     await expect(page.getByText("This page could not be found")).toHaveCount(0);
 
     await expectReachableByTab(page, {
@@ -31,6 +34,15 @@ test.describe("an address no route owns", () => {
     });
     await page.getByRole("link", { name: "На головну" }).press("Enter");
     await expect(page).toHaveURL(/\/tvaryny$/);
+  });
+
+  test("a deeper unknown address under a real section gets the same page", async ({ page }) => {
+    const response = await page.goto("/tvaryny/a/b", { waitUntil: "load" });
+    expect(response?.status()).toBe(404);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Такої сторінки немає." }),
+    ).toBeVisible();
+    await expect(page.getByTestId("nav-menu-trigger")).toBeAttached();
   });
 });
 

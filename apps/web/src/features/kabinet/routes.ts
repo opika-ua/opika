@@ -22,6 +22,9 @@ export const PUBLIC_GALLERY_PATH = "/tvaryny";
 /** Притулок (renamed from «Профіль притулку»): K4's profile editor, moved off `SHELTER_HOME`. */
 export const SHELTER_PROFILE_PATH = "/kabinet/prytulok";
 
+/** The Притулок page's «Контакти» tab (`?tab=`): where the no-contact publish gate sends the shelter. */
+export const SHELTER_CONTACTS_PATH = `${SHELTER_PROFILE_PATH}?tab=kontakty`;
+
 /** «Акаунт і пароль» (was the Притулок page's «Акаунт» tab): pause, password. The account menu links here. */
 export const SHELTER_ACCOUNT_PATH = "/kabinet/akaunt";
 

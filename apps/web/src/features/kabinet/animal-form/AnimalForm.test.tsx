@@ -1,5 +1,5 @@
 import type { AgeEstimateInput, KabinetAnimalView } from "@opika/contracts";
-import { ANIMAL_DESCRIPTION_MAX_CHARACTERS, type CityId, type ShelterGate } from "@opika/domain";
+import { ANIMAL_DESCRIPTION_MAX_CHARACTERS, type CityId, type PublishGate } from "@opika/domain";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -223,7 +223,7 @@ function renderForm(
     initialTab?: AnimalTab;
     /** False to keep the tabs as they are, with only the selected panel showing. */
     reveal?: boolean;
-    publishGate?: ShelterGate;
+    publishGate?: PublishGate;
     location?: AnimalFormLocation;
   } = {},
 ) {
@@ -2952,8 +2952,42 @@ describe("the footer by listing state (R4)", () => {
   });
 });
 
+describe("a shelter with no adopter contact (owner, 2026-11-19)", () => {
+  const WHY = "Додайте хоча б один контакт, щоб люди могли вам написати.";
+
+  it("disables «Опублікувати», says why, links to the contacts tab, and never publishes", async () => {
+    const user = userEvent.setup();
+    const client = renderForm(
+      draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>),
+      { publishGate: { kind: "blocked", why: "no_contact" } },
+    );
+    const publish = screen.getByRole("button", { name: "Опублікувати" });
+    expect(publish.getAttribute("aria-disabled")).toBe("true");
+    // The sentence and its link sit beside the button, in the footer (R4).
+    expect(publish.getAttribute("aria-describedby")).toBe("publish-reason");
+    expect(document.getElementById("publish-reason")?.textContent).toBe(WHY);
+    const bar = publish.closest("[data-bottom-bar]") as HTMLElement;
+    expect(within(bar).getByRole("link", { name: "Додати контакт" }).getAttribute("href")).toBe(
+      "/kabinet/prytulok?tab=kontakty",
+    );
+    await user.click(publish);
+    expect(client.calls.transition).not.toHaveBeenCalled();
+    expect(formStatus().textContent).toBe(WHY);
+  });
+
+  it("says why when the server refuses the publish for want of a contact", async () => {
+    const user = userEvent.setup();
+    const ready = draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>);
+    const client = fakeClient(ready);
+    client.calls.transition.mockRejectedValueOnce(apiError("CONTACT_REQUIRED"));
+    renderForm(ready, { client });
+    await user.click(screen.getByRole("button", { name: "Опублікувати" }));
+    expect(await screen.findByText(WHY)).toBeTruthy();
+  });
+});
+
 describe("a shelter still in application (D2, D5)", () => {
-  const BLOCKED: ShelterGate = { kind: "blocked", why: "application" };
+  const BLOCKED: PublishGate = { kind: "blocked", why: "application" };
   const WHY = "Опублікувати можна після перевірки притулку.";
 
   it("keeps «Опублікувати» focusable but disabled, described by why, and never publishes", async () => {

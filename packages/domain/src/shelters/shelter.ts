@@ -24,7 +24,11 @@ export const ShelterSchema = z.object({
   publicLocation: PublicLocationSchema,
   /** Null until the operator adds it; the city is then only `publicLocation.cityId`. */
   exactAddress: ExactAddressSchema.nullable(),
-  contact: ShelterContactSchema,
+  /**
+   * Null only on a self-registered shelter that has given none yet (owner, 2026-11-19; DB CHECK in
+   * 0030). Nothing of it publishes while null (`publishGateOf`), and once set it can't be cleared.
+   */
+  contact: ShelterContactSchema.nullable(),
   donation: DonationLinkSchema.nullable(),
   /** Null until the shelter uploads one; the fallback is a client-rendered
    * initials circle (pet card PR 3b), not a stored placeholder image. */

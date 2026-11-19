@@ -125,7 +125,8 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     kind: z.literal("contact_changed"),
     at: z.date(),
     actor: ShelterActorSchema,
-    previous: ShelterContactSchema,
+    /** Null on a self-registered shelter's first contact (it registered without one). */
+    previous: ShelterContactSchema.nullable(),
     next: ShelterContactSchema,
   }),
   z.object({
