@@ -10,7 +10,7 @@ describe("the sign-in page's way to registration", () => {
     vi.stubEnv("SELF_REGISTRATION_ENABLED", "1");
     render(<RegistrationSignInPrompt />);
     expect(
-      screen.getByRole("link", { name: uk.registration.signInPrompt }).getAttribute("href"),
+      screen.getByRole("link", { name: uk.registration.signInPrompt.link }).getAttribute("href"),
     ).toBe("/prytulkam#reyestratsiia");
   });
 

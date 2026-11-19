@@ -265,7 +265,7 @@ export const uk = {
         "Зараз забагато заявок. Спробуйте, будь ласка, завтра або напишіть мені на {email}.",
     },
     /** On /kabinet/vkhid, linking to /prytulkam#reyestratsiia (§13.1; Phase 0 copy table). */
-    signInPrompt: "Ще немає кабінету? Зареєструйте притулок",
+    signInPrompt: { text: "Ще немає кабінету?", link: "Зареєструйте притулок" },
     /**
      * /prytulkam with the flag on (Phase 0 copy table): A1's sentence in §7 and §11 become these.
      * The flag-off page keeps `forShelters.whatToPrepare` and `forShelters.howToStart` unchanged.
@@ -500,9 +500,14 @@ export const uk = {
      * `throttled` is his §9 answer 5, the same for every address; «хв.» avoids a
      * plural, and `copy-plural-pins.test.ts` pins it for several values anyway.
      */
+    /** The sign-in page's redesign (Update 3, approved 2026-11-19): the subtitle and the help line. */
+    signInPage: {
+      subtitle: "Для притулків і волонтерів, які вже зареєстровані.",
+      assistance: { text: "Не вдається увійти?", link: "Напишіть мені" },
+    },
     signIn: {
       pageTitle: "Вхід до кабінету",
-      title: "Вхід до кабінету",
+      title: "Вхід у кабінет",
       intro:
         "Для притулків і адміністратора сайту. Увійти можна з паролем або за посиланням, що приходить на пошту.",
       emailLabel: "Електронна пошта",

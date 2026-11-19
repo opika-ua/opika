@@ -14,6 +14,7 @@ import { invitePasswordLandingOf } from "../../../kabinet/invite-password";
 import { inviteTokensOf } from "../../../kabinet/invite-tokens";
 import { kabinetDb } from "../../../kabinet/kabinet-db";
 import { kabinetIdentityOf } from "../../../kabinet/principal";
+import { AssistanceLine } from "../../../ui/AssistanceLine";
 import { kabinetAuthOrNotFound } from "../available-auth";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -76,10 +77,19 @@ export default async function SignInPage({
   let card: React.ReactNode;
   if (token === null) {
     card = (
-      <>
-        <SignInCard contact={contact} />
-        <RegistrationSignInPrompt />
-      </>
+      <SignInCard
+        contact={contact}
+        footer={<RegistrationSignInPrompt />}
+        assistance={
+          contact === null ? null : (
+            <AssistanceLine
+              text={uk.kabinet.signInPage.assistance.text}
+              linkLabel={uk.kabinet.signInPage.assistance.link}
+              href={`mailto:${contact}`}
+            />
+          )
+        }
+      />
     );
   } else {
     const landing = await invitePasswordLandingOf(token, {

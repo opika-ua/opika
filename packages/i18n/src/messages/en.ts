@@ -581,7 +581,7 @@ export const en = {
       dailyCap:
         "Too many applications right now. Please try again tomorrow or write to me at {email}.",
     },
-    signInPrompt: "No cabinet yet? Register a shelter",
+    signInPrompt: { text: "No cabinet yet?", link: "Register a shelter" },
     whatToPrepareAccess:
       "You create the cabinet yourself, with the form on this page. If you prefer, write to me and I'll create it for you.",
     howToStart:
@@ -756,6 +756,10 @@ export const en = {
       accountAndPassword: "Account and password",
       operator: "Operator",
       newTab: "(opens in a new tab)",
+    },
+    signInPage: {
+      subtitle: "For shelters and volunteers who are already registered.",
+      assistance: { text: "Can't sign in?", link: "Write to me" },
     },
     signIn: {
       pageTitle: "Sign in to the cabinet",

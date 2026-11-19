@@ -2,13 +2,22 @@
 
 import "../../zod-client-config";
 import { uk } from "@opika/i18n";
-import { type FormEvent, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { Button, LinkButton } from "../../ui/Button";
+import {
+  type FormEvent,
+  type ReactNode,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { TextField } from "../../ui/form";
 import { Heading } from "../../ui/Heading";
 import { PasswordField } from "../../ui/PasswordField";
 import { Text } from "../../ui/Text";
+import { TextLink } from "../../ui/TextLink";
 import {
   PASSWORD_ENDPOINTS,
   postJson,
@@ -63,7 +72,13 @@ export function SignInCard({
   signIn = defaultSignIn,
   onSignedIn = defaultSignedIn,
   contact,
+  footer,
+  assistance,
 }: {
+  /** The strip inside the card's bottom (Update 3): the way to registration. */
+  footer?: ReactNode;
+  /** The help line under the card. */
+  assistance?: ReactNode;
   /** The magic link; injected so tests drive the real component without a network. */
   send?: (email: string) => Promise<boolean>;
   /** The password sign-in; injected so tests drive the real component without a network. */
@@ -197,70 +212,84 @@ export function SignInCard({
     setState({ kind: "entering", error: null });
   }
 
+  if (state.kind === "entering") {
+    // Update 3: the title above a ~440px card, «Забули пароль?» on the password's label row, the
+    // link as a text button, the footer strip inside the card and the help line under it.
+    return (
+      <div className="flex w-full flex-col gap-6 tablet:w-110">
+        <div className="flex flex-col gap-2 tablet:text-center">
+          <Heading level={1} look="display-l" id={`${emailId}-title`} ref={titleRef} tabIndex={-1}>
+            {uk.kabinet.signIn.title}
+          </Heading>
+          <Text look="body" className="text-ink-2">
+            {uk.kabinet.signInPage.subtitle}
+          </Text>
+        </div>
+        <Card as="section" tone="outline" aria-labelledby={`${emailId}-title`}>
+          <div className="flex flex-col gap-6 p-5 tablet:p-8">
+            <form onSubmit={onSubmit} className="flex flex-col gap-6">
+              <TextField
+                id={emailId}
+                ref={emailRef}
+                label={uk.kabinet.signIn.emailLabel}
+                type="email"
+                name="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+              <PasswordField
+                id={passwordId}
+                label={uk.kabinet.signIn.passwordLabel}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
+                required
+                showLabel={uk.kabinet.signIn.showPassword}
+                hideLabel={uk.kabinet.signIn.hidePassword}
+                labelAside={
+                  <TextLink href={FORGOT_PATH} placement="standalone" className="text-body">
+                    {uk.kabinet.signIn.forgot}
+                  </TextLink>
+                }
+              />
+              {state.error !== null ? (
+                <p role="alert" className="text-label text-ink">
+                  {state.error}
+                </p>
+              ) : null}
+              <Button type="submit" status={busy ? "loading" : "idle"} className="w-full">
+                {uk.kabinet.signIn.submitPassword}
+              </Button>
+            </form>
+            <div className="flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={onSendLink}
+                aria-busy={busy || undefined}
+                className="inline-flex min-h-target cursor-pointer items-center text-body text-ink underline underline-offset-4 focus-ring"
+              >
+                {uk.kabinet.signIn.useLink}
+              </button>
+              <Text look="hint">{uk.kabinet.signIn.addressNote}</Text>
+            </div>
+          </div>
+          {footer}
+        </Card>
+        {assistance}
+      </div>
+    );
+  }
+
   return (
     <Card
       as="section"
       tone="outline"
       aria-labelledby={`${emailId}-title`}
-      className="flex w-full flex-col gap-4 p-5 tablet:w-120 tablet:p-8"
+      className="flex w-full flex-col gap-4 p-5 tablet:w-110 tablet:p-8"
     >
-      {state.kind === "entering" ? (
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <Heading level={1} look="title" id={`${emailId}-title`} ref={titleRef} tabIndex={-1}>
-              {uk.kabinet.signIn.title}
-            </Heading>
-            <Text look="body" className="text-ink-2">
-              {uk.kabinet.signIn.intro}
-            </Text>
-          </div>
-          <form onSubmit={onSubmit} className="flex flex-col gap-6">
-            <TextField
-              id={emailId}
-              ref={emailRef}
-              label={uk.kabinet.signIn.emailLabel}
-              type="email"
-              name="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-            <PasswordField
-              id={passwordId}
-              label={uk.kabinet.signIn.passwordLabel}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="current-password"
-              required
-              showLabel={uk.kabinet.signIn.showPassword}
-              hideLabel={uk.kabinet.signIn.hidePassword}
-            />
-            {state.error !== null ? (
-              <p role="alert" className="text-label text-ink">
-                {state.error}
-              </p>
-            ) : null}
-            <Button type="submit" status={busy ? "loading" : "idle"} className="w-full">
-              {uk.kabinet.signIn.submitPassword}
-            </Button>
-            <LinkButton href={FORGOT_PATH} variant="ghost" className="self-start">
-              {uk.kabinet.signIn.forgot}
-            </LinkButton>
-          </form>
-          <div className="flex flex-col gap-2">
-            <Button
-              variant="secondary"
-              onClick={onSendLink}
-              status={busy ? "loading" : "idle"}
-              className="w-full"
-            >
-              {uk.kabinet.signIn.useLink}
-            </Button>
-            <Text look="hint">{uk.kabinet.signIn.addressNote}</Text>
-          </div>
-        </div>
-      ) : (
+      {
         <div className="flex flex-col gap-4">
           <Heading level={1} look="title" id={`${emailId}-title`} ref={titleRef} tabIndex={-1}>
             {uk.kabinet.signIn.sentTitle}
@@ -303,7 +332,7 @@ export function SignInCard({
             </p>
           ) : null}
         </div>
-      )}
+      }
     </Card>
   );
 }
