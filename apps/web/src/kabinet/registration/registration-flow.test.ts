@@ -33,6 +33,7 @@ import { shelterPasswordVerdictOf } from "../password-checks";
 import { inMemoryDelayStore } from "../password-limits";
 import { capturingPasswordMail } from "../password-mail";
 import { handleRegistrationLink, type RegistrationLinkDeps } from "./email-link-route";
+import { registrationLinkOutcomeOf } from "./email-link-runtime";
 import { hashRegistrationToken, newRegistrationToken } from "./registration-links";
 import {
   confirmationDedupKey,
@@ -334,6 +335,34 @@ describe("the confirmation email's links act only on an origin-checked POST", ()
     },
   );
 
+  it("each live link's page says what its button does; the confirm one names its address", async () => {
+    const registered = await register();
+    expect(await (await get(CONFIRM, registered.confirmToken)).text()).toContain(
+      "Натисніть кнопку, щоб підтвердити адресу olena@example.org.",
+    );
+    expect(await (await get(NOT_ME, registered.notMeToken)).text()).toContain(
+      "Якщо ви не реєстрували притулок, натисніть кнопку\u00a0– я видалю заявку, створену з вашою адресою.",
+    );
+  });
+
+  it.each([
+    ["«Підтвердити email»", CONFIRM, "Посилання застаріло. Увійдіть у кабінет", true],
+    [
+      "«Це не я»",
+      NOT_ME,
+      'Посилання вже не діє. Якщо хтось зареєстрував притулок з вашою адресою\u00a0– напишіть мені на <a href="mailto:hello@opika.org.ua">hello@opika.org.ua</a>.',
+      false,
+    ],
+  ] as const)(
+    "%s with a dead link: its own sentence, and a way into the kabinet only on the confirm link",
+    async (_name, path, sentence, kabinetLink) => {
+      const html = await (await get(path, newRegistrationToken())).text();
+      expect(html).toContain(sentence);
+      expect(html.includes("Увійдіть у кабінет")).toBe(kabinetLink);
+      expect(html.includes('href="/kabinet"')).toBe(kabinetLink);
+    },
+  );
+
   it.each([
     ["no Origin", null],
     ["Origin: null", "null"],
@@ -400,7 +429,7 @@ describe("the confirmation email's links act only on an origin-checked POST", ()
     const answer = await post(NOT_ME, registered.notMeToken, BASE);
     expect(answer.status).toBe(200);
     expect(await answer.text()).toContain(
-      "Притулок уже схвалено, тому заявку не можна видалити за посиланням. Якщо ви не реєстрували цей притулок, напишіть мені на hello@opika.org.ua.",
+      'Притулок уже схвалено, тому заявку не можна видалити за посиланням. Якщо ви не реєстрували цей притулок, напишіть мені на <a href="mailto:hello@opika.org.ua">hello@opika.org.ua</a>.',
     );
     expect(deleted).toEqual([]);
     const lines = async () =>
@@ -501,5 +530,96 @@ describe("the day's cap on confirmation emails", () => {
       }),
     ).toBe(false);
     await expect(Promise.all(scheduled)).resolves.toBeDefined();
+  });
+});
+
+/**
+ * R3: the pages' server action rebuilds the POST from its own Origin and the form body
+ * (`registrationLinkOutcomeOf`); the served path, not the route-shaped wrapper above.
+ */
+describe("the email-link pages' action adapter", () => {
+  const press = (
+    purpose: "confirm_email" | "not_me",
+    origin: string | null,
+    fields: Record<string, string>,
+  ) => {
+    const form = new FormData();
+    for (const [name, value] of Object.entries(fields)) form.set(name, value);
+    return registrationLinkOutcomeOf(purpose, { method: "POST", origin, form }, linkDeps());
+  };
+  const verified = async (userId: string) =>
+    (await db.select().from(authUser)).find((u) => u.id === userId)?.emailVerified;
+
+  it("a same-origin press confirms the address and shows the confirmed card", async () => {
+    const registered = await register();
+    expect(await press("confirm_email", BASE, { token: registered.confirmToken })).toEqual({
+      kind: "page",
+      state: { kind: "confirmed" },
+      status: 200,
+    });
+    expect(await verified(registered.userId)).toBe(true);
+  });
+
+  it("a same-origin «Це не я» deletes the application", async () => {
+    deleted.length = 0;
+    const registered = await register();
+    expect(await press("not_me", BASE, { token: registered.notMeToken })).toMatchObject({
+      state: { kind: "withdrawn" },
+    });
+    expect(deleted).toEqual([registered.shelterId]);
+  });
+
+  it.each([
+    ["another site's Origin", "https://evil.example"],
+    ["no Origin", null],
+  ])("with %s, a press writes nothing", async (_name, origin) => {
+    deleted.length = 0;
+    const registered = await register();
+    const before = await everything();
+    expect((await press("confirm_email", origin, { token: registered.confirmToken })).kind).toBe(
+      "forbidden",
+    );
+    expect((await press("not_me", origin, { token: registered.notMeToken })).kind).toBe(
+      "forbidden",
+    );
+    expect(await everything()).toEqual(before);
+    expect(deleted).toEqual([]);
+  });
+
+  it("reads the token from the form body only", async () => {
+    const registered = await register();
+    const before = await everything();
+    const outcome = await press("confirm_email", BASE, { other: registered.confirmToken });
+    expect(outcome).toMatchObject({ state: { kind: "expired" }, status: 400 });
+    expect(await everything()).toEqual(before);
+  });
+
+  it("a GET through it reads only: the form card, nothing written", async () => {
+    const registered = await register();
+    const before = await everything();
+    expect(
+      await registrationLinkOutcomeOf(
+        "confirm_email",
+        { method: "GET", token: registered.confirmToken },
+        linkDeps(),
+      ),
+    ).toEqual({
+      kind: "page",
+      state: { kind: "form", token: registered.confirmToken, email: "olena@example.org" },
+      status: 200,
+    });
+    // «Це не я» doesn't need the address, so its card isn't handed it.
+    expect(
+      await registrationLinkOutcomeOf(
+        "not_me",
+        { method: "GET", token: registered.notMeToken },
+        linkDeps(),
+      ),
+    ).toEqual({
+      kind: "page",
+      state: { kind: "form", token: registered.notMeToken, email: null },
+      status: 200,
+    });
+    expect(await everything()).toEqual(before);
   });
 });

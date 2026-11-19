@@ -13,7 +13,7 @@ vi.mock("../../kabinet/auth-route", () => ({
   kabinetAuthAvailability: () => ({ kind: "available" }),
 }));
 
-const { signedInPerson } = await import("./signed-in-person");
+const { kabinetEntry, signedInPerson } = await import("./signed-in-person");
 
 beforeEach(() => read.mockReset());
 
@@ -29,5 +29,19 @@ describe("signedInPerson", () => {
     expect(await signedInPerson()).toBeNull();
     read.mockRejectedValueOnce(new Error("db down"));
     expect(await signedInPerson()).toBeNull();
+  });
+});
+
+describe("kabinetEntry (the confirmed card's button)", () => {
+  it("a live kabinet session goes straight in", async () => {
+    read.mockResolvedValue({ name: "О", email: "a@b.test" });
+    expect(await kabinetEntry()).toBe("go_to_kabinet");
+  });
+
+  it("no session, or a read that fails, is the signed-out button", async () => {
+    read.mockResolvedValueOnce(null);
+    expect(await kabinetEntry()).toBe("sign_in");
+    read.mockRejectedValueOnce(new Error("db down"));
+    expect(await kabinetEntry()).toBe("sign_in");
   });
 });

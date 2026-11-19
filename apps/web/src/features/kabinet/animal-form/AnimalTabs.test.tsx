@@ -233,21 +233,20 @@ describe("the missing-items panel", () => {
     await waitFor(() =>
       expect(document.activeElement).toBe(document.getElementById("publication")),
     );
-    expect(screen.queryByText(/Щоб опублікувати, ще потрібно: /)).toBeNull();
+    // The footer's reason stays the one sentence (R4); the click adds no second one.
+    expect(screen.getAllByText(/Щоб опублікувати, ще потрібно: /)).toHaveLength(1);
     expect(screen.getByRole("navigation", { name: "Щоб опублікувати, ще потрібно:" })).toBeTruthy();
   });
 });
 
-describe("the error summary", () => {
+describe("the draft footer's «Показати» (R4)", () => {
   it("brings a field on another tab into view", async () => {
     const user = userEvent.setup();
     renderTabs(null);
     await user.click(within(screen.getByRole("group", { name: "Вид" })).getByLabelText("Кіт"));
+    await user.type(screen.getByLabelText("Імʼя"), "Бу{{");
     await user.click(screen.getByRole("tab", { name: /^Про тварину/ }));
-    await user.click(screen.getByRole("button", { name: "Зберегти чернетку" }));
-    await user.click(
-      await screen.findByRole("link", { name: "Щоб зберегти чернетку, потрібне імʼя." }),
-    );
+    await user.click(await screen.findByRole("button", { name: "Показати" }));
     expect(selectedTab()?.textContent).toMatch(/^Основне/);
     await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Імʼя")));
   });

@@ -301,7 +301,17 @@ export const uk = {
     /** The landing pages of the confirmation email's two links (Phase 0 copy table). */
     emailConfirmed: "Email підтверджено. Я перевірю притулок, зазвичай до 2 днів.",
     confirmLinkExpired: "Посилання застаріло. Увійдіть у кабінет і надішліть лист ще раз.",
-    notMeDone: "Заявку видалено. Якщо це помилка – напишіть мені на {email}.",
+    notMeDone: "Заявку видалено. Якщо це помилка\u00a0– напишіть мені на {email}.",
+    /**
+     * Owner, 2026-11-19: above each link's button; `{email}` is the address the token belongs to.
+     * A no-break space before each «–» in these cards, so the dash never starts a line.
+     */
+    confirmEmailPrompt: "Натисніть кнопку, щоб підтвердити адресу {email}.",
+    notMePrompt:
+      "Якщо ви не реєстрували притулок, натисніть кнопку\u00a0– я видалю заявку, створену з вашою адресою.",
+    /** «Це не я» with a dead link (owner, 2026-11-19): no sign-in hint; `{email}` from app config. */
+    notMeLinkExpired:
+      "Посилання вже не діє. Якщо хтось зареєстрував притулок з вашою адресою\u00a0– напишіть мені на {email}.",
     /** «Це не я» once the operator has approved (owner, 2026-11-18); `{email}` from app config. */
     notMeAfterApproval:
       "Притулок уже схвалено, тому заявку не можна видалити за посиланням. Якщо ви не реєстрували цей притулок, напишіть мені на {email}.",
@@ -1199,10 +1209,10 @@ export const uk = {
         notVisible: "Ті, хто шукає тварину, цю чернетку не бачать.",
         notSavedYet: "Щоб зберегти чернетку, потрібні імʼя та вид.",
         saveFailed: "Чернетку не збережено. Перевірте зʼєднання – усе, що ви ввели, лишається тут.",
-        save: "Зберегти чернетку",
-        saveShort: "Зберегти",
       },
       listed: {
+        /** A listed card's save button, only while it has unsaved edits (redesign §5, owner 2026-11-19). */
+        saveChanges: "Зберегти зміни",
         liveOnSave: "Зміни зʼявляться на картці одразу після збереження.",
         notShownNow: "Цю картку зараз ніхто не бачить.",
         /**

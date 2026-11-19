@@ -32,6 +32,8 @@ describe("proxy matcher", () => {
     "/kabinet/vkhid",
     "/kabinet/vkhid/novyi-parol",
     "/kabinet/vkhid/pidtverdzhennia",
+    "/kabinet/zaiavka/pidtverdyty",
+    "/kabinet/zaiavka/ne-ya",
     "/prytulky",
     "/tvaryny",
     "/",

@@ -243,8 +243,8 @@ save line, F-B2's sentence and two buttons.
 | `animalForm.draft.notSavedYet` | Not saved yet: a name and a species are needed to save a draft. | footer on `/nova` before creation (K-Q5) | - | «Потрібне ім'я, щоб зберегти чернетку.» (MOCK:30, 360: the name half only, shown there as a field error) |
 | (reused) | Saving… | footer while saving | - | `profileEdit.state.saving` «Збереження…» |
 | `animalForm.draft.saveFailed` | The draft didn't save. Check the connection; what you typed stays here. | footer and live region; edits kept in the form; retried on the next change or with retry | - | no draft. K4's `state.failed` speaks of cards, which a draft isn't on |
-| `animalForm.draft.save` | Save draft | footer button (saves now) | - | «Зберегти чернетку» (MOCK:30, KAB:180) |
-| `animalForm.draft.saveShort` | Draft (save) | the same button at 360 | - | «Чернетка» (MOCK:30, 360 footer) |
+| ~~`animalForm.draft.save`~~ | Save draft | retired by R4 (owner, 2026-11-19): a draft's footer has no save button | - | was «Зберегти чернетку» (MOCK:30, KAB:180) |
+| ~~`animalForm.draft.saveShort`~~ | Draft (save) | retired with `draft.save` | - | was «Зберегти» |
 
 ## 10. Editing a listed animal (published, reserved, adopted, withdrawn)
 
