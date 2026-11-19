@@ -187,7 +187,8 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
 
     await page.getByLabel("Імʼя").fill("Харнес");
     await page.getByRole("group", { name: "Вид" }).getByText("Собака").click();
-    await page.getByRole("button", { name: "Зберегти чернетку" }).click();
+    // No save button on a draft (R4): leaving the field saves it.
+    await page.keyboard.press("Tab");
 
     await expect(page).toHaveURL(/\/kabinet\/tvaryny\/[0-9a-f-]{36}$/);
     draftId = page.url().split("/").at(-1) as AnimalId;
@@ -203,8 +204,9 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
       "Опис (Про тварину)",
       "Фото (Фото)",
     ]);
+    // The reason is written beside the button in the footer (R4).
     await expect(publishButton(page)).toHaveAccessibleDescription(
-      /^Щоб опублікувати, ще потрібно:.*Стать \(Основне\).*Фото \(Фото\)$/,
+      "Щоб опублікувати, ще потрібно: стать, розмір, вік, опис і фото.",
     );
 
     // Stored: the draft's own address shows it after a reload, still a draft.
@@ -261,7 +263,7 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     // Switching tabs keeps what was chosen on the first one.
     await openTab(page, /^Про тварину/);
     await page.getByLabel(/^Опис/).fill("Спокійний, любить гуляти в парку.");
-    await page.getByRole("button", { name: "Зберегти чернетку" }).click();
+    await page.getByLabel(/^Опис/).press("Tab");
     // Held: a save has been asked for and none has landed, yet the gap list
     // already reads the form's own state.
     await expect.poll(() => savesHeld, { message: "no save reached the route" }).toBeGreaterThan(0);
@@ -513,7 +515,7 @@ test.describe("/kabinet/tvaryny K3 animal form (a shelter's own admin)", () => {
     await page.close();
   });
 
-  test("the undo toast sits above the draft's save bar at 360 and 1024, and «Зберегти» and «Опублікувати» stay clickable", async () => {
+  test("the undo toast sits above the draft's footer at 360 and 1024, and «Опублікувати» stays clickable", async () => {
     await withThreePhotos();
     const page = await open(`/kabinet/tvaryny/${draftId}`);
     for (const size of [

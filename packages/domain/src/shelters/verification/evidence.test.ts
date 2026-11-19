@@ -19,6 +19,7 @@ describe("EVIDENCE_KINDS", () => {
       "bank_account_holder",
       "reference_contact",
       "site_visit",
+      "open_sources_review",
       "public_link",
       "supporting_document",
     ]);

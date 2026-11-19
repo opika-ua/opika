@@ -17,7 +17,21 @@ const LAYOUT = "inline-flex shrink-0 items-center justify-center gap-2";
 // which passes WCAG 1.4.3 only as large text. It replaces text-label rather than stacking on it.
 const look = (variant: Variant) => `${LAYOUT} ${variant === "accent" ? "text-cta" : "text-label"}`;
 const BASE_BEHAVIOUR =
-  "cursor-pointer focus-ring disabled:cursor-not-allowed disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60";
+  "cursor-pointer focus-ring disabled:cursor-not-allowed aria-disabled:cursor-not-allowed";
+// A faded ink or orange fill still read as pressable (owner, 2026-11-19), so a disabled filled
+// button turns to the quiet `line` fill; loading (aria-busy) keeps its fill, faded.
+const FILLED_DISABLED =
+  "disabled:bg-line disabled:text-ink-2 aria-disabled:not-aria-busy:bg-line aria-disabled:not-aria-busy:text-ink-2 aria-disabled:aria-busy:opacity-60";
+const FADED_DISABLED = "disabled:opacity-60 aria-disabled:opacity-60";
+const DISABLED: Record<Variant, string> = {
+  primary: FILLED_DISABLED,
+  accent: FILLED_DISABLED,
+  secondary: FADED_DISABLED,
+  ghost: FADED_DISABLED,
+  link: FADED_DISABLED,
+  icon: FADED_DISABLED,
+  scrim: FADED_DISABLED,
+};
 
 const VARIANT: Record<Variant, string> = {
   primary: "rounded-pill bg-ink text-on-ink",
@@ -59,7 +73,13 @@ const SIZE: Record<Variant, Record<ButtonSize, string>> = {
 
 /** The class string, for the rare element that cannot be a Button or LinkButton. */
 export function buttonClass(variant: Variant, size: ButtonSize = "md"): string {
-  return cx(look(variant), BASE_BEHAVIOUR, VARIANT[variant], SIZE[variant][size]);
+  return cx(
+    look(variant),
+    BASE_BEHAVIOUR,
+    DISABLED[variant],
+    VARIANT[variant],
+    SIZE[variant][size],
+  );
 }
 
 /** A button's look with none of its behaviour classes, for a decorative `<span aria-hidden>` that only looks like one (a card's pill); fewer classes per card. */

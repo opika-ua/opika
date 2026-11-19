@@ -247,7 +247,7 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   listingStatus: 5,
 
-  animalForm: 157,
+  animalForm: 156,
 
   animalList: 80,
 
@@ -269,7 +269,8 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   history: 2,
 
-  operator: 286,
+  // +13: open sources (2026-11-19).
+  operator: 299,
 
   verificationDecision: 8,
 

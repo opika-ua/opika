@@ -1104,8 +1104,26 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.earlyListing.oneMoreLeft": "Можна дозволити ще один, останній період – з поясненням.",
     "operator.earlyListing.extendNote": "Чому подовжуєте показ",
     "operator.earlyListing.limitReached": "Показ до перевірки вже дозволяли двічі.",
+    // Owner-approved 2026-11-19, replacing the 2026-11-04 text (open sources count).
     "operator.earlyListing.evidenceMinimum":
-      "Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація.",
+      "Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок або рекомендація.",
+  };
+  /** Open sources as a verification basis: owner-approved 2026-11-19 as drafted (PR #545). */
+  const OPEN_SOURCES_OPERATOR_COPY: Record<string, string> = {
+    "operator.evidence.kind.open_sources_review": "Відкриті джерела",
+    "operator.evidence.field.registeredAddress": "Адреса в ЄДР",
+    "operator.evidence.field.pages": "Переглянуті сторінки",
+    "operator.evidence.field.reviews": "Відгуки",
+    "operator.evidence.field.reviewsOptional": "Відгуки · необовʼязково",
+    "operator.evidence.field.checkedOn": "Дата перевірки",
+    "operator.evidence.checkedOnHint": "Дата перевірки не може бути в майбутньому.",
+    "operator.evidence.pagesHint": "Одне посилання в рядку, з https://. Щонайбільше 10.",
+    "operator.evidence.reviewsHint": "Де читали відгуки і що в них.",
+    "operator.evidence.openSourcesNotesHint":
+      "Що перевірили і що збіглося з ЄДР: назва, адреса, як давно ведуться сторінки.",
+    "operator.create.errors.openSourcesCheckInFuture": "Дата перевірки не може бути в майбутньому.",
+    "operator.create.errors.pagesInvalid": "Кожен рядок – посилання, що починається з https://.",
+    "operator.create.errors.pagesTooMany": "Щонайбільше 10 сторінок.",
   };
   /** Pet card PR 3b. His final text (2026-10-27): the builder's draft, approved as written. */
   const PET_CARD_PR3B_LOGO_CHANGED: Record<string, string> = {
@@ -1147,6 +1165,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(MINIMAL_CREATE_COPY).filter((path) => path.startsWith("operator.")),
         ...Object.keys(WEEKLY_REMINDER_OPERATOR_COPY),
         ...Object.keys(DATE_FIELD_OPERATOR_COPY),
+        ...Object.keys(OPEN_SOURCES_OPERATOR_COPY),
       ].sort(),
     );
   });
@@ -1192,6 +1211,13 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   );
 
   it.each(Object.entries(DATE_FIELD_OPERATOR_COPY))(
+    "%s is the owner-approved text",
+    (path, text) => {
+      expect(valueAt(path)).toBe(text);
+    },
+  );
+
+  it.each(Object.entries(OPEN_SOURCES_OPERATOR_COPY))(
     "%s is the owner-approved text",
     (path, text) => {
       expect(valueAt(path)).toBe(text);
@@ -1837,8 +1863,6 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
     "kabinet.animalForm.draft.notSavedYet": "Щоб зберегти чернетку, потрібні імʼя та вид.",
     "kabinet.animalForm.draft.saveFailed":
       "Чернетку не збережено. Перевірте зʼєднання – усе, що ви ввели, лишається тут.",
-    "kabinet.animalForm.draft.save": "Зберегти чернетку",
-    "kabinet.animalForm.draft.saveShort": "Зберегти",
     "kabinet.animalForm.listed.liveOnSave": "Зміни зʼявляться на картці одразу після збереження.",
     "kabinet.animalForm.listed.notShownNow": "Цю картку зараз ніхто не бачить.",
     "kabinet.animalForm.listed.dateUnchanged":
@@ -1927,6 +1951,8 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
         ...Object.keys(PHOTO_TILE_PILL_COPY),
         // The upload's processing state, pinned in its own block below.
         ...Object.keys(UPLOAD_PROCESSING_COPY),
+        // The R4 autosave footer's one new label, pinned in its own block below.
+        ...Object.keys(R4_AUTOSAVE_FOOTER_COPY),
       ].sort(),
     );
     expect(Object.keys(uk.kabinet.listingStatus).sort()).toEqual([
@@ -2620,6 +2646,24 @@ const UPLOAD_PROCESSING_COPY: Record<string, string> = {
   "kabinet.animalForm.photos.processing": "Фото обробляється…",
 };
 
+/** A listed card's save button (R4): the owner-approved redesign, 2026-11-19 §5, verbatim. */
+const R4_AUTOSAVE_FOOTER_COPY: Record<string, string> = {
+  "kabinet.animalForm.listed.saveChanges": "Зберегти зміни",
+};
+
+describe("R4 autosave footer copy (owner-approved redesign 2026-11-19)", () => {
+  it.each(Object.entries(R4_AUTOSAVE_FOOTER_COPY))("%s is his text, exactly", (path, text) => {
+    const found = path
+      .split(".")
+      .slice(1)
+      .reduce<unknown>(
+        (node, key) => (node as Record<string, unknown> | undefined)?.[key],
+        uk.kabinet,
+      );
+    expect(found).toBe(text);
+  });
+});
+
 describe("upload processing copy (owner-given 2026-11-16)", () => {
   it.each(Object.entries(UPLOAD_PROCESSING_COPY))("%s is his text, exactly", (path, text) => {
     const found = path
@@ -3092,5 +3136,47 @@ describe("animal page photo strip copy (owner-given and owner-approved, 2026-11-
     expect(en.detail.photoRowPrev).toBe("Previous photos");
     expect(en.detail.photoRowNext).toBe("Next photos");
     expect(en.detail.photoRowCounter).toBe("{first}–{last} of {total}");
+  });
+});
+
+/** The email-link pages' sentences (owner-approved, 2026-11-19). */
+describe("self-registration email-link copy (owner-approved, 2026-11-19)", () => {
+  const EMAIL_LINK_COPY = {
+    confirmEmailPrompt: "Натисніть кнопку, щоб підтвердити адресу {email}.",
+    notMePrompt:
+      "Якщо ви не реєстрували притулок, натисніть кнопку\u00a0– я видалю заявку, створену з вашою адресою.",
+    notMeLinkExpired:
+      "Посилання вже не діє. Якщо хтось зареєстрував притулок з вашою адресою\u00a0– напишіть мені на {email}.",
+    notMeDone: "Заявку видалено. Якщо це помилка\u00a0– напишіть мені на {email}.",
+  } as const;
+
+  it.each(Object.entries(EMAIL_LINK_COPY))("%s is his text", (key, text) => {
+    expect(uk.registration[key as keyof typeof EMAIL_LINK_COPY]).toBe(text);
+  });
+
+  // The link pages' R3 strings: a no-break space before every «–», so no line starts with one.
+  it.each(["notMePrompt", "notMeLinkExpired", "notMeDone"] as const)(
+    "%s keeps its dash off the start of a line, in both languages",
+    (key) => {
+      expect(uk.registration[key]).toContain("\u00a0– ");
+      for (const text of [uk.registration[key], en.registration[key]]) {
+        expect(text, key).not.toMatch(/ –/);
+      }
+    },
+  );
+
+  it("the confirmed card's signed-in button is R2's «Перейти в кабінет»", () => {
+    expect(uk.registration.signedIn.toKabinet).toBe("Перейти в кабінет");
+  });
+
+  it("the «Це не я» dead link never sends its reader to sign in", () => {
+    expect(uk.registration.notMeLinkExpired).not.toContain("Увійдіть");
+  });
+
+  it("has English beside each", () => {
+    for (const key of Object.keys(EMAIL_LINK_COPY) as (keyof typeof EMAIL_LINK_COPY)[]) {
+      expect(en.registration[key], key).not.toBe("");
+      expect(en.registration[key], key).not.toContain(COPY_PENDING);
+    }
   });
 });

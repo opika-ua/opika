@@ -135,6 +135,67 @@ describe("resubmit prefill", () => {
     expect(visit).toMatchObject({ visitedBy: "22222222-2222-4222-8222-222222222222" });
   });
 
+  it("an open-sources check comes back the same, its checker kept; edited, it is the resubmitter's", () => {
+    const check: EvidenceItem = {
+      kind: "open_sources_review",
+      registry: {
+        edrpou: "43902117" as never,
+        registeredName: "ГО «Ірпінський хвіст»",
+        registeredAddress: "м. Ірпінь, вул. Садова, 3",
+      },
+      pages: ["https://hvist.example.org/", "https://www.facebook.com/hvist"],
+      reviews: null,
+      notes: "Сайт і сторінка ведуться з 2022 року.",
+      checkedAt: new Date("2026-10-05T00:00:00Z"),
+      checkedBy: RECORDER,
+    };
+    expect(resubmitRowsOf(evidence([check]))).toEqual([
+      {
+        id: "on-file-0",
+        kind: "open_sources_review",
+        edrpou: "43902117",
+        registeredName: "ГО «Ірпінський хвіст»",
+        registeredAddress: "м. Ірпінь, вул. Садова, 3",
+        pages: "https://hvist.example.org/\nhttps://www.facebook.com/hvist",
+        reviews: "",
+        notes: "Сайт і сторінка ведуться з 2022 року.",
+        checkedOn: { kind: "date", date: "2026-10-05" },
+      },
+    ]);
+    expect(sentBackUnedited([check]).resubmitted).toEqual({
+      items: [check],
+      submittedAt: RECORDED,
+    });
+    const withReviews = { ...check, reviews: "Відгуки в Google" };
+    expect(sentBackUnedited([withReviews]).resubmitted.items).toEqual([withReviews]);
+    const noRegistry = { ...check, registry: null };
+    expect(sentBackUnedited([noRegistry]).resubmitted.items).toEqual([noRegistry]);
+
+    // An edit makes it the resubmitter's check, as for a visit.
+    const onFile = evidence([check]);
+    const rebuilt = toVerificationEvidence(
+      [
+        {
+          kind: "open_sources_review",
+          registry: {
+            edrpou: "43902117" as never,
+            registeredName: "ГО «Ірпінський хвіст»",
+            registeredAddress: "м. Ірпінь, вул. Садова, 3",
+          },
+          pages: ["https://hvist.example.org/"],
+          reviews: null,
+          notes: "Сайт і сторінка ведуться з 2022 року.",
+          checkedOn: "2026-10-05",
+        },
+      ],
+      { recordedBy: RESUBMITTER, recordedAt: RECORDED },
+    );
+    if (rebuilt.kind !== "ok") throw new Error(rebuilt.kind);
+    expect(withEvidenceOnFile(onFile, rebuilt.evidence).items).toEqual([
+      { ...check, pages: ["https://hvist.example.org/"], checkedBy: RESUBMITTER },
+    ]);
+  });
+
   it.each<[string, ContactChannel]>([
     ["phone", { kind: "phone", e164: "+380505552108" }],
     ["viber", { kind: "viber", e164: "+380671112233" }],

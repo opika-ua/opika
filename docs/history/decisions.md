@@ -65,6 +65,17 @@ Moved verbatim from CLAUDE.md in DS PR 5. Settled decisions (M1, M4, gallery con
    settled, the numbers are yours to change.
    2026-11-10, owner decision, new minimums: registered NGO or sole proprietor = 1 EDRPOU + 1
    `site_visit` (video call); unregistered initiative = 1 `site_visit` + 1 reference.
+   2026-11-19, owner decision, open sources ((a′)): an operator's `open_sources_review` (pages
+   checked, optional reviews, a note, the day, the checking operator, and `registry` – the ЄДР
+   code, name and address – or null) stands in for the video call for every form. The policy line
+   became a discriminated union (`rule: "kind" | "any_of" | "registry_entry"`), and so did
+   `EvidenceGap` and the `EVIDENCE_INSUFFICIENT` data. Registered NGO or ФОП = `registry_entry`
+   (an `edrpou_registration`, or an open-sources check whose `registry` is filled: never weaker
+   than a registration) + any-of(`site_visit`, `open_sources_review`); unregistered initiative =
+   any-of(`site_visit`, `open_sources_review`) + 1 reference. No form needs the call
+   unconditionally; (a′) is approval's rule only. Early listing needs any one of open sources (registry
+   part or not), a call or a reference, for any form. `approvalGaps` still asks for the legal entity and the exact
+   address before any evidence (0024).
 7. **`RejectionReason` and `SuspensionReason` are separate code lists**
    (+ optional free-text note). A shelter is rejected for reasons about its
    application and suspended for reasons about its conduct; one merged enum

@@ -51,7 +51,9 @@ export function ResubmitPanel({
   );
   const [rowErrors, setRowErrors] = useState(NO_ROW_ERRORS);
   const [focusFirstError, setFocusFirstError] = useState(0);
-  const [error, setError] = useState<"none" | "failed" | "site_visit_in_future">("none");
+  const [error, setError] = useState<
+    "none" | "failed" | "site_visit_in_future" | "open_sources_check_in_future"
+  >("none");
   const busy = phase.kind !== "idle";
   const mine = busy && phase.owner === DECISION_OWNER;
 
@@ -93,9 +95,9 @@ export function ResubmitPanel({
           onDone(settled.reread === "done" ? { kind: "illegal_transition" } : { kind: "failed" });
         } else if (
           settled.failure.kind === "invalid_evidence" &&
-          settled.failure.reason === "site_visit_in_future"
+          settled.failure.reason !== "document_not_supported_yet"
         ) {
-          setError("site_visit_in_future");
+          setError(settled.failure.reason);
         } else {
           setError("failed");
         }
@@ -122,16 +124,17 @@ export function ResubmitPanel({
           today={kyivCalendarDateOf(now())}
         />
       </section>
-      {error === "failed" ? (
+      {error === "none" ? null : (
         <p role="alert" className={NOTICE}>
-          {t.errors.failed}
+          {
+            {
+              failed: t.errors.failed,
+              site_visit_in_future: t.create.errors.siteVisitInFuture,
+              open_sources_check_in_future: t.create.errors.openSourcesCheckInFuture,
+            }[error]
+          }
         </p>
-      ) : null}
-      {error === "site_visit_in_future" ? (
-        <p role="alert" className={NOTICE}>
-          {t.create.errors.siteVisitInFuture}
-        </p>
-      ) : null}
+      )}
       <Button
         variant="primary"
         className="self-start"

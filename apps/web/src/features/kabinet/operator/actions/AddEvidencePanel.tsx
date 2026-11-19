@@ -32,7 +32,8 @@ type Message =
   | "failed"
   | "not_editable"
   | "limit"
-  | "site_visit_in_future";
+  | "site_visit_in_future"
+  | "open_sources_check_in_future";
 
 /**
  * «Додати докази» (pending and under_review): the operator appends evidence
@@ -102,8 +103,11 @@ export function AddEvidencePanel({ now = () => new Date() }: { now?: () => Date 
         const { failure } = settled;
         if (failure.kind === "evidence_not_editable") setMessage("not_editable");
         else if (failure.kind === "evidence_limit_reached") setMessage("limit");
-        else if (failure.kind === "invalid_evidence" && failure.reason === "site_visit_in_future") {
-          setMessage("site_visit_in_future");
+        else if (
+          failure.kind === "invalid_evidence" &&
+          failure.reason !== "document_not_supported_yet"
+        ) {
+          setMessage(failure.reason);
         } else setMessage("failed");
         return;
       }
@@ -125,6 +129,7 @@ export function AddEvidencePanel({ now = () => new Date() }: { now?: () => Date 
     not_editable: t.evidence.notEditable,
     limit: t.evidence.limit,
     site_visit_in_future: t.create.errors.siteVisitInFuture,
+    open_sources_check_in_future: t.create.errors.openSourcesCheckInFuture,
   };
 
   return (
