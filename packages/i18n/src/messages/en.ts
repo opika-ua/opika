@@ -568,9 +568,11 @@ export const en = {
     help: "Want me to help? Write to me on Telegram {telegram} or at {email}",
     errors: {
       required: "Fill in this field.",
+      nameRequired: "Enter the name of the shelter or initiative.",
       city: "Choose a city from the list.",
+      linkRequired: "Add a link to a website or a social media page.",
       link: "That doesn't look like a link. For example: instagram.com/your_shelter",
-      contact: "Enter a phone (+380…) or a Telegram name (@name).",
+      contact: "Enter a phone as +380… or a Telegram name with @.",
       email: "Check the email.",
       passwordShort: "The password is too short: at least {min} characters.",
       passwordMismatch: "The passwords don't match.",

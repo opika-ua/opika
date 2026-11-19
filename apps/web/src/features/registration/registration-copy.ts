@@ -1,4 +1,4 @@
-import type { RegistrationFieldError } from "@opika/contracts";
+import type { RegistrationField, RegistrationFieldError } from "@opika/contracts";
 import {
   PASSWORD_MAX_CHARACTERS,
   PASSWORD_MIN_CHARACTERS,
@@ -45,6 +45,14 @@ const ERRORS: Record<RegistrationFieldError, string> = {
   password_mismatch: r.errors.passwordMismatch,
 };
 
+/** «required» on a step-1 field says what goes in it; the other fields keep the generic line. */
+const REQUIRED_BY_FIELD: Partial<Record<RegistrationField, string>> = {
+  name: r.errors.nameRequired,
+  cityId: r.errors.city,
+  link: r.errors.linkRequired,
+  contact: r.errors.contact,
+};
+
 export function registrationCopy() {
   const picker = uk.kabinet.cityPicker;
   return {
@@ -72,6 +80,7 @@ export function registrationCopy() {
     submit: r.submit,
     submitting: r.submitting,
     errors: ERRORS,
+    requiredBy: REQUIRED_BY_FIELD,
     summary: r.errors.summary,
     rateLimited: r.errors.rateLimited,
     emailTaken: r.errors.emailTaken,

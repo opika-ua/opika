@@ -16,7 +16,13 @@ const INITIAL: RegistrationFormState = { result: null, values: EMPTY_VALUES, for
 const CITY = { id: "c-1", label: "Тестове" };
 const READY: RegistrationFormState = {
   ...INITIAL,
-  values: { ...EMPTY_VALUES, name: "Тестовий хвіст", city: CITY, link: "x.ua", contact: "@t" },
+  values: {
+    ...EMPTY_VALUES,
+    name: "Тестовий хвіст",
+    city: CITY,
+    link: "x.ua",
+    contact: "@prytulok_test",
+  },
 };
 
 afterEach(() => vi.restoreAllMocks());
@@ -98,7 +104,7 @@ describe("RegistrationForm", () => {
       values: { ...EMPTY_VALUES, link: String(form.get("link")) },
       formStamp: "s2",
     }));
-    type(copy.labels.link, "@handle");
+    type(copy.labels.link, "x.ua/prytulok");
     type(copy.labels.password, "ялинка-під-вікном");
     await submit();
     const alert = await screen.findByRole("alert");
@@ -108,7 +114,9 @@ describe("RegistrationForm", () => {
     expect(screen.getByText(copy.errors.link)).toBeTruthy();
     expect(screen.getByText(copy.errors.password_mismatch)).toBeTruthy();
     await waitFor(() => expect(document.activeElement).toBe(alert));
-    expect((screen.getByLabelText(copy.labels.link) as HTMLInputElement).value).toBe("@handle");
+    expect((screen.getByLabelText(copy.labels.link) as HTMLInputElement).value).toBe(
+      "x.ua/prytulok",
+    );
     expect((screen.getByLabelText(copy.labels.password) as HTMLInputElement).value).toBe(
       "ялинка-під-вікном",
     );
@@ -209,12 +217,52 @@ describe("RegistrationForm's two steps", () => {
     expect(visible(copy.submit)).toBe(false);
   });
 
+  it("an empty step-1 field says what goes in it, never the generic line (owner, 2026-11-19)", () => {
+    renderForm(action, INITIAL);
+    next();
+    expect(screen.getByText("Вкажіть назву притулку чи ініціативи.")).toBeTruthy();
+    expect(screen.getByText("Оберіть місто зі списку.")).toBeTruthy();
+    expect(screen.getByText("Додайте посилання на сайт або сторінку в соцмережі.")).toBeTruthy();
+    expect(screen.queryByText(copy.errors.required)).toBeNull();
+    expect(screen.getByLabelText(copy.labels.name).getAttribute("aria-invalid")).toBe("true");
+  });
+
   it("one problem: no summary, focus on that field", () => {
     renderForm(action, { ...READY, values: { ...READY.values, link: "" } });
     next();
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.getByText(copy.errors.required)).toBeTruthy();
+    expect(screen.getByText(copy.requiredBy.link as string)).toBeTruthy();
     expect(document.activeElement).toBe(screen.getByLabelText(copy.labels.link));
+  });
+
+  it("a contact that is neither a phone nor a Telegram name stops at step 1", () => {
+    renderForm(action);
+    type(copy.labels.contact, "0671234");
+    next();
+    expect(screen.getByText("Вкажіть телефон у форматі +380… або Telegram через @.")).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByLabelText(copy.labels.contact));
+    expect(visible(copy.submit)).toBe(false);
+  });
+
+  it("a link that isn't one stops at step 1 with the link's own line", () => {
+    renderForm(action);
+    type(copy.labels.link, "@handle");
+    next();
+    expect(screen.getByText(copy.errors.link)).toBeTruthy();
+    expect(visible(copy.submit)).toBe(false);
+  });
+
+  it("the server's «required» on a step-1 field reads the field's own line too", async () => {
+    renderForm(async (previous) => ({
+      ...previous,
+      result: { kind: "invalid", fields: { name: "required", link: "required" } },
+    }));
+    await submit();
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain(copy.labels.name);
+    expect(alert.textContent).toContain(copy.labels.link);
+    expect(screen.getByText(copy.requiredBy.name as string)).toBeTruthy();
+    expect(screen.getByText(copy.requiredBy.link as string)).toBeTruthy();
   });
 
   it("a passed step 1 shows step 2 with the recap, focus on its label", () => {

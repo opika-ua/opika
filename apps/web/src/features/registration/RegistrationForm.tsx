@@ -1,6 +1,7 @@
 "use client";
 
 import type { RegistrationField } from "@opika/contracts";
+import { normalizeAdopterContact, normalizePublicLink } from "@opika/domain";
 import { fillTemplate } from "@opika/i18n/public";
 import {
   type ReactNode,
@@ -172,7 +173,10 @@ export function RegistrationForm({
 
   const errorOf = (field: RegistrationField): string | null => {
     const code = blurErrors[field] ?? serverErrors[field];
-    return code === undefined ? null : copy.errors[code];
+    if (code === undefined) return null;
+    return code === "required"
+      ? (copy.requiredBy[field] ?? copy.errors.required)
+      : copy.errors[code];
   };
   const clear = (field: RegistrationField) => {
     setServerErrors(({ [field]: _gone, ...rest }) => rest);
@@ -233,15 +237,19 @@ export function RegistrationForm({
   );
   const showSummary = errorFocusOf(summary).kind === "summary";
 
-  /** «Далі»: step 1's fields must be there before step 2 shows; the server re-checks everything. */
+  /** «Далі»: step 1's fields must be there and well-formed before step 2; the server re-checks. */
   const next = () => {
     const errors: FieldErrors = {};
     const name = text.name.trim();
     if (name === "") errors.name = "required";
     else if (characters(name) > copy.nameMax) errors.name = "name_too_long";
     if (city === null) errors.cityId = "city";
-    if (text.link.trim() === "") errors.link = "required";
-    if (text.contact.trim() === "") errors.contact = "required";
+    const link = text.link.trim();
+    if (link === "") errors.link = "required";
+    else if (normalizePublicLink(link).kind === "invalid") errors.link = "link";
+    const contact = text.contact.trim();
+    if (contact === "") errors.contact = "required";
+    else if (normalizeAdopterContact(contact).kind === "invalid") errors.contact = "contact";
     if (Object.keys(errors).length > 0) {
       refuse(errors);
       return;

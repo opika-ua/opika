@@ -250,9 +250,12 @@ export const uk = {
      */
     errors: {
       required: "Заповніть це поле.",
+      /** A step-1 field left empty says what goes in it (owner-approved, 2026-11-19). */
+      nameRequired: "Вкажіть назву притулку чи ініціативи.",
       city: "Оберіть місто зі списку.",
+      linkRequired: "Додайте посилання на сайт або сторінку в соцмережі.",
       link: "Не схоже на посилання. Наприклад: instagram.com/vash_prytulok",
-      contact: "Вкажіть телефон (+380…) або Telegram (@імʼя).",
+      contact: "Вкажіть телефон у форматі +380… або Telegram через @.",
       email: "Перевірте email.",
       passwordShort: "Пароль закороткий: щонайменше {min} символів.",
       passwordMismatch: "Паролі не збігаються.",
