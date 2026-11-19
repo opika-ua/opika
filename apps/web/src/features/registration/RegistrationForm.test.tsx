@@ -254,23 +254,6 @@ describe("RegistrationForm's two steps", () => {
     expect(visible(copy.submit)).toBe(true);
   });
 
-  it("a contact that is neither a phone nor a Telegram name stops at step 1", () => {
-    renderForm(action);
-    type(copy.labels.contact, "0671234");
-    next();
-    expect(screen.getByText("Вкажіть телефон у форматі +380… або Telegram через @.")).toBeTruthy();
-    expect(document.activeElement).toBe(screen.getByLabelText(copy.labels.contact));
-    expect(visible(copy.submit)).toBe(false);
-  });
-
-  it("a link that isn't one stops at step 1 with the link's own line", () => {
-    renderForm(action);
-    type(copy.labels.link, "@handle");
-    next();
-    expect(screen.getByText(copy.errors.link)).toBeTruthy();
-    expect(visible(copy.submit)).toBe(false);
-  });
-
   it("the server's «required» on a step-1 field reads the field's own line too", async () => {
     renderForm(async (previous) => ({
       ...previous,
@@ -282,6 +265,17 @@ describe("RegistrationForm's two steps", () => {
     expect(alert.textContent).toContain(copy.labels.link);
     expect(screen.getByText(copy.requiredBy.name as string)).toBeTruthy();
     expect(screen.getByText(copy.requiredBy.link as string)).toBeTruthy();
+  });
+
+  it("the server's refusal of a typed contact reads the approved format line", async () => {
+    renderForm(async (previous) => ({
+      ...previous,
+      result: { kind: "invalid", fields: { contact: "contact" } },
+    }));
+    await submit();
+    expect(
+      await screen.findByText("Вкажіть телефон у форматі +380… або Telegram через @."),
+    ).toBeTruthy();
   });
 
   it("a passed step 1 shows step 2 with the recap, focus on its label", () => {

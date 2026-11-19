@@ -1,7 +1,6 @@
 "use client";
 
 import type { RegistrationField } from "@opika/contracts";
-import { normalizeAdopterContact, normalizePublicLink } from "@opika/domain";
 import { fillTemplate } from "@opika/i18n/public";
 import {
   type ReactNode,
@@ -246,12 +245,8 @@ export function RegistrationForm({
     if (city === null) errors.cityId = "city";
     const link = text.link.trim();
     if (link === "") errors.link = "required";
-    else if (normalizePublicLink(link).kind === "invalid") errors.link = "link";
-    // The contact is optional (#531): only a typed value is checked.
-    const contact = text.contact.trim();
-    if (contact !== "" && normalizeAdopterContact(contact).kind === "invalid") {
-      errors.contact = "contact";
-    }
+    // Formats are the server's: the normalizers would pull zod into the public bundle. The contact
+    // is optional (#531), so step 1 never requires it.
     if (Object.keys(errors).length > 0) {
       refuse(errors);
       return;
