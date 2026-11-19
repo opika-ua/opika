@@ -31,13 +31,21 @@ async function markDocument(page: Page): Promise<void> {
 test.describe("/prytulkam's registration form", () => {
   const form = (page: Page) => page.locator("#reyestratsiia form");
 
-  async function fill(page: Page): Promise<void> {
+  async function fillStepOne(page: Page): Promise<void> {
     await page.getByLabel("Назва притулку чи ініціативи").fill("Притулок «Тестовий хвіст»");
     await page.getByLabel("Сайт або сторінка в соцмережі").fill("instagram.com/prytulok_test");
     await page.getByLabel("Телефон або Telegram для людей").fill("@prytulok_test");
+  }
+
+  async function fillStepTwo(page: Page): Promise<void> {
     await page.getByLabel("Email").fill("olena@example.org");
     await page.getByLabel("Пароль", { exact: true }).fill("ялинка-під-вікном-у-грудні");
     await page.getByLabel("Повторіть пароль").fill("ялинка-під-вікном-у-грудні");
+  }
+
+  async function fill(page: Page): Promise<void> {
+    await fillStepOne(page);
+    await fillStepTwo(page);
   }
 
   test("with JS: a refused submit stays in the same document, nothing in the URL", async ({
@@ -46,7 +54,13 @@ test.describe("/prytulkam's registration form", () => {
     await page.goto("/prytulkam", { waitUntil: "load" });
     await expect(form(page)).toBeVisible();
     await hydrated(page, "#reyestratsiia form button[type='submit']");
-    await fill(page);
+    // With JS the card is two steps: «Далі» checks step 1 (a city picked) before step 2 shows.
+    await fillStepOne(page);
+    await page.getByRole("combobox", { name: "Місто" }).fill("Київ");
+    await page.getByRole("option", { name: /^Київ/ }).first().click();
+    await page.getByRole("button", { name: "Далі" }).click();
+    await expect(page.getByRole("heading", { name: "Крок 2 з 2 · Ваш акаунт" })).toBeFocused();
+    await fillStepTwo(page);
     await markDocument(page);
     // Straight away: under the minimum fill time, so the server refuses with the generic line.
     await page.getByRole("button", { name: "Зареєструвати притулок" }).click();

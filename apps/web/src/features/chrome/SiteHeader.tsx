@@ -5,7 +5,7 @@ import { Container } from "../../ui/Container";
 import { Icon } from "../../ui/Icon";
 import { KabinetEntryLink } from "../kabinet/KabinetEntryLink";
 import { SavedButton } from "../likes/SavedButton";
-import { type Audience, audienceOf } from "./audience";
+import { audienceOf } from "./audience";
 import { BrandLogo } from "./BrandLogo";
 import { MobileNavMenu } from "./MobileNavMenu";
 
@@ -73,11 +73,9 @@ const ENTRIES = [
  * visitor signs in from «Для притулків».
  */
 function NavLinks({
-  audience,
   current,
   layout,
 }: {
-  audience: Audience;
   current: NavCurrent | undefined;
   layout: "inline" | "menu";
 }) {
@@ -102,37 +100,14 @@ function NavLinks({
           </Link>
         );
       })}
-      {menu ? null : (
-        // A visitor's separator only shows with the saved button; a shelter always has the pill.
-        <span
-          aria-hidden="true"
-          className={`h-6 w-px shrink-0 bg-line ${audience === "visitor" ? "saved-slot" : ""}`}
-        />
-      )}
+      {/* Everyone has the «Кабінет» button after it now, so the separator always shows. */}
+      {menu ? null : <span aria-hidden="true" className="h-6 w-px shrink-0 bg-line" />}
       <SavedButton
         layout={menu ? "row" : "button"}
         current={current === "saved"}
         testId={`nav-saved${suffix}`}
         rowClassName={`${MENU_ROW_CLASS} ${current === "saved" ? CURRENT_ROW : ""}`}
       />
-      {/* A plain <a> (a full document load), never next/link: `KabinetEntryLink`. */}
-      {audience === "shelter" ? (
-        menu ? (
-          <KabinetEntryLink
-            to="home"
-            data-testid="nav-kabinet-menu"
-            className={`${MENU_ROW_CLASS} justify-between`}
-          >
-            {uk.nav.kabinet}
-            <Icon name="user" />
-          </KabinetEntryLink>
-        ) : (
-          <KabinetEntryLink to="home" variant="primary" data-testid="nav-kabinet">
-            <Icon name="user" size="md" />
-            {uk.nav.kabinet}
-          </KabinetEntryLink>
-        )
-      ) : null}
     </>
   );
 }
@@ -170,11 +145,27 @@ export function SiteHeader({
 
         {/* Named, because the pagination nav is the other landmark of its kind on the gallery. */}
         <nav aria-label={WORDMARK} className="hidden desktop:flex items-center gap-8">
-          <NavLinks audience={audience} current={current} layout="inline" />
+          <NavLinks current={current} layout="inline" />
         </nav>
 
+        {/*
+          On every breakpoint, outside the menu (R2): sign-in is one tap away. Signed in → the
+          kabinet, otherwise its sign-in page; a plain <a>, a full document load (#509).
+        */}
+        <KabinetEntryLink
+          to={audience === "shelter" ? "home" : "signIn"}
+          variant="primary"
+          size="compact"
+          data-testid="nav-kabinet"
+          className="shrink-0 tablet:px-6"
+        >
+          {/* Text only below tablet, so the row fits at 320 px. */}
+          <Icon name="user" size="md" className="hidden tablet:block" />
+          {uk.nav.kabinet}
+        </KabinetEntryLink>
+
         <MobileNavMenu>
-          <NavLinks audience={audience} current={current} layout="menu" />
+          <NavLinks current={current} layout="menu" />
         </MobileNavMenu>
       </Container>
     </header>
