@@ -107,10 +107,14 @@ export function SavePill({
 
   const saving = state.kind === "saving";
   const secondary = phone ? "secondary" : "ghost";
-  const grow = phone ? "w-full" : undefined;
+  // A phone's pair shares 328px at 360: one line each, compact padding, equal unless a label needs
+  // more («Спробувати ще раз»). Measured in the brand font: «Зберегти зміни» 113px + 24px padding.
+  const size = phone ? "compact" : "md";
+  const grow = phone ? "flex-1 whitespace-nowrap" : "whitespace-nowrap";
   const cancel = (
     <Button
       variant={secondary}
+      size={size}
       className={grow}
       aria-disabled={saving || undefined}
       onClick={() => {
@@ -122,6 +126,7 @@ export function SavePill({
   );
   const primary = (label: string, action: () => void, disabled = false) => (
     <Button
+      size={size}
       className={grow}
       aria-disabled={disabled || undefined}
       onClick={() => {
@@ -146,7 +151,7 @@ export function SavePill({
     case "invalid":
       buttons = (
         <>
-          <Button variant={secondary} className={grow} onClick={onShow}>
+          <Button variant={secondary} size={size} className={grow} onClick={onShow}>
             {t.saveBar.show}
           </Button>
           {primary(saveLabel ?? t.actions.save, onSave)}
@@ -203,17 +208,7 @@ export function SavePill({
           <SaveDot tone={saveToneOf(state)} />
           <span className="min-w-0">{saveBarTextOf(state)}</span>
         </p>
-        {buttons === null ? null : (
-          <div
-            className={cx(
-              "flex items-center gap-2",
-              // Two buttons share a phone bar in equal columns (a flexed pair differs by the outline's border).
-              state.kind !== "blocked" && !oneRow && "max-tablet:grid max-tablet:grid-cols-2",
-            )}
-          >
-            {buttons}
-          </div>
-        )}
+        {buttons === null ? null : <div className="flex items-center gap-2">{buttons}</div>}
       </div>
     </StickyActionBar>
   );
