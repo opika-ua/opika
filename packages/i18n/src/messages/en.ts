@@ -553,7 +553,7 @@ export const en = {
     },
     email: {
       label: "Email",
-      help: "For signing in to the cabinet. Not shown on the site.",
+      help: "You will sign in to the cabinet with it. Not shown on the site.",
     },
     password: {
       label: "Password",
@@ -568,9 +568,11 @@ export const en = {
     help: "Want me to help? Write to me on Telegram {telegram} or at {email}",
     errors: {
       required: "Fill in this field.",
+      nameRequired: "Enter the name of the shelter or initiative.",
       city: "Choose a city from the list.",
+      linkRequired: "Add a link to a website or a social media page.",
       link: "That doesn't look like a link. For example: instagram.com/your_shelter",
-      contact: "Enter a phone (+380…) or a Telegram name (@name).",
+      contact: "Enter a phone as +380… or a Telegram name with @.",
       email: "Check the email.",
       passwordShort: "The password is too short: at least {min} characters.",
       passwordMismatch: "The passwords don't match.",
@@ -581,7 +583,7 @@ export const en = {
       dailyCap:
         "Too many applications right now. Please try again tomorrow or write to me at {email}.",
     },
-    signInPrompt: "No cabinet yet? Register a shelter",
+    signInPrompt: { text: "No cabinet yet?", link: "Register a shelter" },
     whatToPrepareAccess:
       "You create the cabinet yourself, with the form on this page. If you prefer, write to me and I'll create it for you.",
     howToStart:
@@ -613,6 +615,55 @@ export const en = {
       "The shelter is already approved, so the application can't be deleted from the link. If you didn't register this shelter, write to me at {email}.",
     emailTakenSignIn: "Sign in",
     emailTakenReset: "Reset password",
+    steps: { one: "Step 1 of 2 · About the shelter", two: "Step 2 of 2 · Your account" },
+    next: "Next",
+    recap: "{name}, {city}.",
+    change: "Change",
+    back: "← Back",
+    footer: { text: "Already have a cabinet?", link: "Sign in" },
+    assistance: { text: "Need help?", link: "Write to me" },
+    signedIn: {
+      admin: "You are already signed in as {email}.",
+      toKabinet: "Go to the cabinet",
+      signOut: "Sign out",
+      operator: "You are signed in as the operator. Registration is for shelters.",
+      toApplications: "To applications",
+    },
+    page: {
+      lead: "List your shelter's or initiative's animals on {site} – people will find them by city, age and size.",
+      leadShort: "Free, no ads or fees. Registration takes 3 minutes.",
+      benefits: [
+        "Free, no ads or fees",
+        "Registration takes 3 minutes, you add animals right away",
+        "I check the shelter, usually within 2 days",
+        "People write to you directly",
+      ],
+      jump: { verification: "How I check a shelter", rules: "Rules", questions: "Questions" },
+      howItWorks: {
+        title: "How it works",
+        steps: [
+          {
+            title: "You register the shelter",
+            body: "A few fields and a password, the cabinet right away.",
+          },
+          {
+            title: "You add animals",
+            body: "Photos, age, temperament. While I check – as drafts.",
+          },
+          { title: "People write to you", body: "Contacts on the card, no middlemen." },
+        ],
+      },
+      questions: {
+        overline: "Shelters' questions",
+        title: "Everything worth knowing",
+        groups: {
+          moneyContacts: "Money and contacts",
+          verificationRules: "Checks and rules",
+          animalCards: "Animal cards",
+          aboutProject: "About the project",
+        },
+      },
+    },
   },
   kabinet: {
     application: {
@@ -712,6 +763,10 @@ export const en = {
       operator: "Operator",
       newTab: "(opens in a new tab)",
     },
+    signInPage: {
+      subtitle: "For shelters and volunteers who are already registered.",
+      assistance: { text: "Can't sign in?", link: "Write to me" },
+    },
     signIn: {
       pageTitle: "Sign in to the cabinet",
       title: "Sign in to the cabinet",
@@ -727,8 +782,6 @@ export const en = {
       wrongCredentials:
         "Couldn't sign in. Check the address and password, or send yourself a sign-in link.",
       throttled: "Too many sign-in attempts. Try again in {minutes} min.",
-      addressNote:
-        "I add your address when I invite your shelter. If the address is not on the list no email arrives, and this page does not say so, so that it never reveals who is registered.",
       failed: "Could not reach the site. Check your connection and try again.",
       sendFailed: "The link could not be sent. Check your connection and try again.",
       sentTitle: "Check your email",

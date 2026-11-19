@@ -28,12 +28,11 @@ describe("PasswordField", () => {
 
     const hide = screen.getByRole("button", { name: "Сховати пароль" });
     expect(hide.getAttribute("aria-controls")).toBe("pw");
-    expect(hide.getAttribute("aria-pressed")).toBe("true");
+    // The swapping name is the state; no aria-pressed on top (owner, 2026-11-19).
+    expect(hide.hasAttribute("aria-pressed")).toBe(false);
     fireEvent.click(hide);
     expect(input.type).toBe("password");
-    expect(
-      screen.getByRole("button", { name: "Показати пароль" }).getAttribute("aria-pressed"),
-    ).toBe("false");
+    expect(screen.getByRole("button", { name: "Показати пароль" })).toBeTruthy();
   });
 
   it("a pointer press on the eye leaves focus in the input", () => {

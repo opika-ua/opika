@@ -74,6 +74,20 @@ export async function kabinetSessionUserIdOf(
 }
 
 /**
+ * The signed-in user's id and person, one session read without refreshing: for a public page that
+ * only needs to know who is there (/prytulkam's card). No role, no support-mode resolution.
+ */
+export async function kabinetSessionUserOf(
+  auth: KabinetAuth,
+  db: Database,
+  headers: Headers,
+  now: Date,
+): Promise<{ userId: string; person: SignedInPerson } | null> {
+  const user = await liveSessionUserOf(auth, db, headers, now, false);
+  return user === null ? null : { userId: user.id, person: personOf(user) };
+}
+
+/**
  * Who is signed in, for the header and the account page: the name and the address, nothing else
  * of the session. Read without refreshing (a render is not a visit; the page's own identity read
  * does that), and null for no session or a lapsed one.

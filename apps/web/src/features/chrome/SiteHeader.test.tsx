@@ -73,12 +73,14 @@ describe("SiteHeader", () => {
     }
   });
 
-  it("a visitor has no «Кабінет» entry anywhere, and signs in from «Для притулків»", () => {
+  // Scenarios A (2026-11-19): the button works the same everywhere, outside the phone menu.
+  it("a visitor's «Кабінет» button goes to sign-in, a full load, once, outside the menu", () => {
     render(<SiteHeader kabinetSignedIn={false} />);
 
-    expect(screen.queryByTestId("nav-kabinet")).toBeNull();
-    expect(screen.queryByTestId("nav-kabinet-menu")).toBeNull();
-    expect(screen.queryByRole("link", { name: uk.nav.kabinet, hidden: true })).toBeNull();
+    const pill = screen.getByTestId("nav-kabinet");
+    expect(pill.getAttribute("href")).toBe("/kabinet/vkhid");
+    expect(pill.closest("nav")).toBeNull();
+    expect(screen.getAllByRole("link", { name: uk.nav.kabinet, hidden: true })).toHaveLength(1);
   });
 
   it("a signed-in shelter gets the «Кабінет» pill and the same links as a visitor", () => {
@@ -87,7 +89,7 @@ describe("SiteHeader", () => {
     const pill = screen.getByTestId("nav-kabinet");
     expect(pill.getAttribute("href")).toBe("/kabinet");
     expect(pill.textContent).toBe(uk.nav.kabinet);
-    expect(screen.getByTestId("nav-kabinet-menu").getAttribute("href")).toBe("/kabinet");
+    expect(screen.getAllByRole("link", { name: uk.nav.kabinet, hidden: true })).toHaveLength(1);
     expect(screen.getByRole("link", { name: uk.nav.about })).toBeTruthy();
     expect(screen.getByRole("link", { name: uk.nav.forShelters })).toBeTruthy();
     expect(screen.getByRole("link", { name: uk.nav.animals })).toBeTruthy();
@@ -139,7 +141,8 @@ describe("SiteHeader", () => {
     expect(button.getAttribute("aria-current")).toBe("page");
   });
 
-  it("the drawer carries the same entries: a «Збережені» row with its count, and «Кабінет» last for a shelter", async () => {
+  // «Кабінет» left the drawer for the header row itself (R2: one tap on a phone).
+  it("the drawer carries the same entries and a «Збережені» row with its count; «Кабінет» is beside it", async () => {
     toggleSavedAnimal("a1", new Date());
     toggleSavedAnimal("a2", new Date());
     render(<SiteHeader kabinetSignedIn={true} />);
@@ -148,14 +151,15 @@ describe("SiteHeader", () => {
     expect(row.getAttribute("aria-label")).toBe("Збережені, 2");
     expect(row.getAttribute("href")).toBe("/zberezheni");
     const rows = Array.from(screen.getByTestId("nav-menu-sheet").querySelectorAll("nav > a"));
-    expect(rows.at(-1)?.getAttribute("data-testid")).toBe("nav-kabinet-menu");
     expect(rows.map((r) => r.getAttribute("href"))).toEqual([
       "/tvaryny",
       "/prytulkam",
       "/pro",
       "/zberezheni",
-      "/kabinet",
     ]);
+    const pill = screen.getByTestId("nav-kabinet");
+    expect(pill.getAttribute("href")).toBe("/kabinet");
+    expect(screen.getByTestId("nav-menu-sheet").contains(pill)).toBe(false);
   });
 
   /**

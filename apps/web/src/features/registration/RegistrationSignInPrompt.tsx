@@ -1,11 +1,11 @@
 import { uk } from "@opika/i18n";
-import { TextLink } from "../../ui/TextLink";
+import { AuthCardFooter } from "../../ui/AuthCardFooter";
 import { isSelfRegistrationEnabled } from "./flag";
 import { REGISTRATION_ANCHOR } from "./form-state";
 
 /**
- * «Ще немає кабінету? Зареєструйте притулок» under the sign-in form (§13.1), for a shelter that
- * landed on sign-in with no kabinet yet. Nothing while self-registration is off.
+ * «Ще немає кабінету? Зареєструйте притулок»: the sign-in card's footer strip, a full load to the
+ * form on /prytulkam. Nothing while self-registration is off.
  */
 export function RegistrationSignInPrompt({
   enabled = isSelfRegistrationEnabled(),
@@ -14,12 +14,10 @@ export function RegistrationSignInPrompt({
 }) {
   if (!enabled) return null;
   return (
-    <TextLink
+    <AuthCardFooter
+      text={uk.registration.signInPrompt.text}
+      linkLabel={uk.registration.signInPrompt.link}
       href={`/prytulkam#${REGISTRATION_ANCHOR}`}
-      placement="standalone"
-      className="mt-4 self-center"
-    >
-      {uk.registration.signInPrompt}
-    </TextLink>
+    />
   );
 }
