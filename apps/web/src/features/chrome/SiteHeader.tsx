@@ -32,8 +32,8 @@ export interface SiteHeaderProps {
    */
   readonly wordmarkIsCurrentPage?: boolean;
   /**
-   * Whether the kabinet session cookie is present (a UI hint, never security). A signed-in shelter
-   * gets the filled «Кабінет» pill; the rest of the header is the same for everyone. No default: every caller
+   * Whether the kabinet session cookie is present (a UI hint, never security). It only picks where
+   * «Кабінет притулку» leads; the header looks the same for everyone. No default: every caller
    * decides this from its own request, via `kabinetSessionCookiePresent()`
    * (`kabinet-signed-in.ts`), so an omission cannot go unnoticed.
    */
@@ -69,8 +69,7 @@ const ENTRIES = [
 /**
  * The nav, written once and rendered twice (inline from `desktop:`, in the drawer below it). Both
  * copies are in the DOM at once, so the drawer's links get their own ids. The saved entry is for
- * everyone and shows itself (`SavedButton`); «Кабінет» is for a signed-in shelter only, since a
- * visitor signs in from «Для притулків».
+ * everyone and shows itself (`SavedButton`); the kabinet entry is `KabinetEntry`, outside the list.
  */
 function NavLinks({
   current,
@@ -112,12 +111,30 @@ function NavLinks({
   );
 }
 
+/** Signed in → the kabinet, otherwise its sign-in page; a plain <a>, a full document load (#509). */
+function KabinetEntry({
+  to,
+  testId,
+  className,
+}: {
+  to: "home" | "signIn";
+  testId: string;
+  className: string;
+}) {
+  return (
+    <KabinetEntryLink to={to} data-testid={testId} className={className}>
+      <Icon name="user" size="md" />
+      {uk.nav.kabinetEntry}
+    </KabinetEntryLink>
+  );
+}
+
 export function SiteHeader({
   wordmarkIsCurrentPage = false,
   kabinetSignedIn,
   current,
 }: SiteHeaderProps) {
-  const audience = audienceOf(kabinetSignedIn);
+  const entry = audienceOf(kabinetSignedIn) === "shelter" ? "home" : "signIn";
   return (
     // The element carries the sticky fill (the overlay rule in globals.css turns it transparent);
     // `Container` inside carries the width. Sticky because the header must follow the scroll.
@@ -148,21 +165,13 @@ export function SiteHeader({
           <NavLinks current={current} layout="inline" />
         </nav>
 
-        {/*
-          On every breakpoint, outside the menu (R2): sign-in is one tap away. Signed in → the
-          kabinet, otherwise its sign-in page; a plain <a>, a full document load (#509).
-        */}
-        <KabinetEntryLink
-          to={audience === "shelter" ? "home" : "signIn"}
-          data-testid="nav-kabinet"
-          className="nav-kabinet"
-        >
-          {/* Text only below tablet, so the row fits at 320 px. */}
-          <Icon name="user" size="md" className="hidden tablet:block" />
-          {uk.nav.kabinet}
-        </KabinetEntryLink>
+        {/* Outline, not filled (owner, 2026-11-19): most visitors want animals, not a sign-in.
+            Here from desktop; below it, the last item in the menu. */}
+        <KabinetEntry to={entry} testId="nav-kabinet" className="nav-kabinet" />
 
-        <MobileNavMenu>
+        <MobileNavMenu
+          footer={<KabinetEntry to={entry} testId="nav-kabinet-menu" className="nav-kabinet-row" />}
+        >
           <NavLinks current={current} layout="menu" />
         </MobileNavMenu>
       </Container>

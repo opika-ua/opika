@@ -7,9 +7,10 @@ import { Sheet } from "../../ui/Sheet";
  * The header's hamburger drawer below `tablet:`: the kit's `Sheet`, which keeps the no-JS path
  * (the trigger is an `<a href="#site-nav-menu">` revealed by `:target`) and upgrades to a native
  * modal `<dialog>` with JS (focus trap, Esc/Back, scroll lock, focus back to the trigger).
- * `children` is the nav content, so the one list of links is never written twice here.
+ * `children` is the nav content, so the one list of links is never written twice here; `footer`
+ * follows the list (the kabinet entry).
  */
-export function MobileNavMenu({ children }: { children: ReactNode }) {
+export function MobileNavMenu({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
   return (
     <Sheet
       id="site-nav-menu"
@@ -33,6 +34,7 @@ export function MobileNavMenu({ children }: { children: ReactNode }) {
       <nav aria-label={uk.nav.menu} className="flex flex-col gap-1">
         {children}
       </nav>
+      {footer === undefined ? null : <div className="pt-6">{footer}</div>}
     </Sheet>
   );
 }
