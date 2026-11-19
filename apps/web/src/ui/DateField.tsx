@@ -79,55 +79,60 @@ export function DateField({
       className={cx("flex min-w-0 flex-col gap-2", className)}
     >
       <legend className={cx(LABEL, "mb-2")}>{legend}</legend>
-      {/* Day, month, year: the order the date is said in. The year wraps below on a narrow phone. */}
-      <div className="flex flex-wrap gap-3">
-        <div className="flex w-16 flex-col gap-1">
-          <label htmlFor={id} className={PART_LABEL}>
-            {labels.day}
-          </label>
-          <input
-            id={id}
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            maxLength={DAY_DIGITS}
-            value={parts.day}
-            onChange={(event) => change({ day: digitsOf(event.currentTarget.value, DAY_DIGITS) })}
-            {...part}
-          />
-        </div>
-        <div className="flex min-w-36 flex-1 flex-col gap-1 tablet:w-48 tablet:flex-none">
-          <label htmlFor={`${id}-month`} className={PART_LABEL}>
-            {labels.month}
-          </label>
-          <select
-            id={`${id}-month`}
-            value={parts.month}
-            onChange={(event) => change({ month: event.currentTarget.value })}
-            {...part}
-          >
-            <option value="" />
-            {labels.months.map((name, index) => (
-              <option key={name} value={String(index + 1)}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex w-24 flex-col gap-1">
-          <label htmlFor={`${id}-year`} className={PART_LABEL}>
-            {labels.year}
-          </label>
-          <input
-            id={`${id}-year`}
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            maxLength={YEAR_DIGITS}
-            value={parts.year}
-            onChange={(event) => change({ year: digitsOf(event.currentTarget.value, YEAR_DIGITS) })}
-            {...part}
-          />
+      {/* DOM order is day, month, year (how the date is said). Under the @sm container width the
+          month moves visually to its own row, so the select is never squeezed. */}
+      <div className="@container">
+        <div className="flex flex-wrap gap-3">
+          <div className="flex w-16 flex-col gap-1">
+            <label htmlFor={id} className={PART_LABEL}>
+              {labels.day}
+            </label>
+            <input
+              id={id}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={DAY_DIGITS}
+              value={parts.day}
+              onChange={(event) => change({ day: digitsOf(event.currentTarget.value, DAY_DIGITS) })}
+              {...part}
+            />
+          </div>
+          <div className="order-last flex basis-full flex-col gap-1 @sm:order-none @sm:min-w-36 @sm:flex-1 @sm:basis-auto @md:w-48 @md:flex-none">
+            <label htmlFor={`${id}-month`} className={PART_LABEL}>
+              {labels.month}
+            </label>
+            <select
+              id={`${id}-month`}
+              value={parts.month}
+              onChange={(event) => change({ month: event.currentTarget.value })}
+              {...part}
+            >
+              <option value="" />
+              {labels.months.map((name, index) => (
+                <option key={name} value={String(index + 1)}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex w-24 flex-col gap-1">
+            <label htmlFor={`${id}-year`} className={PART_LABEL}>
+              {labels.year}
+            </label>
+            <input
+              id={`${id}-year`}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={YEAR_DIGITS}
+              value={parts.year}
+              onChange={(event) =>
+                change({ year: digitsOf(event.currentTarget.value, YEAR_DIGITS) })
+              }
+              {...part}
+            />
+          </div>
         </div>
       </div>
       {error ? <FieldError id={errorId}>{error}</FieldError> : null}

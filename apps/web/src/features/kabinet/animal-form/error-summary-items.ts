@@ -40,7 +40,7 @@ export function summaryItemsOf(
   const fields = [...new Set(problems.map((problem) => problem.field))];
   return fields.map((field) => ({
     key: field,
-    message: problemText(problems, field) ?? "",
+    label: problemText(problems, field) ?? "",
     target: TARGET[field],
     onSelect: () => goTo(FIELD_TAB[field], TARGET[field]),
   }));

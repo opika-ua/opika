@@ -6,20 +6,22 @@ import type {
   TextareaHTMLAttributes,
 } from "react";
 import { cx } from "./cx";
+import { Icon } from "./Icon";
 
 /**
  * Form controls. Plain components with no hooks, so a
  * server page and a client form can both use them. Every control is 48px tall, 16px text (iOS does not
- * zoom on focus), labelled, and linked to its hint and error with `aria-describedby`. Invalid is an
- * inset ink ring plus the error's words, never a colour alone.
+ * zoom on focus), labelled, and linked to its hint and error with `aria-describedby`. Invalid is the
+ * danger border and fill plus the error's words and icon, never a colour alone.
  */
 // `focus-within` sets the field's ring size (2px + 2px): it sorts after the `focus-ring` utility, so it wins over its 3px + 3px.
 export const CONTROL =
   "min-h-target w-full min-w-0 rounded-field border-2 border-line bg-surface px-4 text-body text-ink focus-ring focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus";
-export const INVALID = "ring-2 ring-inset ring-ink";
+// Keyed on the control's own `aria-invalid`, so it outranks CONTROL's border and fill.
+export const INVALID = "aria-invalid:border-danger aria-invalid:bg-danger-bg";
 export const LABEL = "text-label text-ink";
 export const HINT = "text-caption text-ink-2";
-export const ERROR = "text-label text-ink";
+export const ERROR = "text-label text-danger";
 
 export function FieldHint({ id, children }: { id: string; children: ReactNode }) {
   return (
@@ -29,9 +31,11 @@ export function FieldHint({ id, children }: { id: string; children: ReactNode })
   );
 }
 
+/** Directly under the control, above its hint: the field's own words, in danger with an icon. */
 export function FieldError({ id, children }: { id: string; children: ReactNode }) {
   return (
-    <p id={id} className={ERROR}>
+    <p id={id} className={cx("flex items-start gap-2", ERROR)}>
+      <Icon name="alert" size="md" className="mt-0.5" />
       {children}
     </p>
   );
@@ -247,8 +251,8 @@ export function SegmentedControl<T extends string>({
       <div
         className={cx(
           SEGMENT_TRACK,
-          "w-full flex-wrap border-line tablet:w-fit",
-          error ? INVALID : "",
+          "w-full flex-wrap tablet:w-fit",
+          error ? "border-danger" : "border-line",
         )}
       >
         {segments.map((segment) => (

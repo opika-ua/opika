@@ -179,7 +179,7 @@ export function RegistrationForm({
     const message = errorOf(field);
     return message === null || serverErrors[field] === undefined
       ? []
-      : [{ key: field, message, target: `#${fieldIdOf(field)}` }];
+      : [{ key: field, label: message, target: `#${fieldIdOf(field)}` }];
   });
   const result = state.result;
   const leaving = result?.kind === "registered";

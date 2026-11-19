@@ -14,7 +14,7 @@ File: `apps/web/src/ui/DateField.tsx`; its rules, pure, in `apps/web/src/ui/date
 
 **Accessibility.** One `fieldset` named by its `legend`, a visible label per part. The group is described by the hint and the error; every part is `aria-invalid` and described by the one error message. A link to `#id` (the error summary's) lands on the day. Moving between parts is still one field: the animal form shows the error once focus leaves the group.
 
-**Responsive.** 48px parts, 16px text. Day, month, year in one row; on a narrow phone the year wraps below.
+**Responsive.** 48px parts, 16px text. A container query on the field's own width: from `@sm` (384px) day, month and year sit in one row; below it day and year share a row and the month takes its own full-width row, so «листопада» is never squeezed. Only the visual order changes: screen readers and Tab still go day, month, year.
 
 **Example.**
 

@@ -3,7 +3,7 @@
 import "../../../zod-client-config";
 import { uk } from "@opika/i18n";
 import { useId } from "react";
-import { PasswordField } from "./PasswordField";
+import { PasswordField } from "../../../ui/PasswordField";
 import { lengthHint, lengthProgress } from "./password-copy";
 
 /**
@@ -40,8 +40,11 @@ export function NewPasswordFields({
         id={`${id}-new`}
         label={label}
         value={password}
-        onChange={onPassword}
+        onChange={(event) => onPassword(event.target.value)}
         autoComplete="new-password"
+        required
+        showLabel={uk.kabinet.signIn.showPassword}
+        hideLabel={uk.kabinet.signIn.hidePassword}
         hint={lengthHint()}
         status={lengthProgress(password)}
         error={refusal}
@@ -50,8 +53,11 @@ export function NewPasswordFields({
         id={`${id}-repeat`}
         label={uk.kabinet.setPassword.repeatLabel}
         value={repeat}
-        onChange={onRepeat}
+        onChange={(event) => onRepeat(event.target.value)}
         autoComplete="new-password"
+        required
+        showLabel={uk.kabinet.signIn.showPassword}
+        hideLabel={uk.kabinet.signIn.hidePassword}
         error={mismatch ? uk.kabinet.password.mismatch : null}
       />
     </>

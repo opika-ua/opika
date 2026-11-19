@@ -28,8 +28,30 @@ describe("PasswordField", () => {
 
     const hide = screen.getByRole("button", { name: "Сховати пароль" });
     expect(hide.getAttribute("aria-controls")).toBe("pw");
+    expect(hide.getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(hide);
     expect(input.type).toBe("password");
+    expect(
+      screen.getByRole("button", { name: "Показати пароль" }).getAttribute("aria-pressed"),
+    ).toBe("false");
+  });
+
+  it("a pointer press on the eye leaves focus in the input", () => {
+    field();
+    const input = screen.getByLabelText("Пароль");
+    input.focus();
+    const eye = screen.getByRole("button", { name: "Показати пароль" });
+    // A prevented pointerdown is what keeps the browser from moving focus to the button.
+    expect(fireEvent.pointerDown(eye)).toBe(false);
+    fireEvent.click(eye);
+    expect(document.activeElement).toBe(input);
+  });
+
+  it("announces the live status line politely, outside the description", () => {
+    field({ hint: "Щонайменше 10 символів.", status: "Ще 3 символи." });
+    const status = screen.getByText("Ще 3 символи.");
+    expect(status.getAttribute("aria-live")).toBe("polite");
+    expect(screen.getByLabelText("Пароль").getAttribute("aria-describedby")).toBe("pw-hint");
   });
 
   it("the toggle never submits the form", () => {

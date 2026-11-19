@@ -61,6 +61,17 @@ describe("DateField", () => {
     expect(descriptionOf(group)).toBe("Коли тварина народилася.");
   });
 
+  // A phone moves the month to its own row visually; Tab and reading order stay day, month, year.
+  it("Tab goes day, month, year", async () => {
+    const user = userEvent.setup();
+    render(<Held />);
+    await user.click(screen.getByRole("textbox", { name: "День" }));
+    await user.tab();
+    expect(document.activeElement).toBe(screen.getByRole("combobox", { name: "Місяць" }));
+    await user.tab();
+    expect(document.activeElement).toBe(screen.getByRole("textbox", { name: "Рік" }));
+  });
+
   it("offers the twelve months by name, after an empty choice", () => {
     render(<Held />);
     const options = within(screen.getByRole("combobox", { name: "Місяць" })).getAllByRole("option");
