@@ -29,6 +29,8 @@ These live in `docs/standing-constraints.md` ("Product rules that are not negoti
 - **Freshness is honest and never alarming:** three pips plus the day count in words, always
   both. Never red, never amber, and never opacity as the only carrier of meaning. An unknown field
   reads «Не записано», never as "no" and never as an error.
+  (2026-11-19: "never red" is about freshness only. A refused form field is red, by design;
+  `docs/ui/tokens.md`, "Form errors".)
 - **A fostered animal never gets a map pin.** A city-precision location renders as a place
   name.
 - **The swipe filters; it doesn't judge** *(deck retired 2026-11-02)*: «Не зараз», never "nope". No stamps, scores, streaks

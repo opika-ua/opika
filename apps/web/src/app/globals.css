@@ -28,6 +28,11 @@
   --color-success: #1f7a3d;
   --color-warning: #8a5a00;
   --color-danger: #b3261e;
+  /* Form errors: `danger` is the message and the 2px border, `danger-bg` the invalid field's fill
+   * (danger text on it 5.7:1). The "never red" rule covers freshness only. */
+  --color-danger-bg: #fdeceb;
+  /* A quiet tint inside a surface card (the auth card's footer strip); ink-2 on it 6.0:1. */
+  --color-tint: #f6f1f3;
   /* Status chips of a card and of a shelter: a soft tint with its own text colour, every pair AA
    * (docs/ui/tokens.md lists the measured ratios). Not warnings: nothing here is alarming. */
   --color-status-published: #ede6f7;
@@ -462,6 +467,8 @@ dialog[data-hash-open]:target {
 }
 /* The current page's link or chip (`aria-current="page"`): `current:bg-ink`. */
 @custom-variant current (&[aria-current="page"]);
+/* A field marked invalid: a variant, so it outranks the control's own border and fill. */
+@custom-variant aria-invalid (&[aria-invalid="true"]);
 @utility focus-ring-within {
   &:has(:focus-visible) {
     outline: 3px solid var(--color-focus);
