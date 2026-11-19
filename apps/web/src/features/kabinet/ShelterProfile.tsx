@@ -133,16 +133,20 @@ export function ShelterProfile({
         ) : (
           <div className="flex min-w-0 flex-col gap-4 desktop:gap-6">
             <FormSection id="contacts" title={t.contactsTitle} description={t.contactsNote}>
-              <Facts>
-                {[view.contact.primary, ...view.contact.additional].map((channel, index) => (
-                  <Row
-                    key={`${channel.kind}-${index}`}
-                    label={uk.kabinet.profileChannel[channel.kind]}
-                  >
-                    {channelValue(channel)}
-                  </Row>
-                ))}
-              </Facts>
+              {view.contact === null ? (
+                <Text>{notRecorded}</Text>
+              ) : (
+                <Facts>
+                  {[view.contact.primary, ...view.contact.additional].map((channel, index) => (
+                    <Row
+                      key={`${channel.kind}-${index}`}
+                      label={uk.kabinet.profileChannel[channel.kind]}
+                    >
+                      {channelValue(channel)}
+                    </Row>
+                  ))}
+                </Facts>
+              )}
             </FormSection>
 
             <FormSection id="about" title={uk.shelterPage.aboutHeading}>

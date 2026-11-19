@@ -199,7 +199,8 @@ export function RegistrationForm({
       label={copy.labels[key]}
       hint={copy.hints[key]}
       error={errorOf(key)}
-      required
+      // The adopter contact is optional (owner, 2026-11-19); the label says so.
+      required={key !== "contact"}
       value={text[key]}
       onChange={(event) => {
         const value = event.target.value;

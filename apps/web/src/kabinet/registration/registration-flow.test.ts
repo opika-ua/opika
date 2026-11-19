@@ -172,10 +172,10 @@ function form(email = "olena@example.org"): FormData {
 }
 
 /** Signs up and returns the account, its shelter, the cookies and the two links from the email. */
-async function register() {
+async function register(data = form()) {
   let cookies: readonly string[] = [];
   const state = await registerWith(
-    form(),
+    data,
     deps({
       setCookies: async (setCookies) => {
         cookies = setCookies;
@@ -365,6 +365,16 @@ describe("the confirmation email's links act only on an origin-checked POST", ()
     const again = await post(CONFIRM, registered.confirmToken, BASE);
     expect(again.status).toBe(400);
     expect(sent).toHaveLength(1);
+  });
+
+  it("an application with no contact tells hello@ «Контакти: не вказано»", async () => {
+    const data = form();
+    data.set("contact", "");
+    const registered = await register(data);
+    sent = [];
+    expect((await post(CONFIRM, registered.confirmToken, BASE)).status).toBe(200);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.text).toContain("Контакти: не вказано");
   });
 
   it("an expired link confirms nothing", async () => {

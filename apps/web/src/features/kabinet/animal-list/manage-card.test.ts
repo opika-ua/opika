@@ -206,6 +206,15 @@ describe("a draft while the shelter is an application (D2)", () => {
     }
   });
 
+  it("without a contact: no publish, the reason and a link to add one", () => {
+    const result = toAnimalManageCard(row(), NOW, { kind: "blocked", why: "no_contact" });
+    expect(result.status === "draft" && result.publish).toEqual({
+      kind: "no_contact",
+      sentence: "Додайте хоча б один контакт, щоб люди могли вам написати.",
+      link: { href: "/kabinet/prytulok?tab=kontakty", label: "Додати контакт" },
+    });
+  });
+
   it("a ready draft is ready again once the shelter is approved", () => {
     const result = toAnimalManageCard(row(), NOW, { kind: "open" });
     expect(result.status === "draft" && result.publish).toEqual({ kind: "ready" });

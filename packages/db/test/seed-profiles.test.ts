@@ -86,8 +86,9 @@ describe("buildDemoShelters", () => {
    * inferred from a constant this test and the code would otherwise share.
    */
   it("every contact channel validates, is schema-correct, and carries no real phone or Telegram handle", () => {
-    for (const shelter of shelters) {
-      expect(() => ShelterContactSchema.parse(shelter.contact)).not.toThrow();
+    for (const { contact } of shelters) {
+      expect(() => ShelterContactSchema.parse(contact)).not.toThrow();
+      if (contact === null) continue; // parse above already refused it
 
       // Email, not Telegram: round 1 of Tier 1 review found a `demo_`-prefixed
       // Telegram handle is still a real, registerable username - the exact
@@ -95,12 +96,12 @@ describe("buildDemoShelters", () => {
       // email domain (RFC 2606) cannot be registered or delivered to by
       // anyone, by internet standard rather than by this project's own
       // convention.
-      expect(shelter.contact.primary.kind).toBe("email");
-      if (shelter.contact.primary.kind === "email") {
-        expect(shelter.contact.primary.address).toMatch(/^demo-.+@opika-demo\.invalid$/);
+      expect(contact.primary.kind).toBe("email");
+      if (contact.primary.kind === "email") {
+        expect(contact.primary.address).toMatch(/^demo-.+@opika-demo\.invalid$/);
       }
 
-      const phoneChannel = shelter.contact.additional.find((c) => c.kind === "phone");
+      const phoneChannel = contact.additional.find((c) => c.kind === "phone");
       expect(phoneChannel).toBeDefined();
       if (phoneChannel?.kind === "phone") {
         // +380000000000 - an all-zero subscriber number, never a real
@@ -108,7 +109,7 @@ describe("buildDemoShelters", () => {
         expect(phoneChannel.e164).toBe("+380000000000");
       }
 
-      expect(shelter.contact.additional.some((c) => c.kind === "telegram")).toBe(false);
+      expect(contact.additional.some((c) => c.kind === "telegram")).toBe(false);
     }
   });
 

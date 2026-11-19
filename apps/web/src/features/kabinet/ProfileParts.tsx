@@ -45,7 +45,7 @@ export const formatDate = (date: Date): string =>
     timeZone: "Europe/Kyiv",
   }).format(date);
 
-type Channel = KabinetShelterView["contact"]["primary"];
+type Channel = NonNullable<KabinetShelterView["contact"]>["primary"];
 
 /** A contact channel's value as a person would type or dial it. */
 export const channelValue = (channel: Channel): string => {

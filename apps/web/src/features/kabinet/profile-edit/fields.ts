@@ -102,8 +102,9 @@ export const channelText = (channel: ContactChannel): string => {
  * field, and every other stored channel, in stored order, as an «other» row,
  * so nothing stored is hidden or lost (two emails, a second phone, a website and a Viber all stay visible).
  */
-export function contactsFormOf(contact: ShelterContact): ContactsForm {
-  const channels = [contact.primary, ...contact.additional];
+export function contactsFormOf(contact: ShelterContact | null): ContactsForm {
+  // A self-registered shelter may have none yet: an empty form, which can't be saved empty.
+  const channels = contact === null ? [] : [contact.primary, ...contact.additional];
   const phoneIndex = channels.findIndex((channel) => channel.kind === "phone");
   const telegramIndex = channels.findIndex((channel) => channel.kind === "telegram");
   const formIndex = channels.findIndex((channel) => channel.kind === "form");

@@ -1,0 +1,2 @@
+ALTER TABLE "shelters" ALTER COLUMN "contact" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "shelters" ADD CONSTRAINT "shelters_contact_check" CHECK ("shelters"."contact" IS NOT NULL OR "shelters"."registration_source" = 'self_registration');
