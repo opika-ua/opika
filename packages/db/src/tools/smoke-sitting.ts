@@ -32,8 +32,8 @@ export interface SmokeSittingInput {
   migrationNote: string;
   /** Free text: what this specific smoke proves that the local suite can't. */
   pointOfThisSmoke: string;
-  /** Slug for the throwaway worktree, e.g. "sex-filter-smoke". */
-  worktreeSlug: string;
+  /** Child branches earlier sittings of this PR used: named at the top as never to be reused. */
+  retiredBranches?: readonly string[];
   /** Total checks expected to pass after this PR. */
   expectedTotal: number;
   /** Total checks on `main` before this PR. */
@@ -92,16 +92,21 @@ function migrationParts(
   return {
     childSteps:
       preMigrateChecks.map((c) => `${c.command}\n    `).join("") +
-      "pnpm --filter @opika/db db:migrate --expect $child\n    pnpm --filter @opika/db db:check-hashes\n",
+      "pnpm --filter @opika/db db:migrate --expect $child\n    $ok = ($LASTEXITCODE -eq 0)\n    if ($ok) { pnpm --filter @opika/db db:check-hashes; $ok = ($LASTEXITCODE -eq 0) }\n    ",
     // Kept until the production step: `--prod` identifies production by this id.
     endpointRemovedAfterSmoke: "",
     childExpected: `${preMigrateChecks.map((c) => `# Before the migration, expected: ${c.expected}. Any row -> STOP, paste the output.\n`).join("")}# Expected first: "Migrations: applied 1: ${migration.tag}" (applied 0: STOP unless you are re-running an already-applied migration), then every hash "match" (${migration.tag} included).\n`,
     productionStep: `
----- Production migration (only after every check above passed; no smoke runs here) ----
-$env:DATABASE_URL = Read-Secret "Production connection string (for db:migrate and db:check-hashes only)"
-pnpm --filter @opika/db db:migrate --prod --expect (Read-Host "Type the production endpoint id again (ep-...)")
-pnpm --filter @opika/db db:check-hashes
-Remove-Item Env:DATABASE_URL
+---- Production migration (only after every check above passed; no smoke runs here; paste the whole block) ----
+if ($smokeOk) {
+  $env:DATABASE_URL = Read-Secret "Production connection string (for db:migrate and db:check-hashes only)"
+  pnpm --filter @opika/db db:migrate --prod --expect (Read-Host "Type the production endpoint id again (ep-...)")
+  if ($LASTEXITCODE -eq 0) { pnpm --filter @opika/db db:check-hashes }
+  else { Write-Host "STOP: db:migrate --prod failed; check-hashes was not run. Paste the output." -ForegroundColor Red }
+  Remove-Item Env:DATABASE_URL
+} else {
+  Write-Host "STOP: the child-branch smoke did not pass in this window; the production migration was not run." -ForegroundColor Red
+}
 Remove-Item Env:PROD_NEON_ENDPOINT
 # Expected: "Migrations: applied 1: ${migration.tag}"; every hash "match". Any refusal or failure -> STOP, paste it.
 `,
@@ -113,7 +118,8 @@ Remove-Item Env:PROD_NEON_ENDPOINT
 function importParts(settlementImport: SmokeSittingInput["settlementImport"]): string {
   if (settlementImport === undefined) return "";
   return `
-# ---- Settlement import, on the same child branch (the rehearsal: no production flag here) ----
+# ---- Settlement import, on the same child branch (the rehearsal: no production flag here; only after the smoke passed) ----
+if ($ok) {
 $xlsx = Join-Path $env:TEMP "kodifikator-07-07.xlsx"
 Invoke-WebRequest -Uri "${settlementImport.download.url}" -OutFile $xlsx
 $hash = (Get-FileHash -Algorithm SHA256 $xlsx).Hash.ToLower()
@@ -131,7 +137,8 @@ $dbName = $u.AbsolutePath.TrimStart('/')
 pnpm --filter @opika/db db:seed --profile=demo --force --db-name=$dbName
 pnpm --filter @opika/db db:import-settlements --expect $child --file $xlsx
 # Expected (after a reseed, dry): ${settlementImport.expectedAfterReseed}
-${timingParts(settlementImport.timings)}`;
+${timingParts(settlementImport.timings)}}
+`;
 }
 
 /** The timing block: empty unless the sitting asks for it. Runs on the imported child branch. */
@@ -153,10 +160,69 @@ function importPasteBack(settlementImport: SmokeSittingInput["settlementImport"]
   return ` Also paste ALL FOUR import outputs (dry run, commit, rerun, rerun after the reseed) in full. A second-plan count of 1-8 means a legacy city's name differs from the codifier: paste it back, do not retry.${timings}`;
 }
 
+/**
+ * One folder per PR and head (owner, 2026-11-19): the #531 sitting ran old code twice when
+ * `git worktree add` failed on a folder an earlier head had left, and the paste carried on in it.
+ */
+export const sittingWorktreePath = (prNumber: number, sha: string): string =>
+  `D:\\opika-worktrees\\pr${prNumber}-smoke-${sha.slice(0, 7)}`;
+
+/**
+ * The setup as one block, so a failed step stops the rest: `$setupOk` is true only when the
+ * folder is at this head (an existing one is reused only then) and `pnpm i` installed.
+ */
+function setupBlock(worktreePath: string, sha: string): string {
+  const short = sha.slice(0, 7);
+  return `---- Setup (paste this whole block at once) ----
+$setupOk = $false
+$smokeOk = $false
+if ($true) {
+  nvm use 24
+  cd D:\\Startup\\opika
+  git fetch
+  if ($LASTEXITCODE -ne 0) { Write-Host "STOP: git fetch failed. Run nothing below; paste the output." -ForegroundColor Red }
+  elseif (Test-Path ${worktreePath}) {
+    # Left by an earlier try: reused only when it is already at this head.
+    cd ${worktreePath}
+    if ("$(git rev-parse HEAD)".StartsWith('${sha}')) { $setupOk = $true }
+    else { Write-Host ("STOP: ${worktreePath} exists at " + "$(git rev-parse --short HEAD)" + ", not ${short}. Run nothing below; paste this back.") -ForegroundColor Red }
+  } else {
+    git worktree add --detach ${worktreePath} ${sha}
+    if ($LASTEXITCODE -ne 0) { Write-Host "STOP: git worktree add failed. Run nothing below; paste the output." -ForegroundColor Red }
+    else { cd ${worktreePath}; $setupOk = $true }
+  }
+  if ($setupOk) {
+    git log -1 --oneline
+    pnpm i
+    if ($LASTEXITCODE -ne 0) { $setupOk = $false; Write-Host "STOP: pnpm i failed. Run nothing below; paste the output." -ForegroundColor Red }
+    elseif (-not (Test-Path packages\\db\\node_modules)) { $setupOk = $false; Write-Host "STOP: packages\\db\\node_modules is missing, so pnpm i did not install the workspace. Run nothing below; paste the output." -ForegroundColor Red }
+  }
+}
+function Read-Secret($p){ $s = Read-Host $p -AsSecureString; [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)) }`;
+}
+
+/** Before any database step: the setup passed, and this window is in the head's folder at that head. */
+function headProblems(worktreePath: string, sha: string): string {
+  const short = sha.slice(0, 7);
+  return `  if (-not $setupOk) { $problems += "the setup block stopped or was not run" }
+  if ((Get-Location).Path -ne '${worktreePath}') { $problems += "this window is not in ${worktreePath}" }
+  if (-not "$(git rev-parse HEAD)".StartsWith('${sha}')) { $problems += ("the checkout is at " + "$(git rev-parse --short HEAD)" + ", not ${short}") }
+`;
+}
+
+function freshBranchNote(retired: readonly string[] = []): string {
+  const never =
+    retired.length === 0
+      ? "a branch from an earlier sitting"
+      : `${retired.join(" or ")} (earlier sittings), or any other used branch`;
+  return `FIRST: create a fresh Neon child branch from production (the Neon console). Never reuse ${never}.`;
+}
+
 function assembled(input: SmokeSittingInput): string {
-  const worktreePath = `D:\\opika-worktrees\\${input.worktreeSlug}`;
+  const worktreePath = sittingWorktreePath(input.prNumber, input.sha);
   const m = migrationParts(input.migration, input.preMigrateChecks);
   return `${input.title} - merge sitting, ${input.date}. PowerShell.
+${freshBranchNote(input.retiredBranches)}
 ${input.migrationNote}
 
 PR #${input.prNumber}: ${input.branch} @ ${input.sha} - confirm with the session this still
@@ -164,19 +230,9 @@ matches the PR's current head before running.
 
 ${input.pointOfThisSmoke}
 
----- Setup (paste once) ----
-nvm use 24
-cd D:\\Startup\\opika
-git fetch
-git worktree add --detach ${worktreePath} ${input.sha}
-cd ${worktreePath}
-git log -1 --oneline
-pnpm i
-if ($LASTEXITCODE -ne 0) { Write-Host "STOP: pnpm i failed. Do not run anything below; paste the output." -ForegroundColor Red }
-if (-not (Test-Path packages\\db\\node_modules)) { Write-Host "STOP: packages\\db\\node_modules is missing, so pnpm i did not install the workspace. Do not run anything below; paste the output." -ForegroundColor Red }
-function Read-Secret($p){ $s = Read-Host $p -AsSecureString; [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)) }
+${setupBlock(worktreePath, input.sha)}
 
----- Smoke, on a fresh Neon child branch (create one first if this sitting needs its own) ----
+---- Smoke, on the fresh Neon child branch (paste this whole block at once) ----
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 $OutputEncoding = [Text.Encoding]::UTF8
 # Endpoint ids are not secrets: typed visibly, separately from the URL, so --expect is never derived from it.
@@ -197,9 +253,13 @@ try {
   if ($child -eq ($prod -replace '-pooler$','')) { $problems += "child id equals the production id" }
   if ($urlEp -ne $child) { $problems += "the pasted URL's endpoint is not the child id you typed" }
   if ($urlEp -ne '' -and ($urlEp -replace '-pooler$','') -eq ($prod -replace '-pooler$','')) { $problems += "the pasted URL is PRODUCTION" }
-
+${headProblems(worktreePath, input.sha)}
+  $smokeOk = $false
   if ($problems.Count -eq 0) {
-    ${m.childSteps}pnpm --filter @opika/db db:neon-smoke --expect $child
+    $ok = $true
+    ${m.childSteps}if ($ok) { pnpm --filter @opika/db db:neon-smoke --expect $child; $ok = ($LASTEXITCODE -eq 0) }
+    $smokeOk = $ok
+    if (-not $ok) { Write-Host "STOP: the step above failed, so nothing after it ran. Paste the full output." -ForegroundColor Red }
 ${importParts(input.settlementImport)}  } else {
     Write-Host ("STOP, nothing was run: " + ($problems -join "; ")) -ForegroundColor Red
   }
@@ -254,7 +314,6 @@ export interface ProductionImportSittingInput {
     branch: string;
     /** The PR head Part 2 runs from; it holds the guard that allows `--prod --expect`. */
     sha: string;
-    worktreeSlug: string;
     download: { url: string; sha256: string };
     /** The Neon branch the owner makes from production right before the commit. */
     restoreBranchName: string;
@@ -275,7 +334,7 @@ export interface ProductionImportSittingInput {
 
 function productionPart(input: ProductionImportSittingInput): string {
   const p = input.production;
-  const worktreePath = `D:\\opika-worktrees\\${p.worktreeSlug}`;
+  const worktreePath = sittingWorktreePath(p.prNumber, p.sha);
   return `
 =====================================================================================
 PART 2: the production import. Runs from PR #${p.prNumber} (${p.branch}) @ ${p.sha}
@@ -287,17 +346,12 @@ Migration kind: none. No schema change: the data import of the 2026-07-07 codifi
 reference, stay), writes slug aliases before any rename, and is idempotent: a crash is completed by
 rerunning the same command. The only write is the --commit step, behind a typed confirmation.
 
----- Setup (paste once) ----
-nvm use 24
-cd D:\\Startup\\opika
-git fetch
-git worktree add --detach ${worktreePath} ${p.sha}
-cd ${worktreePath}
-git log -1 --oneline
-pnpm i
-if ($LASTEXITCODE -ne 0) { Write-Host "STOP: pnpm i failed. Do not run anything below; paste the output." -ForegroundColor Red }
-if (-not (Test-Path packages\\db\\node_modules)) { Write-Host "STOP: packages\\db\\node_modules is missing, so pnpm i did not install the workspace. Do not run anything below; paste the output." -ForegroundColor Red }
-function Read-Secret($p){ $s = Read-Host $p -AsSecureString; [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)) }
+${setupBlock(worktreePath, p.sha)}
+
+---- This folder, at this head (before anything reads or writes production) ----
+$problems = @()
+${headProblems(worktreePath, p.sha)}$headOk = ($problems.Count -eq 0)
+if (-not $headOk) { Write-Host ("STOP: " + ($problems -join "; ") + ". Nothing below will write; run nothing else and paste this back.") -ForegroundColor Red }
 
 ---- The file (same download and checksum as Part 1) ----
 $xlsx = Join-Path $env:TEMP "kodifikator-07-07.xlsx"
@@ -342,9 +396,9 @@ $go = $false
 if ($true) {
   $named = Read-Host "Type the name of the restore branch you just created"
   $typed = Read-Host "Type the production endpoint id ($ep) to confirm the write"
-  $go = $hashOk -and $epOk -and ($dryExit -eq 0) -and ($named.Trim() -eq "${p.restoreBranchName}") -and ($typed.Trim().ToLower() -eq $ep)
+  $go = $headOk -and $hashOk -and $epOk -and ($dryExit -eq 0) -and ($named.Trim() -eq "${p.restoreBranchName}") -and ($typed.Trim().ToLower() -eq $ep)
   if (-not $go) {
-    Write-Host "STOP: not confirmed (file checksum, endpoint, dry run exit code 0, restore branch name and typed endpoint must all be right). NOTHING WAS WRITTEN. Paste this output and do nothing further." -ForegroundColor Red
+    Write-Host "STOP: not confirmed (checkout head, file checksum, endpoint, dry run exit code 0, restore branch name and typed endpoint must all be right). NOTHING WAS WRITTEN. Paste this output and do nothing further." -ForegroundColor Red
   } else {
     pnpm --filter @opika/db db:import-settlements --prod --expect $ep --file $xlsx --commit
     $commitExit = $LASTEXITCODE
