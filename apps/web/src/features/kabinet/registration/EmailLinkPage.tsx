@@ -17,12 +17,15 @@ const ACTIONS = { confirm_email: submitConfirmEmailLink, not_me: submitNotMeLink
 export async function EmailLinkPage({
   purpose,
   searchParams,
-  kabinetEntry = async () => "sign_in",
+  kabinetEntry,
 }: {
   purpose: EmailLinkPurpose;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
-  /** Read only once the link is known to be served, so a 404 never touches the session. */
-  kabinetEntry?: () => Promise<KabinetEntry>;
+  /**
+   * The session read for the confirmed card's button: called only on a served confirm link, so a
+   * 404 and «Це не я» (which never shows that card) leave the session untouched.
+   */
+  kabinetEntry: () => Promise<KabinetEntry>;
 }) {
   const raw = (await searchParams).token;
   const token = typeof raw === "string" ? raw : "";
@@ -35,7 +38,7 @@ export async function EmailLinkPage({
         initial={outcome.state}
         action={ACTIONS[purpose]}
         permalink={REGISTRATION_LINK_PATHS[purpose]}
-        kabinetEntry={await kabinetEntry()}
+        kabinetEntry={purpose === "confirm_email" ? await kabinetEntry() : "sign_in"}
       />
     </AuthPage>
   );
