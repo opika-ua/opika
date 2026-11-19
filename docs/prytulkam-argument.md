@@ -128,11 +128,19 @@ Must establish: a person checks, and here is what checking is.
 - (Narrowed 2026-11-19, owner decision: a registered organisation may be verified on open
   sources (ЄДР, its site and pages, reviews) instead of the video call, which made «і проходить
   відеодзвінок» false for it. Deleted under standing-constraints' "Removing a false claim"; the
-  live text reads «Зареєстрована організація показує ЄДРПОУ.» until his fuller sentence lands.
+  live text read «Зареєстрована організація показує ЄДРПОУ.» until his fuller sentence landed.
   The same day (a′) made the call optional for an initiative too: «проходить відеодзвінок і» left
-  its sentence, and §6b lost its two opening sentences about the call; PR #541 brings his
+  its sentence, and §6b lost its two opening sentences about the call; PR #541 brought his
   replacement text. `verification-claim.test.ts` holds the rule: no sentence presents a call as
   always required while no form needs one.)
+- (Replaced 2026-11-19 by PR #541, his R5 text: the per-form sentences gave way to where the
+  operator looks. §6 ¶2: «Я дивлюся відкриті джерела: сайт і сторінки притулку, реєстр
+  організацій, відгуки. Якщо їх не вистачає, я напишу вам і попрошу щось додати – наприклад,
+  рекомендацію або коротку розмову.» §6b, for unregistered initiatives only: «Незареєстровані
+  ініціативи я теж перевіряю дистанційно. Я дивлюся відкриті джерела і прошу одну рекомендацію
+  від когось іншого, ніж ви – … Ваш другий номер телефону – не рекомендація. Якщо відкритих
+  джерел замало, домовимося про коротку розмову.» `verification-claim.test.ts` also fails if a
+  reference reads as required of every form. The bullets above describe the policy, not the page.)
 - A reference has to be someone other than the shelter itself - a neighbouring
   shelter, a vet clinic they work with. Not their own second phone number.
 

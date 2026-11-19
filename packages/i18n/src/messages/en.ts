@@ -520,7 +520,11 @@ export const en = {
     noObligation: `${COPY_PENDING} 4b. No lead queue, nothing to answer.`,
     money: `${COPY_PENDING} 5. Money – never touched.`,
     verification: `${COPY_PENDING} 6. What "verified" means.`,
-    verificationOpenToVolunteers: `${COPY_PENDING} 6b. Open to unregistered volunteer groups.`,
+    verificationOpenToVolunteers:
+      "I verify unregistered initiatives remotely too. I look at open sources and ask for one reference " +
+      "from someone other than you – a neighbouring shelter, a vet clinic you work with, anyone who can confirm that you " +
+      "exist and do what you say. Your second phone number is not a reference. " +
+      "If open sources aren't enough, we'll arrange a short conversation.",
     whatToPrepare: `${COPY_PENDING} 7. What to prepare.`,
     whyHowOften: `${COPY_PENDING} 8. Why say how often you update your cards.`,
     whenAnimalFindsHome: `${COPY_PENDING} 9. When an animal finds a home.`,
@@ -861,8 +865,9 @@ export const en = {
       donationNote: "https only. No money passes through the site: this is an external link.",
       donationPending: "The proposed link is waiting for me to check it.",
       pendingNote:
-        "I carry out the verification myself: I will write or call to arrange it. Until it is finished, only you can see your animals.",
-      pendingNoteLead: "I carry out the verification myself: I will write or call to arrange it.",
+        "I carry out the verification myself. If open sources don't give me enough information, I'll write to you. Until it is finished, only you can see your animals.",
+      pendingNoteLead:
+        "I carry out the verification myself. If open sources don't give me enough information, I'll write to you.",
       earlyListingBanner: "Your cards are shown with the label «under review» until {date}.",
       earlyListingEnded: "Showing your cards with the label «under review» ended on {date}.",
       lockedTitle: "Set during verification",
@@ -1429,7 +1434,7 @@ export const en = {
         body: "I checked your shelter – all is well. You can publish animals now:",
         action: "Open the dashboard",
         pending:
-          "For now the shelter's name carries the «Under verification» label. Within 60 days I'll finish the check – I'll write to you to arrange a short video call.",
+          "For now the shelter's name carries the «Under verification» label. If open sources don't give me enough information for the full check, I'll write to you.",
       },
       applicationRejected: {
         subject: "The application of the shelter «{name}»",

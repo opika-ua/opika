@@ -251,9 +251,10 @@ test.describe("listing before verification, operator and shelter sides", () => {
     ).toBeVisible();
     // The label is said once on the landing page: the banner, not the note or the list line.
     await expect(
-      kabinet.getByText("Перевірку проводжу я: напишу або зателефоную, щоб домовитися.", {
-        exact: true,
-      }),
+      kabinet.getByText(
+        "Перевірку проводжу я. Якщо мені забракне інформації з відкритих джерел, я напишу вам.",
+        { exact: true },
+      ),
     ).toBeVisible();
     await expect(kabinet.getByText(/на перевірці/)).toHaveCount(1);
     await bottomClearance(kabinet, "kabinet-tvaryny");

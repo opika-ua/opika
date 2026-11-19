@@ -86,9 +86,9 @@ describe("registrationEmailOf", () => {
     expect(email.text).toContain("Це не я: https://opika.org.ua/kabinet/email/tse-ne-ya?t=def");
   });
 
-  it("the approval ends on his 60-day line", () => {
+  it("the approval ends on his R5 open-sources line", () => {
     expect(registrationEmailOf(samples.application_approved, TO).text).toContain(
-      "Протягом 60 днів я завершу перевірку – напишу вам, щоб домовитися про короткий відеодзвінок.",
+      "Якщо для повної перевірки мені забракне інформації з відкритих джерел, я напишу вам.",
     );
   });
 

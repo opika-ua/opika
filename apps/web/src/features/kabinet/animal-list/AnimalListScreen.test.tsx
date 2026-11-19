@@ -91,7 +91,9 @@ describe("the kabinet banner while cards are shown before verification", () => {
       screen.getByText("Ваші картки показуються з позначкою «на перевірці» до 1 грудня."),
     ).toBeTruthy();
     expect(
-      screen.getByText("Перевірку проводжу я: напишу або зателефоную, щоб домовитися."),
+      screen.getByText(
+        "Перевірку проводжу я. Якщо мені забракне інформації з відкритих джерел, я напишу вам.",
+      ),
     ).toBeTruthy();
     expect(screen.queryByText(/ваших тварин бачите лише ви/)).toBeNull();
   });
