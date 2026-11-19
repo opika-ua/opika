@@ -30,7 +30,7 @@ const DOT: Record<SaveTone, string> = {
 };
 
 /** The state's mark: a dot, or a spinner while saving (it stops under reduced motion). */
-function SaveDot({ tone }: { tone: SaveTone }) {
+export function SaveDot({ tone }: { tone: SaveTone }) {
   return tone === "busy" ? (
     <span
       aria-hidden="true"
@@ -51,6 +51,7 @@ function SaveDot({ tone }: { tone: SaveTone }) {
  */
 export function SavePill({
   state,
+  saveLabel,
   onSave,
   onCancel,
   onShow,
@@ -58,6 +59,8 @@ export function SavePill({
   onSavedElapsed,
 }: {
   state: SaveBarState | null;
+  /** The save button's label; «Зберегти» when left out. */
+  saveLabel?: string;
   onSave: () => void;
   onCancel: () => void;
   /** «Показати»: the page switches to the tab and focuses the first field that needs fixing. */
@@ -104,10 +107,14 @@ export function SavePill({
 
   const saving = state.kind === "saving";
   const secondary = phone ? "secondary" : "ghost";
-  const grow = phone ? "w-full" : undefined;
+  // A phone's pair shares 328px at 360: one line each, compact padding, equal unless a label needs
+  // more («Спробувати ще раз»). Measured in the brand font: «Зберегти зміни» 113px + 24px padding.
+  const size = phone ? "compact" : "md";
+  const grow = phone ? "flex-1 whitespace-nowrap" : "whitespace-nowrap";
   const cancel = (
     <Button
       variant={secondary}
+      size={size}
       className={grow}
       aria-disabled={saving || undefined}
       onClick={() => {
@@ -119,6 +126,7 @@ export function SavePill({
   );
   const primary = (label: string, action: () => void, disabled = false) => (
     <Button
+      size={size}
       className={grow}
       aria-disabled={disabled || undefined}
       onClick={() => {
@@ -136,17 +144,17 @@ export function SavePill({
       buttons = (
         <>
           {cancel}
-          {primary(t.actions.save, onSave, saving)}
+          {primary(saveLabel ?? t.actions.save, onSave, saving)}
         </>
       );
       break;
     case "invalid":
       buttons = (
         <>
-          <Button variant={secondary} className={grow} onClick={onShow}>
+          <Button variant={secondary} size={size} className={grow} onClick={onShow}>
             {t.saveBar.show}
           </Button>
-          {primary(t.actions.save, onSave)}
+          {primary(saveLabel ?? t.actions.save, onSave)}
         </>
       );
       break;
@@ -204,8 +212,12 @@ export function SavePill({
           <div
             className={cx(
               "flex items-center gap-2",
-              // Two buttons share a phone bar in equal columns (a flexed pair differs by the outline's border).
-              state.kind !== "blocked" && !oneRow && "max-tablet:grid max-tablet:grid-cols-2",
+              // Equal phone columns (a flexed pair differs by the outline's border); «Спробувати ще
+              // раз» is wider than half a 360 bar, so a failed save keeps the flexed pair.
+              state.kind !== "blocked" &&
+                state.kind !== "failed" &&
+                !oneRow &&
+                "max-tablet:grid max-tablet:grid-cols-2",
             )}
           >
             {buttons}

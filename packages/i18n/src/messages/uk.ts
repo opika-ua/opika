@@ -1201,10 +1201,10 @@ export const uk = {
         notVisible: "Ті, хто шукає тварину, цю чернетку не бачать.",
         notSavedYet: "Щоб зберегти чернетку, потрібні імʼя та вид.",
         saveFailed: "Чернетку не збережено. Перевірте зʼєднання – усе, що ви ввели, лишається тут.",
-        save: "Зберегти чернетку",
-        saveShort: "Зберегти",
       },
       listed: {
+        /** A listed card's save button, only while it has unsaved edits (redesign §5, owner 2026-11-19). */
+        saveChanges: "Зберегти зміни",
         liveOnSave: "Зміни зʼявляться на картці одразу після збереження.",
         notShownNow: "Цю картку зараз ніхто не бачить.",
         /**

@@ -1211,10 +1211,10 @@ export const en = {
         notSavedYet: "A name and a species are needed to save a draft.",
         saveFailed:
           "The draft wasn't saved. Check the connection; everything you typed stays here.",
-        save: "Save draft",
-        saveShort: "Save",
       },
       listed: {
+        /** A listed card's save button, shown only while it has unsaved edits. */
+        saveChanges: "Save changes",
         liveOnSave: "Changes appear on the card as soon as you save.",
         notShownNow: "Nobody can see this card right now.",
         dateUnchanged:

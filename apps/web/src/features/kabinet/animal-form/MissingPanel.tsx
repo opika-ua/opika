@@ -26,8 +26,8 @@ export const TAB_LABEL: Record<AnimalTab, string> = {
 
 /**
  * What still blocks publishing, as links: each one switches to the tab that holds the field and
- * puts focus on it. «Усе потрібне заповнено» replaces an empty list. Ids are read by the
- * «Опублікувати» button's `aria-describedby`.
+ * puts focus on it. «Усе потрібне заповнено» replaces an empty list. The footer's one-line reason
+ * (`missingSentence`) is what describes «Опублікувати» (R4).
  */
 export function MissingPanel({
   gaps,
@@ -42,7 +42,7 @@ export function MissingPanel({
       <Text id="publish-missing" look="label">
         {t.publish.missingTitle}
       </Text>
-      <ul id="publish-missing-list" className="flex flex-col items-start">
+      <ul className="flex flex-col items-start">
         {gaps.map((gap) => (
           <li key={gap.kind}>
             <TextLink

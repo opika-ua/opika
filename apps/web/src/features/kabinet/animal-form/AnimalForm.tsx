@@ -30,8 +30,8 @@ import type { CompressedPhoto } from "../photos/compress-photo";
 import { publicAnimalPath, SHELTER_CONTACTS_PATH } from "../routes";
 import { ListingStatusChip } from "../StatusChips";
 import { useCityPicker } from "../shared/city-picker";
-import { SavePill, SaveStatusLine } from "../shared/save-pill";
-import { type SaveBarState, saveBarTextOf } from "../shared/save-state";
+import { SaveDot, SavePill, SaveStatusLine } from "../shared/save-pill";
+import { type SaveBarState, saveBarTextOf, saveToneOf } from "../shared/save-state";
 import { clearUnsavedNow, confirmLeave, useUnsavedChanges } from "../shared/unsaved-changes";
 import { ANIMAL_TABS, type AnimalTab } from "./animal-tabs";
 import { summaryItemsOf } from "./error-summary-items";
@@ -67,20 +67,21 @@ import { TabLabel } from "./TabLabel";
  *
  * **A draft saves itself** (KAB:179): 10 seconds after the last change and
  * when a field is left (decision taken T6, so a typing session writes a few
- * history lines, not one per 10 s), and at once with «Зберегти чернетку».
+ * history lines, not one per 10 s). Its footer has no save button, only the
+ * autosave status and «Опублікувати» (R4, owner 2026-11-19).
  * On `/nova` the first save that has a name and a species creates the draft
  * (K-Q5) and the address becomes the animal's own. **A listed animal saves
- * only when asked** (T8): its card is public, and an autosave would put a
- * half-typed sentence on it.
+ * only when asked** (T8), through «Зберегти зміни» while it has unsaved edits:
+ * its card is public, and an autosave would put a half-typed sentence on it.
  *
  * Every save sends only what changed (`patchOf`), compare-and-set on the
  * version it last read (S3-T6); a conflict stops the autosave until the
  * current version is shown. Photo writes never touch the version (P-Q3), so
  * they and the form never conflict.
  *
- * **Publishing** saves pending edits first, then publishes. While anything
- * is missing the button stays focusable with `aria-disabled` and the gaps
- * written next to it (KAB:93), in form order (K-Q5).
+ * **Publishing** saves pending edits first, then publishes. While it can't
+ * publish, the button stays focusable with `aria-disabled` and the reason
+ * written next to it (KAB:93): the approval gate, else the gaps in form order (K-Q5).
  *
  * Writes are offered exactly when the API would accept them: `editing` is
  * the page's own `decideAccess` answer with the served policy. A support view
@@ -89,6 +90,8 @@ import { TabLabel } from "./TabLabel";
 
 const t = uk.kabinet.animalForm;
 const AUTOSAVE_AFTER_MS = 10_000;
+const SAVING: SaveBarState = { kind: "saving" };
+const UNSAVED: SaveBarState = { kind: "unsaved" };
 
 export type AnimalFormEditing = { kind: "open" } | { kind: "read_only" };
 
@@ -496,20 +499,36 @@ export function AnimalForm({
     else if (save.kind === "saved" && savedShown)
       pill = { kind: "saved", at: save.at, ...(viewHref === undefined ? {} : { viewHref }) };
   }
-  // The line under the tabs: the pill's message, or the quiet state (a draft's autosave status).
+  // A listed card's line under the tabs: the pill's message, or the quiet state.
   let statusMessage: string | null = null;
-  if (editable) {
+  if (editable && !isDraft) {
     if (pill !== null) statusMessage = saveBarTextOf(pill);
-    else if (isDraft) {
-      statusMessage =
-        save.kind === "saving"
-          ? uk.kabinet.profileEdit.state.saving
-          : save.kind === "saved" && !dirty
-            ? fillTemplate(t.draft.savedAt, { time: timeOf(save.at) })
-            : null;
-    } else if (save.kind === "saved") {
+    else if (save.kind === "saved") {
       statusMessage = fillTemplate(uk.kabinet.profileEdit.state.savedAt, { time: timeOf(save.at) });
     } else statusMessage = uk.kabinet.profileEdit.saveBar.allSaved;
+  }
+  // A draft's autosave status, in its footer. A failed or refused save is `SaveProblems`'s to say;
+  // the saved time hides while there are edits (Oleksii, 2026-10-19). A problem shown under a field
+  // is counted here: an autosave can't write it, and no button would say so.
+  const shownItems = summaryItemsOf(shownProblems, goTo);
+  let draftStatus: DraftStatus | null = null;
+  if (editable && isDraft) {
+    if (save.kind === "saving") draftStatus = { message: saveBarTextOf(SAVING), state: SAVING };
+    else if (save.kind !== "idle" && save.kind !== "saved") draftStatus = null;
+    else if (view === null && !creatable) {
+      draftStatus = { message: t.draft.notSavedYet, state: UNSAVED };
+    } else if (shownItems.length > 0) {
+      const state: SaveBarState = { kind: "invalid", count: shownItems.length };
+      draftStatus = { message: saveBarTextOf(state), state };
+    } else if (dirty) draftStatus = { message: saveBarTextOf(UNSAVED), state: UNSAVED };
+    else if (save.kind === "saved") {
+      draftStatus = {
+        message: fillTemplate(t.draft.savedAt, { time: timeOf(save.at) }),
+        state: null,
+      };
+    } else if (view !== null) {
+      draftStatus = { message: uk.kabinet.profileEdit.saveBar.allSaved, state: null };
+    }
   }
 
   const heading = view === null ? t.titleNew : view.name;
@@ -524,6 +543,13 @@ export function AnimalForm({
   const publishedAnnouncement = publishedAnnouncementOf(shelterVisibility);
 
   const blockedBy = publishGate.kind === "blocked" ? publishGate.why : null;
+  // Why «Опублікувати» is disabled, written beside it: the gate first, as this form can't fix it.
+  const publishReason =
+    blockedBy !== null
+      ? PUBLISH_BLOCKED_SENTENCE[blockedBy]
+      : gaps.length > 0
+        ? missingSentence(gaps)
+        : null;
   const publish = async () => {
     if (!editable || publishing) return;
     if (blockedBy !== null) {
@@ -674,7 +700,6 @@ export function AnimalForm({
       <FormSection framing="flush" id="publication" title={t.sections.publication} titleless>
         {isDraft ? (
           <DraftPublication
-            blockedBy={blockedBy}
             gaps={gaps}
             onGo={(gap) => goTo(GAP_TAB[gap.kind], GAP_TARGET[gap.kind])}
           />
@@ -715,7 +740,7 @@ export function AnimalForm({
       </header>
 
       {summaryFocus > 0 && shownProblems.length > 0 ? (
-        <ErrorSummary items={summaryItemsOf(shownProblems, goTo)} ref={summaryRef} />
+        <ErrorSummary items={shownItems} ref={summaryRef} />
       ) : null}
 
       <form
@@ -736,7 +761,10 @@ export function AnimalForm({
       >
         <Tabs
           look="underline"
-          {...(editable ? { status: <SaveStatusLine message={statusMessage} state={pill} /> } : {})}
+          {...(editable && !isDraft
+            ? // Heard, not drawn: the pill shows the state (owner, 2026-11-19: no second line on top).
+              { status: <SaveStatusLine message={statusMessage} state={pill} srOnly /> }
+            : {})}
           label={t.sections.tabsLabel}
           selectedId={tab}
           onSelect={(id) => show(id as AnimalTab)}
@@ -750,18 +778,26 @@ export function AnimalForm({
 
       {editable && isDraft ? (
         <StickyActionBar>
-          <p role="status" className="text-caption text-ink-2 empty:sr-only">
-            {announcement}
-          </p>
           <DraftActions
             save={save}
-            gaps={gaps}
+            status={draftStatus}
+            publishReason={publishReason}
             blockedBy={blockedBy}
             publishing={publishing}
-            onSave={() => void saveFromButton()}
+            onRetry={() => void saveFromButton()}
+            onShow={() => shownItems[0]?.onSelect?.()}
             onPublish={() => void publish()}
             onReload={() => void reload()}
           />
+          {/* A press on the disabled button repeats the reason: heard, not drawn a second time. */}
+          <p
+            role="status"
+            className={
+              announcement === publishReason ? "sr-only" : "text-caption text-ink-2 empty:sr-only"
+            }
+          >
+            {announcement}
+          </p>
         </StickyActionBar>
       ) : (
         <p
@@ -776,6 +812,7 @@ export function AnimalForm({
       {editable && !isDraft ? (
         <SavePill
           state={pill}
+          saveLabel={t.listed.saveChanges}
           onSave={() => void saveFromButton()}
           onRetry={() => void saveFromButton()}
           onCancel={cancelEdits}
@@ -807,32 +844,20 @@ const fieldOfTarget = (target: EventTarget | null): FieldProblem["field"] | null
 };
 
 /**
- * «Публікація» on a draft: who sees it (nobody yet) and what is still missing, the way the
- * disabled «Опублікувати» is described. Each gap is a link that switches to its tab and focuses
- * the field, so the list is a route, not just a sentence.
+ * «Публікація» on a draft: who sees it (nobody yet) and what is still missing. Each gap is a link
+ * that switches to its tab and focuses the field, so the list is a route, not just a sentence. The
+ * gate's reason is the footer's, beside «Опублікувати» (R4).
  */
 function DraftPublication({
-  blockedBy,
   gaps,
   onGo,
 }: {
-  blockedBy: PublishBlock | null;
   gaps: readonly PublishGap[];
   onGo: (gap: PublishGap) => void;
 }) {
   return (
     <>
       <Text look="hint">{t.draft.notVisible}</Text>
-      {blockedBy !== null ? (
-        <Text look="label" id="publish-blocked">
-          {PUBLISH_BLOCKED_SENTENCE[blockedBy]}
-        </Text>
-      ) : null}
-      {blockedBy === "no_contact" ? (
-        <TextLink href={SHELTER_CONTACTS_PATH} className="self-start text-label">
-          {uk.kabinet.application.publishNoContactLink}
-        </TextLink>
-      ) : null}
       <MissingPanel gaps={gaps} onGo={onGo} />
     </>
   );
@@ -892,63 +917,82 @@ function SaveProblems({
   }
 }
 
+/** A draft's autosave status: the line's text and the state its dot shows. */
+type DraftStatus = { message: string; state: SaveBarState | null };
+
 /**
- * The draft's bar: «Опублікувати» is the one filled button (the move that changes what people
- * see), «Зберегти» the outlined one beside it. While anything is missing the filled button stays
- * focusable with `aria-disabled`, described by the gap sentence in «Публікація» (KAB:93).
+ * The draft's bar (R4): one row with the autosave status and one filled «Опублікувати», no save
+ * button (a draft saves itself). While it can't publish the button stays focusable with
+ * `aria-disabled`, described by the reason beside it (KAB:93). A save refused for a field adds «Показати».
  */
 function DraftActions({
   save,
-  gaps,
+  status,
+  publishReason,
   blockedBy,
   publishing,
-  onSave,
+  onRetry,
+  onShow,
   onPublish,
   onReload,
 }: {
   save: SaveState;
-  gaps: readonly PublishGap[];
+  status: DraftStatus | null;
+  publishReason: string | null;
+  /** «Додати контакт» joins the reason when the shelter has no adopter contact. */
   blockedBy: PublishBlock | null;
   publishing: boolean;
-  onSave: () => void;
+  onRetry: () => void;
+  onShow: () => void;
   onPublish: () => void;
   onReload: () => void;
 }) {
-  const unready = gaps.length > 0;
-  const describedBy = [
-    ...(blockedBy !== null ? ["publish-blocked"] : []),
-    ...(unready ? ["publish-missing", "publish-missing-list"] : []),
-  ].join(" ");
+  const invalid = status?.state?.kind === "invalid";
+  // One row at every width (owner, 2026-11-19): the reason replaces the status text on screen, its
+  // dot keeps the autosave state in view, and the status stays a live region for screen readers.
+  const reasonShown = publishReason !== null && !invalid;
   return (
     <>
-      <SaveProblems save={save} onSave={onSave} onReload={onReload} />
-      <div className="flex gap-2 tablet:justify-end">
-        {/*
-          The phone shows «Зберегти», wider screens «Зберегти чернетку»; the
-          accessible name is always the full one, which begins with the short
-          label, so a voice command naming what is on screen still matches.
-        */}
-        <Button
-          variant="secondary"
-          className="flex-1 tablet:flex-none"
-          aria-label={t.draft.save}
-          aria-busy={save.kind === "saving" || undefined}
-          onClick={onSave}
-        >
-          <span className="tablet:hidden">{t.draft.saveShort}</span>
-          <span className="hidden tablet:inline">{t.draft.save}</span>
-        </Button>
+      <SaveProblems save={save} onSave={onRetry} onReload={onReload} />
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="flex min-w-0 flex-1 basis-24 items-center gap-2">
+          <SaveStatusLine
+            message={status?.message ?? null}
+            state={status?.state ?? null}
+            srOnly={reasonShown}
+          />
+          {reasonShown && status !== null ? <SaveDot tone={saveToneOf(status.state)} /> : null}
+          {publishReason === null ? null : (
+            // Clamped to the button's height on a phone; the full sentence is the description.
+            <p
+              id="publish-reason"
+              className={reasonShown ? "line-clamp-2 min-w-0 text-caption text-ink-2" : "sr-only"}
+            >
+              {publishReason}
+            </p>
+          )}
+        </div>
+        {invalid ? (
+          <Button variant="secondary" onClick={onShow}>
+            {uk.kabinet.profileEdit.saveBar.show}
+          </Button>
+        ) : null}
         <Button
           variant="primary"
-          className="flex-1 tablet:flex-none"
-          aria-disabled={unready || blockedBy !== null || undefined}
-          aria-describedby={describedBy === "" ? undefined : describedBy}
+          aria-disabled={publishReason !== null || undefined}
+          aria-describedby={publishReason === null ? undefined : "publish-reason"}
           aria-busy={publishing || undefined}
           onClick={onPublish}
         >
           {t.publish.button}
         </Button>
       </div>
+      {/* The one fix this form can't make: a second row only for a shelter with no contact. */}
+      {blockedBy === "no_contact" ? (
+        <TextLink href={SHELTER_CONTACTS_PATH} placement="standalone" className="self-start">
+          {uk.kabinet.application.publishNoContactLink}
+        </TextLink>
+      ) : null}
     </>
   );
 }
