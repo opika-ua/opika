@@ -223,14 +223,7 @@ export function renderForSheltersPage(
         <Body>{uk.forShelters.verification}</Body>
         <Body>{uk.forShelters.verificationOpenToVolunteers}</Body>
       </Section>
-      {/*
-          §6 ends on «Ваш другий номер телефону - не рекомендація» - the only
-          sentence on the page that anticipates someone gaming the process. It
-          earns its place by proving the verification is enforced rather than
-          merely described, but it means §6 closes on fraud. §7 opening on
-          «потрібно небагато» is what recovers the tone, in one line. Keep
-          these two adjacent.
-        */}
+      {/* §6 closes on fraud; §7's practical list right after it recovers the tone. Keep them adjacent. */}
       <Section heading={h.whatToPrepare}>
         <Body>{whatToPrepareFor(false)}</Body>
       </Section>

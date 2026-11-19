@@ -129,23 +129,22 @@ export const uk = {
       "існуєте і робите те, що кажете. Ваш другий номер телефону – не рекомендація.",
     /**
      * §7 - practical, answerable in ten seconds. Not a form. Commitment 6.
-     * The last paragraph is his PR 6 text (pr6-copy-uk.md §1.1): from PR 6 a
-     * shelter keeps its own animals and profile in the kabinet, and a card it
-     * publishes shows at once (K-Q3). The offer to enter the first cards is
-     * an `onboard:shelter` run, which adds new animals only (his Q3).
+     * Owner-approved 2026-11-19 (R2): what registration needs, the donation
+     * link after the check, and cards published after approval with a contact;
+     * the offer to enter a new shelter's first cards is gone.
      */
     whatToPrepare:
-      "Щоб почати, потрібно небагато:\n\n" +
+      "Для реєстрації потрібні назва, місто й посилання на сайт чи сторінку притулку. Для карток тварин знадобляться:\n\n" +
       "фотографії тварин – справжні файли, а не скріншоти;\n" +
       "кілька речень про кожну: імʼя, приблизний вік, розмір, вдача;\n" +
       "контакт, на який ви справді відповідаєте;\n" +
-      "посилання на донати, якщо воно у вас є;\n" +
       "і кілька речень про притулок: хто ви, як працюєте і як часто оновлюєте картки – про це нижче.\n\n" +
+      "Посилання на донати можна додати після перевірки притулку, якщо воно у вас є.\n\n" +
       "Фотографії використовуються тільки для сторінок ваших тварин.\n\n" +
       // A1 (row 91, final, Oleksii 2026-10-14): directly before the last
       // paragraph, shipped with the commit that turns production sign-in on.
       "Доступ до кабінету я надсилаю сам – листом на адресу, яку ви мені вкажете.\n\n" +
-      "Тварин і профіль притулку ви ведете самі в кабінеті: додаєте картку, публікуєте – і її одразу видно. Якщо тварин багато, на старті можу внести перші картки сам – надішліть список і фото.",
+      "Тварин і профіль притулку ви ведете самі в кабінеті: картки можна додати одразу, а опублікувати – після схвалення, коли в профілі є контакт.",
     /**
      * §8 - the section needing the most care. Says what the date IS, never
      * what the feature isn't: pre-empting the objection is what plants it.
