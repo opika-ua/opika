@@ -12,7 +12,7 @@ const shelterId = "s-1" as ShelterId;
 const moderatorId = "m-1" as ModeratorId;
 
 describe("who sees the registration form (scenarios A1–A4)", () => {
-  it("a shelter admin is told who they are, masked; the operator and a support view are the operator", () => {
+  it("a shelter admin is told who they are, masked; a super_admin (support view or not) is the operator", () => {
     expect(
       registrationViewerFrom(
         { kind: "shelter_admin", shelterAdminId: "a-1" as ShelterAdminId, shelterId },
@@ -22,13 +22,10 @@ describe("who sees the registration form (scenarios A1–A4)", () => {
     expect(registrationViewerFrom({ kind: "super_admin", moderatorId }, "x@y.ua")).toEqual({
       kind: "operator",
     });
-    expect(registrationViewerFrom({ kind: "support_view", moderatorId, shelterId }, null)).toEqual({
-      kind: "operator",
-    });
   });
 
   it("anyone else gets the form", () => {
-    for (const kind of ["anonymous", "no_role", "conflicting_roles"] as const) {
+    for (const kind of ["no_role", "conflicting_roles"] as const) {
       expect(registrationViewerFrom({ kind }, "x@y.ua")).toEqual({ kind: "anonymous" });
     }
   });

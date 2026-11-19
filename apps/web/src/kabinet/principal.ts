@@ -36,12 +36,11 @@ export async function kabinetIdentityOf(
   headers: Headers,
   now: Date,
   production: boolean,
-  options: { refresh: boolean } = { refresh: true },
 ): Promise<KabinetIdentity> {
   // Every page load and API call reads through here: a failed query reaches the caller, and so
   // Next's error log, cleaned (PW1-F8): a support session's token is one of its parameters.
   const clean = withQueryErrorsCleaned(db);
-  const userId = await kabinetSessionUserIdOf(auth, clean, headers, now, options);
+  const userId = await kabinetSessionUserIdOf(auth, clean, headers, now);
   if (userId === null) return { principal: { kind: "anonymous" }, userId: null };
   const role = await kabinetActorRepo(clean).roleOf(userId);
   // A super_admin with an open support session is a support view (RG-Q4).
@@ -72,6 +71,20 @@ export async function kabinetSessionUserIdOf(
   options: { refresh: boolean } = { refresh: true },
 ): Promise<string | null> {
   return (await liveSessionUserOf(auth, db, headers, now, options.refresh))?.id ?? null;
+}
+
+/**
+ * The signed-in user's id and person, one session read without refreshing: for a public page that
+ * only needs to know who is there (/prytulkam's card). No role, no support-mode resolution.
+ */
+export async function kabinetSessionUserOf(
+  auth: KabinetAuth,
+  db: Database,
+  headers: Headers,
+  now: Date,
+): Promise<{ userId: string; person: SignedInPerson } | null> {
+  const user = await liveSessionUserOf(auth, db, headers, now, false);
+  return user === null ? null : { userId: user.id, person: personOf(user) };
 }
 
 /**
