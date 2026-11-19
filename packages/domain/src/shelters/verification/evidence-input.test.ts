@@ -73,9 +73,11 @@ describe("EvidenceItemInputSchema", () => {
 describe("EvidenceItemInputSchema: open sources", () => {
   const check = (patch: Record<string, unknown> = {}) => ({
     kind: "open_sources_review",
-    edrpou: "12345678",
-    registeredName: "ГО «Лапа»",
-    registeredAddress: "м. Київ, вул. Тестова, 1",
+    registry: {
+      edrpou: "12345678",
+      registeredName: "ГО «Лапа»",
+      registeredAddress: "м. Київ, вул. Тестова, 1",
+    },
     pages: ["https://lapa.example.org/"],
     notes: "Сайт веде організація",
     checkedOn: "2026-10-01",
@@ -86,10 +88,25 @@ describe("EvidenceItemInputSchema: open sources", () => {
     expect(EvidenceItemInputSchema.parse(check())).toMatchObject({ reviews: null });
   });
 
-  it("is never weaker than a registration: a valid code and the registry name are required", () => {
-    expect(EvidenceItemInputSchema.safeParse(check({ edrpou: "1234" })).success).toBe(false);
-    expect(EvidenceItemInputSchema.safeParse(check({ registeredName: "" })).success).toBe(false);
-    expect(EvidenceItemInputSchema.safeParse(check({ registeredAddress: "" })).success).toBe(false);
+  it("a registry part is never weaker than a registration: a valid code, the name and the address", () => {
+    const registry = (patch: Record<string, unknown>) =>
+      check({ registry: { ...check().registry, ...patch } });
+    expect(EvidenceItemInputSchema.safeParse(registry({ edrpou: "1234" })).success).toBe(false);
+    expect(EvidenceItemInputSchema.safeParse(registry({ registeredName: "" })).success).toBe(false);
+    expect(EvidenceItemInputSchema.safeParse(registry({ registeredAddress: "" })).success).toBe(
+      false,
+    );
+    expect(
+      EvidenceItemInputSchema.safeParse(registry({ registeredAddress: undefined })).success,
+    ).toBe(false);
+  });
+
+  it("takes no registry part at all, as null (an initiative has no ЄДР entry)", () => {
+    const { registry: _registry, ...noRegistry } = check();
+    expect(EvidenceItemInputSchema.parse(noRegistry)).toMatchObject({ registry: null });
+    expect(EvidenceItemInputSchema.parse(check({ registry: null }))).toMatchObject({
+      registry: null,
+    });
   });
 
   it("needs at least one https page and at most the cap", () => {
@@ -219,9 +236,11 @@ describe("toEvidenceItem", () => {
     [
       {
         kind: "open_sources_review",
-        edrpou: EDRPOU,
-        registeredName: "ГО «Лапа»",
-        registeredAddress: "м. Київ, вул. Тестова, 1",
+        registry: {
+          edrpou: EDRPOU,
+          registeredName: "ГО «Лапа»",
+          registeredAddress: "м. Київ, вул. Тестова, 1",
+        },
         pages: ["https://lapa.example.org/", "https://www.facebook.com/lapa"],
         reviews: "Відгуки в Google",
         notes: "Сайт і сторінка ведуться з 2022 року",
@@ -229,9 +248,11 @@ describe("toEvidenceItem", () => {
       },
       {
         kind: "open_sources_review",
-        edrpou: EDRPOU,
-        registeredName: "ГО «Лапа»",
-        registeredAddress: "м. Київ, вул. Тестова, 1",
+        registry: {
+          edrpou: EDRPOU,
+          registeredName: "ГО «Лапа»",
+          registeredAddress: "м. Київ, вул. Тестова, 1",
+        },
         pages: ["https://lapa.example.org/", "https://www.facebook.com/lapa"],
         reviews: "Відгуки в Google",
         notes: "Сайт і сторінка ведуться з 2022 року",
@@ -304,9 +325,11 @@ describe("toVerificationEvidence", () => {
   it("refuses an open-sources check dated after the day it is recorded, on Kyiv's calendar", () => {
     const check = (checkedOn: string): EvidenceItemInput => ({
       kind: "open_sources_review",
-      edrpou: EDRPOU,
-      registeredName: "ГО «Лапа»",
-      registeredAddress: "м. Київ, вул. Тестова, 1",
+      registry: {
+        edrpou: EDRPOU,
+        registeredName: "ГО «Лапа»",
+        registeredAddress: "м. Київ, вул. Тестова, 1",
+      },
       pages: ["https://lapa.example.org/"],
       reviews: null,
       notes: "Перевірив",

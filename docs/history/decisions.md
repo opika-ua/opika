@@ -65,15 +65,17 @@ Moved verbatim from CLAUDE.md in DS PR 5. Settled decisions (M1, M4, gallery con
    settled, the numbers are yours to change.
    2026-11-10, owner decision, new minimums: registered NGO or sole proprietor = 1 EDRPOU + 1
    `site_visit` (video call); unregistered initiative = 1 `site_visit` + 1 reference.
-   2026-11-19, owner decision, open sources: a registered NGO or sole proprietor may instead be
-   verified on one `open_sources_review` (ЄДР code, name and address, the pages checked, optional
-   reviews, a note, the day and the checking operator). The policy line became a discriminated
-   union (`rule: "kind"` or `rule: "any_of"` with `kinds`), and so did `EvidenceGap` and the
-   `EVIDENCE_INSUFFICIENT` data: registered = any-of(`edrpou_registration`,
-   `open_sources_review`) + any-of(`site_visit`, `open_sources_review`). The open-sources item
-   holds every field `edrpou_registration` does, so the registry entry is not weaker. The
-   unregistered initiative is unchanged. `approvalGaps` still asks for the legal entity and the
-   exact address before any evidence (0024).
+   2026-11-19, owner decision, open sources ((a′)): an operator's `open_sources_review` (pages
+   checked, optional reviews, a note, the day, the checking operator, and `registry` – the ЄДР
+   code, name and address – or null) stands in for the video call for every form. The policy line
+   became a discriminated union (`rule: "kind" | "any_of" | "registry_entry"`), and so did
+   `EvidenceGap` and the `EVIDENCE_INSUFFICIENT` data. Registered NGO or ФОП = `registry_entry`
+   (an `edrpou_registration`, or an open-sources check whose `registry` is filled: never weaker
+   than a registration) + any-of(`site_visit`, `open_sources_review`); unregistered initiative =
+   any-of(`site_visit`, `open_sources_review`) + 1 reference. No form needs the call
+   unconditionally. Early listing needs the same evidence as approval (a form not yet recorded is
+   held to the initiative's lines). `approvalGaps` still asks for the legal entity and the exact
+   address before any evidence (0024).
 7. **`RejectionReason` and `SuspensionReason` are separate code lists**
    (+ optional free-text note). A shelter is rejected for reasons about its
    application and suspended for reasons about its conduct; one merged enum

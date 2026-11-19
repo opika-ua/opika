@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ModeratorIdSchema } from "../../primitives/ids";
+import { EdrpouSchema, ModeratorIdSchema } from "../../primitives/ids";
+import type { ShelterLegalEntity } from "../legal-entity";
 import {
   allowEarlyListing,
   EARLY_LISTING_DAYS,
@@ -22,6 +23,7 @@ import {
 } from "./early-listing";
 import { VERIFICATION_EVENT_TYPES } from "./events";
 import type { EvidenceItem } from "./evidence";
+import { DEFAULT_VERIFICATION_POLICY, evidenceGaps } from "./policy";
 import { type ShelterVerification, VERIFICATION_STATUSES } from "./state";
 
 const MOD = ModeratorIdSchema.parse("11111111-1111-4111-8111-111111111111");
@@ -36,6 +38,28 @@ const REFERENCE = {
   relationship: "other",
 } as unknown as EvidenceItem;
 const BANK = { kind: "bank_account_holder", holderName: "Х", documentKey: null } as EvidenceItem;
+const EDRPOU = EdrpouSchema.parse("12345678");
+const REGISTRATION: EvidenceItem = {
+  kind: "edrpou_registration",
+  edrpou: EDRPOU,
+  registeredName: "ГО «Лапа»",
+  documentKey: null,
+};
+const OPEN_SOURCES: EvidenceItem = {
+  kind: "open_sources_review",
+  registry: null,
+  pages: ["https://lapa.example.org/"],
+  reviews: null,
+  notes: "Сторінка ведеться з 2022 року.",
+  checkedAt: AT,
+  checkedBy: MOD,
+};
+const OPEN_SOURCES_REGISTRY: EvidenceItem = {
+  ...OPEN_SOURCES,
+  registry: { edrpou: EDRPOU, registeredName: "ГО «Лапа»", registeredAddress: "м. Київ" },
+} as EvidenceItem;
+/** The least an allow takes with no legal form on file: the initiative's call and reference. */
+const ENOUGH: EvidenceItem[] = [VISIT, REFERENCE];
 
 const pausedFacts = {
   verifiedAt: AT,
@@ -165,11 +189,17 @@ describe("keepsEarlyListing", () => {
 });
 
 describe("allowEarlyListing", () => {
-  const base = { early: earlyListingOf(null), periodsUsed: 0, note: null, now: NOW };
+  const base = {
+    legalEntity: null,
+    early: earlyListingOf(null),
+    periodsUsed: 0,
+    note: null,
+    now: NOW,
+  };
 
   it("refuses every status but pending and under_review", () => {
     for (const status of VERIFICATION_STATUSES) {
-      const result = allowEarlyListing({ ...base, verification: stateOf(status, [VISIT]) });
+      const result = allowEarlyListing({ ...base, verification: stateOf(status, ENOUGH) });
       if (isOpen(status)) {
         expect(result).toEqual({ kind: "ok", since: NOW, period: 1 });
       } else {
@@ -178,19 +208,60 @@ describe("allowEarlyListing", () => {
     }
   });
 
-  it("needs one site visit or one reference, nothing else counts", () => {
-    const verdict = (items: EvidenceItem[]) =>
-      allowEarlyListing({ ...base, verification: stateOf("pending", items) }).kind;
-    expect(verdict([])).toBe("evidence_below_minimum");
-    expect(verdict([BANK])).toBe("evidence_below_minimum");
-    expect(verdict([VISIT])).toBe("ok");
-    expect(verdict([REFERENCE])).toBe("ok");
+  /**
+   * Owner, 2026-11-19: the allow needs the legal form's approval evidence, so open sources count
+   * exactly as for approval. Every form against every set, held to `evidenceGaps` itself; a form
+   * not yet recorded is held to the initiative's lines.
+   */
+  const SETS: Record<string, EvidenceItem[]> = {
+    nothing: [],
+    "a bank holder": [BANK],
+    "a call": [VISIT],
+    "a reference": [REFERENCE],
+    "open sources, no registry": [OPEN_SOURCES],
+    "open sources with the registry": [OPEN_SOURCES_REGISTRY],
+    "a call and a reference": [VISIT, REFERENCE],
+    "open sources and a reference": [OPEN_SOURCES, REFERENCE],
+    "a registration and a call": [REGISTRATION, VISIT],
+    "a registration and open sources": [REGISTRATION, OPEN_SOURCES],
+  };
+  const FORMS: Record<string, ShelterLegalEntity> = {
+    registered_ngo: {
+      kind: "registered_ngo",
+      legalName: "ГО «Лапа»",
+      edrpou: EDRPOU,
+      registeredAt: AT,
+    },
+    sole_proprietor: { kind: "sole_proprietor", legalName: "ФОП Лапа", edrpou: EDRPOU },
+    unregistered_initiative: { kind: "unregistered_initiative", contactPersonName: "Олена" },
+  };
+  const verdict = (legalEntity: ShelterLegalEntity | null, items: EvidenceItem[]) =>
+    allowEarlyListing({ ...base, legalEntity, verification: stateOf("pending", items) }).kind;
+
+  it.each(Object.keys(SETS))("%s: allowed exactly when approval's evidence is met", (name) => {
+    const items = SETS[name] ?? [];
+    for (const entity of Object.values(FORMS)) {
+      const meets = evidenceGaps(entity, { items, submittedAt: AT }, DEFAULT_VERIFICATION_POLICY);
+      expect(verdict(entity, items)).toBe(meets.length === 0 ? "ok" : "evidence_below_minimum");
+    }
+    expect(verdict(null, items)).toBe(verdict(FORMS.unregistered_initiative ?? null, items));
+  });
+
+  it("lets open sources qualify for every form, beside a reference for an initiative", () => {
+    expect(verdict(FORMS.registered_ngo ?? null, [OPEN_SOURCES_REGISTRY])).toBe("ok");
+    expect(verdict(FORMS.sole_proprietor ?? null, [OPEN_SOURCES_REGISTRY])).toBe("ok");
+    expect(verdict(FORMS.unregistered_initiative ?? null, [OPEN_SOURCES, REFERENCE])).toBe("ok");
+    expect(verdict(null, [OPEN_SOURCES, REFERENCE])).toBe("ok");
+    // No longer one piece of anything: a call alone or a reference alone falls short.
+    expect(verdict(FORMS.unregistered_initiative ?? null, [VISIT])).toBe("evidence_below_minimum");
+    expect(verdict(null, [REFERENCE])).toBe("evidence_below_minimum");
+    expect(verdict(FORMS.registered_ngo ?? null, [OPEN_SOURCES])).toBe("evidence_below_minimum");
   });
 
   it("does not restack a running permission", () => {
     const result = allowEarlyListing({
       ...base,
-      verification: stateOf("pending", [VISIT]),
+      verification: stateOf("pending", ENOUGH),
       early: earlyListingOf(new Date(NOW.getTime() - DAY)),
       periodsUsed: 1,
       note: "reason",
@@ -203,7 +274,7 @@ describe("allowEarlyListing", () => {
     const second = (note: string | null) =>
       allowEarlyListing({
         ...base,
-        verification: stateOf("under_review", [VISIT]),
+        verification: stateOf("under_review", ENOUGH),
         early: lapsed,
         periodsUsed: 1,
         note,
@@ -213,7 +284,7 @@ describe("allowEarlyListing", () => {
     expect(second("ще чекаємо")).toEqual({ kind: "ok", since: NOW, period: 2 });
     const third = allowEarlyListing({
       ...base,
-      verification: stateOf("under_review", [VISIT]),
+      verification: stateOf("under_review", ENOUGH),
       periodsUsed: EARLY_LISTING_MAX_PERIODS,
       note: "reason",
     });
@@ -225,7 +296,7 @@ describe("allowEarlyListing", () => {
     let periodsUsed = 0;
     const first = allowEarlyListing({
       ...base,
-      verification: stateOf("pending", [VISIT]),
+      verification: stateOf("pending", ENOUGH),
       periodsUsed,
     });
     expect(first).toEqual({ kind: "ok", since: NOW, period: 1 });
@@ -233,7 +304,7 @@ describe("allowEarlyListing", () => {
     // reject then resubmit: the column is cleared (not a move inside the open statuses).
     expect(keepsEarlyListing("pending", "rejected")).toBe(false);
     expect(keepsEarlyListing("rejected", "pending")).toBe(false);
-    const resubmitted = stateOf("pending", [VISIT]);
+    const resubmitted = stateOf("pending", ENOUGH);
     const second = allowEarlyListing({
       ...base,
       verification: resubmitted,

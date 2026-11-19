@@ -138,9 +138,11 @@ describe("resubmit prefill", () => {
   it("an open-sources check comes back the same, its checker kept; edited, it is the resubmitter's", () => {
     const check: EvidenceItem = {
       kind: "open_sources_review",
-      edrpou: "43902117" as never,
-      registeredName: "ГО «Ірпінський хвіст»",
-      registeredAddress: "м. Ірпінь, вул. Садова, 3",
+      registry: {
+        edrpou: "43902117" as never,
+        registeredName: "ГО «Ірпінський хвіст»",
+        registeredAddress: "м. Ірпінь, вул. Садова, 3",
+      },
       pages: ["https://hvist.example.org/", "https://www.facebook.com/hvist"],
       reviews: null,
       notes: "Сайт і сторінка ведуться з 2022 року.",
@@ -166,6 +168,8 @@ describe("resubmit prefill", () => {
     });
     const withReviews = { ...check, reviews: "Відгуки в Google" };
     expect(sentBackUnedited([withReviews]).resubmitted.items).toEqual([withReviews]);
+    const noRegistry = { ...check, registry: null };
+    expect(sentBackUnedited([noRegistry]).resubmitted.items).toEqual([noRegistry]);
 
     // An edit makes it the resubmitter's check, as for a visit.
     const onFile = evidence([check]);
@@ -173,9 +177,11 @@ describe("resubmit prefill", () => {
       [
         {
           kind: "open_sources_review",
-          edrpou: "43902117" as never,
-          registeredName: "ГО «Ірпінський хвіст»",
-          registeredAddress: "м. Ірпінь, вул. Садова, 3",
+          registry: {
+            edrpou: "43902117" as never,
+            registeredName: "ГО «Ірпінський хвіст»",
+            registeredAddress: "м. Ірпінь, вул. Садова, 3",
+          },
           pages: ["https://hvist.example.org/"],
           reviews: null,
           notes: "Сайт і сторінка ведуться з 2022 року.",

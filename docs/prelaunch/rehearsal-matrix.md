@@ -316,6 +316,8 @@ Public wording. Card and animal-page label «На перевірці»; shelter 
 (N3) «Цей притулок ще проходить перевірку. Не переказуйте гроші наперед.»; share preview line «Тварина з притулку, який ще
 проходить перевірку.» Minimum evidence to allow: one site visit OR one reference (`EARLY_LISTING_EVIDENCE_KINDS`,
 `packages/domain/src/shelters/verification/early-listing.ts` on `ae755c7`); EDRPOU and bank holder do NOT count.
+(Changed 2026-11-19, owner: the allow now needs approval's evidence for the legal form,
+`earlyListingEvidenceGaps`; rerun this sitting's evidence steps against that rule.)
 
 | # | Step | Who | Expect |
 |---|---|---|---|

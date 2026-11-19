@@ -81,12 +81,20 @@ export const EvidenceItemInputSchema = z.discriminatedUnion("kind", [
     visitedOn: z.iso.date(),
     notes: z.string().min(1).max(EVIDENCE_NOTES_MAX_LENGTH),
   }),
-  /** `checkedOn` is the day the operator checked, a calendar date like `visitedOn` (H2-9). */
+  /**
+   * `checkedOn` is the day checked, a calendar date like `visitedOn` (H2-9). `registry` is all
+   * three ЄДР facts or none (an initiative has no entry).
+   */
   z.object({
     kind: z.literal("open_sources_review"),
-    edrpou: EdrpouSchema,
-    registeredName: z.string().min(1).max(EVIDENCE_NAME_MAX_LENGTH),
-    registeredAddress: z.string().min(1).max(EVIDENCE_ADDRESS_MAX_LENGTH),
+    registry: z
+      .object({
+        edrpou: EdrpouSchema,
+        registeredName: z.string().min(1).max(EVIDENCE_NAME_MAX_LENGTH),
+        registeredAddress: z.string().min(1).max(EVIDENCE_ADDRESS_MAX_LENGTH),
+      })
+      .nullable()
+      .default(null),
     pages: z
       .array(
         z
@@ -160,9 +168,7 @@ export const toEvidenceItem = (input: EvidenceItemInput, by: EvidenceAttribution
     case "open_sources_review":
       return {
         kind: "open_sources_review",
-        edrpou: input.edrpou,
-        registeredName: input.registeredName,
-        registeredAddress: input.registeredAddress,
+        registry: input.registry,
         pages: input.pages,
         reviews: input.reviews,
         notes: input.notes,

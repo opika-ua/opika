@@ -138,15 +138,13 @@ script - `buildShelter` checks against it and refuses to produce a
 
 | Legal shape | Needs |
 |---|---|
-| `unregistered_initiative` (most volunteer groups) | 1× `site_visit` (a video call), 1× `reference_contact` |
-| `registered_ngo` / `sole_proprietor` | 1× `edrpou_registration` + 1× `site_visit` (a video call), **or** 1× `open_sources_review` alone |
+| `unregistered_initiative` (most volunteer groups) | 1× `site_visit` (a video call) **or** 1× `open_sources_review`, and 1× `reference_contact` |
+| `registered_ngo` / `sole_proprietor` | a registry entry (1× `edrpou_registration`, or an `open_sources_review` with its `registry` filled), and 1× `site_visit` **or** 1× `open_sources_review` |
 
-(Changed 2026-11-19, owner decision: open sources are a registered form's alternative to the
-video call. Each registered line is an any-of: the registry entry is an `edrpou_registration`
-or an `open_sources_review`, and the second check is a `site_visit` or that same
-`open_sources_review`, so one open-sources item clears both and the call becomes optional. An
-unregistered initiative is unchanged: open sources count for neither of its lines. Approval
-still needs the legal entity and the exact address first, whatever the evidence.)
+(Changed 2026-11-19, owner decision: open sources are every form's alternative to the video call.
+For a registered form one open-sources check with its `registry` filled clears both lines; for an
+initiative an open-sources check replaces the call, never the reference. Approval still needs the
+legal entity and the exact address first, whatever the evidence.)
 
 (Changed 2026-11-10, owner decision: previously an initiative needed two references, and a
 registered shape needed a `bank_account_holder` and a `reference_contact` instead of the video
@@ -180,20 +178,22 @@ today is refused, because a call that hasn't happened can't back a
 verification. The script records you (its founder stand-in) as the person
 who vouches for it; there's no field for that.
 
-**An `open_sources_review`** records what you checked in open sources, all of it required
-except `reviews`: `edrpou` and `registeredName` exactly as for an `edrpou_registration`,
-`registeredAddress` (the address as ЄДР shows it), `pages` (1 to 10 https links you opened:
-the site, social pages; the server never fetches them), `reviews` (where you read reviews and
-what they say, or leave it out), `notes` (what matched: the name, the address, how long the
-pages have been kept) and `checkedOn` (`YYYY-MM-DD`, the day you checked, not in the future).
-As with a call, the script records you as the person who checked; there's no field for that.
+**An `open_sources_review`** records what you checked in open sources: `registry` (for a
+registered form: `edrpou` and `registeredName` exactly as for an `edrpou_registration`, plus
+`registeredAddress`, the address as ЄДР shows it; leave it out for an initiative), `pages` (1 to
+10 https links you opened: the site, social pages; stored as the parsed link, never fetched),
+`reviews` (where you read reviews and what they say, or leave it out), `notes` (what matched: the
+name, the address, how long the pages have been kept) and `checkedOn` (`YYYY-MM-DD`, the day you
+checked, not in the future). As with a call, the script records you as the person who checked.
 
 ```json
 {
   "kind": "open_sources_review",
-  "edrpou": "12345678",
-  "registeredName": "ГРОМАДСЬКА ОРГАНІЗАЦІЯ «ДОМІВКА»",
-  "registeredAddress": "м. Вишгород, вул. Мечникова, 4",
+  "registry": {
+    "edrpou": "12345678",
+    "registeredName": "ГРОМАДСЬКА ОРГАНІЗАЦІЯ «ДОМІВКА»",
+    "registeredAddress": "м. Вишгород, вул. Мечникова, 4"
+  },
   "pages": ["https://domivka.example.org/", "https://www.facebook.com/domivka"],
   "notes": "Сайт і сторінка ведуться з 2022 року, назва й адреса збігаються з ЄДР.",
   "checkedOn": "2026-11-19"
@@ -740,9 +740,10 @@ events (`early-listing.ts`).
 
 - **Who and where.** Operator only. Panel «Показ до завершення перевірки» on the shelter's registry
   page, shown in `pending` and `under_review` only.
-- **Minimum evidence.** At least one `site_visit` (video call) or one `reference_contact` on file
-  (`EARLY_LISTING_EVIDENCE_KINDS`). This is weaker than approval and is not the table in "Evidence".
-  Otherwise refused with «Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація.»
+- **Minimum evidence.** Since 2026-11-19 (owner) the same evidence as approval for the shelter's
+  legal form, the table in "Evidence" (`earlyListingEvidenceGaps`); a shelter whose legal form is
+  not recorded yet is held to the initiative's line (a call or open sources, and a reference).
+  The legal data and the address are still not needed. Otherwise refused with «Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація.»
 - **Length.** 60 days from the moment you allow it (`EARLY_LISTING_DAYS`), an exact instant sum with
   no calendar maths. Expiry is worked out when read, with no job: at the boundary instant the
   shelter is already hidden. While it runs the panel shows «До кінця показу: {n} день/дні/днів»,

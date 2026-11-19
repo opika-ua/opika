@@ -83,9 +83,7 @@ function sameTypedFacts(onFile: EvidenceItem, sent: EvidenceItem): boolean {
       return (
         sent.kind === "open_sources_review" &&
         sent.checkedAt.getTime() === onFile.checkedAt.getTime() &&
-        sent.edrpou === onFile.edrpou &&
-        sameText(sent.registeredName, onFile.registeredName) &&
-        sameText(sent.registeredAddress, onFile.registeredAddress) &&
+        sameRegistry(sent.registry, onFile.registry) &&
         sent.pages.length === onFile.pages.length &&
         sent.pages.every((page, index) => page === onFile.pages[index]) &&
         sameText(sent.reviews ?? "", onFile.reviews ?? "") &&
@@ -112,6 +110,15 @@ function sameTypedFacts(onFile: EvidenceItem, sent: EvidenceItem): boolean {
 }
 
 const sameText = (a: string, b: string): boolean => a.trim() === b.trim();
+
+type Registry = Extract<EvidenceItem, { kind: "open_sources_review" }>["registry"];
+
+const sameRegistry = (a: Registry, b: Registry): boolean =>
+  a === null || b === null
+    ? a === b
+    : a.edrpou === b.edrpou &&
+      sameText(a.registeredName, b.registeredName) &&
+      sameText(a.registeredAddress, b.registeredAddress);
 
 /** Whether an item points at a document the input can't send back. */
 function holdsDocument(item: EvidenceItem): boolean {

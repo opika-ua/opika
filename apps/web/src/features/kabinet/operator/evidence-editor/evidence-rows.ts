@@ -101,9 +101,7 @@ export type DocumentFreeEvidenceInput =
   | { kind: "site_visit"; visitedOn: string; notes: string }
   | {
       kind: "open_sources_review";
-      edrpou: string;
-      registeredName: string;
-      registeredAddress: string;
+      registry: { edrpou: string; registeredName: string; registeredAddress: string } | null;
       pages: string[];
       reviews: string | null;
       notes: string;
@@ -265,10 +263,14 @@ function rowResult(row: EvidenceRow, now: Date): RowResult {
         return href === null ? [] : [href];
       });
       const checkedOn = row.checkedOn;
-      if (edrpou === "") errors.edrpou = "required";
-      else if (!EdrpouSchema.safeParse(edrpou).success) errors.edrpou = "edrpouFormat";
-      if (registeredName === null) errors.registeredName = "required";
-      if (registeredAddress === null) errors.registeredAddress = "required";
+      // The registry part is all three ЄДР facts or none: an initiative has no entry to record.
+      const noRegistry = edrpou === "" && registeredName === null && registeredAddress === null;
+      if (!noRegistry) {
+        if (edrpou === "") errors.edrpou = "required";
+        else if (!EdrpouSchema.safeParse(edrpou).success) errors.edrpou = "edrpouFormat";
+        if (registeredName === null) errors.registeredName = "required";
+        if (registeredAddress === null) errors.registeredAddress = "required";
+      }
       // The domain's own rule, so the form sends the href the server would store.
       if (lines.length === 0) errors.pages = "required";
       else if (pages.length < lines.length) errors.pages = "pagesInvalid";
@@ -279,22 +281,17 @@ function rowResult(row: EvidenceRow, now: Date): RowResult {
       else if (checkedOn.kind === "date" && isSiteVisitInFuture(checkedOn.date, now)) {
         errors.checkedOn = "openSourcesCheckInFuture";
       }
-      if (
-        Object.keys(errors).length > 0 ||
-        registeredName === null ||
-        registeredAddress === null ||
-        notes === null ||
-        checkedOn.kind !== "date"
-      ) {
+      if (Object.keys(errors).length > 0 || notes === null || checkedOn.kind !== "date") {
         return { kind: "invalid", errors };
       }
       return {
         kind: "ok",
         item: {
           kind: row.kind,
-          edrpou,
-          registeredName,
-          registeredAddress,
+          registry:
+            registeredName === null || registeredAddress === null
+              ? null
+              : { edrpou, registeredName, registeredAddress },
           pages,
           reviews: trimmedOrNull(row.reviews),
           notes,

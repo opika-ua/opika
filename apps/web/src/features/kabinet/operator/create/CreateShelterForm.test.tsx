@@ -849,12 +849,16 @@ describe("the evidence editor", () => {
       "Рік",
     ]);
 
-    // Empty: every required field says so, the reviews do not, nothing is sent.
+    // Empty: the pages, the note and the date say so; the registry part and reviews may be empty.
     await u.click(submit());
     expect(fns.create).not.toHaveBeenCalled();
-    expect(card.getAllByText("Це поле потрібне.")).toHaveLength(6);
+    expect(card.getAllByText("Це поле потрібне.")).toHaveLength(3);
 
+    // The registry part is all three facts or none: a code alone asks for the name and address.
     await u.type(card.getByLabelText("Код ЄДРПОУ"), "43 218 765");
+    await u.click(submit());
+    expect(card.getAllByText("Це поле потрібне.")).toHaveLength(5);
+
     await u.type(card.getByLabelText("Назва в ЄДР"), "ГО «ДОМІВКА»");
     await u.type(card.getByLabelText("Адреса в ЄДР"), "м. Вишгород, вул. Мечникова, 4");
     await u.type(card.getByLabelText("Переглянуті сторінки"), "domivka.example.org");
@@ -875,15 +879,34 @@ describe("the evidence editor", () => {
     expect(createInputSchema.safeParse(input).success).toBe(true);
     expect(input.evidence.at(-1)).toEqual({
       kind: "open_sources_review",
-      edrpou: "43218765",
-      registeredName: "ГО «ДОМІВКА»",
-      registeredAddress: "м. Вишгород, вул. Мечникова, 4",
+      registry: {
+        edrpou: "43218765",
+        registeredName: "ГО «ДОМІВКА»",
+        registeredAddress: "м. Вишгород, вул. Мечникова, 4",
+      },
       pages: ["https://domivka.example.org/", "https://www.facebook.com/domivka"],
       reviews: null,
       notes: "Сайт веде організація з 2022 року.",
       checkedOn: "2026-10-12",
     });
     expect(JSON.stringify(input)).not.toMatch(/checkedBy|visitedBy/);
+  });
+
+  it("records an initiative's open sources with no registry part", async () => {
+    const fns = renderForm(async () => createdView({ kind: "sent", blockCheck: "clear" }, null));
+    const u = await fillInitiative();
+    await u.selectOptions(screen.getByLabelText("Тип доказу"), "Відкриті джерела");
+    await u.click(screen.getByRole("button", { name: "+ Додати доказ" }));
+    const group = screen.getByRole("group", { name: "Відкриті джерела" });
+    const card = within(group);
+    await u.type(card.getByLabelText("Переглянуті сторінки"), "https://lapa.example.org/");
+    await u.type(card.getByLabelText("Нотатка"), "Сторінка ведеться з 2022 року.");
+    await typeDate(u, group, "Дата перевірки", "2026-10-12");
+    await u.click(submit());
+    expect(fns.create).toHaveBeenCalledTimes(1);
+    const input = fns.create.mock.calls[0]?.[0] as { evidence: unknown[] };
+    expect(createInputSchema.safeParse(input).success).toBe(true);
+    expect(input.evidence.at(-1)).toMatchObject({ kind: "open_sources_review", registry: null });
   });
 
   it("refuses an open-sources check dated tomorrow in Kyiv on its date field", async () => {

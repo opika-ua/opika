@@ -52,9 +52,11 @@ const openSources = (
   checkedBy = MOD,
 ): EvidenceItem => ({
   kind: "open_sources_review",
-  edrpou: EdrpouSchema.parse(code),
-  registeredName: "ГО «Лапа»",
-  registeredAddress: "м. Київ, вул. Тестова, 1",
+  registry: {
+    edrpou: EdrpouSchema.parse(code),
+    registeredName: "ГО «Лапа»",
+    registeredAddress: "м. Київ, вул. Тестова, 1",
+  },
   pages: ["https://lapa.example.org/"],
   reviews: null,
   notes,

@@ -1,3 +1,6 @@
+import type { ShelterLegalEntity } from "../legal-entity";
+import type { VerificationEvidence } from "./evidence";
+import { DEFAULT_VERIFICATION_POLICY, type EvidenceGap, requirementGaps } from "./policy";
 import type { ShelterVerification, VerificationStatus } from "./state";
 
 /**
@@ -101,8 +104,21 @@ export const isPubliclyListed = (basis: PublicListingBasis): boolean => basis.ki
 export const keepsEarlyListing = (from: VerificationStatus, to: VerificationStatus): boolean =>
   isEarlyStatus(from) && isEarlyStatus(to);
 
-/** The least evidence that lets the operator allow (owner, 2026-11-04): a visit or a reference. */
-export const EARLY_LISTING_EVIDENCE_KINDS = ["site_visit", "reference_contact"] as const;
+/**
+ * The evidence an allow needs: the legal form's own approval evidence (owner, 2026-11-19), so open
+ * sources qualify exactly as they do for approval. A form not yet recorded is held to the
+ * initiative's lines (a call or open sources, and a reference): no ЄДР entry is on file for it.
+ */
+export const earlyListingEvidenceGaps = (
+  legalEntity: ShelterLegalEntity | null,
+  evidence: VerificationEvidence,
+): readonly EvidenceGap[] =>
+  requirementGaps(
+    DEFAULT_VERIFICATION_POLICY.requirementsByLegalEntity[
+      legalEntity?.kind ?? "unregistered_initiative"
+    ],
+    evidence,
+  );
 
 export type AllowEarlyListingResult =
   | { kind: "ok"; since: Date; period: number }
@@ -119,22 +135,22 @@ export type AllowEarlyListingResult =
  */
 export function allowEarlyListing(input: {
   verification: ShelterVerification;
+  legalEntity: ShelterLegalEntity | null;
   early: EarlyListing;
   periodsUsed: number;
   note: string | null;
   now: Date;
 }): AllowEarlyListingResult {
-  const { verification, early, periodsUsed, note, now } = input;
+  const { verification, legalEntity, early, periodsUsed, note, now } = input;
   if (verification.status !== "pending" && verification.status !== "under_review") {
     return { kind: "wrong_status", from: verification.status };
   }
   if (publicListingBasisOf(verification, early, now).kind === "listed_before_verification") {
     return { kind: "already_running" };
   }
-  const hasMinimum = verification.evidence.items.some((item) =>
-    (EARLY_LISTING_EVIDENCE_KINDS as readonly string[]).includes(item.kind),
-  );
-  if (!hasMinimum) return { kind: "evidence_below_minimum" };
+  if (earlyListingEvidenceGaps(legalEntity, verification.evidence).length > 0) {
+    return { kind: "evidence_below_minimum" };
+  }
   if (periodsUsed >= EARLY_LISTING_MAX_PERIODS) return { kind: "limit_reached" };
   if (periodsUsed >= 1 && (note === null || note.trim() === "")) return { kind: "note_required" };
   return { kind: "ok", since: now, period: periodsUsed + 1 };

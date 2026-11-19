@@ -141,9 +141,11 @@ describe("buildShelter's public location", () => {
 describe("buildShelter: a registered NGO on open sources (2026-11-19)", () => {
   const openSources = (checkedOn: string) => ({
     kind: "open_sources_review" as const,
-    edrpou: EdrpouSchema.parse("43218765"),
-    registeredName: "ГО «ДОМІВКА»",
-    registeredAddress: "м. Бровари, вул. Незалежності, 12",
+    registry: {
+      edrpou: EdrpouSchema.parse("43218765"),
+      registeredName: "ГО «ДОМІВКА»",
+      registeredAddress: "м. Бровари, вул. Незалежності, 12",
+    },
     pages: ["https://domivka.example.org/"],
     reviews: null,
     notes: "Сайт і сторінка ведуться з 2022 року.",

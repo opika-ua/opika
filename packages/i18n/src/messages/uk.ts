@@ -108,13 +108,13 @@ export const uk = {
       "Якщо у вас є власна сторінка для донатів – банка в monobank, наприклад – на сторінці тварини " +
       "буде посилання на неї (коли притулок пройшов перевірку), і людина побачить, куди воно веде, ще до того як натисне.",
     /**
-     * §6 - names a call only where DEFAULT_VERIFICATION_POLICY requires one (`verification-claim.test.ts`).
-     * Narrowed 2026-11-19 (open sources): the registered sentence lost «і проходить відеодзвінок».
+     * §6 - presents a call as required only where DEFAULT_VERIFICATION_POLICY does (`verification-claim.test.ts`).
+     * Narrowed 2026-11-19 (open sources): both form sentences lost their video call; #541 rewrites them.
      */
     verification:
       "«Перевірений» означає, що вас перевіряла людина. Ось що це означає конкретно.\n\n" +
       "Зареєстрована організація показує ЄДРПОУ.\n\n" +
-      "Незареєстрована ініціатива проходить відеодзвінок і показує одну незалежну рекомендацію.\n\n" +
+      "Незареєстрована ініціатива показує одну незалежну рекомендацію.\n\n" +
       "Поки перевірка триває, я можу дозволити показ карток до 60 днів – з позначкою «на перевірці». " +
       "Позначку «перевірений» притулок отримує лише після повної перевірки.",
     /**
@@ -126,8 +126,7 @@ export const uk = {
      * opening on «потрібно небагато» must stay adjacent to it.
      */
     verificationOpenToVolunteers:
-      "Перевірка проходить дистанційно: відеодзвінок, на якому ви показуєте приміщення, тварин і людей. " +
-      "Якщо звʼязок не тягне відео – телефонна розмова і коротке відео приміщення, зняте того ж дня. Рекомендація має бути від когось іншого, ніж ви: " +
+      "Рекомендація має бути від когось іншого, ніж ви: " +
       "сусідній притулок, ветклініка, з якою ви працюєте, будь-хто, хто може підтвердити, що ви " +
       "існуєте і робите те, що кажете. Ваш другий номер телефону – не рекомендація.",
     /**
@@ -1856,7 +1855,7 @@ export const uk = {
           bank_account_holder: "Власник банківського рахунку",
           reference_contact: "Рекомендація",
           site_visit: "Відеодзвінок",
-          /** Builder's draft (2026-11-19), flagged for Oleksii's confirm-or-replace, as is every new open-sources string below. */
+          /** Owner-approved 2026-11-19, as is every open-sources string below. */
           open_sources_review: "Відкриті джерела",
           public_link: "Сайт або сторінка в соцмережі",
           supporting_document: "Документ",
@@ -2079,7 +2078,7 @@ export const uk = {
             invited_elsewhere: "На цю адресу вже надіслано чинне запрошення до іншого притулку.",
           },
           siteVisitInFuture: "Дата дзвінка не може бути в майбутньому.",
-          /** Builder's drafts (2026-11-19, open sources), flagged for Oleksii's confirm-or-replace. */
+          /** Owner-approved 2026-11-19 (open sources). */
           openSourcesCheckInFuture: "Дата перевірки не може бути в майбутньому.",
           pagesInvalid: "Кожен рядок – посилання, що починається з https://.",
           /** «10» is `OPEN_SOURCES_MAX_PAGES` (`copy-plural-pins.test.ts`). */

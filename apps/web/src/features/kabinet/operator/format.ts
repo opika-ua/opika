@@ -55,13 +55,21 @@ export const formatDateTime = lazyFormat({
 
 let disjunction: Intl.ListFormat | undefined;
 
+/** The kinds a registry entry can come in (`holdsRegistryEntry`), as the gap names them. */
+const REGISTRY_ENTRY_KINDS = ["edrpou_registration", "open_sources_review"] as const;
+
 /**
- * What an evidence gap asks for, by name: one kind, or an any-of line's kinds joined with
- * «або» by `Intl.ListFormat` («Відеодзвінок або Відкриті джерела»).
+ * What an evidence gap asks for, by name: one kind, or several joined with «або» by
+ * `Intl.ListFormat` («Відеодзвінок або Відкриті джерела»).
  */
 export function evidenceGapKinds(gap: EvidenceGap): string {
   const kind = uk.kabinet.operator.evidence.kind;
   if (gap.rule === "kind") return kind[gap.kind];
+  const kinds = gap.rule === "any_of" ? gap.kinds : REGISTRY_ENTRY_KINDS;
   disjunction ??= new Intl.ListFormat("uk", { type: "disjunction" });
-  return disjunction.format(gap.kinds.map((each) => kind[each]));
+  return disjunction.format(kinds.map((each) => kind[each]));
 }
+
+/** A stable key for a gap line. */
+export const evidenceGapKey = (gap: EvidenceGap): string =>
+  gap.rule === "kind" ? gap.kind : gap.rule === "any_of" ? gap.kinds.join("|") : gap.rule;

@@ -169,6 +169,13 @@ test.describe("listing before verification, operator and shelter sides", () => {
               visitedBy: operatorId as ModeratorId,
               notes: "Чисто, вольєри з навісом.",
             },
+            // An initiative's allow needs a reference too (owner, 2026-11-19).
+            {
+              kind: "reference_contact",
+              name: "Ветклініка «Тестова»",
+              channel: { kind: "phone", e164: "+380501112233" },
+              relationship: "veterinary_clinic",
+            },
           ],
         },
       },

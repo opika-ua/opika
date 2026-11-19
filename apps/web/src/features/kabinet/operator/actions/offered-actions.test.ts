@@ -300,13 +300,7 @@ describe("approve is gated by the domain's evidence policy", () => {
     expect(approveOf(underReview([reference("Ветклініка")]), NGO)).toEqual({
       kind: "blocked",
       gaps: [
-        {
-          on: "evidence",
-          rule: "any_of",
-          kinds: ["edrpou_registration", "open_sources_review"],
-          minimum: 1,
-          provided: 0,
-        },
+        { on: "evidence", rule: "registry_entry", minimum: 1, provided: 0 },
         {
           on: "evidence",
           rule: "any_of",
@@ -354,9 +348,11 @@ describe("approve is gated by the domain's evidence policy", () => {
   it("a registered NGO or ФОП with an open-sources check and no video call: open", () => {
     const check: EvidenceItem = {
       kind: "open_sources_review",
-      edrpou: "43218765" as never,
-      registeredName: "ГО «Домівка»",
-      registeredAddress: "м. Київ, вул. Тестова, 1",
+      registry: {
+        edrpou: "43218765" as never,
+        registeredName: "ГО «Домівка»",
+        registeredAddress: "м. Київ, вул. Тестова, 1",
+      },
       pages: ["https://domivka.example.org/"],
       reviews: null,
       notes: "Сайт і сторінка ведуться з 2022 року",
@@ -389,13 +385,7 @@ describe("approve is gated by the domain's evidence policy", () => {
       kind: "blocked",
       gaps: [
         { on: "verified_data", field: "exact_address" },
-        {
-          on: "evidence",
-          rule: "any_of",
-          kinds: ["edrpou_registration", "open_sources_review"],
-          minimum: 1,
-          provided: 0,
-        },
+        { on: "evidence", rule: "registry_entry", minimum: 1, provided: 0 },
         {
           on: "evidence",
           rule: "any_of",

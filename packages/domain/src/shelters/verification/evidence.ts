@@ -50,16 +50,20 @@ export const EvidenceItemSchema = z.discriminatedUnion("kind", [
     notes: z.string().min(1),
   }),
   /**
-   * A registered organisation checked in open sources (owner, 2026-11-19): the operator's
-   * alternative to the video call. The registry fields are at least what `edrpou_registration`
-   * holds, plus the address as ЄДР shows it, so this item also stands as the registry entry.
-   * `pages` are https links the operator opened; the server never fetches them (SSRF).
+   * An operator's open-sources check (owner, 2026-11-19): the alternative to the video call for
+   * every legal form. `registry` is the ЄДР entry as checked (at least what `edrpou_registration`
+   * holds, plus the address), null for an initiative, which has none; only a filled one counts as
+   * a registered form's registry entry (`holdsRegistryEntry`). `pages` are never fetched (SSRF).
    */
   z.object({
     kind: z.literal("open_sources_review"),
-    edrpou: EdrpouSchema,
-    registeredName: z.string().min(1),
-    registeredAddress: z.string().min(1),
+    registry: z
+      .object({
+        edrpou: EdrpouSchema,
+        registeredName: z.string().min(1),
+        registeredAddress: z.string().min(1),
+      })
+      .nullable(),
     pages: z
       .array(z.url({ protocol: /^https$/ }))
       .min(1)
@@ -111,6 +115,11 @@ export const VerificationEvidenceSchema = z.object({
   submittedAt: z.date(),
 });
 export type VerificationEvidence = z.infer<typeof VerificationEvidenceSchema>;
+
+/** An ЄДР entry on file: a registration, or an open-sources check with its registry part. */
+export const holdsRegistryEntry = (item: EvidenceItem): boolean =>
+  item.kind === "edrpou_registration" ||
+  (item.kind === "open_sources_review" && item.registry !== null);
 
 export const countEvidence = (evidence: VerificationEvidence, kind: EvidenceKind): number =>
   evidence.items.filter((item) => item.kind === kind).length;

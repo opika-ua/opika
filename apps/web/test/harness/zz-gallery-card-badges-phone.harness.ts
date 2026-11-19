@@ -68,6 +68,13 @@ test("393 px: the under-review and reserved badges sit on the photo, clear of th
     });
     await fillDateField(visit, "Дата дзвінка", yesterday);
     await visit.getByLabel("Нотатка").fill("Оглянув вольєри, журнал прийому ведеться.");
+    // An initiative's allow needs a reference beside the call (owner, 2026-11-19).
+    await page.getByLabel("Тип доказу").selectOption({ label: "Рекомендація" });
+    await page.getByRole("button", { name: "+ Додати доказ" }).click();
+    const reference = page.getByRole("group", { name: "Рекомендація" });
+    await reference.getByLabel("Хто").fill("Ветклініка «Тестова»");
+    await reference.getByLabel("Телефон").fill("+380501112233");
+    await reference.getByLabel("Ким доводиться притулку").selectOption({ label: "Ветклініка" });
     await page.getByRole("button", { name: "Додати", exact: true }).click();
     await expect(page.getByText("Докази додано.")).toBeVisible();
     await page.getByRole("button", { name: ALLOW }).click();

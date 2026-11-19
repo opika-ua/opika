@@ -72,18 +72,20 @@ return of a verified shelter to review, no reject from paused or verified (suspe
    any item carrying a document key. A video call (stored as `site_visit`) is stamped with you as the person who made it and its
    date cannot be in the future. If the connection can't carry video, a phone call plus a short video of
    the premises filmed the same day counts; say which video in the notes. «Відкриті джерела»
-   (stored as `open_sources_review`) records a registry check (code, name and address as ЄДР shows
-   them), the pages you opened (https, one per line, up to 10), optional reviews, a note and the
-   day; it too is stamped with you, and its date cannot be in the future.
+   (stored as `open_sources_review`) records the pages you opened (https, one per line, up to 10),
+   optional reviews, a note and the day, and for a registered form the registry check (code, name
+   and address as ЄДР shows them: all three or none); it too is stamped with you, and its date
+   cannot be in the future.
 3. **Minimum to approve**, by legal form («Юридичні дані»):
 
    | Legal form | Required |
    |---|---|
-   | «Громадська організація чи фонд», «ФОП» | 1 EDRPOU registration and 1 video call, or 1 open-sources check alone |
-   | «Ініціатива без реєстрації» | 1 video call, 1 reference |
+   | «Громадська організація чи фонд», «ФОП» | a registry entry (EDRPOU registration, or open sources with the registry filled) and a video call or open sources; one open-sources check with the registry clears both |
+   | «Ініціатива без реєстрації» | a video call or open sources, and 1 reference |
 
    (Open sources: owner decision, 2026-11-19; the gap list names such a line as «Відеодзвінок або
-   Відкриті джерела – 0 з 1». Open sources never count for an initiative. Owner decision, 2026-11-10: a bank account holder can still be added but counts toward no minimum, and
+   Відкриті джерела – 0 з 1», the registry line as «Реєстрація · ЄДРПОУ або Відкриті джерела – 0 з 1».
+   No form needs the call unconditionally. Owner decision, 2026-11-10: a bank account holder can still be added but counts toward no minimum, and
    a second reference is extra. You check the account holder by hand when approving a donation link, section 15.)
 
    When short, «Схвалити» is blocked and the screen says «Схвалити поки не можна – бракує:» and
@@ -123,8 +125,10 @@ Purpose: let a shelter's cards be public while the review runs. It sits beside t
 
 - Panel «Показ до завершення перевірки». Buttons «Дозволити показ до завершення перевірки» and
   «Зняти дозвіл». Only for pending or under review.
-- **Precondition:** at least one video call or one reference on file («Щоб дозволити показ, потрібен
-  хоча б відеодзвінок або одна рекомендація.»).
+- **Precondition:** since 2026-11-19 the same evidence as approval for the legal form (section 3's
+  table; no legal form recorded yet: a call or open sources, and a reference). The refusal still
+  reads «Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація.» until the owner
+  rewords it.
 - **Length:** 60 days from the allow, an instant sum. At the boundary instant it is already hidden. The
   panel counts «До кінця показу: N днів» and reminds you at 7 days or fewer. Nothing needs a cron: the
   public pages check the clock on every read, so an expired permission simply stops showing.

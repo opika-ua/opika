@@ -198,9 +198,11 @@ describe("S4 evidence", () => {
           items: [
             {
               kind: "open_sources_review",
-              edrpou: "43218765" as never,
-              registeredName: "ГО ДОМІВКА",
-              registeredAddress: "м. Вишгород, вул. Мечникова, 4",
+              registry: {
+                edrpou: "43218765" as never,
+                registeredName: "ГО ДОМІВКА",
+                registeredAddress: "м. Вишгород, вул. Мечникова, 4",
+              },
               pages: ["https://domivka.example.org/"],
               reviews: "Відгуки в Google",
               notes: "Сайт веде організація.",

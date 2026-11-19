@@ -62,9 +62,9 @@ const rowOf = (item: EvidenceItem, id: string): EvidenceRow | null => {
       return {
         id,
         kind: item.kind,
-        edrpou: item.edrpou,
-        registeredName: item.registeredName,
-        registeredAddress: item.registeredAddress,
+        edrpou: item.registry?.edrpou ?? "",
+        registeredName: item.registry?.registeredName ?? "",
+        registeredAddress: item.registry?.registeredAddress ?? "",
         pages: item.pages.join("\n"),
         reviews: item.reviews ?? "",
         notes: item.notes,

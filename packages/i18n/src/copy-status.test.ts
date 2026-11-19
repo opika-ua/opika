@@ -1112,12 +1112,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.earlyListing.evidenceMinimum":
       "Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація.",
   };
-  /**
-   * Open sources as a registered form's verification basis (owner decision 2026-11-19). The
-   * BUILDER'S DRAFT, not yet his words: shipped as real text because no `kabinet.*` string may be
-   * pending (above), operator-only, and listed in the PR for his confirm-or-replace. Move this
-   * record's doc to "owner-approved" (or replace the values) once he answers.
-   */
+  /** Open sources as a verification basis: owner-approved 2026-11-19 as drafted (PR #545). */
   const OPEN_SOURCES_OPERATOR_COPY: Record<string, string> = {
     "operator.evidence.kind.open_sources_review": "Відкриті джерела",
     "operator.evidence.field.registeredAddress": "Адреса в ЄДР",
@@ -1227,7 +1222,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   );
 
   it.each(Object.entries(OPEN_SOURCES_OPERATOR_COPY))(
-    "%s is the builder's draft awaiting his answer",
+    "%s is the owner-approved text",
     (path, text) => {
       expect(valueAt(path)).toBe(text);
     },

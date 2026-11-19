@@ -11,7 +11,7 @@ import { Panel } from "../../../../ui/Panel";
 import { Text } from "../../../../ui/Text";
 import { VerificationStatusChip } from "../../StatusChips";
 import { operatorStatusLabel } from "../../verification-label";
-import { evidenceGapKinds, formatDate } from "../format";
+import { evidenceGapKey, evidenceGapKinds, formatDate } from "../format";
 import { DECISION_OWNER, type DecisionOutcome } from "./decision-outcome";
 import { type OfferedAction, offeredActionsOf } from "./offered-actions";
 import { useOperatorActions } from "./operator-actions";
@@ -45,7 +45,7 @@ const gapText = (gap: ApprovalGap): string =>
       });
 
 const gapKey = (gap: ApprovalGap): string =>
-  gap.on === "verified_data" ? gap.field : gap.rule === "kind" ? gap.kind : gap.kinds.join("|");
+  gap.on === "verified_data" ? gap.field : evidenceGapKey(gap);
 
 /** What a single-tap move's lost answer must find on the re-read record to count as done. */
 const landedFor = (action: "start_review" | "approve" | "reinstate", view: RegistryShelterView) => {

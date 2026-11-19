@@ -20,7 +20,7 @@ import { TextLink } from "../../../ui/TextLink";
 import { channelValue, groupEdrpou } from "../ProfileParts";
 import { OPERATOR_HOME } from "../routes";
 import { VerificationStatusChip } from "../StatusChips";
-import { evidenceGapKinds, formatDate, formatTime } from "./format";
+import { evidenceGapKey, evidenceGapKinds, formatDate, formatTime } from "./format";
 import { HistoryList } from "./HistoryList";
 import type { HistoryPage } from "./pages";
 
@@ -100,7 +100,7 @@ function EvidenceCard({ view }: { view: RegistryShelterView }) {
             {e.missingData[gap.field]}
           </Text>
         ) : (
-          <Text key={gap.rule === "kind" ? gap.kind : gap.kinds.join("|")} look="label">
+          <Text key={evidenceGapKey(gap)} look="label">
             {fillTemplate(e.gaps, {
               kind: evidenceGapKinds(gap),
               provided: String(gap.provided),
@@ -151,9 +151,13 @@ function EvidenceFacts({ item }: { item: EvidenceItem }) {
     case "open_sources_review":
       return (
         <dl className="flex flex-col gap-2">
-          <Fact label={uk.kabinet.profile.edrpou}>{groupEdrpou(item.edrpou)}</Fact>
-          <Fact label={f.registeredName}>{item.registeredName}</Fact>
-          <Fact label={f.registeredAddress}>{item.registeredAddress}</Fact>
+          {item.registry === null ? null : (
+            <>
+              <Fact label={uk.kabinet.profile.edrpou}>{groupEdrpou(item.registry.edrpou)}</Fact>
+              <Fact label={f.registeredName}>{item.registry.registeredName}</Fact>
+              <Fact label={f.registeredAddress}>{item.registry.registeredAddress}</Fact>
+            </>
+          )}
           <Fact label={f.pages}>
             <ul className="flex flex-col gap-1">
               {item.pages.map((page) => (

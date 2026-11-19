@@ -11,8 +11,10 @@ import { uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
 
 /**
- * /prytulkam §6 names a video call for a legal form only while the policy requires one: a call is
- * required when every other kind of evidence together still falls short.
+ * The public verification copy (/prytulkam §6 and §6b) presents a call as always required only
+ * while the policy requires one for some legal form. A call mentioned under a condition («якщо»,
+ * «наприклад») is an option, not a requirement. A form requires a call when every other kind of
+ * evidence together still falls short.
  */
 const AT = new Date("2026-01-01T00:00:00.000Z");
 const EDRPOU = EdrpouSchema.parse("12345678");
@@ -32,9 +34,11 @@ const EVERY_KIND_BUT_THE_CALL: Record<Exclude<EvidenceKind, "site_visit">, Evide
   },
   open_sources_review: {
     kind: "open_sources_review",
-    edrpou: EDRPOU,
-    registeredName: "ГО «Лапа»",
-    registeredAddress: "м. Київ, вул. Тестова, 1",
+    registry: {
+      edrpou: EDRPOU,
+      registeredName: "ГО «Лапа»",
+      registeredAddress: "м. Київ, вул. Тестова, 1",
+    },
     pages: ["https://lapa.example.org/"],
     reviews: null,
     notes: "Сайт",
@@ -49,6 +53,12 @@ const EVERY_KIND_BUT_THE_CALL: Record<Exclude<EvidenceKind, "site_visit">, Evide
   },
 };
 
+const FORMS: readonly ShelterLegalEntity[] = [
+  { kind: "registered_ngo", legalName: "ГО «Лапа»", edrpou: EDRPOU, registeredAt: AT },
+  { kind: "sole_proprietor", legalName: "ФОП", edrpou: EDRPOU },
+  { kind: "unregistered_initiative", contactPersonName: "Олена" },
+];
+
 const callRequired = (entity: ShelterLegalEntity): boolean =>
   !meetsEvidenceRequirements(
     entity,
@@ -56,21 +66,48 @@ const callRequired = (entity: ShelterLegalEntity): boolean =>
     DEFAULT_VERIFICATION_POLICY,
   );
 
-const paragraph = (start: string): string => {
-  const found = uk.forShelters.verification.split("\n\n").find((p) => p.startsWith(start));
-  if (found === undefined) throw new Error(`§6 has no paragraph starting «${start}»`);
-  return found;
-};
+const CALL = /відеодзвін|дзвінок|дзвінк|розмов/i;
+const CONDITION = /якщо|наприклад/i;
+
+/** The sentences that name a call with no condition: read as "a call is always part of it". */
+const unconditionalCallSentences = (text: string): string[] =>
+  text
+    .split(/\n+|(?<=[.!?])\s+/)
+    .filter((sentence) => CALL.test(sentence) && !CONDITION.test(sentence));
+
+const PUBLIC_VERIFICATION_COPY = [
+  uk.forShelters.verification,
+  uk.forShelters.verificationOpenToVolunteers,
+];
 
 describe("/prytulkam §6 against DEFAULT_VERIFICATION_POLICY", () => {
-  it.each<[string, ShelterLegalEntity]>([
-    [
-      "Зареєстрована організація",
-      { kind: "registered_ngo", legalName: "ГО «Лапа»", edrpou: EDRPOU, registeredAt: AT },
-    ],
-    ["Зареєстрована організація", { kind: "sole_proprietor", legalName: "ФОП", edrpou: EDRPOU }],
-    ["Незареєстрована ініціатива", { kind: "unregistered_initiative", contactPersonName: "Олена" }],
-  ])("«%s…» names a video call exactly when the policy requires one", (start, entity) => {
-    expect(paragraph(start).includes("відеодзвін")).toBe(callRequired(entity));
+  it("presents a call as always required exactly when the policy requires one for some form", () => {
+    const anyFormRequiresACall = FORMS.some(callRequired);
+    const unconditional = PUBLIC_VERIFICATION_COPY.flatMap(unconditionalCallSentences);
+    if (anyFormRequiresACall) expect(unconditional).not.toEqual([]);
+    else expect(unconditional).toEqual([]);
+  });
+
+  it("today no legal form needs a call unconditionally (owner, 2026-11-19, (a′))", () => {
+    expect(FORMS.filter(callRequired)).toEqual([]);
+  });
+
+  /** The text PR #541 brings (owner's, 2026-11-19): its calls are options, so the rule holds for it. */
+  it("reads a call offered under a condition as an option", () => {
+    expect(
+      unconditionalCallSentences(
+        "Я дивлюся відкриті джерела: сайт і сторінки притулку, реєстр організацій, відгуки. " +
+          "Якщо їх не вистачає, я напишу вам і попрошу щось додати – наприклад, рекомендацію або коротку розмову.",
+      ),
+    ).toEqual([]);
+    expect(
+      unconditionalCallSentences(
+        "Перевірка проходить дистанційно. Я дивлюся відкриті джерела і прошу одну рекомендацію від " +
+          "когось іншого, ніж ви. Якщо відкритих джерел замало, домовимося про коротку розмову.",
+      ),
+    ).toEqual([]);
+    expect(
+      unconditionalCallSentences("Незареєстрована ініціатива проходить відеодзвінок."),
+    ).toHaveLength(1);
   });
 });

@@ -5,13 +5,14 @@ import {
   countEvidence,
   type EvidenceKind,
   EvidenceKindSchema,
+  holdsRegistryEntry,
   type VerificationEvidence,
 } from "./evidence";
 
 /**
- * One line of a legal form's policy. `kind`: at least `minimum` items of that kind. `any_of`: at
- * least `minimum` items whose kinds are among `kinds`, counted together, so one rule can say
- * "a video call or an open-sources check" without a boolean beside the kind.
+ * One line of a legal form's policy. `kind`: at least `minimum` items of that kind. `any_of`: of
+ * any of `kinds`, counted together. `registry_entry`: ЄДР entries (`holdsRegistryEntry`), which
+ * can sit in two kinds of item, so no kind-only line can count them.
  */
 export type EvidenceRequirement =
   | { rule: "kind"; kind: EvidenceKind; minimum: number }
@@ -19,41 +20,36 @@ export type EvidenceRequirement =
       rule: "any_of";
       kinds: readonly [EvidenceKind, EvidenceKind, ...EvidenceKind[]];
       minimum: number;
-    };
+    }
+  | { rule: "registry_entry"; minimum: number };
 
 export type VerificationPolicy = {
   requirementsByLegalEntity: Record<ShelterLegalEntity["kind"], readonly EvidenceRequirement[]>;
 };
 
-/**
- * A registered form (NGO or ФОП) shows its registry entry and is seen by a moderator: the entry
- * is an `edrpou_registration` or an `open_sources_review` (which holds the same ЄДР facts plus
- * the registry address), and the second check is the video call (stored as `site_visit`, shown
- * as «Відеодзвінок») or that same open-sources check (owner, 2026-11-19). So one open-sources
- * item clears both lines, and the call is optional evidence for a registered form.
- *
- * An unregistered volunteer group, which has no paperwork and no registry entry to check, still
- * needs the video call and one independent reference: open sources count for neither. Excluding
- * such groups entirely would exclude most wartime shelter activity in the target oblast from
- * the product. Bank-account and further reference items stay addable as evidence but are not
- * required (owner, 2026-11-10); the operator's donation-approve hint asks for the holder check.
- *
- * Thresholds live here rather than inside the check for the same reason the
- * freshness thresholds do: they will be tuned against the first ten real
- * shelters, and a tunable number embedded in a conditional is a number nobody
- * finds later.
- */
-const REGISTERED_FORM_REQUIREMENTS: readonly EvidenceRequirement[] = [
-  { rule: "any_of", kinds: ["edrpou_registration", "open_sources_review"], minimum: 1 },
-  { rule: "any_of", kinds: ["site_visit", "open_sources_review"], minimum: 1 },
-];
+/** A video call (stored as `site_visit`) or an operator's open-sources check (owner, 2026-11-19). */
+const CALL_OR_OPEN_SOURCES: EvidenceRequirement = {
+  rule: "any_of",
+  kinds: ["site_visit", "open_sources_review"],
+  minimum: 1,
+};
 
+/**
+ * A registered form (NGO or ФОП) shows its ЄДР entry (a registration, or an open-sources check
+ * with its registry part) and is seen by a person: a call or an open-sources check. An
+ * unregistered group, with no entry to show, gives a call or an open-sources check and one
+ * independent reference (owner, 2026-11-19, (a′)). No form needs the call unconditionally.
+ * Bank-account and further reference items stay addable but are not required (2026-11-10).
+ *
+ * Thresholds live here, not inside the check, so they can be tuned against the first real
+ * shelters without hunting for a number inside a conditional.
+ */
 export const DEFAULT_VERIFICATION_POLICY: VerificationPolicy = {
   requirementsByLegalEntity: {
-    registered_ngo: REGISTERED_FORM_REQUIREMENTS,
-    sole_proprietor: REGISTERED_FORM_REQUIREMENTS,
+    registered_ngo: [{ rule: "registry_entry", minimum: 1 }, CALL_OR_OPEN_SOURCES],
+    sole_proprietor: [{ rule: "registry_entry", minimum: 1 }, CALL_OR_OPEN_SOURCES],
     unregistered_initiative: [
-      { rule: "kind", kind: "site_visit", minimum: 1 },
+      CALL_OR_OPEN_SOURCES,
       { rule: "kind", kind: "reference_contact", minimum: 1 },
     ],
   },
@@ -61,20 +57,18 @@ export const DEFAULT_VERIFICATION_POLICY: VerificationPolicy = {
 
 export type EvidenceGap = EvidenceRequirement & { provided: number };
 
+const count = z.int().nonnegative();
+
 /** The same gap as data, for an API error to carry (`EVIDENCE_INSUFFICIENT`). */
 export const EvidenceGapSchema = z.discriminatedUnion("rule", [
-  z.object({
-    rule: z.literal("kind"),
-    kind: EvidenceKindSchema,
-    minimum: z.int().nonnegative(),
-    provided: z.int().nonnegative(),
-  }),
+  z.object({ rule: z.literal("kind"), kind: EvidenceKindSchema, minimum: count, provided: count }),
   z.object({
     rule: z.literal("any_of"),
     kinds: z.array(EvidenceKindSchema).min(2).readonly(),
-    minimum: z.int().nonnegative(),
-    provided: z.int().nonnegative(),
+    minimum: count,
+    provided: count,
   }),
+  z.object({ rule: z.literal("registry_entry"), minimum: count, provided: count }),
 ]);
 
 const providedFor = (evidence: VerificationEvidence, requirement: EvidenceRequirement): number => {
@@ -83,6 +77,8 @@ const providedFor = (evidence: VerificationEvidence, requirement: EvidenceRequir
       return countEvidence(evidence, requirement.kind);
     case "any_of":
       return evidence.items.filter((item) => requirement.kinds.includes(item.kind)).length;
+    case "registry_entry":
+      return evidence.items.filter(holdsRegistryEntry).length;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled rule; unreachable at runtime */
     default: {
       const unreachable: never = requirement;
@@ -90,6 +86,20 @@ const providedFor = (evidence: VerificationEvidence, requirement: EvidenceRequir
     }
   }
 };
+
+/** The lines a list of requirements still misses on this evidence. */
+export const requirementGaps = (
+  requirements: readonly EvidenceRequirement[],
+  evidence: VerificationEvidence,
+): readonly EvidenceGap[] =>
+  requirements
+    .map(
+      (requirement): EvidenceGap => ({
+        ...requirement,
+        provided: providedFor(evidence, requirement),
+      }),
+    )
+    .filter((gap) => gap.provided < gap.minimum);
 
 /**
  * Returns what is missing rather than a bare boolean, so a reviewer can be told
@@ -100,14 +110,7 @@ export const evidenceGaps = (
   evidence: VerificationEvidence,
   policy: VerificationPolicy,
 ): readonly EvidenceGap[] =>
-  policy.requirementsByLegalEntity[legalEntity.kind]
-    .map(
-      (requirement): EvidenceGap => ({
-        ...requirement,
-        provided: providedFor(evidence, requirement),
-      }),
-    )
-    .filter((gap) => gap.provided < gap.minimum);
+  requirementGaps(policy.requirementsByLegalEntity[legalEntity.kind], evidence);
 
 export const meetsEvidenceRequirements = (
   legalEntity: ShelterLegalEntity,
