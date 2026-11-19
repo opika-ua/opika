@@ -111,7 +111,7 @@ describe("ApplicationsBlock", () => {
         now={NOW}
       />,
     );
-    expect(screen.getByText("Контакти: Не записано")).toBeTruthy();
+    expect(screen.getByText("Контакти: не вказано")).toBeTruthy();
   });
 
   it("a row the server couldn't read gets its own card with the shelter id, and counts", () => {

@@ -622,10 +622,11 @@ export const en = {
         "Confirm your email – I sent a message to {email}. Without it I can't approve the shelter.",
       confirmEmailResend: "Send again",
       approved: "The shelter is approved. You can publish animals now.",
+      approvedNoContact: "The shelter is approved. To publish animals, add a contact.",
       approvedClose: "Close",
       publishBlocked: "You can publish after the shelter is checked.",
-      publishNoContact: "Add at least one contact so people can write to you.",
-      publishNoContactLink: "Add a contact",
+      publishNoContact: "Add at least one contact so people can reach you.",
+      publishNoContactLink: "Add contact",
       draftCap: "Before the check you can add at most 30 drafts.",
       donationBlocked: "You can add a fundraising link after the shelter is checked.",
       earlyListingDaysLeft: {
@@ -642,6 +643,7 @@ export const en = {
     },
     applications: {
       title: "Applications ({count})",
+      noContact: "Contacts: not provided",
       emailConfirmed: "Email confirmed",
       emailUnconfirmed: "Email not confirmed",
       duplicate: "Possible duplicate: {name} ({why})",

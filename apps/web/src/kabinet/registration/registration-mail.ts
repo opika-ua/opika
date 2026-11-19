@@ -106,7 +106,7 @@ export async function sendOperatorNotification(
       // The queue card's wording for an application that gave no contact.
       contact:
         application.contact === null
-          ? `${uk.kabinet.profile.contactsTitle}: ${uk.kabinet.profileNotRecorded}`
+          ? uk.kabinet.applications.noContact
           : channelText(application.contact),
       email: application.email,
       queueUrl: new URL(OPERATOR_HOME, mail.baseURL).toString(),
