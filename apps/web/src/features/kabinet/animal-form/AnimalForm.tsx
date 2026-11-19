@@ -30,8 +30,8 @@ import type { CompressedPhoto } from "../photos/compress-photo";
 import { publicAnimalPath, SHELTER_CONTACTS_PATH } from "../routes";
 import { ListingStatusChip } from "../StatusChips";
 import { useCityPicker } from "../shared/city-picker";
-import { SavePill, SaveStatusLine } from "../shared/save-pill";
-import { type SaveBarState, saveBarTextOf } from "../shared/save-state";
+import { SaveDot, SavePill, SaveStatusLine } from "../shared/save-pill";
+import { type SaveBarState, saveBarTextOf, saveToneOf } from "../shared/save-state";
 import { clearUnsavedNow, confirmLeave, useUnsavedChanges } from "../shared/unsaved-changes";
 import { ANIMAL_TABS, type AnimalTab } from "./animal-tabs";
 import { summaryItemsOf } from "./error-summary-items";
@@ -762,7 +762,8 @@ export function AnimalForm({
         <Tabs
           look="underline"
           {...(editable && !isDraft
-            ? { status: <SaveStatusLine message={statusMessage} state={pill} /> }
+            ? // Heard, not drawn: the pill shows the state (owner, 2026-11-19: no second line on top).
+              { status: <SaveStatusLine message={statusMessage} state={pill} srOnly /> }
             : {})}
           label={t.sections.tabsLabel}
           selectedId={tab}
@@ -788,7 +789,13 @@ export function AnimalForm({
             onPublish={() => void publish()}
             onReload={() => void reload()}
           />
-          <p role="status" className="text-caption text-ink-2 empty:sr-only">
+          {/* A press on the disabled button repeats the reason: heard, not drawn a second time. */}
+          <p
+            role="status"
+            className={
+              announcement === publishReason ? "sr-only" : "text-caption text-ink-2 empty:sr-only"
+            }
+          >
             {announcement}
           </p>
         </StickyActionBar>
@@ -914,9 +921,9 @@ function SaveProblems({
 type DraftStatus = { message: string; state: SaveBarState | null };
 
 /**
- * The draft's bar (R4): the autosave status and one filled «Опублікувати», no save button (a draft
- * saves itself). While it can't publish the button stays focusable with `aria-disabled`, described
- * by the reason under the status (KAB:93). A save refused for a field adds «Показати».
+ * The draft's bar (R4): one row with the autosave status and one filled «Опублікувати», no save
+ * button (a draft saves itself). While it can't publish the button stays focusable with
+ * `aria-disabled`, described by the reason beside it (KAB:93). A save refused for a field adds «Показати».
  */
 function DraftActions({
   save,
@@ -940,41 +947,52 @@ function DraftActions({
   onPublish: () => void;
   onReload: () => void;
 }) {
+  const invalid = status?.state?.kind === "invalid";
+  // One row at every width (owner, 2026-11-19): the reason replaces the status text on screen, its
+  // dot keeps the autosave state in view, and the status stays a live region for screen readers.
+  const reasonShown = publishReason !== null && !invalid;
   return (
     <>
       <SaveProblems save={save} onSave={onRetry} onReload={onReload} />
-      <div className="flex flex-col gap-2 tablet:flex-row tablet:items-center tablet:justify-between tablet:gap-4">
-        <div className="flex min-w-0 flex-col gap-1">
-          <SaveStatusLine message={status?.message ?? null} state={status?.state ?? null} />
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="flex min-w-0 flex-1 basis-24 items-center gap-2">
+          <SaveStatusLine
+            message={status?.message ?? null}
+            state={status?.state ?? null}
+            srOnly={reasonShown}
+          />
+          {reasonShown && status !== null ? <SaveDot tone={saveToneOf(status.state)} /> : null}
           {publishReason === null ? null : (
-            <p id="publish-reason" className="text-caption text-ink-2">
+            // Clamped to the button's height on a phone; the full sentence is the description.
+            <p
+              id="publish-reason"
+              className={reasonShown ? "line-clamp-2 min-w-0 text-caption text-ink-2" : "sr-only"}
+            >
               {publishReason}
             </p>
           )}
-          {blockedBy === "no_contact" ? (
-            <TextLink href={SHELTER_CONTACTS_PATH} placement="standalone" className="self-start">
-              {uk.kabinet.application.publishNoContactLink}
-            </TextLink>
-          ) : null}
         </div>
-        <div className="flex gap-2 tablet:shrink-0">
-          {status?.state?.kind === "invalid" ? (
-            <Button variant="secondary" className="flex-1 tablet:flex-none" onClick={onShow}>
-              {uk.kabinet.profileEdit.saveBar.show}
-            </Button>
-          ) : null}
-          <Button
-            variant="primary"
-            className="flex-1 tablet:flex-none"
-            aria-disabled={publishReason !== null || undefined}
-            aria-describedby={publishReason === null ? undefined : "publish-reason"}
-            aria-busy={publishing || undefined}
-            onClick={onPublish}
-          >
-            {t.publish.button}
+        {invalid ? (
+          <Button variant="secondary" onClick={onShow}>
+            {uk.kabinet.profileEdit.saveBar.show}
           </Button>
-        </div>
+        ) : null}
+        <Button
+          variant="primary"
+          aria-disabled={publishReason !== null || undefined}
+          aria-describedby={publishReason === null ? undefined : "publish-reason"}
+          aria-busy={publishing || undefined}
+          onClick={onPublish}
+        >
+          {t.publish.button}
+        </Button>
       </div>
+      {/* The one fix this form can't make: a second row only for a shelter with no contact. */}
+      {blockedBy === "no_contact" ? (
+        <TextLink href={SHELTER_CONTACTS_PATH} placement="standalone" className="self-start">
+          {uk.kabinet.application.publishNoContactLink}
+        </TextLink>
+      ) : null}
     </>
   );
 }

@@ -2950,6 +2950,50 @@ describe("the footer by listing state (R4)", () => {
     expect(screen.getByRole("button", { name: "Показати поточну версію" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: SAVE_CHANGES })).toBeNull();
   });
+
+  /** Drawn, as opposed to kept for screen readers only (`sr-only`, the profile page's own rule). */
+  const drawn = (text: string) =>
+    screen.getAllByText(text).filter((element) => element.closest(".sr-only") === null);
+
+  it("a listed card shows «Є незбережені зміни» once, in the pill; the line under the tabs is heard, not drawn", () => {
+    renderForm(published());
+    edit();
+    expect(drawn("Є незбережені зміни")).toHaveLength(1);
+    const heard = screen
+      .getAllByRole("status")
+      .find(
+        (element) =>
+          element.textContent === "Є незбережені зміни" && element.closest(".sr-only") !== null,
+      );
+    expect(heard?.getAttribute("aria-live")).toBe("polite");
+  });
+
+  it("a draft shows its status once, in the footer", () => {
+    renderForm(draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>));
+    edit("Інший опис.");
+    expect(drawn("Є незбережені зміни")).toHaveLength(1);
+    expect(screen.getAllByText("Є незбережені зміни")).toHaveLength(1);
+  });
+
+  it("a draft that can't publish shows the reason in place of the status text, which stays a live region", () => {
+    renderForm(draft({ sex: "male" } as Partial<KabinetAnimalView>));
+    const reason = "Щоб опублікувати, ще потрібно: розмір, вік, опис і фото.";
+    expect(drawn(reason)).toHaveLength(1);
+    expect(draftStatus().textContent).toBe("Усі зміни збережено");
+    expect(draftStatus().getAttribute("aria-live")).toBe("polite");
+    expect(drawn("Усі зміни збережено")).toHaveLength(0);
+  });
+
+  it("pressing the disabled «Опублікувати» repeats the reason for screen readers, not on screen", async () => {
+    const user = userEvent.setup();
+    renderForm(draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>), {
+      publishGate: { kind: "blocked", why: "application" },
+    });
+    const why = "Опублікувати можна після перевірки притулку.";
+    await user.click(screen.getByRole("button", { name: "Опублікувати" }));
+    expect(formStatus().textContent).toBe(why);
+    expect(drawn(why)).toHaveLength(1);
+  });
 });
 
 describe("a shelter with no adopter contact (owner, 2026-11-19)", () => {

@@ -30,7 +30,7 @@ const DOT: Record<SaveTone, string> = {
 };
 
 /** The state's mark: a dot, or a spinner while saving (it stops under reduced motion). */
-function SaveDot({ tone }: { tone: SaveTone }) {
+export function SaveDot({ tone }: { tone: SaveTone }) {
   return tone === "busy" ? (
     <span
       aria-hidden="true"
