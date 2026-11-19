@@ -5,6 +5,7 @@ import {
   ANIMAL_NAME_MAX_CHARACTERS,
   COAT_COLOUR_CUSTOM_MAX_CHARACTERS,
   EARLY_LISTING_DAYS,
+  OPEN_SOURCES_MAX_PAGES,
   TEMPERAMENT_CUSTOM_MAX_CHARACTERS,
 } from "@opika/domain";
 import { uk } from "@opika/i18n";
@@ -52,6 +53,17 @@ describe("the TTLs the copy's plural nouns were written for", () => {
     ).toBe(60);
     expect(uk.kabinet.operator.earlyListing.confirm).toContain(`${EARLY_LISTING_DAYS} днів`);
     expect(uk.forShelters.verification).toContain(`${EARLY_LISTING_DAYS} днів`);
+  });
+
+  it("an open-sources check lists at most 10 pages («сторінок») in the hint and the refusal", () => {
+    expect(
+      OPEN_SOURCES_MAX_PAGES,
+      "OPEN_SOURCES_MAX_PAGES changed: «10» in operator.evidence.pagesHint and «10 сторінок» in operator.create.errors.pagesTooMany were written for 10 and must be rechecked before this pin moves",
+    ).toBe(10);
+    expect(uk.kabinet.operator.evidence.pagesHint).toContain(`${OPEN_SOURCES_MAX_PAGES}.`);
+    expect(uk.kabinet.operator.create.errors.pagesTooMany).toContain(
+      `${OPEN_SOURCES_MAX_PAGES} сторінок`,
+    );
   });
 
   /** The forms in the copy, from his answer sheet: what the pins above protect. */

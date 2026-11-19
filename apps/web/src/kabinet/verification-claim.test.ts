@@ -1,0 +1,113 @@
+import {
+  DEFAULT_VERIFICATION_POLICY,
+  EdrpouSchema,
+  type EvidenceItem,
+  type EvidenceKind,
+  ModeratorIdSchema,
+  meetsEvidenceRequirements,
+  type ShelterLegalEntity,
+} from "@opika/domain";
+import { uk } from "@opika/i18n";
+import { describe, expect, it } from "vitest";
+
+/**
+ * The public verification copy (/prytulkam §6 and §6b) presents a call as always required only
+ * while the policy requires one for some legal form. A call mentioned under a condition («якщо»,
+ * «наприклад») is an option, not a requirement. A form requires a call when every other kind of
+ * evidence together still falls short.
+ */
+const AT = new Date("2026-01-01T00:00:00.000Z");
+const EDRPOU = EdrpouSchema.parse("12345678");
+const EVERY_KIND_BUT_THE_CALL: Record<Exclude<EvidenceKind, "site_visit">, EvidenceItem> = {
+  edrpou_registration: {
+    kind: "edrpou_registration",
+    edrpou: EDRPOU,
+    registeredName: "ГО «Лапа»",
+    documentKey: null,
+  },
+  bank_account_holder: { kind: "bank_account_holder", holderName: "ГО «Лапа»", documentKey: null },
+  reference_contact: {
+    kind: "reference_contact",
+    name: "Ветклініка",
+    channel: { kind: "phone", e164: "+380501234567" },
+    relationship: "veterinary_clinic",
+  },
+  open_sources_review: {
+    kind: "open_sources_review",
+    registry: {
+      edrpou: EDRPOU,
+      registeredName: "ГО «Лапа»",
+      registeredAddress: "м. Київ, вул. Тестова, 1",
+    },
+    pages: ["https://lapa.example.org/"],
+    reviews: null,
+    notes: "Сайт",
+    checkedAt: AT,
+    checkedBy: ModeratorIdSchema.parse("11111111-1111-4111-8111-111111111111"),
+  },
+  public_link: { kind: "public_link", url: "https://lapa.example.org/" },
+  supporting_document: {
+    kind: "supporting_document",
+    label: { uk: "Статут", en: null },
+    documentKey: "evidence/statute.pdf",
+  },
+};
+
+const FORMS: readonly ShelterLegalEntity[] = [
+  { kind: "registered_ngo", legalName: "ГО «Лапа»", edrpou: EDRPOU, registeredAt: AT },
+  { kind: "sole_proprietor", legalName: "ФОП", edrpou: EDRPOU },
+  { kind: "unregistered_initiative", contactPersonName: "Олена" },
+];
+
+const callRequired = (entity: ShelterLegalEntity): boolean =>
+  !meetsEvidenceRequirements(
+    entity,
+    { items: Object.values(EVERY_KIND_BUT_THE_CALL), submittedAt: AT },
+    DEFAULT_VERIFICATION_POLICY,
+  );
+
+const CALL = /відеодзвін|дзвінок|дзвінк|розмов/i;
+const CONDITION = /якщо|наприклад/i;
+
+/** The sentences that name a call with no condition: read as "a call is always part of it". */
+const unconditionalCallSentences = (text: string): string[] =>
+  text
+    .split(/\n+|(?<=[.!?])\s+/)
+    .filter((sentence) => CALL.test(sentence) && !CONDITION.test(sentence));
+
+const PUBLIC_VERIFICATION_COPY = [
+  uk.forShelters.verification,
+  uk.forShelters.verificationOpenToVolunteers,
+];
+
+describe("/prytulkam §6 against DEFAULT_VERIFICATION_POLICY", () => {
+  it("presents a call as always required exactly when the policy requires one for some form", () => {
+    const anyFormRequiresACall = FORMS.some(callRequired);
+    const unconditional = PUBLIC_VERIFICATION_COPY.flatMap(unconditionalCallSentences);
+    if (anyFormRequiresACall) expect(unconditional).not.toEqual([]);
+    else expect(unconditional).toEqual([]);
+  });
+
+  it("today no legal form needs a call unconditionally (owner, 2026-11-19, (a′))", () => {
+    expect(FORMS.filter(callRequired)).toEqual([]);
+  });
+
+  /** The text PR #541 brings (owner's, 2026-11-19): its calls are options, so the rule holds for it. */
+  it("reads a call offered under a condition as an option", () => {
+    expect(
+      unconditionalCallSentences(
+        "Я дивлюся відкриті джерела: сайт і сторінки притулку, реєстр організацій, відгуки. " +
+          "Якщо їх не вистачає, я напишу вам і попрошу щось додати – наприклад, рекомендацію або коротку розмову.",
+      ),
+    ).toEqual([]);
+    expect(
+      unconditionalCallSentences(
+        "Перевірка проходить дистанційно. Я дивлюся відкриті джерела і прошу одну рекомендацію від " +
+          "когось іншого, ніж ви. Якщо відкритих джерел замало, домовимося про коротку розмову.",
+      ),
+    ).toEqual([]);
+    expect(
+      unconditionalCallSentences("Незареєстрована ініціатива проходить відеодзвінок."),
+    ).toHaveLength(1);
+  });
+});

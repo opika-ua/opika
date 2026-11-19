@@ -20,7 +20,7 @@ import { TextLink } from "../../../ui/TextLink";
 import { channelValue, groupEdrpou } from "../ProfileParts";
 import { OPERATOR_HOME } from "../routes";
 import { VerificationStatusChip } from "../StatusChips";
-import { formatDate, formatTime } from "./format";
+import { evidenceGapKey, evidenceGapKinds, formatDate, formatTime } from "./format";
 import { HistoryList } from "./HistoryList";
 import type { HistoryPage } from "./pages";
 
@@ -100,9 +100,9 @@ function EvidenceCard({ view }: { view: RegistryShelterView }) {
             {e.missingData[gap.field]}
           </Text>
         ) : (
-          <Text key={gap.kind} look="label">
+          <Text key={evidenceGapKey(gap)} look="label">
             {fillTemplate(e.gaps, {
-              kind: e.kind[gap.kind],
+              kind: evidenceGapKinds(gap),
               provided: String(gap.provided),
               minimum: String(gap.minimum),
             })}
@@ -146,6 +146,38 @@ function EvidenceFacts({ item }: { item: EvidenceItem }) {
         <dl className="flex flex-col gap-2">
           <Fact label={f.visitedOn}>{formatDate(item.visitedAt)}</Fact>
           <Fact label={f.notes}>{item.notes}</Fact>
+        </dl>
+      );
+    case "open_sources_review":
+      return (
+        <dl className="flex flex-col gap-2">
+          {item.registry === null ? null : (
+            <>
+              <Fact label={uk.kabinet.profile.edrpou}>{groupEdrpou(item.registry.edrpou)}</Fact>
+              <Fact label={f.registeredName}>{item.registry.registeredName}</Fact>
+              <Fact label={f.registeredAddress}>{item.registry.registeredAddress}</Fact>
+            </>
+          )}
+          <Fact label={f.pages}>
+            <ul className="flex flex-col gap-1">
+              {item.pages.map((page) => (
+                <li key={page}>
+                  {/* The full URL, never fetched by us (§11.3), as for `public_link`. */}
+                  <TextLink
+                    href={page}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="break-all"
+                  >
+                    {page}
+                  </TextLink>
+                </li>
+              ))}
+            </ul>
+          </Fact>
+          {item.reviews === null ? null : <Fact label={f.reviews}>{item.reviews}</Fact>}
+          <Fact label={f.notes}>{item.notes}</Fact>
+          <Fact label={f.checkedOn}>{formatDate(item.checkedAt)}</Fact>
         </dl>
       );
     case "supporting_document":

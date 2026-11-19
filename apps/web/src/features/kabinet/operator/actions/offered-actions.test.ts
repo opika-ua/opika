@@ -300,8 +300,14 @@ describe("approve is gated by the domain's evidence policy", () => {
     expect(approveOf(underReview([reference("Ветклініка")]), NGO)).toEqual({
       kind: "blocked",
       gaps: [
-        { on: "evidence", kind: "edrpou_registration", minimum: 1, provided: 0 },
-        { on: "evidence", kind: "site_visit", minimum: 1, provided: 0 },
+        { on: "evidence", rule: "registry_entry", minimum: 1, provided: 0 },
+        {
+          on: "evidence",
+          rule: "any_of",
+          kinds: ["site_visit", "open_sources_review"],
+          minimum: 1,
+          provided: 0,
+        },
       ],
     });
   });
@@ -319,7 +325,7 @@ describe("approve is gated by the domain's evidence policy", () => {
     };
     expect(approveOf(underReview([visit]), initiative)).toEqual({
       kind: "blocked",
-      gaps: [{ on: "evidence", kind: "reference_contact", minimum: 1, provided: 0 }],
+      gaps: [{ on: "evidence", rule: "kind", kind: "reference_contact", minimum: 1, provided: 0 }],
     });
     expect(approveOf(underReview([visit, reference("Ветклініка")]), initiative)).toEqual({
       kind: "open",
@@ -339,6 +345,34 @@ describe("approve is gated by the domain's evidence policy", () => {
     expect(approveOf(underReview(items), NGO)).toEqual({ kind: "open" });
   });
 
+  it("a registered NGO or ФОП with an open-sources check and no video call: open", () => {
+    const check: EvidenceItem = {
+      kind: "open_sources_review",
+      registry: {
+        edrpou: "43218765" as never,
+        registeredName: "ГО «Домівка»",
+        registeredAddress: "м. Київ, вул. Тестова, 1",
+      },
+      pages: ["https://domivka.example.org/"],
+      reviews: null,
+      notes: "Сайт і сторінка ведуться з 2022 року",
+      checkedAt: STATE_AT,
+      checkedBy: MODERATOR,
+    };
+    const fop: ShelterLegalEntity = {
+      kind: "sole_proprietor",
+      legalName: "ФОП Коваль",
+      edrpou: "43218765" as never,
+    };
+    expect(approveOf(underReview([check]), NGO)).toEqual({ kind: "open" });
+    expect(approveOf(underReview([check]), fop)).toEqual({ kind: "open" });
+    // The legal entity is still required first (approvalGaps' verified data).
+    expect(approveOf(underReview([check]), null)).toEqual({
+      kind: "blocked",
+      gaps: [{ on: "verified_data", field: "legal_entity" }],
+    });
+  });
+
   it("missing legal data and address block it first, before any evidence is measured", () => {
     expect(approveOf(underReview([]), null, null)).toEqual({
       kind: "blocked",
@@ -351,8 +385,14 @@ describe("approve is gated by the domain's evidence policy", () => {
       kind: "blocked",
       gaps: [
         { on: "verified_data", field: "exact_address" },
-        { on: "evidence", kind: "edrpou_registration", minimum: 1, provided: 0 },
-        { on: "evidence", kind: "site_visit", minimum: 1, provided: 0 },
+        { on: "evidence", rule: "registry_entry", minimum: 1, provided: 0 },
+        {
+          on: "evidence",
+          rule: "any_of",
+          kinds: ["site_visit", "open_sources_review"],
+          minimum: 1,
+          provided: 0,
+        },
       ],
     });
   });
@@ -361,7 +401,7 @@ describe("approve is gated by the domain's evidence policy", () => {
     const stricter = {
       requirementsByLegalEntity: {
         ...DEFAULT_VERIFICATION_POLICY.requirementsByLegalEntity,
-        registered_ngo: [{ kind: "reference_contact", minimum: 3 }],
+        registered_ngo: [{ rule: "kind", kind: "reference_contact", minimum: 3 }],
       },
     } as const;
     const action = offeredActionsOf(underReview([reference("А")]), DATA, stricter).find(
@@ -371,7 +411,9 @@ describe("approve is gated by the domain's evidence policy", () => {
       event: "approve",
       gate: {
         kind: "blocked",
-        gaps: [{ on: "evidence", kind: "reference_contact", minimum: 3, provided: 1 }],
+        gaps: [
+          { on: "evidence", rule: "kind", kind: "reference_contact", minimum: 3, provided: 1 },
+        ],
       },
     });
   });

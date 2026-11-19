@@ -50,7 +50,9 @@ test("early listing: evidence minimum, label, revoke, re-allow with a note", asy
     let dialog = await confirmAllow();
     await dialog.getByRole("button", { name: ALLOW }).click();
     await expect(
-      page.getByText("Щоб дозволити показ, потрібен хоча б відеодзвінок або одна рекомендація."),
+      page.getByText(
+        "Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок або рекомендація.",
+      ),
     ).toBeVisible();
 
     await page.getByLabel("Тип доказу").selectOption({ label: "Відеодзвінок" });

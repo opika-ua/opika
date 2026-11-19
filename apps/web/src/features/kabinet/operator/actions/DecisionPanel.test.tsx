@@ -190,7 +190,10 @@ describe("pending → «Взяти на розгляд» → «Схвалити�
       within(blocked as HTMLElement)
         .getAllByRole("listitem")
         .map((li) => li.textContent),
-    ).toEqual(["Реєстрація · ЄДРПОУ – 0 з 1", "Відеодзвінок – 0 з 1"]);
+    ).toEqual([
+      "Реєстрація · ЄДРПОУ або Відкриті джерела – 0 з 1",
+      "Відеодзвінок або Відкриті джерела – 0 з 1",
+    ]);
     await userEvent.click(approve);
     expect(fns.verification.approve).not.toHaveBeenCalled();
   });

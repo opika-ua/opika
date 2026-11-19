@@ -1667,6 +1667,7 @@ export const en = {
           bank_account_holder: "Bank account holder",
           reference_contact: "Reference",
           site_visit: "Video call",
+          open_sources_review: "Open sources",
           public_link: "Website or social media page",
           supporting_document: "Document",
         },
@@ -1680,6 +1681,11 @@ export const en = {
           visitedOn: "Call date",
           notes: "Note",
           label: "Label",
+          registeredAddress: "Address in the EDR",
+          pages: "Pages checked",
+          reviews: "Reviews",
+          reviewsOptional: "Reviews · optional",
+          checkedOn: "Date checked",
         },
         relationship: {
           veterinary_clinic: "Veterinary clinic",
@@ -1698,6 +1704,11 @@ export const en = {
         remove: "Remove",
         typePicker: "Kind of evidence",
         siteVisitDateHint: "The call date can't be in the future.",
+        checkedOnHint: "The date checked can't be in the future.",
+        pagesHint: "One link per line, starting https://. At most 10.",
+        reviewsHint: "Where the reviews were read and what they say.",
+        openSourcesNotesHint:
+          "What was checked and what matched the EDR: the name, the address, how long the pages have been kept.",
         videoCallNotesHint:
           "What was shown on the call: the premises, the animals, the people. If the call was by phone, add which video was sent.",
         addTitle: "Add evidence",
@@ -1846,6 +1857,9 @@ export const en = {
               "A live invitation to another shelter was already sent to this address.",
           },
           siteVisitInFuture: "The call date can't be in the future.",
+          openSourcesCheckInFuture: "The date checked can't be in the future.",
+          pagesInvalid: "Each line must be a link starting https://.",
+          pagesTooMany: "At most 10 pages.",
           registeredAtFuture: "The registration date can't be in the future.",
           unknownCity: "That settlement isn't in the list.",
           lostAnswer:
@@ -1957,7 +1971,8 @@ export const en = {
         oneMoreLeft: "One more, final period can be allowed – with an explanation.",
         extendNote: "Why are you extending the showing",
         limitReached: "Showing before the review has already been allowed twice.",
-        evidenceMinimum: "To allow showing, at least a video call or one reference is needed.",
+        evidenceMinimum:
+          "To allow showing, at least one is needed: open sources, a video call or a reference.",
       },
       reminder: {
         title: "Email about unconfirmed cards",

@@ -101,8 +101,15 @@ export const isPubliclyListed = (basis: PublicListingBasis): boolean => basis.ki
 export const keepsEarlyListing = (from: VerificationStatus, to: VerificationStatus): boolean =>
   isEarlyStatus(from) && isEarlyStatus(to);
 
-/** The least evidence that lets the operator allow (owner, 2026-11-04): a visit or a reference. */
-export const EARLY_LISTING_EVIDENCE_KINDS = ["site_visit", "reference_contact"] as const;
+/**
+ * Any one of these lets the operator allow, whatever the legal form or none (owner, 2026-11-04;
+ * open sources, with or without the registry part, 2026-11-19). Approval's rule is not this one.
+ */
+export const EARLY_LISTING_EVIDENCE_KINDS = [
+  "open_sources_review",
+  "site_visit",
+  "reference_contact",
+] as const;
 
 export type AllowEarlyListingResult =
   | { kind: "ok"; since: Date; period: number }
