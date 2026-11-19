@@ -277,7 +277,46 @@ const expectRefusedInlineAndInSummary = (text: string | RegExp) => {
   ).toBe(true);
 };
 
-const SAVE_DRAFT = "Зберегти чернетку";
+/** A listed card's save button, there only while it has unsaved edits (R4, redesign §5). */
+const SAVE_CHANGES = "Зберегти зміни";
+
+/**
+ * A draft's autosave refused for a field (R4): the problem under its field, no summary pulling
+ * focus, and the footer counting the fields to check, with «Показати».
+ */
+const expectRefusedByAutosave = async (text: string | RegExp) => {
+  const found = await screen.findAllByText(text);
+  expect(found.some((element) => element.id.endsWith("-error"))).toBe(true);
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(draftStatus().textContent).toBe("Перевірте 1 поле");
+  expect(screen.getByRole("button", { name: "Показати" })).toBeTruthy();
+};
+
+/**
+ * A draft has no save button (R4): it saves itself when a field is left (T6), which is what a
+ * person does to save it. Leaves the focused field, or the name when focus is outside the form.
+ */
+const leaveFieldNow = () => {
+  const active = document.activeElement;
+  fireEvent.blur(
+    active instanceof HTMLElement && active.closest("form") !== null
+      ? active
+      : screen.getByLabelText("Імʼя"),
+  );
+};
+const leaveField = () =>
+  act(async () => {
+    leaveFieldNow();
+  });
+
+/** The draft footer's autosave status: the first polite status line in the bar. */
+const draftStatus = () => {
+  const bar = screen.getByRole("button", { name: "Опублікувати" }).closest("[data-bottom-bar]");
+  if (bar === null) throw new Error("no draft footer");
+  const [line] = within(bar as HTMLElement).getAllByRole("status");
+  if (line === undefined) throw new Error("no draft status line");
+  return line;
+};
 const MISSING_ITEMS_ALL = [
   "Стать (Основне)",
   "Розмір (Основне)",
@@ -343,31 +382,34 @@ describe("size hints follow the species", () => {
 });
 
 describe("/nova: a name and a species make a draft (K-Q5)", () => {
-  it("says what a draft needs, and lists every publish gap next to the disabled button", () => {
+  it("says what a draft needs, with no save button, and why «Опублікувати» is disabled", () => {
     renderForm(null);
     expect(screen.getByRole("heading", { level: 1, name: "Нова тварина" })).toBeTruthy();
-    expect(screen.getByText(/Щоб зберегти чернетку, потрібні імʼя та вид\./)).toBeTruthy();
+    // The footer's autosave status says what makes a draft (R4); the photos panel says it too.
+    expect(draftStatus().textContent).toBe("Щоб зберегти чернетку, потрібні імʼя та вид.");
+    expect(screen.queryByRole("button", { name: /Зберегти/ })).toBeNull();
     const publish = screen.getByRole("button", { name: "Опублікувати" });
     expect(publish.getAttribute("aria-disabled")).toBe("true");
-    expect(missingItems()).toEqual(MISSING_ITEMS_ALL);
-    // Written in «Публікація» and named as the button's description (KAB:93: no tooltip).
-    expect(publish.getAttribute("aria-describedby")).toBe("publish-missing publish-missing-list");
-    expect(document.getElementById("publish-missing")?.textContent).toBe(
-      "Щоб опублікувати, ще потрібно:",
+    // Written beside the button and named as its description (KAB:93: no tooltip).
+    expect(publish.getAttribute("aria-describedby")).toBe("publish-reason");
+    expect(document.getElementById("publish-reason")?.textContent).toBe(
+      "Щоб опублікувати, ще потрібно: стать, розмір, вік, опис і фото.",
     );
+    // «Публікація» still lists each gap as a link to its field.
+    expect(missingItems()).toEqual(MISSING_ITEMS_ALL);
   });
 
-  it("«Зберегти чернетку» with a name and a species creates the draft and takes its address", async () => {
+  it("leaving a field with a name and a species creates the draft and takes its address", async () => {
     const user = userEvent.setup();
     const client = renderForm(null);
     await user.type(screen.getByLabelText("Імʼя"), "Ластівка");
     await user.click(within(screen.getByRole("group", { name: "Вид" })).getByLabelText("Собака"));
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     expect(client.calls.createDraft).toHaveBeenCalledWith({ name: "Ластівка", species: "dog" });
     expect(await screen.findByRole("heading", { level: 1, name: "Ластівка" })).toBeTruthy();
     expect(window.location.pathname).toBe(`/kabinet/tvaryny/${ID}`);
     // The bar says when it was saved; «Публікація» says who can see it.
-    expect(screen.getByText("Чернетку збережено о 12:00")).toBeTruthy();
+    expect(draftStatus().textContent).toBe("Чернетку збережено о 12:00");
     expect(screen.getByText("Ті, хто шукає тварину, цю чернетку не бачать.")).toBeTruthy();
     expect(screen.getByText("Чернетка")).toBeTruthy();
     expect(screen.getByText("Створено сьогодні · ще не в галереї")).toBeTruthy();
@@ -395,22 +437,24 @@ describe("/nova: a name and a species make a draft (K-Q5)", () => {
     }
   });
 
-  it("without a species, saving shows the species message and creates nothing", async () => {
+  it("without a species, leaving a field creates nothing, and the footer says what is needed", async () => {
     const user = userEvent.setup();
     const client = renderForm(null);
     await user.type(screen.getByLabelText("Імʼя"), "Ластівка");
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
-    expectRefusedInlineAndInSummary("Виберіть, собака це чи кіт, щоб зберегти чернетку.");
+    await leaveField();
     expect(client.calls.createDraft).not.toHaveBeenCalled();
+    expect(draftStatus().textContent).toBe("Щоб зберегти чернетку, потрібні імʼя та вид.");
   });
 
-  it("without a name, saving shows the name message and creates nothing", async () => {
+  it("without a name, leaving the name field says so under it and creates nothing", async () => {
     const user = userEvent.setup();
     const client = renderForm(null);
     await user.click(within(screen.getByRole("group", { name: "Вид" })).getByLabelText("Кіт"));
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
-    expectRefusedInlineAndInSummary("Щоб зберегти чернетку, потрібне імʼя.");
+    await user.click(screen.getByLabelText("Імʼя"));
+    await user.tab();
+    expect(screen.getByText("Щоб зберегти чернетку, потрібне імʼя.").id).toBe("animal-name-error");
     expect(client.calls.createDraft).not.toHaveBeenCalled();
+    expect(draftStatus().textContent).toBe("Щоб зберегти чернетку, потрібні імʼя та вид.");
   });
 
   it("refuses a name with braces, inline, once the field is left", async () => {
@@ -470,10 +514,9 @@ describe("a draft saves itself (T6)", () => {
     });
   });
 
-  it("a save that changes nothing sends nothing", async () => {
-    const user = userEvent.setup();
+  it("leaving a field that changed nothing sends nothing", async () => {
     const client = renderForm(draft());
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     expect(client.calls.update).not.toHaveBeenCalled();
   });
 
@@ -481,7 +524,7 @@ describe("a draft saves itself (T6)", () => {
     const user = userEvent.setup();
     const client = renderForm(draft({ description: { uk: "Було.", en: null } }));
     await user.clear(screen.getByLabelText(/^Опис/));
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({ patch: { description: null } });
   });
 
@@ -491,7 +534,7 @@ describe("a draft saves itself (T6)", () => {
     client.calls.update.mockRejectedValueOnce(apiError("CONFLICT"));
     renderForm(draft(), { client });
     fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     expect(
       await screen.findByText(
         "Хтось змінив цю картку після того, як ви її відкрили. Ваші останні зміни не збережено. Ось поточна версія – внесіть їх ще раз.",
@@ -508,7 +551,7 @@ describe("a draft saves itself (T6)", () => {
     client.calls.update.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     renderForm(draft(), { client });
     fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     expect(
       await screen.findByText(
         "Чернетку не збережено. Перевірте зʼєднання – усе, що ви ввели, лишається тут.",
@@ -527,7 +570,7 @@ describe("a draft saves itself (T6)", () => {
     client.calls.byId.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     renderForm(draft(), { client });
     fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     await user.click(await screen.findByRole("button", { name: "Показати поточну версію" }));
     expect(
       await screen.findByText("Картка не завантажилась. Перевірте зʼєднання і спробуйте ще раз."),
@@ -535,12 +578,11 @@ describe("a draft saves itself (T6)", () => {
   });
 
   it("a registry-confirmed fact refused by the server says it can't be changed here", async () => {
-    const user = userEvent.setup();
     const client = fakeClient(draft());
     client.calls.update.mockRejectedValueOnce(apiError("REGISTRY_CONFIRMED"));
     renderForm(draft(), { client });
     fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     expect(
       await screen.findByText("Це підтверджено державним реєстром тварин, тут змінити не можна."),
     ).toBeTruthy();
@@ -612,7 +654,7 @@ describe("a draft saves itself (T6)", () => {
     // The form's line says what people will see once saved; the card hasn't changed yet.
     expect(screen.getByText("Ті, хто шукає тварину, побачать: «молодий».")).toBeTruthy();
     expect(screen.getByText(onCard("молода"))).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "Зберегти" }));
+    await user.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     expect(await screen.findByText(onCard("молодий"))).toBeTruthy();
     expect(screen.queryByText(onCard("молода"))).toBeNull();
   });
@@ -624,12 +666,12 @@ describe("a draft saves itself (T6)", () => {
       within(screen.getByRole("group", { name: "Вік на ту дату" })).getByLabelText("3–4 роки"),
     );
     await typeDate(user, document.body, "Станом на", "2026-10-18");
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
-    expectRefusedInlineAndInSummary("Дата «Станом на» не може бути в майбутньому.");
+    await leaveField();
+    await expectRefusedByAutosave("Дата «Станом на» не може бути в майбутньому.");
     // Leaving the range's radio may autosave today's date; tomorrow's is never sent.
     expect(JSON.stringify(client.calls.update.mock.calls)).not.toContain("2026-10-18");
     await typeDate(user, document.body, "Станом на", "2026-09-01");
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     expect(client.calls.update.mock.calls.at(-1)?.[0]).toMatchObject({
       patch: { age: { kind: "declared_range", range: "3_4", asOf: "2026-09-01" } },
     });
@@ -644,20 +686,20 @@ describe("a draft saves itself (T6)", () => {
       }),
     );
     await typeDate(user, document.body, "Дата народження", "2026-10-18");
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
-    expectRefusedInlineAndInSummary("Дата народження не може бути в майбутньому.");
+    await leaveField();
+    await expectRefusedByAutosave("Дата народження не може бути в майбутньому.");
     await typeDate(user, document.body, "Дата народження", "1996-10-16");
-    expectRefusedInlineAndInSummary("Ця дата надто давня – понад 30 років тому.");
+    await expectRefusedByAutosave("Ця дата надто давня – понад 30 років тому.");
     expect(client.calls.update).not.toHaveBeenCalled();
     // Exactly thirty years back is allowed, and saves as the birth date chosen.
     await typeDate(user, document.body, "Дата народження", "1996-10-17");
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({
       patch: { age: { kind: "birth_date", date: "1996-10-17" } },
     });
   });
 
-  it("an unfinished birth date, or 30 February, is refused inline and in the summary, not sent", async () => {
+  it("an unfinished birth date, or 30 February, is refused inline, not sent, and «Показати» goes to it", async () => {
     const user = userEvent.setup();
     const client = renderForm(draft());
     await user.click(
@@ -670,17 +712,13 @@ describe("a draft saves itself (T6)", () => {
     await user.selectOptions(birth.getByRole("combobox", { name: "Місяць" }), "лютого");
     // Still typing: moving between the parts shows nothing yet.
     expect(screen.queryByText("Вкажіть повну дату: день, місяць і рік.")).toBeNull();
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
-    expectRefusedInlineAndInSummary("Вкажіть повну дату: день, місяць і рік.");
+    await leaveField();
+    await expectRefusedByAutosave("Вкажіть повну дату: день, місяць і рік.");
     await user.type(birth.getByRole("textbox", { name: "Рік" }), "2024");
-    expectRefusedInlineAndInSummary("Такої дати в календарі немає.");
+    await expectRefusedByAutosave("Такої дати в календарі немає.");
     expect(client.calls.update).not.toHaveBeenCalled();
-    // The summary's link lands on the date's first part.
-    await user.click(
-      within(screen.getByRole("alert")).getByRole("link", {
-        name: "Такої дати в календарі немає.",
-      }),
-    );
+    // The footer's «Показати» lands on the date's first part.
+    await user.click(screen.getByRole("button", { name: "Показати" }));
     expect(document.activeElement).toBe(birth.getByRole("textbox", { name: "День" }));
   });
 
@@ -706,7 +744,7 @@ describe("a draft saves itself (T6)", () => {
     await user.click(
       within(screen.getByRole("group", { name: "Вік на ту дату" })).getByLabelText("5–7 років"),
     );
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     // The refusal may come from the autosave the radio's blur starts, which must not pull
     // focus to a summary: it lands under the field either way.
     expect(await screen.findByText("Ця дата надто давня – понад 30 років тому.")).toBeTruthy();
@@ -813,15 +851,16 @@ describe("the unsaved-work warning and the saved-time line", () => {
     {
       name: "a draft",
       view: () => draft(),
-      saveLabel: SAVE_DRAFT,
+      // No save button on a draft (R4): leaving the field saves it, and a failure offers a retry.
+      save: () => leaveFieldNow(),
       savedLineText: (time: string) => `Чернетку збережено о ${time}`,
       failureText: FAILURE,
-      retryLabel: SAVE_DRAFT,
+      retryLabel: "Спробувати ще раз",
     },
     {
       name: "a listed card",
       view: () => published(),
-      saveLabel: "Зберегти",
+      save: () => fireEvent.click(screen.getByRole("button", { name: SAVE_CHANGES })),
       savedLineText: (time: string) => `Збережено о ${time}`,
       // A saved card's failure is the pill's short line, repeated under the tabs.
       failureText: "Не вдалося зберегти",
@@ -839,7 +878,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
       ...listed,
       description: { uk: "Лагідна.", en: null },
     } as KabinetAnimalView);
-    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    fireEvent.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     const link = await screen.findByRole("link", { name: /^Переглянути/ });
     expect(link.getAttribute("href")).toBe(`/tvaryny/${listed.id}`);
     expect(link.getAttribute("target")).toBe("_blank");
@@ -856,14 +895,14 @@ describe("the unsaved-work warning and the saved-time line", () => {
       ...card,
       description: { uk: "Лагідна.", en: null },
     } as KabinetAnimalView);
-    fireEvent.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    leaveFieldNow();
     await screen.findByText(/^Чернетку збережено о /);
     expect(screen.queryByRole("link", { name: /^Переглянути/ })).toBeNull();
   });
 
   it.each(CASES)(
     "$name: typing (unblurred) hides the line and warns; settling shows it with the new time and clears the warning; a failed save re-hides it and re-warns",
-    async ({ view, saveLabel, savedLineText, failureText, retryLabel }) => {
+    async ({ view, save, savedLineText, failureText, retryLabel }) => {
       let now = NOW;
       const client = fakeClient(view());
       renderForm(view(), { client, clock: () => now });
@@ -879,7 +918,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
       expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
 
       const release1 = deferredUpdate(client);
-      fireEvent.click(screen.getByRole("button", { name: saveLabel }));
+      save();
       expect(dispatchUnload().prevented).toBe(true); // still pending
       expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
 
@@ -902,7 +941,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
       // patch was computed against never changed), so the line stays
       // hidden and the warning stays on.
       client.calls.update.mockRejectedValueOnce(new TypeError("Failed to fetch"));
-      fireEvent.click(screen.getByRole("button", { name: saveLabel }));
+      save();
       await screen.findAllByText(failureText);
       expect(screen.queryByText(savedLineText(FIRST_TIME))).toBeNull();
       expect(dispatchUnload().prevented).toBe(true);
@@ -991,7 +1030,7 @@ describe("the unsaved-work warning and the saved-time line", () => {
     expect(dispatchUnload().prevented).toBe(true);
 
     const release = deferredUpdate(client);
-    fireEvent.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    leaveFieldNow();
     expect(dispatchUnload().prevented).toBe(true); // the save for "Зараз." is in flight
 
     // Revert to the value still on the server: `dirty` alone now reads
@@ -1823,7 +1862,7 @@ describe("a listed animal saves only when asked (T8)", () => {
     expect(client.calls.update).not.toHaveBeenCalled();
     expect(screen.getByText("Зміни зʼявляться на картці одразу після збереження.")).toBeTruthy();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+      fireEvent.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     });
     expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({ patch: { size: "large" } });
   });
@@ -1832,7 +1871,7 @@ describe("a listed animal saves only when asked (T8)", () => {
     const user = userEvent.setup();
     const client = renderForm(published());
     await user.clear(screen.getByLabelText(/^Опис/));
-    await user.click(screen.getByRole("button", { name: "Зберегти" }));
+    await user.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     expectRefusedInlineAndInSummary("Картку вже публікували, тож опис не може бути порожнім.");
     expect(client.calls.update).not.toHaveBeenCalled();
   });
@@ -1845,7 +1884,7 @@ describe("a listed animal saves only when asked (T8)", () => {
     );
     renderForm(published(), { client });
     fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Інший опис." } });
-    await user.click(screen.getByRole("button", { name: "Зберегти" }));
+    await user.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     await waitFor(() =>
       expectRefusedInlineAndInSummary("Картку вже публікували, тож опис не може бути порожнім."),
     );
@@ -1901,7 +1940,7 @@ describe("age as a declared range", () => {
     const client = renderForm(draft());
     await user.click(ageGroup().getByLabelText("3–4 роки"));
     await typeDate(user, document.body, "Станом на", "2026-09-01");
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     expect(client.calls.update.mock.calls.at(-1)?.[0]).toMatchObject({
       patch: { age: { kind: "declared_range", range: "3_4", asOf: "2026-09-01" } },
     });
@@ -1936,13 +1975,13 @@ describe("age as a declared range", () => {
     expect(checked("Молодий · 1–3")).toBe(true);
     expect(ageGroup().getAllByRole("radio")).toHaveLength(7);
     fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
-    await user.click(screen.getByRole("button", { name: "Зберегти" }));
+    await user.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     expect(client.calls.update.mock.calls.at(-1)?.[0].patch).toEqual({
       description: { uk: "Лагідна.", en: null },
     });
     await user.click(ageGroup().getByLabelText("1–2 роки"));
     expect(checked("Молодий · 1–3")).toBe(false);
-    await user.click(screen.getByRole("button", { name: "Зберегти" }));
+    await user.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     expect(client.calls.update.mock.calls.at(-1)?.[0].patch).toEqual({
       age: { kind: "declared_range", range: "1_2", asOf: "2026-09-01" },
     });
@@ -1964,7 +2003,7 @@ describe("age as a declared range", () => {
     expect((asOf.getByRole("textbox", { name: "Рік" }) as HTMLInputElement).value).toBe("2026");
     expect(screen.getByText("Ті, хто шукає тварину, побачать: «3–4 роки».")).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: "Лагідна." } });
-    await user.click(screen.getByRole("button", { name: "Зберегти" }));
+    await user.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     expect(client.calls.update.mock.calls.at(-1)?.[0].patch).toEqual({
       description: { uk: "Лагідна.", en: null },
     });
@@ -2014,7 +2053,7 @@ describe("fur", () => {
     coatGroup().getByLabelText("Довга").focus();
     await user.keyboard(" ");
     expect(checked("Довга")).toBe(true);
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     expect(client.calls.update).toHaveBeenCalledWith({
       animalId: ID,
       expectedVersion: 0,
@@ -2027,7 +2066,7 @@ describe("fur", () => {
     expect(checked("Коротка")).toBe(true);
     fireEvent.click(coatGroup().getByLabelText("Не записано"));
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+      fireEvent.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     });
     expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({ patch: { coatLength: null } });
     expect(checked("Не записано")).toBe(true);
@@ -2039,7 +2078,7 @@ describe("fur", () => {
     await user.type(screen.getByLabelText("Імʼя"), "Ластівка");
     await user.click(within(screen.getByRole("group", { name: "Вид" })).getByLabelText("Собака"));
     await user.click(coatGroup().getByLabelText("Довга"));
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     expect(client.calls.createDraft).toHaveBeenCalledWith({ name: "Ластівка", species: "dog" });
     await waitFor(() =>
       expect(client.calls.update).toHaveBeenCalledWith({
@@ -2109,7 +2148,7 @@ describe("temperament", () => {
     // Space ticks the focused checkbox, as a keyboard user does.
     box("Ладнає з дітьми").focus();
     await user.keyboard(" ");
-    await user.click(screen.getByRole("button", { name: "Зберегти" }));
+    await user.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     expect(client.calls.update).toHaveBeenCalledTimes(1);
     expect(client.calls.update).toHaveBeenCalledWith({
       animalId: ID,
@@ -2132,7 +2171,7 @@ describe("temperament", () => {
     expect(field.placeholder).toBe("Своїми словами");
     await user.type(field, "  Боїться грози ");
     await user.click(box("Ласкавий"));
-    await user.click(screen.getByRole("button", { name: "Зберегти" }));
+    await user.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({
       patch: {
         temperament: [
@@ -2166,7 +2205,7 @@ describe("temperament", () => {
     expect(group().getByText("40 з 40 символів")).toBeTruthy();
     fireEvent.change(field, { target: { value: "я".repeat(41) } });
     expect(group().getByText("Зайвих символів: 1")).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     expect(client.calls.update).not.toHaveBeenCalled();
     expect(field.getAttribute("aria-invalid")).toBe("true");
   });
@@ -2188,12 +2227,12 @@ describe("temperament", () => {
       "Гризе капці",
     );
     // Nothing changed yet: the stored order is the form's, so no patch is due and no bar shows.
-    expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
+    expect(screen.queryByRole("button", { name: SAVE_CHANGES })).toBeNull();
     fireEvent.click(box("Соромʼязливий"));
     fireEvent.click(box("Грайливий"));
     fireEvent.click(box("Інше"));
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+      fireEvent.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     });
     expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({ patch: { temperament: [] } });
   });
@@ -2206,7 +2245,7 @@ describe("temperament", () => {
     const client = renderForm(published({ temperament: [custom] } as Partial<KabinetAnimalView>));
     fireEvent.click(box("Спокійний"));
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+      fireEvent.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     });
     expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({
       patch: { temperament: [{ kind: "preset", trait: "calm" }, custom] },
@@ -2251,7 +2290,7 @@ describe("colour", () => {
     const user = userEvent.setup();
     const client = renderForm(draft());
     await user.click(group().getByLabelText("Смугасте"));
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     expect(client.calls.update).toHaveBeenCalledWith({
       animalId: ID,
       expectedVersion: 0,
@@ -2277,7 +2316,7 @@ describe("colour", () => {
     expect(field.placeholder).toBe("Своїми словами");
     await user.type(field, "Димчасте");
     expect(screen.getByText("8 з 30 символів")).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({
       patch: { colour: { kind: "custom", text: { uk: "Димчасте", en: null } } },
     });
@@ -2290,7 +2329,7 @@ describe("colour", () => {
     fireEvent.change(screen.getByRole("textbox", { name: OTHER_FIELD }), {
       target: { value: "я".repeat(31) },
     });
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     expect(client.calls.update).not.toHaveBeenCalled();
   });
 
@@ -2301,7 +2340,7 @@ describe("colour", () => {
     expect(checked("Руде")).toBe(true);
     fireEvent.click(group().getByLabelText("Не записано"));
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+      fireEvent.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     });
     expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({ patch: { colour: null } });
   });
@@ -2357,7 +2396,7 @@ describe("medical note", () => {
     const user = userEvent.setup();
     const client = renderForm(draft());
     await user.type(field(), "Алергія на курку.");
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     expect(client.calls.update).toHaveBeenCalledWith({
       animalId: ID,
       expectedVersion: 0,
@@ -2373,7 +2412,7 @@ describe("medical note", () => {
     );
     fireEvent.change(field(), { target: { value: "" } });
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+      fireEvent.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     });
     expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({
       patch: { medicalNotes: null },
@@ -2386,7 +2425,7 @@ describe("medical note", () => {
       target: { value: "я".repeat(ANIMAL_DESCRIPTION_MAX_CHARACTERS + 1) },
     });
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+      leaveFieldNow();
     });
     expect(client.calls.update).not.toHaveBeenCalled();
     expect(field().getAttribute("aria-invalid")).toBe("true");
@@ -2415,7 +2454,7 @@ describe("who may change what", () => {
   it("a shelter whose writes are refused sees the same read-only page", () => {
     renderForm(published(), { editing: { kind: "read_only" } });
     expect((screen.getByLabelText(/^Опис/) as HTMLTextAreaElement).disabled).toBe(true);
-    expect(screen.queryByRole("button", { name: "Зберегти" })).toBeNull();
+    expect(screen.queryByRole("button", { name: SAVE_CHANGES })).toBeNull();
   });
 
   /**
@@ -2538,15 +2577,19 @@ describe("sections, steps and the error summary (kabinet redesign PR 3)", () => 
     expect(screen.queryByRole("button", { name: /^Додати фото/ })).toBeNull();
   });
 
-  it("a refused save someone pressed puts focus on a summary that lists the problem and goes to the field", async () => {
+  it("a publish refused for a field puts focus on a summary that lists the problem and goes to the field", async () => {
     const user = userEvent.setup();
-    renderForm(null);
-    await user.click(within(screen.getByRole("group", { name: "Вид" })).getByLabelText("Кіт"));
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    const client = renderForm(
+      draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>),
+    );
+    // Typed, not yet left: only the publish's own save meets the problem.
+    fireEvent.change(screen.getByLabelText("Імʼя"), { target: { value: "Бу{" } });
+    await user.click(screen.getByRole("button", { name: "Опублікувати" }));
     const summary = screen.getByRole("alert");
     await waitFor(() => expect(document.activeElement).toBe(summary));
+    expect(client.calls.transition).not.toHaveBeenCalled();
     const item = within(summary).getByRole("link", {
-      name: "Щоб зберегти чернетку, потрібне імʼя.",
+      name: "В імені не може бути фігурних дужок.",
     });
     await user.click(item);
     expect(document.activeElement).toBe(screen.getByLabelText("Імʼя"));
@@ -2614,7 +2657,7 @@ describe("the save pill", () => {
     const client = fakeClient(card);
     renderForm(card, { client });
     // S1: no pill, the quiet line says everything is saved.
-    expect(pillButton("Зберегти")).toBeNull();
+    expect(pillButton(SAVE_CHANGES)).toBeNull();
     expect(screen.getAllByText("Усі зміни збережено")).toHaveLength(1);
 
     // S2
@@ -2624,9 +2667,9 @@ describe("the save pill", () => {
 
     // S3: both buttons are inert but stay in place.
     const release = deferred(client);
-    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    fireEvent.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     expect(screen.getAllByText("Збереження…")).toHaveLength(2);
-    expect(screen.getByRole("button", { name: "Зберегти" }).getAttribute("aria-disabled")).toBe(
+    expect(screen.getByRole("button", { name: SAVE_CHANGES }).getAttribute("aria-disabled")).toBe(
       "true",
     );
     expect(screen.getByRole("button", { name: "Скасувати" }).getAttribute("aria-disabled")).toBe(
@@ -2658,7 +2701,7 @@ describe("the save pill", () => {
     renderForm(card, { client });
     edit();
     const release = deferred(client);
-    fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    fireEvent.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     await act(async () =>
       release({ ...card, description: { uk: "Лагідна.", en: null } } as KabinetAnimalView),
     );
@@ -2689,7 +2732,7 @@ describe("the save pill", () => {
       description: { uk: "Лагідна.", en: null },
     } as KabinetAnimalView);
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+      fireEvent.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     });
     expect(screen.getAllByText("Збережено о 12:00")).toHaveLength(2);
     edit("Лагідна, грається.");
@@ -2703,11 +2746,11 @@ describe("the save pill", () => {
     renderForm(card, { client });
     edit("");
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+      fireEvent.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     });
     expect(client.calls.update).not.toHaveBeenCalled();
     expect(screen.getAllByText("Перевірте 1 поле")).toHaveLength(2);
-    expect(screen.getByRole("button", { name: "Зберегти" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: SAVE_CHANGES })).toBeTruthy();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Показати" }));
     });
@@ -2721,7 +2764,7 @@ describe("the save pill", () => {
     edit();
     client.calls.update.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+      fireEvent.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     });
     expect(screen.getAllByText("Не вдалося зберегти")).toHaveLength(2);
     // The longer failure text of the profile editor never joins it.
@@ -2746,7 +2789,7 @@ describe("the save pill", () => {
     edit();
     client.calls.update.mockRejectedValueOnce(apiError("CONFLICT"));
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+      fireEvent.click(screen.getByRole("button", { name: SAVE_CHANGES }));
     });
     expect(screen.queryByText("Не вдалося зберегти")).toBeNull();
     expect(screen.getByRole("button", { name: "Показати поточну версію" })).toBeTruthy();
@@ -2760,33 +2803,152 @@ describe("the save pill", () => {
     expect((screen.getByLabelText(/^Опис/) as HTMLTextAreaElement).value).toBe(
       "Спокійна, любить гуляти.",
     );
-    expect(pillButton("Зберегти")).toBeNull();
+    expect(pillButton(SAVE_CHANGES)).toBeNull();
     expect(screen.getAllByText("Усі зміни збережено")).toHaveLength(1);
   });
 
   it("Esc does nothing to the pill", () => {
     renderForm(published());
     edit();
-    fireEvent.keyDown(screen.getByRole("button", { name: "Зберегти" }), { key: "Escape" });
+    fireEvent.keyDown(screen.getByRole("button", { name: SAVE_CHANGES }), { key: "Escape" });
     expect(screen.getAllByText("Є незбережені зміни")).toHaveLength(2);
   });
 
-  it("a draft never shows the pill: its status is only the line under the tabs", async () => {
+  it("a draft never shows the pill: its status is the footer's line, with no save or cancel (R4)", async () => {
     const card = draft();
     const client = fakeClient(card);
     renderForm(card, { client });
     edit();
-    expect(screen.queryByText("Є незбережені зміни")).toBeNull();
+    expect(draftStatus().textContent).toBe("Є незбережені зміни");
+    expect(screen.queryByRole("button", { name: /Зберегти/ })).toBeNull();
     client.calls.update.mockResolvedValueOnce({
       ...card,
       description: { uk: "Лагідна.", en: null },
     } as KabinetAnimalView);
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+      leaveFieldNow();
     });
     expect(screen.getAllByText("Чернетку збережено о 12:00")).toHaveLength(1);
     expect(screen.queryByText("Збережено о 12:00")).toBeNull();
     expect(screen.queryByRole("button", { name: "Скасувати" })).toBeNull();
+  });
+});
+
+/**
+ * R4 (owner-approved redesign, 2026-11-19 §5): a draft's footer is its autosave status and one
+ * «Опублікувати»; a listed card offers «Зберегти зміни» only while it has unsaved edits.
+ */
+describe("the footer by listing state (R4)", () => {
+  const edit = (text = "Лагідна.") =>
+    fireEvent.change(screen.getByLabelText(/^Опис/), { target: { value: text } });
+
+  it("a draft has no save button; its footer's polite status goes saved, unsaved, saving, saved at", async () => {
+    const card = draft();
+    const client = fakeClient(card);
+    renderForm(card, { client });
+    expect(screen.queryByRole("button", { name: /Зберегти/ })).toBeNull();
+    const status = draftStatus();
+    expect(status.getAttribute("aria-live")).toBe("polite");
+    expect(status.textContent).toBe("Усі зміни збережено");
+    edit();
+    expect(draftStatus().textContent).toBe("Є незбережені зміни");
+    let release: (view: KabinetAnimalView) => void = () => {};
+    client.calls.update.mockImplementationOnce(
+      () =>
+        new Promise<KabinetAnimalView>((resolve) => {
+          release = resolve;
+        }),
+    );
+    leaveFieldNow();
+    expect(draftStatus().textContent).toBe("Збереження…");
+    await act(async () => release(draft({ description: { uk: "Лагідна.", en: null } })));
+    expect(draftStatus().textContent).toBe("Чернетку збережено о 12:00");
+    expect(screen.queryByRole("button", { name: /Зберегти/ })).toBeNull();
+  });
+
+  it("a draft's disabled «Опублікувати» names what is missing beside it", () => {
+    renderForm(draft({ sex: "male" } as Partial<KabinetAnimalView>));
+    const publish = screen.getByRole("button", { name: "Опублікувати" });
+    expect(publish.getAttribute("aria-disabled")).toBe("true");
+    expect(publish.getAttribute("aria-describedby")).toBe("publish-reason");
+    expect(document.getElementById("publish-reason")?.textContent).toBe(
+      "Щоб опублікувати, ще потрібно: розмір, вік, опис і фото.",
+    );
+  });
+
+  it("a ready draft's «Опублікувати» is enabled, with no reason written", () => {
+    renderForm(draft({ ...complete, photos: [PHOTO] } as Partial<KabinetAnimalView>));
+    const publish = screen.getByRole("button", { name: "Опублікувати" });
+    expect(publish.getAttribute("aria-disabled")).toBeNull();
+    expect(publish.getAttribute("aria-describedby")).toBeNull();
+    expect(document.getElementById("publish-reason")).toBeNull();
+  });
+
+  it.each([
+    ["published", published()],
+    [
+      "reserved",
+      published({
+        listing: {
+          kind: "reserved",
+          since: NOW,
+          publishedAt: NOW,
+          confirmedAt: NOW,
+          undoable: null,
+        },
+      } as Partial<KabinetAnimalView>),
+    ],
+  ] as const)(
+    "a %s card: no «Зберегти зміни» until an edit, then it saves and goes",
+    async (_kind, card) => {
+      const client = fakeClient(card);
+      renderForm(card, { client });
+      expect(screen.queryByRole("button", { name: /Зберегти/ })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Опублікувати" })).toBeNull();
+      edit();
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: SAVE_CHANGES }));
+      });
+      expect(client.calls.update).toHaveBeenCalledWith({
+        animalId: ID,
+        expectedVersion: 0,
+        patch: { description: { uk: "Лагідна.", en: null } },
+      });
+      expect(screen.queryByRole("button", { name: SAVE_CHANGES })).toBeNull();
+      expect(screen.getAllByText("Збережено о 12:00").length).toBeGreaterThan(0);
+    },
+  );
+
+  it("a published card's failed save still says so and offers the retry", async () => {
+    const card = published();
+    const client = fakeClient(card);
+    client.calls.update.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    renderForm(card, { client });
+    edit();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: SAVE_CHANGES }));
+    });
+    expect(screen.getAllByText("Не вдалося зберегти").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Спробувати ще раз" })).toBeTruthy();
+    expect((screen.getByLabelText(/^Опис/) as HTMLTextAreaElement).value).toBe("Лагідна.");
+  });
+
+  it("a published card's conflict still shows the conflict and «Показати поточну версію»", async () => {
+    const card = published();
+    const client = fakeClient(card);
+    client.calls.update.mockRejectedValueOnce(apiError("CONFLICT"));
+    renderForm(card, { client });
+    edit();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: SAVE_CHANGES }));
+    });
+    expect(
+      screen.getAllByText(
+        "Хтось змінив цю картку після того, як ви її відкрили. Ваші останні зміни не збережено. Ось поточна версія – внесіть їх ще раз.",
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Показати поточну версію" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: SAVE_CHANGES })).toBeNull();
   });
 });
 
@@ -2804,8 +2966,9 @@ describe("a shelter still in application (D2, D5)", () => {
     );
     const publish = screen.getByRole("button", { name: "Опублікувати" });
     expect(publish.getAttribute("aria-disabled")).toBe("true");
-    expect(publish.getAttribute("aria-describedby")).toBe("publish-awaiting-approval");
-    expect(document.getElementById("publish-awaiting-approval")?.textContent).toBe(WHY);
+    // Written beside the button (R4), ahead of any gap: this form can't fix it.
+    expect(publish.getAttribute("aria-describedby")).toBe("publish-reason");
+    expect(document.getElementById("publish-reason")?.textContent).toBe(WHY);
     await user.click(publish);
     expect(client.calls.transition).not.toHaveBeenCalled();
     expect(formStatus().textContent).toBe(WHY);
@@ -2832,7 +2995,7 @@ describe("a shelter still in application (D2, D5)", () => {
     fireEvent.change(screen.getByLabelText("Імʼя"), { target: { value: "Ластівка" } });
     fireEvent.click(within(screen.getByRole("group", { name: "Вид" })).getByLabelText("Собака"));
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+      leaveFieldNow();
     });
     expect(screen.getByText("До перевірки можна додати не більше 30 чернеток.")).toBeTruthy();
     const asked = client.calls.createDraft.mock.calls.length;
@@ -2848,7 +3011,7 @@ describe("a shelter still in application (D2, D5)", () => {
 describe("«Де зараз тварина» (owner, 2026-11-18)", () => {
   const IN_KYIV: AnimalFormLocation = { shelterCityName: "Київ", ownCity: null };
 
-  it("«В іншому місті», a city picked, «Зберегти чернетку»: the save sends the location", async () => {
+  it("«В іншому місті», a city picked, the field left: the save sends the location", async () => {
     const client = renderForm(draft(), { location: IN_KYIV });
     const user = userEvent.setup();
     expect(
@@ -2857,7 +3020,7 @@ describe("«Де зараз тварина» (owner, 2026-11-18)", () => {
     await user.click(screen.getByRole("radio", { name: "В іншому місті" }));
     await user.type(screen.getByRole("combobox", { name: /Населений пункт/ }), "Бров");
     await user.click(await screen.findByRole("option", { name: /м\. Бровари/ }));
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     await waitFor(() => expect(client.calls.update).toHaveBeenCalledTimes(1));
     expect(client.calls.update.mock.calls[0]?.[0]).toEqual({
       animalId: ID,
@@ -2874,7 +3037,7 @@ describe("«Де зараз тварина» (owner, 2026-11-18)", () => {
     await user.click(screen.getByRole("radio", { name: "В іншому місті" }));
     await user.type(screen.getByRole("combobox", { name: /Населений пункт/ }), "Бров");
     await user.click(await screen.findByRole("option", { name: /м\. Бровари/ }));
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     await waitFor(() => expect(client.calls.update).toHaveBeenCalledTimes(1));
     expect(client.calls.createDraft).toHaveBeenCalledWith({ name: "Ластівка", species: "dog" });
     expect(client.calls.update.mock.calls[0]?.[0]).toEqual({
@@ -2888,9 +3051,11 @@ describe("«Де зараз тварина» (owner, 2026-11-18)", () => {
     const client = renderForm(draft(), { location: IN_KYIV });
     const user = userEvent.setup();
     await user.click(screen.getByRole("radio", { name: "В іншому місті" }));
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await user.click(document.getElementById("animal-location-city") as HTMLElement);
+    await user.tab();
     expect(client.calls.update).not.toHaveBeenCalled();
     expect(screen.getAllByText("Оберіть населений пункт зі списку").length).toBeGreaterThan(0);
+    expect(draftStatus().textContent).toBe("Перевірте 1 поле");
   });
 
   it("a stored own city shows by name; back to the shelter's city sends shelter_city", async () => {
@@ -2903,7 +3068,7 @@ describe("«Де зараз тварина» (owner, 2026-11-18)", () => {
     ).toBe(true);
     expect(screen.getByDisplayValue("м. Бровари")).toBeTruthy();
     await user.click(screen.getByRole("radio", { name: "У місті притулку (Київ)" }));
-    await user.click(screen.getByRole("button", { name: SAVE_DRAFT }));
+    await leaveField();
     await waitFor(() => expect(client.calls.update).toHaveBeenCalledTimes(1));
     expect(client.calls.update.mock.calls[0]?.[0]).toMatchObject({
       patch: { location: { kind: "shelter_city" } },
