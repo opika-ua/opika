@@ -5,8 +5,13 @@
  */
 export const SIGN_IN_PAGES_PATH = "/kabinet/vkhid";
 
+/** The confirmation email's link pages, whose `?token=` is a registration token (R3). */
+export const EMAIL_LINK_PAGES_PATH = "/kabinet/zaiavka";
+
+const isUnder = (pathname: string, root: string) =>
+  pathname === root || pathname.startsWith(`${root}/`);
 const isSignInPage = (pathname: string) =>
-  pathname === SIGN_IN_PAGES_PATH || pathname.startsWith(`${SIGN_IN_PAGES_PATH}/`);
+  isUnder(pathname, SIGN_IN_PAGES_PATH) || isUnder(pathname, EMAIL_LINK_PAGES_PATH);
 
 /**
  * The URL an analytics event reports, with the query string removed when it is a sign-in page.

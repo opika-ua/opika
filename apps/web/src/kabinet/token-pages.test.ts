@@ -27,11 +27,28 @@ describe("the token pages' headers, set by the proxy", () => {
   };
 
   it("the reset page answers no-store, with or without its token", async () => {
-    expect(TOKEN_PAGE_PATHS).toEqual(["/kabinet/vkhid/novyi-parol"]);
+    expect(TOKEN_PAGE_PATHS).toEqual([
+      "/kabinet/vkhid/novyi-parol",
+      "/kabinet/zaiavka/pidtverdyty",
+      "/kabinet/zaiavka/ne-ya",
+    ]);
     for (const path of ["/kabinet/vkhid/novyi-parol?token=abc123", "/kabinet/vkhid/novyi-parol"]) {
       const response = await load(path);
       expect(response.headers.get("cache-control"), path).toBe("no-store");
       // One source for the policy: a second one could disagree with next.config's.
+      expect(response.headers.get("referrer-policy"), path).toBeNull();
+    }
+  });
+
+  it("the confirmation email's two link pages answer no-store, with or without a token", async () => {
+    for (const path of [
+      `/kabinet/zaiavka/pidtverdyty?token=${"A".repeat(43)}`,
+      "/kabinet/zaiavka/pidtverdyty",
+      `/kabinet/zaiavka/ne-ya?token=${"A".repeat(43)}`,
+      "/kabinet/zaiavka/ne-ya",
+    ]) {
+      const response = await load(path);
+      expect(response.headers.get("cache-control"), path).toBe("no-store");
       expect(response.headers.get("referrer-policy"), path).toBeNull();
     }
   });

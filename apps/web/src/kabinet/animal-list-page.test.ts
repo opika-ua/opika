@@ -1,4 +1,5 @@
 import { animalRepo, cityRepo, shelterRepo } from "@opika/db/repos";
+import { authUser, shelters } from "@opika/db/schema";
 import {
   makeAnimal,
   makeCity,
@@ -10,6 +11,7 @@ import {
 import type { CityId, ModeratorId, Shelter, ShelterAdminId } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { kabinetAnimalListPageOf } from "../features/kabinet/animal-list/animal-list-page";
+import { applicationBannersOf } from "../features/kabinet/application/application-banners";
 import { SHELTER_WRITE_POLICY, type ShelterWritePolicy } from "./access";
 import type { KabinetPrincipal } from "./actor";
 import { capturingInvitationSender } from "./email-senders";
@@ -130,5 +132,59 @@ describe("kabinetAnimalListPageOf: who reaches /kabinet/tvaryny", () => {
       if (page.kind !== "list") throw new Error("unreachable");
       expect(page.first.items.map((row) => row.name)).toEqual(["Чужий"]);
     }
+  });
+});
+
+/**
+ * The application banners on `/kabinet/tvaryny` for a self-registered shelter, from the database
+ * up (owner review of #532): an application inserted as one, its registrant's `email_verified`
+ * deciding «Підтвердіть email».
+ */
+describe("kabinetAnimalListPageOf: a self-registered application's banners", () => {
+  async function application(emailVerified: boolean) {
+    // The only shelter, so the registrant write below needs no filter.
+    await truncateAll(db);
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    cityId = city.id;
+    const userId = crypto.randomUUID();
+    await db.insert(authUser).values({
+      id: userId,
+      name: "Олена",
+      email: "olena@example.org",
+      emailVerified,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const at = new Date();
+    const shelter = makeShelter({
+      publicLocation: { ...makeShelter().publicLocation, cityId },
+      verification: {
+        status: "application",
+        appliedAt: at,
+        evidence: { items: [], submittedAt: at },
+      },
+    });
+    await shelterRepo(db).insert(shelter);
+    await db.update(shelters).set({ registrantUserId: userId });
+    return shelter;
+  }
+
+  const bannersOf = async (shelter: Shelter) => {
+    const page = await kabinetAnimalListPageOf(adminOf(shelter), deps());
+    if (page.kind !== "list") throw new Error(`no list: ${page.kind}`);
+    return applicationBannersOf(page.shelter, page.first.counts, page.viewer, {
+      email: "olena@example.org",
+      approvedDismissed: false,
+      selfRegistration: true,
+    }).map((banner) => banner.kind);
+  };
+
+  it("unconfirmed: «Перевіряю…» and «Підтвердіть email»", async () => {
+    expect(await bannersOf(await application(false))).toEqual(["pending", "confirm_email"]);
+  });
+
+  it("confirmed: «Перевіряю…» only", async () => {
+    expect(await bannersOf(await application(true))).toEqual(["pending"]);
   });
 });

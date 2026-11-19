@@ -37,6 +37,12 @@ describe("withoutSignInQuery", () => {
     ],
     ["https://example.org/kabinet/vkhid?zaproshennia=xyz", "https://example.org/kabinet/vkhid"],
     ["/kabinet/vkhid/novyi-parol?token=abc123", "/kabinet/vkhid/novyi-parol"],
+    // R3: the confirmation email's two link pages carry a registration token.
+    [
+      "https://example.org/kabinet/zaiavka/pidtverdyty?token=abc123",
+      "https://example.org/kabinet/zaiavka/pidtverdyty",
+    ],
+    ["/kabinet/zaiavka/ne-ya?token=abc123", "/kabinet/zaiavka/ne-ya"],
   ])("strips the query from a sign-in page: %s", (url, stripped) => {
     expect(withoutSignInQuery(url)).toBe(stripped);
     expect(withoutSignInQuery(url)).not.toContain("abc123");
@@ -46,6 +52,7 @@ describe("withoutSignInQuery", () => {
     "https://example.org/tvaryny?stor=2&vyd=pes",
     "https://example.org/kabinet/tvaryny?filter=all",
     "https://example.org/kabinet/vkhidno?token=abc",
+    "https://example.org/kabinet/zaiavkax?token=abc",
     "https://example.org/kabinet/vkhid/zabuly",
     "/tvaryny?stor=3",
     "not a url",

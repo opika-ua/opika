@@ -329,6 +329,9 @@ test.describe("kabinet pages load every same-origin asset", () => {
       `/kabinet/vkhid?zaproshennia=${inviteToken}`,
       "/kabinet/vkhid?zaproshennia=dummy-token",
       "/kabinet/ne-isnuie",
+      // The registration email's link pages (R3), with a dummy token.
+      "/kabinet/zaiavka/pidtverdyty?token=dummy-token",
+      "/kabinet/zaiavka/ne-ya?token=dummy-token",
     ];
     for (const path of paths) await anonymous(browser, path);
   });

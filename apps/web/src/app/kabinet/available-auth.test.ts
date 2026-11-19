@@ -11,6 +11,8 @@ import AnimalListPage from "./tvaryny/page";
 import ResetPasswordPage from "./vkhid/novyi-parol/page";
 import SignInPage from "./vkhid/page";
 import ForgotPasswordPage from "./vkhid/zabuly/page";
+import NotMeLinkPage from "./zaiavka/ne-ya/page";
+import ConfirmEmailLinkPage from "./zaiavka/pidtverdyty/page";
 
 /**
  * Each page answers its own 404 while sign-in is unavailable, before
@@ -64,6 +66,15 @@ describe.each([
   [
     "/kabinet/vkhid/novyi-parol?token=<t>",
     () => ResetPasswordPage({ searchParams: Promise.resolve({ token: "t" }) }),
+  ],
+  // R3: the confirmation email's two link pages.
+  [
+    "/kabinet/zaiavka/pidtverdyty?token=<t>",
+    async () => ConfirmEmailLinkPage({ searchParams: Promise.resolve({ token: "t" }) }),
+  ],
+  [
+    "/kabinet/zaiavka/ne-ya?token=<t>",
+    async () => NotMeLinkPage({ searchParams: Promise.resolve({ token: "t" }) }),
   ],
 ])("%s while sign-in is unavailable", (_route, page) => {
   it("answers 404 itself, never reaching the auth instance", async () => {

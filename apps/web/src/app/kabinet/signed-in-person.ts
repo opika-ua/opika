@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { cache } from "react";
+import type { KabinetEntry } from "../../features/kabinet/registration/EmailLinkCard";
 import { kabinetAuthAvailability } from "../../kabinet/auth-route";
 import { kabinetDb } from "../../kabinet/kabinet-db";
 import { kabinetSessionPersonOf } from "../../kabinet/principal";
@@ -25,3 +26,11 @@ export const signedInPerson = cache(async (): Promise<SignedInPerson | null> => 
     return null;
   }
 });
+
+/**
+ * The confirmed card's button (owner, 2026-11-19): any live kabinet session goes straight in.
+ * Through `signedInPerson`, so the read never refreshes the session and a failure is "signed out".
+ */
+export async function kabinetEntry(): Promise<KabinetEntry> {
+  return (await signedInPerson()) === null ? "sign_in" : "go_to_kabinet";
+}

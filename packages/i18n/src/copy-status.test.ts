@@ -3136,3 +3136,45 @@ describe("animal page photo strip copy (owner-given and owner-approved, 2026-11-
     expect(en.detail.photoRowCounter).toBe("{first}–{last} of {total}");
   });
 });
+
+/** The email-link pages' sentences (owner-approved, 2026-11-19). */
+describe("self-registration email-link copy (owner-approved, 2026-11-19)", () => {
+  const EMAIL_LINK_COPY = {
+    confirmEmailPrompt: "Натисніть кнопку, щоб підтвердити адресу {email}.",
+    notMePrompt:
+      "Якщо ви не реєстрували притулок, натисніть кнопку\u00a0– я видалю заявку, створену з вашою адресою.",
+    notMeLinkExpired:
+      "Посилання вже не діє. Якщо хтось зареєстрував притулок з вашою адресою\u00a0– напишіть мені на {email}.",
+    notMeDone: "Заявку видалено. Якщо це помилка\u00a0– напишіть мені на {email}.",
+  } as const;
+
+  it.each(Object.entries(EMAIL_LINK_COPY))("%s is his text", (key, text) => {
+    expect(uk.registration[key as keyof typeof EMAIL_LINK_COPY]).toBe(text);
+  });
+
+  // The link pages' R3 strings: a no-break space before every «–», so no line starts with one.
+  it.each(["notMePrompt", "notMeLinkExpired", "notMeDone"] as const)(
+    "%s keeps its dash off the start of a line, in both languages",
+    (key) => {
+      expect(uk.registration[key]).toContain("\u00a0– ");
+      for (const text of [uk.registration[key], en.registration[key]]) {
+        expect(text, key).not.toMatch(/ –/);
+      }
+    },
+  );
+
+  it("the confirmed card's signed-in button is R2's «Перейти в кабінет»", () => {
+    expect(uk.registration.signedIn.toKabinet).toBe("Перейти в кабінет");
+  });
+
+  it("the «Це не я» dead link never sends its reader to sign in", () => {
+    expect(uk.registration.notMeLinkExpired).not.toContain("Увійдіть");
+  });
+
+  it("has English beside each", () => {
+    for (const key of Object.keys(EMAIL_LINK_COPY) as (keyof typeof EMAIL_LINK_COPY)[]) {
+      expect(en.registration[key], key).not.toBe("");
+      expect(en.registration[key], key).not.toContain(COPY_PENDING);
+    }
+  });
+});
