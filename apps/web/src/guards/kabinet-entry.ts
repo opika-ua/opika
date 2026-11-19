@@ -115,12 +115,24 @@ export function kabinetNavigationsIn(
   const code = codeOf(lines);
   const local = resolve(declarationsOf(lines, false), withAliases(code, names));
   return kabinetNavigationPatterns(local).flatMap((pattern) =>
-    [...code.matchAll(pattern)].map((m) => ({
-      file,
-      line: lineAt(code, m.index ?? 0),
-      match: m[0].replace(/\s+/g, " "),
-    })),
+    [...code.matchAll(pattern)]
+      .filter((m) => !inFullLoadElement(code, m.index ?? 0))
+      .map((m) => ({
+        file,
+        line: lineAt(code, m.index ?? 0),
+        match: m[0].replace(/\s+/g, " "),
+      })),
   );
+}
+
+/** Kit elements whose href is always a plain `<a>` (a full load), so they may carry a kabinet path. */
+const FULL_LOAD_ELEMENTS = ["AuthCardFooter"];
+
+/** True when the match sits inside the still-open tag of one of `FULL_LOAD_ELEMENTS`. */
+function inFullLoadElement(code: string, index: number): boolean {
+  const opened = code.slice(code.lastIndexOf("<", index), index);
+  const tag = /^<([A-Za-z][\w.]*)/.exec(opened)?.[1];
+  return tag !== undefined && !opened.includes(">") && FULL_LOAD_ELEMENTS.includes(tag);
 }
 
 const IMPORT_FROM = /(?:\bfrom\s*|\bimport\s*\(?\s*)["'](\.[^"']*)["']/g;

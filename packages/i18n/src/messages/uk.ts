@@ -129,23 +129,22 @@ export const uk = {
       "існуєте і робите те, що кажете. Ваш другий номер телефону – не рекомендація.",
     /**
      * §7 - practical, answerable in ten seconds. Not a form. Commitment 6.
-     * The last paragraph is his PR 6 text (pr6-copy-uk.md §1.1): from PR 6 a
-     * shelter keeps its own animals and profile in the kabinet, and a card it
-     * publishes shows at once (K-Q3). The offer to enter the first cards is
-     * an `onboard:shelter` run, which adds new animals only (his Q3).
+     * Owner-approved 2026-11-19 (R2): what registration needs, the donation
+     * link after the check, and cards published after approval with a contact;
+     * the offer to enter a new shelter's first cards is gone.
      */
     whatToPrepare:
-      "Щоб почати, потрібно небагато:\n\n" +
+      "Для реєстрації потрібні назва, місто й посилання на сайт чи сторінку притулку. Для карток тварин знадобляться:\n\n" +
       "фотографії тварин – справжні файли, а не скріншоти;\n" +
       "кілька речень про кожну: імʼя, приблизний вік, розмір, вдача;\n" +
       "контакт, на який ви справді відповідаєте;\n" +
-      "посилання на донати, якщо воно у вас є;\n" +
       "і кілька речень про притулок: хто ви, як працюєте і як часто оновлюєте картки – про це нижче.\n\n" +
+      "Посилання на донати можна додати після перевірки притулку, якщо воно у вас є.\n\n" +
       "Фотографії використовуються тільки для сторінок ваших тварин.\n\n" +
       // A1 (row 91, final, Oleksii 2026-10-14): directly before the last
       // paragraph, shipped with the commit that turns production sign-in on.
       "Доступ до кабінету я надсилаю сам – листом на адресу, яку ви мені вкажете.\n\n" +
-      "Тварин і профіль притулку ви ведете самі в кабінеті: додаєте картку, публікуєте – і її одразу видно. Якщо тварин багато, на старті можу внести перші картки сам – надішліть список і фото.",
+      "Тварин і профіль притулку ви ведете самі в кабінеті: картки можна додати одразу, а опублікувати – після схвалення, коли в профілі є контакт.",
     /**
      * §8 - the section needing the most care. Says what the date IS, never
      * what the feature isn't: pre-empting the objection is what plants it.
@@ -229,8 +228,8 @@ export const uk = {
       help: "Сюди писатимуть ті, хто хоче взяти тварину.",
     },
     email: {
-      label: "Email",
-      help: "Для входу в кабінет. На сайті не показується.",
+      label: "Електронна пошта",
+      help: "З ним ви входитимете в кабінет. На сайті не показується.",
     },
     password: {
       label: "Пароль",
@@ -250,9 +249,12 @@ export const uk = {
      */
     errors: {
       required: "Заповніть це поле.",
+      /** A step-1 field left empty says what goes in it (owner-approved, 2026-11-19). */
+      nameRequired: "Вкажіть назву притулку чи ініціативи.",
       city: "Оберіть місто зі списку.",
+      linkRequired: "Додайте посилання на сайт або сторінку в соцмережі.",
       link: "Не схоже на посилання. Наприклад: instagram.com/vash_prytulok",
-      contact: "Вкажіть телефон (+380…) або Telegram (@імʼя).",
+      contact: "Вкажіть телефон у форматі +380… або Telegram через @.",
       email: "Перевірте email.",
       passwordShort: "Пароль закороткий: щонайменше {min} символів.",
       passwordMismatch: "Паролі не збігаються.",
@@ -265,7 +267,7 @@ export const uk = {
         "Зараз забагато заявок. Спробуйте, будь ласка, завтра або напишіть мені на {email}.",
     },
     /** On /kabinet/vkhid, linking to /prytulkam#reyestratsiia (§13.1; Phase 0 copy table). */
-    signInPrompt: "Ще немає кабінету? Зареєструйте притулок",
+    signInPrompt: { text: "Ще немає кабінету?", link: "Зареєструйте притулок" },
     /**
      * /prytulkam with the flag on (Phase 0 copy table): A1's sentence in §7 and §11 become these.
      * The flag-off page keeps `forShelters.whatToPrepare` and `forShelters.howToStart` unchanged.
@@ -307,6 +309,52 @@ export const uk = {
     /** Beside `errors.emailTaken` (owner, 2026-11-18): plain links into the kabinet. */
     emailTakenSignIn: "Увійти",
     emailTakenReset: "Відновити пароль",
+    /** The two-step card (R2, owner-approved 2026-11-19). `recap` takes the step-1 values. */
+    steps: { one: "Крок 1 з 2 · Про притулок", two: "Крок 2 з 2 · Ваш акаунт" },
+    next: "Далі",
+    recap: "{name}, {city}.",
+    change: "Змінити",
+    back: "← Назад",
+    footer: { text: "Уже маєте кабінет?", link: "Увійти" },
+    assistance: { text: "Потрібна допомога?", link: "Напишіть мені" },
+    /** A2–A4: /prytulkam for someone already signed in. */
+    signedIn: {
+      admin: "Ви вже увійшли як {email}.",
+      toKabinet: "Перейти в кабінет",
+      signOut: "Вийти",
+      operator: "Ви увійшли як оператор. Реєстрація – для притулків.",
+      toApplications: "До заявок",
+    },
+    /** /prytulkam's hero and the content below it with the flag on. */
+    page: {
+      lead: "Розмістіть тварин свого притулку чи ініціативи на {site} – люди шукатимуть їх за містом, віком і розміром.",
+      leadShort: "Безкоштовно, без реклами й комісій. Реєстрація – 3 хвилини.",
+      benefits: [
+        "Безкоштовно, без реклами й комісій",
+        "Реєстрація – 3 хвилини, тварин додаєте одразу",
+        "Я перевіряю притулок, зазвичай до 2 днів",
+        "Люди пишуть вам напряму",
+      ],
+      jump: { verification: "Як я перевіряю притулок", rules: "Правила", questions: "Питання" },
+      howItWorks: {
+        title: "Як це працює",
+        steps: [
+          { title: "Реєструєте притулок", body: "Кілька полів і пароль, кабінет одразу." },
+          { title: "Додаєте тварин", body: "Фото, вік, характер. Поки я перевіряю – як чернетки." },
+          { title: "Люди пишуть вам", body: "Контакти на картці, без посередників." },
+        ],
+      },
+      questions: {
+        overline: "Питання притулків",
+        title: "Усе, що варто знати",
+        groups: {
+          moneyContacts: "Гроші й контакти",
+          verificationRules: "Перевірка й правила",
+          animalCards: "Картки тварин",
+          aboutProject: "Про проєкт",
+        },
+      },
+    },
   },
   kabinet: {
     /**
@@ -462,9 +510,14 @@ export const uk = {
      * `throttled` is his §9 answer 5, the same for every address; «хв.» avoids a
      * plural, and `copy-plural-pins.test.ts` pins it for several values anyway.
      */
+    /** The sign-in page's redesign (Update 3, approved 2026-11-19): the subtitle and the help line. */
+    signInPage: {
+      subtitle: "Для притулків і волонтерів, які вже зареєстровані.",
+      assistance: { text: "Не вдається увійти?", link: "Напишіть мені" },
+    },
     signIn: {
       pageTitle: "Вхід до кабінету",
-      title: "Вхід до кабінету",
+      title: "Вхід у кабінет",
       intro:
         "Для притулків і адміністратора сайту. Увійти можна з паролем або за посиланням, що приходить на пошту.",
       emailLabel: "Електронна пошта",
@@ -478,8 +531,6 @@ export const uk = {
         "Не вдалося увійти. Перевірте адресу й пароль або надішліть собі посилання для входу.",
       /** `{minutes}` is the wait, whole minutes rounded up. */
       throttled: "Забагато спроб входу. Спробуйте ще раз через {minutes} хв.",
-      addressNote:
-        "Адресу додаю я, коли запрошую притулок. Якщо адреси немає в списку, лист не прийде – і ця сторінка про це не повідомляє, щоб не розкривати, хто зареєстрований.",
       /**
        * G4 (audit 2026-10-22): a request that got no answer at all (the fetch threw),
        * on the sign-in, set-password and reset forms. Never for a refused sign-in,

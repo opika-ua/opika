@@ -5,7 +5,12 @@
  * there too, so a submit can't register: these cover how the form posts and stays, never the
  * way out, which `register.test.ts` (the 303) and `RegistrationForm.test.tsx` pin.
  */
+import { createDatabase } from "@opika/db";
+import { cities } from "@opika/db/schema";
+import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { expect, type Page, test } from "@playwright/test";
+
+const db = createDatabase(assertDisposableTestDatabase(testDatabaseUrl("harness")));
 
 test.use({
   extraHTTPHeaders: { "x-forwarded-for": "198.51.100.123" },
@@ -31,13 +36,21 @@ async function markDocument(page: Page): Promise<void> {
 test.describe("/prytulkam's registration form", () => {
   const form = (page: Page) => page.locator("#reyestratsiia form");
 
-  async function fill(page: Page): Promise<void> {
+  async function fillStepOne(page: Page): Promise<void> {
     await page.getByLabel("Назва притулку чи ініціативи").fill("Притулок «Тестовий хвіст»");
     await page.getByLabel("Сайт або сторінка в соцмережі").fill("instagram.com/prytulok_test");
     await page.getByLabel("Телефон або Telegram для людей").fill("@prytulok_test");
-    await page.getByLabel("Email").fill("olena@example.org");
+  }
+
+  async function fillStepTwo(page: Page): Promise<void> {
+    await page.getByLabel("Електронна пошта").fill("olena@example.org");
     await page.getByLabel("Пароль", { exact: true }).fill("ялинка-під-вікном-у-грудні");
     await page.getByLabel("Повторіть пароль").fill("ялинка-під-вікном-у-грудні");
+  }
+
+  async function fill(page: Page): Promise<void> {
+    await fillStepOne(page);
+    await fillStepTwo(page);
   }
 
   test("with JS: a refused submit stays in the same document, nothing in the URL", async ({
@@ -46,7 +59,19 @@ test.describe("/prytulkam's registration form", () => {
     await page.goto("/prytulkam", { waitUntil: "load" });
     await expect(form(page)).toBeVisible();
     await hydrated(page, "#reyestratsiia form button[type='submit']");
-    await fill(page);
+    // With JS the card is two steps: «Далі» checks step 1 (a city picked) before step 2 shows.
+    await fillStepOne(page);
+    // A seeded settlement: the picker offers it as «м. Назва» (or the kind's prefix), then its detail.
+    const [city] = await db.select({ name: cities.nameUk }).from(cities).limit(1);
+    if (city === undefined) throw new Error("no seeded city");
+    await page.getByRole("combobox", { name: "Місто" }).fill(city.name);
+    await page
+      .getByRole("option", { name: new RegExp(city.name) })
+      .first()
+      .click();
+    await page.getByRole("button", { name: "Далі" }).click();
+    await expect(page.getByRole("heading", { name: "Крок 2 з 2 · Ваш акаунт" })).toBeFocused();
+    await fillStepTwo(page);
     await markDocument(page);
     // Straight away: under the minimum fill time, so the server refuses with the generic line.
     await page.getByRole("button", { name: "Зареєструвати притулок" }).click();
@@ -78,7 +103,7 @@ test.describe("/prytulkam's registration form", () => {
       await expect(page.getByText("Не вдалося зареєструвати.", { exact: false })).toBeVisible();
       expect(new URL(page.url()).search).toBe("");
       // What was typed survives the round trip (never the passwords).
-      await expect(page.getByLabel("Email")).toHaveValue("olena@example.org");
+      await expect(page.getByLabel("Електронна пошта")).toHaveValue("olena@example.org");
       await expect(page.getByLabel("Пароль", { exact: true })).toHaveValue("");
     } finally {
       await context.close();

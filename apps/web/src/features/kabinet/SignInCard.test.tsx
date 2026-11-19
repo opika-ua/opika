@@ -269,11 +269,8 @@ describe("K1 · the password, first (PW-1)", () => {
     expect(screen.getByRole("link", { name: "Забули пароль?" }).getAttribute("href")).toBe(
       "/kabinet/vkhid/zabuly",
     );
-    expect(
-      screen.getByText(
-        "Для притулків і адміністратора сайту. Увійти можна з паролем або за посиланням, що приходить на пошту.",
-      ),
-    ).toBeDefined();
+    // Update 3 (2026-11-19): the approved subtitle replaces PW-1's intro on the page.
+    expect(screen.getByText("Для притулків і волонтерів, які вже зареєстровані.")).toBeDefined();
   });
 
   it("signs in with the trimmed address and the password as typed, then goes home", async () => {
@@ -333,5 +330,21 @@ describe("K1 · the password, first (PW-1)", () => {
     expect((passwordField() as HTMLInputElement).value).toBe("секрет-123456");
     await user.click(screen.getByRole("button", { name: "Сховати пароль" }));
     expect(passwordField().getAttribute("type")).toBe("password");
+  });
+});
+
+describe("K1 · the links around the card (Update 3)", () => {
+  it("the footer sits inside the card, the help line under it", () => {
+    render(
+      <SignInCard
+        contact="hello@opika.org.ua"
+        footer={<a href="/prytulkam#reyestratsiia">footer-link</a>}
+        assistance={<a href="mailto:hello@opika.org.ua">help-link</a>}
+      />,
+    );
+    const card = screen.getByRole("region", { name: uk.kabinet.signIn.title });
+    expect(card.contains(screen.getByRole("link", { name: "footer-link" }))).toBe(true);
+    expect(card.contains(screen.getByRole("link", { name: "help-link" }))).toBe(false);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Вхід у кабінет");
   });
 });
