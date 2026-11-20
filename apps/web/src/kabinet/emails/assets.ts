@@ -15,9 +15,6 @@ export const EMAIL_LOGO = {
   markWidth: 160,
 } as const;
 
-/** The UI face for the clients that load web fonts (Apple Mail, Outlook for Mac). */
-export const EMAIL_FONT = { file: "opika-ui-v1.woff2" } as const;
-
 /** Where a mail's images resolve: the live site, or a local folder for the preview. */
 export type EmailAssetBase = string;
 

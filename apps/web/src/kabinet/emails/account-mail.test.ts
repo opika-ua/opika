@@ -6,6 +6,13 @@ import { type RegistrationEmail, registrationEmailFor } from "../registration-em
 import { isKitRegistrationEmail, kitEmail, passwordResetEmail } from "./account-mail";
 import { EMAIL_FIXTURES } from "./fixtures";
 import { emailModelOf } from "./templates";
+import {
+  anchorTextsOf,
+  BRAND_ASSET_URLS,
+  fallbackUrlOf,
+  hrefsOf,
+  remoteReferenceSetOf,
+} from "./test-utils/email-dom";
 
 /**
  * Plan step 3: the five account emails through the kit, on their real send paths. The link each
@@ -18,24 +25,8 @@ const SIGN_IN_URL =
   "https://example.org/kabinet/vkhid/pidtverdzhennia?token=AbC-_9xY%2Bz~0&next=%2Fkabinet&x=1";
 const RESET_URL = "https://example.org/kabinet/vkhid/novyi-parol?token=Zz_-9%2F8&x=1";
 
-const decode = (html: string): string =>
-  html
-    .replaceAll("&quot;", '"')
-    .replaceAll("&#x27;", "'")
-    .replaceAll("&#39;", "'")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&amp;", "&");
-
-const hrefsOf = (html: string): string[] =>
-  [...html.matchAll(/\bhref="([^"]*)"/g)].map((match) => decode(match[1] ?? ""));
-
-/** The URL the fallback line shows, as a reader copies it. */
-const fallbackUrlOf = (html: string): string | undefined => {
-  const at = html.indexOf(`${uk.emailLayout.fallbackLink} <span`);
-  const match = at < 0 ? null : /^[^>]*<span[^>]*>([^<]*)<\/span>/.exec(html.slice(at));
-  return match?.[1] === undefined ? undefined : decode(match[1]);
-};
+const FALLBACK = uk.emailLayout.fallbackLink;
+const BRAND = [...BRAND_ASSET_URLS].sort();
 
 function capturingMail(): ProviderMail & { sent: OutgoingEmail[] } {
   const sent: OutgoingEmail[] = [];
@@ -103,11 +94,11 @@ describe.each([
   it("carries the given URL exactly: button, Outlook button, fallback line and text part", async () => {
     const email = await send(url);
     expect(hrefsOf(email.html)).toEqual([url, url]);
-    expect(fallbackUrlOf(email.html)).toBe(url);
+    expect(fallbackUrlOf(email.html, FALLBACK)).toBe(url);
     expect(email.text.split("\n")).toContain(url);
     // Nowhere else, and never a URL as the visible text of a link (IN-E8).
     expect(email.text.split(url)).toHaveLength(2);
-    expect(email.html).not.toMatch(/<a\b[^>]*>\s*https?:/);
+    for (const text of anchorTextsOf(email.html)) expect(text).not.toMatch(/^https?:/);
   });
 
   it("goes out multipart, to the same address, with the Reply-To", async () => {
@@ -157,8 +148,10 @@ describe("the subjects stay the approved ones", () => {
     expect(email.html).toContain("<h1");
     expect(email.html).toContain('lang="uk"');
     if (input.template === "application_confirm") {
-      expect(hrefsOf(email.html)).toEqual([input.confirmUrl, input.confirmUrl, input.notMeUrl]);
-      expect(fallbackUrlOf(email.html)).toBe(input.confirmUrl);
+      expect(hrefsOf(email.html).sort()).toEqual(
+        [input.confirmUrl, input.confirmUrl, input.notMeUrl].sort(),
+      );
+      expect(fallbackUrlOf(email.html, FALLBACK)).toBe(input.confirmUrl);
       expect(email.text.split("\n")).toContain(input.confirmUrl);
     }
     const body = await resendBodyOf(email);
@@ -193,5 +186,86 @@ describe("the kit keeps IN-E8", () => {
       operatorName: "Олексій",
     });
     expect(hrefsOf(email.html)).toEqual([RESET_URL, RESET_URL]);
+  });
+});
+
+/**
+ * The owner's rule: a per-recipient parameter can never pass this test. Every reference a client
+ * loads without a click, in all five wired mails as their senders build them, is exactly the
+ * versioned logo, compared as a whole string (owner, 2026-11-20: no web font, system fonts only).
+ */
+describe("what the wired mails load without a click", () => {
+  const wired: [string, () => Promise<OutgoingEmail>][] = [
+    ["sign-in link", () => sentSignIn(SIGN_IN_URL)],
+    ["password reset", () => sentReset(RESET_URL)],
+    [
+      "confirmation",
+      () =>
+        registrationEmailFor(
+          { ...EMAIL_FIXTURES.application_confirm, operatorName: "Олексій" },
+          "lapa@example.org",
+        ),
+    ],
+    [
+      "approval",
+      () => registrationEmailFor(EMAIL_FIXTURES.application_approved, "lapa@example.org"),
+    ],
+    [
+      "rejection",
+      () => registrationEmailFor(EMAIL_FIXTURES.application_rejected, "lapa@example.org"),
+    ],
+  ];
+
+  it.each(wired)("%s: exactly the logo", async (_name, build) => {
+    expect(remoteReferenceSetOf((await build()).html)).toEqual(BRAND);
+  });
+
+  const [logo] = BRAND_ASSET_URLS;
+  /** Each a way a tracker could ride in; every one must change the set. */
+  const tampered: [string, (html: string) => string][] = [
+    ["the logo with a query", (html) => html.replaceAll(logo, `${logo}?r=1`)],
+    ["the logo with a fragment", (html) => html.replaceAll(logo, `${logo}#r`)],
+    [
+      "a web font through @font-face",
+      (html) =>
+        html.replace(
+          "</style>",
+          "@font-face{font-family:'Opika';src:url('https://opika.org.ua/email/opika-ui-v1.woff2')}</style>",
+        ),
+    ],
+    [
+      "a stylesheet link",
+      (html) =>
+        html.replace("</head>", '<link rel="stylesheet" href="https://px.example/f.css"/></head>'),
+    ],
+    [
+      "an extra srcset on the logo",
+      (html) => html.replace("<img ", '<img srcset="https://px.example/p.png?u=1 2x" '),
+    ],
+    [
+      "a CSS background url() in an inline style",
+      (html) => html.replace('<td style="', '<td style="background:url(https://px.example/b.png);'),
+    ],
+    [
+      "a CSS background url() in the stylesheet",
+      (html) =>
+        html.replace("</style>", "body{background:url('https://px.example/c.png')}</style>"),
+    ],
+    [
+      "a background attribute",
+      (html) => html.replace("<td ", '<td background="https://px.example/d.png" '),
+    ],
+    [
+      "an image inside Outlook's conditional markup",
+      (html) =>
+        html.replace("<!--[if mso]>", '<!--[if mso]><v:image src="https://px.example/e.png"/>'),
+    ],
+  ];
+
+  it.each(tampered)("refuses %s", async (_name, tamper) => {
+    const html = (await sentSignIn(SIGN_IN_URL)).html;
+    const changed = tamper(html);
+    expect(changed).not.toBe(html);
+    expect(remoteReferenceSetOf(changed)).not.toEqual(BRAND);
   });
 });

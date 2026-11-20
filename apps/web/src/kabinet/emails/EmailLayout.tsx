@@ -53,7 +53,7 @@ export function EmailLayout(props: {
         <meta name="format-detection" content="telephone=no, date=no, address=no" />
         <title>{props.title}</title>
         <meta name={MSO_HEAD_SLOT} />
-        <style dangerouslySetInnerHTML={{ __html: headCss(props.assetBase) }} />
+        <style dangerouslySetInnerHTML={{ __html: headCss() }} />
       </Head>
       <body
         lang="uk"

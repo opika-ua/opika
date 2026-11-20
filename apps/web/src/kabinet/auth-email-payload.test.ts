@@ -1,7 +1,9 @@
+import { uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
 import { passwordChangedEmail } from "./email-message";
 import { EMAIL_PROVIDERS, type EmailProvider } from "./email-provider";
 import { passwordResetEmail } from "./emails/account-mail";
+import { BRAND_ASSET_URLS, remoteReferenceSetOf } from "./emails/test-utils/email-dom";
 import { productionMailOf } from "./production-mail";
 import { productionSignInOf } from "./production-sign-in";
 
@@ -22,8 +24,8 @@ const EXACT_FIELDS: Readonly<Record<EmailProvider, readonly string[]>> = {
   postmark: ["From", "HtmlBody", "MessageStream", "ReplyTo", "Subject", "TextBody", "To"],
 };
 
-/** The branded logo, the one image an auth email may hold: fixed, versioned, no query. */
-const LOGO_URL = "https://opika.org.ua/email/logo@2x-v1.png";
+/** The branded logo, the one file an auth email may load: fixed, versioned, no query. */
+const [LOGO_URL] = BRAND_ASSET_URLS;
 
 /** Words no auth email's request may carry, in any provider's spelling. */
 const BANNED = [
@@ -115,13 +117,14 @@ describe("every outgoing auth email carries exactly its provider's fields, and n
         const body = JSON.parse(sent) as Record<string, unknown>;
         expect(Object.keys(body).sort()).toEqual([...EXACT_FIELDS[provider]].sort());
         for (const banned of BANNED) expect(sent, String(banned)).not.toMatch(banned);
-        // No pixel: the one image allowed is the branded kit's logo (plan step 3), one fixed
-        // versioned file on the site itself with no query, the same bytes for every recipient,
-        // so a request for it identifies nobody.
-        const html = (body.html ?? body.HtmlBody) as string;
-        const sources = [...html.matchAll(/<img\b[^>]*\bsrc="([^"]*)"/gi)].map((m) => m[1]);
-        for (const src of sources) expect(src).toBe(LOGO_URL);
-        expect(html.match(/<img\b/gi)?.length ?? 0).toBe(sources.length);
+        // No pixel (owner, 2026-11-20): everything a client loads without a click is exactly the
+        // kit's fixed, versioned logo, compared as a whole string, or nothing for the mails not
+        // yet in the kit. A per-recipient parameter anywhere changes the set.
+        const html = String(body.html ?? body.HtmlBody);
+        const kit: string[] = [uk.kabinet.email.signIn.subject, uk.kabinet.email.reset.subject];
+        expect(remoteReferenceSetOf(html)).toEqual(
+          kit.includes(String(body.subject ?? body.Subject)) ? [LOGO_URL] : [],
+        );
       }
       // PW-2 Q2 (Oleksii, 2026-10-20, verbatim), in both invites' bytes as they went out: the
       // link sets a password, so the paragraph says not to forward it.

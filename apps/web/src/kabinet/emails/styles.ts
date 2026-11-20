@@ -1,4 +1,3 @@
-import { assetUrl, EMAIL_FONT, type EmailAssetBase } from "./assets";
 import type { InfoBoxKind } from "./model";
 import { DARK, EMAIL_WIDTH } from "./theme";
 
@@ -18,11 +17,11 @@ export const DARK_CLASS = {
 } as const;
 
 /**
- * The head's one stylesheet. Light is inline; this adds the Opika face where web fonts load, Apple
+ * The head's one stylesheet. Light is inline; this adds Apple
  * Mail's dark variant (`prefers-color-scheme`; Gmail ignores it and inverts on its own) and the
  * phone layout, where the button takes the full width.
  */
-export function headCss(base: EmailAssetBase): string {
+export function headCss(): string {
   const kinds: InfoBoxKind[] = ["information", "success", "warning"];
   const dark = [
     `.${DARK_CLASS.page}{background-color:${DARK.page}!important}`,
@@ -35,7 +34,6 @@ export function headCss(base: EmailAssetBase): string {
     ...kinds.map((kind) => `.${DARK_CLASS.box(kind)}{background-color:${DARK[kind]}!important}`),
   ].join("");
   return [
-    `@font-face{font-family:'Opika';src:url('${assetUrl(base, EMAIL_FONT.file)}') format('woff2');font-weight:300 700;font-style:normal}`,
     ":root{color-scheme:light dark;supported-color-schemes:light dark}",
     `@media (prefers-color-scheme: dark){${dark}}`,
     `@media (max-width:${EMAIL_WIDTH}px){.${DARK_CLASS.button}{display:block!important}.${DARK_CLASS.cardPad}{padding:28px 20px!important}.${DARK_CLASS.shell}{padding:16px 8px!important}}`,

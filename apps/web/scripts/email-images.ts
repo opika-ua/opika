@@ -1,10 +1,10 @@
-// Renders the email logo (public/brand-v3/logo.svg) as a PNG @2x on an opaque cream plate, and copies
-// the UI font, into public/email/ with a version suffix (src/kabinet/emails/assets.ts names the files).
+// Renders the email logo (public/brand-v3/logo.svg) as a PNG @2x on an opaque cream plate into
+// public/email/, with a version suffix (src/kabinet/emails/assets.ts names the file).
 // Run again only for a new version: bump the suffix there, never overwrite a published file.
-import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
-import { EMAIL_FONT, EMAIL_LOGO } from "../src/kabinet/emails/assets";
+import { EMAIL_LOGO } from "../src/kabinet/emails/assets";
 import TOKENS from "../src/kabinet/emails/tokens.generated.json";
 
 const at = (path: string) => fileURLToPath(new URL(path, import.meta.url));
@@ -44,6 +44,4 @@ await sharp({
   .png({ compressionLevel: 9, palette: true })
   .toFile(`${out}${EMAIL_LOGO.file}`);
 
-refuseOverwrite(EMAIL_FONT.file);
-copyFileSync(at("../src/app/fonts/brand-ui/OpikaVariable-wght.woff2"), `${out}${EMAIL_FONT.file}`);
-process.stdout.write(`wrote ${EMAIL_LOGO.file} and ${EMAIL_FONT.file} to ${out}\n`);
+process.stdout.write(`wrote ${EMAIL_LOGO.file} to ${out}\n`);

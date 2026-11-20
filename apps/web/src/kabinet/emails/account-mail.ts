@@ -30,7 +30,10 @@ export async function kitEmail(to: string, model: EmailModel): Promise<OutgoingE
   return { to, subject, html, text };
 }
 
-/** E1, the magic link. Its link is the sign-in confirm page (IN-E1). */
+/**
+ * E1, the magic link. Its link is the sign-in confirm page, never the token-consuming endpoint
+ * (IN-E1): a GET only shows the «Увійти» button, so a mail scanner opening the link burns nothing.
+ */
 export function signInEmail(input: {
   to: string;
   url: string;
@@ -40,7 +43,11 @@ export function signInEmail(input: {
   return kitEmail(input.to, emailModelOf({ template: "sign_in", ...input }));
 }
 
-/** F1, the reset link, to a shelter admin's own address only (`RESET_LINK`). */
+/**
+ * F1, the reset link: only ever to a shelter admin's address, never the operator's (§4.6; the operator
+ * has no password). Its link is `RESET_LINK`, whose GET only shows the form, so a scanner that opens it
+ * consumes nothing; Better Auth's own redirecting `/reset-password/:token` is never emailed.
+ */
 export function passwordResetEmail(input: {
   to: string;
   url: string;

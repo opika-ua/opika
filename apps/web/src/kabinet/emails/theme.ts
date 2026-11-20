@@ -55,9 +55,8 @@ export const DARK = {
   warning: mix(TOKENS["color-status-reserved"], ink, 0.2),
 } as const;
 
-/** Fallback first (Gmail and Outlook drop web fonts); the Opika face only where it loads. */
-export const FONT_STACK =
-  "'Opika', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+/** System fonts only (owner, 2026-11-20): no web font loads; Outlook for Windows is forced to Arial. */
+export const FONT_STACK = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
 export const TYPE = {
   title: {

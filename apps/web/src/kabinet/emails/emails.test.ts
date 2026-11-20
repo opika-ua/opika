@@ -7,6 +7,7 @@ import { EMAIL_LOGO, LIVE_ASSET_BASE } from "./assets";
 import { EMAIL_FIXTURES } from "./fixtures";
 import { renderEmail } from "./render";
 import { EMAIL_TEMPLATES, emailChromeCopy, emailModelOf, leadOf } from "./templates";
+import { anchorTextsOf, visibleTextOf } from "./test-utils/email-dom";
 import { emailTokensFromCss, emailTokensJson } from "./token-bridge";
 
 /** U+2014, written as an escape so this file holds none. */
@@ -14,14 +15,6 @@ const EM_DASH = String.fromCodePoint(0x2014);
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SRC = resolve(HERE, "../..");
 const WEB = resolve(SRC, "..");
-
-/** What a reader sees: no tags, comments, doctype or the head's stylesheet. */
-const visibleText = (html: string): string =>
-  html
-    .replace(/<!DOCTYPE[^>]*>/i, "")
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]+>/g, " ");
 
 const rendered = await Promise.all(
   EMAIL_TEMPLATES.map(async (template) => ({
@@ -43,7 +36,7 @@ describe("every email the kit renders", () => {
   );
 
   it.each(rendered)("$template: no em dash and no exclamation mark", ({ email }) => {
-    for (const part of [email.subject, email.text, visibleText(email.html)]) {
+    for (const part of [email.subject, email.text, visibleTextOf(email.html)]) {
       expect(part).not.toContain(EM_DASH);
       expect(part).not.toContain("!");
     }
@@ -51,7 +44,7 @@ describe("every email the kit renders", () => {
 
   it.each(rendered)("$template: its subject is the title and the h1", ({ email }) => {
     expect(email.html).toContain(`<title>${email.subject}</title>`);
-    expect(visibleText(email.html)).toContain(email.subject);
+    expect(visibleTextOf(email.html)).toContain(email.subject);
   });
 
   it("carries the Outlook head and never embeds an image", () => {
@@ -66,7 +59,7 @@ describe("every email the kit renders", () => {
     const { email } = rendered.find((entry) => entry.template === "sign_in") ?? {};
     const url = EMAIL_FIXTURES.sign_in.url;
     expect(email?.text).toContain(`\n${url}`);
-    expect(email?.html).not.toMatch(/<a[^>]*>\s*https?:\/\//);
+    for (const text of anchorTextsOf(email?.html ?? "")) expect(text).not.toMatch(/^https?:/);
   });
 
   it("names no pending string: the kit's lines are the approved catalogue's", () => {

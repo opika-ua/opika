@@ -357,7 +357,7 @@ describe("the emails' versioned files", () => {
     "are cached a year, immutable, and nothing else is, discoverable: %s",
     async (discoverable) => {
       const sent = await headersUnder(undefined, discoverable);
-      for (const url of ["/email/logo@2x-v1.png", "/email/opika-ui-v1.woff2"]) {
+      for (const url of ["/email/logo@2x-v1.png", "/email/logo@2x-v2.png"]) {
         expect(sent(url).get("cache-control"), url).toBe("public, max-age=31536000, immutable");
         // The security headers still apply; none of them stops a mail client loading an image.
         expect(sent(url).get("x-content-type-options"), url).toBe("nosniff");
