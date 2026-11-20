@@ -28,6 +28,8 @@ export const EMAIL_FIXTURES: {
     template: "application_rejected",
     name: shelterName,
     reason: { code: "identity_unverifiable", note: null },
+    contactEmail: OPERATOR_CONTACT.email,
+    telegram: OPERATOR_CONTACT.telegram,
   },
   sign_in: {
     template: "sign_in",

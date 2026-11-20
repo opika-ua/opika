@@ -2043,6 +2043,13 @@ export const en = {
       },
     },
   },
+  emailLayout: {
+    fallbackLink: "Button not working? Copy this link:",
+    reason: {
+      registrant: "You got this email because this address was given when the shelter registered.",
+      shelterAdmin: "You got this email because this address was added to a shelter's dashboard.",
+    },
+  },
   cityPage: {
     heading: "Looking for a home: {city}",
     intro:

@@ -13,7 +13,7 @@ export type EmailBlock =
   | { kind: "divider" }
   | { kind: "secondaryLink"; label: string; url: string };
 
-/** Who the mail is for: the footer's reason line follows it. */
+/** Who the mail is for: a registrant's and a shelter admin's carry a reason line, the operator's none. */
 export type EmailRecipient = "registrant" | "shelterAdmin" | "operator";
 
 export type EmailModel = {
@@ -24,17 +24,13 @@ export type EmailModel = {
   blocks: readonly EmailBlock[];
   /** Null where no one reason fits every address it goes to (the sign-in link). */
   recipient: EmailRecipient | null;
-  /** The weekly reminder's switch-off link, once one exists. */
-  switchOffUrl?: string;
 };
 
-/** The footer and fallback wording, filled; from the catalogue once approved (`pending-copy.ts`). */
+/** The footer and fallback wording, filled (`uk.emailLayout`, `uk.about.independent`, `brand.ts`). */
 export type EmailChromeCopy = {
   fallbackLink: string;
-  reason: Record<EmailRecipient, string>;
+  reason: Record<Exclude<EmailRecipient, "operator">, string>;
   independence: string;
   contact: string;
-  switchOffPrompt: string;
-  switchOffAction: string;
   logoAlt: string;
 };

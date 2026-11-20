@@ -1,11 +1,6 @@
 import type { EmailSendOutcome } from "@opika/contracts";
 import { COPY_PENDING } from "@opika/i18n";
-import {
-  invitationEmail,
-  magicLinkEmail,
-  passwordChangedEmail,
-  passwordResetEmail,
-} from "./email-message";
+import { invitationEmail, passwordChangedEmail } from "./email-message";
 import {
   type BlockedStatus,
   type BlockListReader,
@@ -159,9 +154,11 @@ export function providerMagicLinkSender(
 ): MagicLinkSender {
   return {
     async send({ email, url }) {
+      // The branded kit, loaded at send time only (plan step 3); the URL goes out exactly as given.
+      const { signInEmail } = await import("./emails/account-mail");
       const { outcome, uncheckedWhy, providerFailure } = await sendCheckedWithReason(
         mail,
-        magicLinkEmail({
+        await signInEmail({
           to: email,
           url,
           ttlMinutes: options.ttlMinutes,
@@ -318,10 +315,11 @@ export function providerPasswordMail(
   };
   return {
     async sendReset({ email, url }) {
+      const { passwordResetEmail } = await import("./emails/account-mail");
       await send(
         "password-reset",
         email,
-        passwordResetEmail({
+        await passwordResetEmail({
           to: email,
           url,
           ttlMinutes: options.ttlMinutes,

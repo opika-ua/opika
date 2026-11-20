@@ -45,7 +45,8 @@ export function EmailButton(props: { label: string; url: string; fallback: strin
           color: LIGHT.secondary,
         }}
       >
-        {props.fallback} <span style={{ wordBreak: "break-all" }}>{props.url}</span>
+        {`${props.fallback} `}
+        <span style={{ wordBreak: "break-all" }}>{props.url}</span>
       </Text>
     </Section>
   );

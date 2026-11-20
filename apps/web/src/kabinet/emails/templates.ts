@@ -4,7 +4,6 @@ import { fillTemplate, uk } from "@opika/i18n";
 import { OPERATOR_CONTACT, WORDMARK } from "../../brand";
 import { countPhrase } from "../../features/kabinet/shared/count-phrase";
 import type { EmailBlock, EmailChromeCopy, EmailModel } from "./model";
-import { PENDING_EMAIL_COPY } from "./pending-copy";
 
 /**
  * Every email the code sends today (inventory, branded-emails plan §4 step 1), as a kit model built
@@ -38,7 +37,13 @@ export type EmailTemplate = (typeof EMAIL_TEMPLATES)[number];
 export type EmailTemplateInput =
   | { template: "application_confirm"; name: string; confirmUrl: string; notMeUrl: string }
   | { template: "application_approved"; name: string; kabinetUrl: string }
-  | { template: "application_rejected"; name: string; reason: ApplicationRejectionReason }
+  | {
+      template: "application_rejected";
+      name: string;
+      reason: ApplicationRejectionReason;
+      contactEmail: string;
+      telegram: string;
+    }
   | { template: "sign_in"; url: string; ttlMinutes: number; operatorName: string }
   | {
       template: "invite";
@@ -177,12 +182,7 @@ function shapeOf(input: EmailTemplateInput): Shape {
         recipient: "registrant",
         blocks: [
           box("warning", body),
-          p(
-            fillTemplate(c.contact, {
-              email: OPERATOR_CONTACT.email,
-              telegram: OPERATOR_CONTACT.telegram,
-            }),
-          ),
+          p(fillTemplate(c.contact, { email: input.contactEmail, telegram: input.telegram })),
           p(c.retention),
         ],
       };
@@ -416,18 +416,11 @@ export const emailModelOf = (input: EmailTemplateInput): EmailModel => modelOf(s
 
 /** The kit's own wording, filled: footer lines, the fallback line and the logo's alt text. */
 export function emailChromeCopy(): EmailChromeCopy {
-  const pending = PENDING_EMAIL_COPY;
   return {
-    fallbackLink: pending.fallbackLink,
-    reason: {
-      registrant: pending.reason.registrant,
-      shelterAdmin: pending.reason.shelterAdmin,
-      operator: fillTemplate(pending.reason.operator, { site: WORDMARK }),
-    },
+    fallbackLink: uk.emailLayout.fallbackLink,
+    reason: uk.emailLayout.reason,
     independence: fillTemplate(uk.about.independent, { site: WORDMARK }),
     contact: OPERATOR_CONTACT.email,
-    switchOffPrompt: pending.switchOffPrompt,
-    switchOffAction: pending.switchOffAction,
     logoAlt: WORDMARK,
   };
 }

@@ -59,23 +59,17 @@ function Block(props: { block: EmailBlock; copy: EmailChromeCopy }) {
 }
 
 const footerOf = (model: EmailModel, copy: EmailChromeCopy): EmailFooter => ({
-  ...(model.recipient === null ? {} : { reason: copy.reason[model.recipient] }),
+  ...(model.recipient === "registrant" || model.recipient === "shelterAdmin"
+    ? { reason: copy.reason[model.recipient] }
+    : {}),
   independence: copy.independence,
   contact: copy.contact,
-  ...(model.switchOffUrl === undefined
-    ? {}
-    : {
-        switchOff: {
-          prompt: copy.switchOffPrompt,
-          action: copy.switchOffAction,
-          url: model.switchOffUrl,
-        },
-      }),
 });
 
 /**
- * The plain-text part, from the same model: each link's raw URL on its own line under its label,
- * since the text part has no anchor to disagree with (IN-E8).
+ * The plain-text part, from the same model: the button's raw URL on its own line under its label,
+ * a secondary link's after its label as before (`emailBody`). The text part has no anchor to
+ * disagree with its URL (IN-E8).
  */
 export function plainTextOf(model: EmailModel, copy: EmailChromeCopy): string {
   const blocks = model.blocks.flatMap((block): string[] => {
@@ -84,8 +78,9 @@ export function plainTextOf(model: EmailModel, copy: EmailChromeCopy): string {
       case "box":
         return [block.text];
       case "button":
-      case "secondaryLink":
         return [`${block.label}:\n${block.url}`];
+      case "secondaryLink":
+        return [`${block.label}: ${block.url}`];
       case "divider":
         return [];
       /* v8 ignore next 4 -- exists so the compiler rejects an unhandled block; unreachable at runtime */
@@ -97,7 +92,6 @@ export function plainTextOf(model: EmailModel, copy: EmailChromeCopy): string {
   });
   const footer = footerOf(model, copy);
   const footerLines = [
-    ...(footer.switchOff ? [`${footer.switchOff.prompt} ${footer.switchOff.url}`] : []),
     ...(footer.reason ? [footer.reason] : []),
     footer.independence,
     footer.contact,

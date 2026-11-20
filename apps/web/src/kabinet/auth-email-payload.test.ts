@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { passwordChangedEmail, passwordResetEmail } from "./email-message";
+import { passwordChangedEmail } from "./email-message";
 import { EMAIL_PROVIDERS, type EmailProvider } from "./email-provider";
+import { passwordResetEmail } from "./emails/account-mail";
 import { productionMailOf } from "./production-mail";
 import { productionSignInOf } from "./production-sign-in";
 
@@ -20,6 +21,9 @@ const EXACT_FIELDS: Readonly<Record<EmailProvider, readonly string[]>> = {
   resend: ["from", "html", "reply_to", "subject", "text", "to"],
   postmark: ["From", "HtmlBody", "MessageStream", "ReplyTo", "Subject", "TextBody", "To"],
 };
+
+/** The branded logo, the one image an auth email may hold: fixed, versioned, no query. */
+const LOGO_URL = "https://opika.org.ua/email/logo@2x-v1.png";
 
 /** Words no auth email's request may carry, in any provider's spelling. */
 const BANNED = [
@@ -111,8 +115,13 @@ describe("every outgoing auth email carries exactly its provider's fields, and n
         const body = JSON.parse(sent) as Record<string, unknown>;
         expect(Object.keys(body).sort()).toEqual([...EXACT_FIELDS[provider]].sort());
         for (const banned of BANNED) expect(sent, String(banned)).not.toMatch(banned);
-        // No pixel or remote image: an open tracker needs one.
-        expect(sent).not.toMatch(/<img/i);
+        // No pixel: the one image allowed is the branded kit's logo (plan step 3), one fixed
+        // versioned file on the site itself with no query, the same bytes for every recipient,
+        // so a request for it identifies nobody.
+        const html = (body.html ?? body.HtmlBody) as string;
+        const sources = [...html.matchAll(/<img\b[^>]*\bsrc="([^"]*)"/gi)].map((m) => m[1]);
+        for (const src of sources) expect(src).toBe(LOGO_URL);
+        expect(html.match(/<img\b/gi)?.length ?? 0).toBe(sources.length);
       }
       // PW-2 Q2 (Oleksii, 2026-10-20, verbatim), in both invites' bytes as they went out: the
       // link sets a password, so the paragraph says not to forward it.
@@ -133,22 +142,25 @@ const INVITE_NOT_YOU =
   "Якщо ви не чекали цього листа, просто проігноруйте його і нікому не пересилайте: це посилання один раз дає змогу створити пароль для цієї адреси, поки запрошення діє.";
 
 describe("the two password emails (his F1 and F2, transcribed)", () => {
-  it("F1: subject, the request, the labelled link, an hour, and the signed «not you» line", () => {
-    const email = passwordResetEmail({
+  it("F1: subject, the request, the labelled link, an hour, and the signed «not you» line", async () => {
+    const email = await passwordResetEmail({
       to: "olena@example.org",
       url: "https://example.org/kabinet/vkhid/novyi-parol?token=abc&x=1",
       ttlMinutes: 60,
       operatorName: "Олексій",
     });
     expect(email.subject).toBe("Новий пароль до кабінету притулку");
+    // The branded kit (plan step 3): the subject as heading, the link under its label, the footer.
     expect(email.text.split("\n\n")).toEqual([
+      "Новий пароль до кабінету притулку",
       "Надійшов запит на новий пароль до кабінету притулку для цієї адреси.",
-      "https://example.org/kabinet/vkhid/novyi-parol?token=abc&x=1",
+      "Створити новий пароль:\nhttps://example.org/kabinet/vkhid/novyi-parol?token=abc&x=1",
       "Посилання спрацює один раз і діє 60 хв.",
       "Якщо запит надіслали не ви, просто не зважайте на цей лист: пароль залишиться тим самим.\nОлексій",
+      "--\nЛист надіслано, бо цю адресу додано до кабінету притулку.\nOpika робить одна людина, незалежно. Це не державний і не міський сервіс.\nhello@opika.org.ua",
     ]);
-    expect(email.html).toContain(
-      '<a href="https://example.org/kabinet/vkhid/novyi-parol?token=abc&amp;x=1">Створити новий пароль</a>',
+    expect(email.html).toMatch(
+      /<a href="https:\/\/example\.org\/kabinet\/vkhid\/novyi-parol\?token=abc&amp;x=1"[^>]*>Створити новий пароль<\/a>/,
     );
   });
 

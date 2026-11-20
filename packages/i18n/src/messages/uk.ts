@@ -1565,7 +1565,7 @@ export const uk = {
         body: "Сьогодні надіслано {count} листів реєстрації та повторного підтвердження – це ліміт на добу. До кінця доби нові реєстрації бачать повідомлення «Зараз забагато заявок». Перевір «Заявки» на ознаки зловживання: багато заявок з однаковими назвами, посиланнями чи доменами пошти.",
         action: "Відкрити «Заявки»",
       },
-      /** Operator only: the day's notification mails reached 80% of their cap. PROPOSED copy, owner to approve. */
+      /** Operator only: the day's notification mails reached 80% of their cap. Approved with #551. */
       notificationCapWarning: {
         subject: "Листи-сповіщення: використано 80% добового ліміту",
         body: "Сьогодні вже надіслано {count} із {cap} листів-сповіщень (події в кабінетах, нагадування, повторні спроби). Після {cap} нові сповіщення до кінця доби не надсилаються. Якщо це не схоже на звичайний день, перевір, чи не зациклилась якась розсилка.",
@@ -2365,6 +2365,17 @@ export const uk = {
         medicalNotes: "Медичний стан",
         location: "Де зараз тварина",
       },
+    },
+  },
+  /**
+   * The branded email layout's own lines (`apps/web/src/kabinet/emails`), the owner's approved rows
+   * 1-3 of the kit's copy table (2026-11-20). The fallback line is followed by the raw URL as text.
+   */
+  emailLayout: {
+    fallbackLink: "Кнопка не працює? Скопіюйте посилання:",
+    reason: {
+      registrant: "Лист надіслано, бо цю адресу вказали під час реєстрації притулку.",
+      shelterAdmin: "Лист надіслано, бо цю адресу додано до кабінету притулку.",
     },
   },
   /** The city landing page `/tvaryny/misto/{slug}` (SEO handoff B3; approved by the owner 2026-11-18, verbatim). */

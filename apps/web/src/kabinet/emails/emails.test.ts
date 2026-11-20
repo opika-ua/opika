@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { COPY_PENDING } from "@opika/i18n";
+import { COPY_PENDING, uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
 import { EMAIL_LOGO, LIVE_ASSET_BASE } from "./assets";
 import { EMAIL_FIXTURES } from "./fixtures";
@@ -69,24 +69,24 @@ describe("every email the kit renders", () => {
     expect(email?.html).not.toMatch(/<a[^>]*>\s*https?:\/\//);
   });
 
-  it("refuses to send its unapproved strings: they carry the pending marker", () => {
-    const confirm = rendered.find((entry) => entry.template === "application_confirm");
-    expect(confirm?.email.text).toContain(COPY_PENDING);
+  it("names no pending string: the kit's lines are the approved catalogue's", () => {
+    for (const { email } of rendered) expect(email.text).not.toContain(COPY_PENDING);
   });
 
-  it("names a sign-in email's reason nowhere, since operator and shelters both get it", () => {
-    const signIn = emailModelOf(EMAIL_FIXTURES.sign_in);
-    expect(signIn.recipient).toBeNull();
-  });
-
-  it("shows the switch-off link only when a mail has one", async () => {
-    const model = emailModelOf(EMAIL_FIXTURES.freshness_reminder);
-    const copy = emailChromeCopy();
-    const without = await renderEmail(model, copy);
-    const withLink = await renderEmail({ ...model, switchOffUrl: "https://example.org/off" }, copy);
-    expect(without.text).not.toContain(copy.switchOffAction);
-    expect(withLink.text).toContain(`${copy.switchOffPrompt} https://example.org/off`);
-    expect(withLink.html).toContain('href="https://example.org/off"');
+  it("gives a reason line to registrants and shelter admins, none to the operator or the sign-in link", () => {
+    const reasons = Object.values(uk.emailLayout.reason);
+    const reasonOf = (template: (typeof EMAIL_TEMPLATES)[number]) =>
+      reasons.find((line) =>
+        rendered.find((entry) => entry.template === template)?.email.text.includes(line),
+      );
+    expect(reasonOf("application_confirm")).toBe(uk.emailLayout.reason.registrant);
+    expect(reasonOf("password_reset")).toBe(uk.emailLayout.reason.shelterAdmin);
+    expect(reasonOf("sign_in")).toBeUndefined();
+    for (const template of EMAIL_TEMPLATES) {
+      if (emailModelOf(EMAIL_FIXTURES[template]).recipient === "operator") {
+        expect(reasonOf(template), template).toBeUndefined();
+      }
+    }
   });
 });
 
@@ -139,13 +139,20 @@ describe("the kit stays on the server", () => {
     expect(client.map(rel)).toEqual([]);
   });
 
-  it("is imported only from the kit itself: wiring a sender adds its server module here", () => {
+  /** The senders the plan has wired so far (step 3); each later step adds its own module here. */
+  const WIRED = [
+    "src/kabinet/email-delivery-test.ts",
+    "src/kabinet/email-senders.ts",
+    "src/kabinet/registration-email.ts",
+  ];
+
+  it("is imported only by the kit and the senders wired to it", () => {
     const importers = source.filter((file) => {
       if (file.startsWith(HERE)) return false;
-      return /from\s+["'](?:react-email|@react-email\/[\w-]+|[./@][^"']*\/emails(?:\/[^"']*)?)["']/.test(
+      return /(?:from\s+|import\(\s*)["'](?:react-email|@react-email\/[\w-]+|[./@][^"']*\/emails(?:\/[^"']*)?)["']/.test(
         readFileSync(file, "utf8"),
       );
     });
-    expect(importers.map(rel)).toEqual([]);
+    expect(importers.map(rel).sort()).toEqual(WIRED);
   });
 });

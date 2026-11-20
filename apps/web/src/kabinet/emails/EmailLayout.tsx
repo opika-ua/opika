@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Container, Head, Heading, Html, Img, Link, Preview, Section, Text } from "react-email";
+import { Container, Head, Heading, Html, Img, Preview, Section, Text } from "react-email";
 import { assetUrl, EMAIL_LOGO, type EmailAssetBase } from "./assets";
 import { DARK_CLASS, headCss } from "./styles";
 import { EMAIL_WIDTH, FONT_STACK, LIGHT, RADIUS, TYPE } from "./theme";
@@ -12,7 +12,6 @@ export type EmailFooter = {
   reason?: string;
   independence: string;
   contact: string;
-  switchOff?: { prompt: string; action: string; url: string };
 };
 
 const caption = {
@@ -120,18 +119,6 @@ export function EmailLayout(props: {
                     </table>
                   </Section>
                   <Section style={{ padding: "24px 16px 0" }}>
-                    {footer.switchOff ? (
-                      <Text className={DARK_CLASS.secondary} style={caption}>
-                        {footer.switchOff.prompt}{" "}
-                        <Link
-                          href={footer.switchOff.url}
-                          className={DARK_CLASS.link}
-                          style={{ color: LIGHT.secondary, textDecoration: "underline" }}
-                        >
-                          {footer.switchOff.action}
-                        </Link>
-                      </Text>
-                    ) : null}
                     {footer.reason ? (
                       <Text className={DARK_CLASS.secondary} style={caption}>
                         {footer.reason}
