@@ -20,6 +20,17 @@ test("the privacy policy answers 200 with its title, one h1 and no sideways scro
   expect(await noSidewaysScroll(page)).toBe(true);
 });
 
+test("from desktop the policy and the other content pages keep to the width", async ({ page }) => {
+  for (const width of [1024, 1440]) {
+    for (const route of [PATH, "/pro", "/prytulkam"]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(route, { waitUntil: "load" });
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      expect(await noSidewaysScroll(page), `${route} at ${width}`).toBe(true);
+    }
+  }
+});
+
 test("/pro's data summary links to the privacy policy, and #dani still lands", async ({ page }) => {
   await openRoute(page, "/pro#dani", DESKTOP);
   await expect(page.locator("#dani")).toHaveText(/^Коротко: я не продаю дані/);

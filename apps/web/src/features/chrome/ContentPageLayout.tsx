@@ -29,11 +29,12 @@ export function ContentPageLayout({
 
       <Container as="main" className="flex-1 py-8 desktop:py-14">
         <div className="mx-auto flex max-w-180 flex-col gap-8 rounded-t-sheet bg-surface p-6 tablet:p-10 desktop:p-14">
-          {/* «конфіденційності» is wider than a 390 phone at display-l: hyphenate, else break. */}
+          {/* «конфіденційності» outgrows a phone: hyphenate there. From desktop it breaks only between
+              words, and the h1 may run into the right padding (the word is 629px in a 608px column). */}
           <Heading
             level={1}
             look="display-l"
-            className="hyphens-auto break-words desktop:text-display-xl"
+            className="hyphens-auto break-words desktop:-mr-14 desktop:hyphens-manual desktop:text-display-xl"
           >
             {title}
           </Heading>

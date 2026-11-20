@@ -73,7 +73,7 @@ test.describe("/prytulkam's registration form", () => {
     await expect(page.getByRole("heading", { name: "Крок 2 з 2 · Ваш акаунт" })).toBeFocused();
     await fillStepTwo(page);
     // The consent's privacy link goes to the privacy policy (owner, 2026-11-20).
-    await expect(page.getByRole("link", { name: "політикою приватності" })).toHaveAttribute(
+    await expect(page.getByRole("link", { name: "політикою конфіденційності" })).toHaveAttribute(
       "href",
       "/polityka-konfidentsiinosti",
     );

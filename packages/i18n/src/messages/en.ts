@@ -2108,7 +2108,7 @@ export const en = {
       upstash: "Upstash – counters for abuse protection (Frankfurt).",
       sentry: "Sentry – error tracking (EU).",
       transfers:
-        "Most data is stored in the EU. Cloudflare stores photos mostly in Europe and forwards mail through its global network. Some of these companies are based in the US: for them, the EU standard contractual clauses or certification under the EU-US Data Privacy Framework apply.",
+        "Most data is stored in the EU. Cloudflare stores photos mostly in Europe and forwards mail through its global network. All these companies are based in the US: for them, the EU standard contractual clauses or certification under the EU-US Data Privacy Framework apply.",
     },
     basis: {
       heading: "Legal basis",
