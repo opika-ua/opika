@@ -21,7 +21,7 @@ export function AuthPage({
       <SiteHeader kabinetSignedIn={kabinetSignedIn} current="kabinet" />
       <Container
         as="main"
-        className="flex flex-1 flex-col pt-2 pb-6 tablet:items-center tablet:justify-center tablet:pt-8 tablet:pb-24"
+        className="flex flex-1 flex-col pt-6 pb-6 tablet:items-center tablet:justify-center tablet:pt-8 tablet:pb-24"
       >
         {children}
       </Container>
