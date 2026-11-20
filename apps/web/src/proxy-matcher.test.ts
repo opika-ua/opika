@@ -68,6 +68,18 @@ describe("proxy matcher", () => {
     expect(await matches("/tvaryny", headers)).toBe(true),
   );
 
+  // Review of #564, finding a: a route handler ignores the prefetch headers and answers in full.
+  it.each([
+    "/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc/opengraph-image",
+    "/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc/opengraph-image?b1a2c3",
+    "/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc/opengraph-image-x1y2z3",
+    "/tvaryny/misto/kyiv/twitter-image",
+    "/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd/icon",
+    "/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd/apple-icon",
+  ])("still charges %s with both prefetch headers (a route handler, not a page)", async (path) =>
+    expect(await matches(path, PREFETCH)).toBe(true),
+  );
+
   it.each(["/kabinet", "/kabinet/vkhid", "/prytulkam", "/tvarynyx", "/"])(
     "still runs on a router prefetch of %s",
     async (path) => expect(await matches(path, PREFETCH)).toBe(true),

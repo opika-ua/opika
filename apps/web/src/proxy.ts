@@ -167,6 +167,9 @@ function isDiscoveryPagePath(pathname: string): boolean {
  * and `next-router-prefetch: 1` together and no `next-action`: Next then renders no page (no
  * `loading.tsx` anywhere), so a spoofed pair buys a route tree, never listings or an action.
  * `next-router-prefetch` alone still gets the full document, so it stays charged.
+ * A route handler under those paths (the animal's `opengraph-image`, and any metadata image or
+ * icon added later) ignores the headers and answers in full, so the last entry charges it always
+ * (review of #564, finding a).
  * Literals only: Next reads this object statically.
  */
 export const config = {
@@ -186,6 +189,10 @@ export const config = {
     {
       source: "/:section(tvaryny|prytulky)/:rest*",
       has: [{ type: "header", key: "next-action" }],
+    },
+    {
+      source:
+        "/:path((?:tvaryny|prytulky)/.*/(?:opengraph-image|twitter-image|icon|apple-icon)[^/]*)",
     },
   ],
 };
