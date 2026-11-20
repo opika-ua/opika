@@ -251,8 +251,8 @@ sitting.
 ## 7. Sitting 1: the rehearsal, in order
 
 Source: `rehearsal-matrix.md` (Sitting 1 = reset 1 and bootstrap, sections 1 to 7; 9.1, 9.2 and 9.4 were not done).
-Section 8, 9.5 to 9.7 and 10 are Sitting 2. Resend free plan (owner's figures, NOT in the repo): about 100 mails
-per day shared with the `hello@` relay; keep each day under about 60.
+Section 8, 9.5 to 9.7 and 10 are Sitting 2. Resend is on Pro (owner's figures, NOT in the repo): no daily limit;
+the `hello@` relay shares it. The day totals below are a rough tally, not a quota.
 
 **Who.** OWNER = you sign in, create accounts, set passwords, click links, read mail. ADVISOR = drives the forms in
 YOUR already-signed-in browser (never signs in, never sees a password or link). Mark: **[O]** owner only, **[A]**
@@ -266,7 +266,7 @@ address «вул. Тестова, 1» in a real city from `cities`, animals «Т
 картка, не реальна тварина.». Photos: stock or self-made images from a folder OUTSIDE the repo. Never a real shelter,
 person or photo.
 
-"Mails" = emails the step sends. "Day total" is the running count for Day 1 (limit about 60).
+"Mails" = emails the step sends. "Day total" is the running count for Day 1 (a rough tally, no quota).
 
 **Adjustments by the owner (2026-11-04), they override the table below.**
 - **Roles by phase** (the advisor drives only the owner's Hobby Chrome; one profile holds one session):

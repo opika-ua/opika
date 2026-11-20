@@ -2,6 +2,7 @@ import type { Database } from "@opika/db";
 import { type NotificationRecipient, notificationSendsRepo } from "@opika/db/repos";
 import { ProviderSendError } from "../email-provider";
 import { maskAddress, type ProviderMail, sendChecked } from "../email-senders";
+import { nearCapAt, sendNearCapAlarm } from "./cap-alarm";
 import { type ComposeContext, composeNotification } from "./compose";
 import { kyivDayStartOf } from "./day";
 import { dedupKeyOf } from "./dedup";
@@ -18,6 +19,8 @@ export type NotifyDeps = {
   now: () => Date;
   /** Event mails one Kyiv day may send in all (`NOTIFICATION_DAILY_EVENT_CAP`). */
   eventCap: number;
+  /** Tells the operator the cap is 80% used; unset where no warning mail should leave (tests, dev). */
+  warnNearCap?: boolean;
   sleep: (ms: number) => Promise<void>;
   log: (line: string) => void;
 };
@@ -29,7 +32,10 @@ export type NotifyDeps = {
  * claims. What stays is the one mail each run can have in flight between its read and its
  * claim, so concurrent runs can overshoot the cap by at most one mail per run.
  */
-export function openEventCap(deps: Pick<NotifyDeps, "db" | "now" | "eventCap">) {
+export function openEventCap(
+  deps: Pick<NotifyDeps, "db" | "now" | "eventCap" | "mail" | "log" | "warnNearCap">,
+) {
+  let warned = false;
   const cap = {
     skipped: 0,
     async take(): Promise<boolean> {
@@ -37,6 +43,12 @@ export function openEventCap(deps: Pick<NotifyDeps, "db" | "now" | "eventCap">) 
         kyivDayStartOf(deps.now()),
         EVENT_KINDS,
       );
+      // The mail about to be claimed is the one that reaches the threshold. Once per run here;
+      // the day's dedup key keeps every other run from mailing it again.
+      if (deps.warnNearCap === true && !warned && used + 1 >= nearCapAt(deps.eventCap)) {
+        warned = true;
+        await sendNearCapAlarm(deps, deps.eventCap);
+      }
       if (deps.eventCap - used > 0) return true;
       cap.skipped += 1;
       return false;

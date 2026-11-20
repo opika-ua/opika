@@ -1,5 +1,6 @@
+import type { Database } from "@opika/db";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_DAILY_EVENT_CAP, eventCapOf, notifyRuntimeOf } from "./runtime";
+import { DEFAULT_DAILY_EVENT_CAP, eventCapOf, notifyDepsOf, notifyRuntimeOf } from "./runtime";
 
 /**
  * Whether a deployment may send notification mail at all is the same gate as every kabinet mail:
@@ -24,6 +25,12 @@ describe("notifyRuntimeOf in production", () => {
     expect(runtime.kind).toBe("on");
     expect(runtime.kind === "on" && runtime.context.baseURL).toBe("https://example.org");
     expect(runtime.kind === "on" && runtime.eventCap).toBe(DEFAULT_DAILY_EVENT_CAP);
+  });
+
+  it("serves deps that warn the operator at 80% of the cap", () => {
+    const runtime = notifyRuntimeOf(full);
+    if (runtime.kind !== "on") throw new Error("expected the runtime to be on");
+    expect(notifyDepsOf(runtime, {} as Database).warnNearCap).toBe(true);
   });
 
   it("is off for a preview, an unidentified environment and an unknown one", () => {
@@ -56,18 +63,18 @@ describe("eventCapOf", () => {
     return { seen, log: (line: string) => seen.push(line) };
   };
 
-  it("is 40 unset, and the positive integer when one is set", () => {
-    expect(DEFAULT_DAILY_EVENT_CAP).toBe(40);
-    expect(eventCapOf({})).toBe(40);
-    expect(eventCapOf({ NOTIFICATION_DAILY_EVENT_CAP: "" })).toBe(40);
+  it("is 300 unset, and the positive integer when one is set", () => {
+    expect(DEFAULT_DAILY_EVENT_CAP).toBe(300);
+    expect(eventCapOf({})).toBe(300);
+    expect(eventCapOf({ NOTIFICATION_DAILY_EVENT_CAP: "" })).toBe(300);
     expect(eventCapOf({ NOTIFICATION_DAILY_EVENT_CAP: "25" })).toBe(25);
     expect(eventCapOf({ NOTIFICATION_DAILY_EVENT_CAP: " 7 " })).toBe(7);
   });
 
-  it("falls back to 40 on a bad value, with one line that never shows the value", () => {
+  it("falls back to 300 on a bad value, with one line that never shows the value", () => {
     const { seen, log } = lines();
     for (const bad of ["0", "-3", "4.5", "ten", "1e3", "99999999999999999999"]) {
-      expect(eventCapOf({ NOTIFICATION_DAILY_EVENT_CAP: bad }, log), bad).toBe(40);
+      expect(eventCapOf({ NOTIFICATION_DAILY_EVENT_CAP: bad }, log), bad).toBe(300);
     }
     expect(seen).toHaveLength(1);
     expect(seen[0]).toContain("NOTIFICATION_DAILY_EVENT_CAP");

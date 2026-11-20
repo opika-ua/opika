@@ -18,6 +18,7 @@ export const REGISTRATION_EMAIL_TEMPLATES = [
   "application_rejected",
   "operator_new_application",
   "registration_cap_hit",
+  "notification_cap_warning",
 ] as const;
 export type RegistrationEmailTemplate = (typeof REGISTRATION_EMAIL_TEMPLATES)[number];
 
@@ -52,6 +53,12 @@ export type RegistrationEmail =
       template: "registration_cap_hit";
       count: number;
       queueUrl: string;
+    }
+  | {
+      /** Operator only, once a Kyiv day: notification mails reached 80% of their cap. No recipient data. */
+      template: "notification_cap_warning";
+      count: number;
+      cap: number;
     };
 
 const SUBJECT_MAX_CHARACTERS = 200;
@@ -128,6 +135,15 @@ export function registrationEmailOf(email: RegistrationEmail, to: string): Outgo
         subject: safeSubject(c.subject),
         before: [fillTemplate(c.body, { count: String(email.count) })],
         link: { label: c.action, url: email.queueUrl },
+        after: [],
+      });
+    }
+    case "notification_cap_warning": {
+      const c = copy.notificationCapWarning;
+      return emailBody(to, {
+        subject: safeSubject(c.subject),
+        before: [fillTemplate(c.body, { count: String(email.count), cap: String(email.cap) })],
+        link: null,
         after: [],
       });
     }

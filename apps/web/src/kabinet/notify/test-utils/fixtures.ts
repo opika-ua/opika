@@ -42,7 +42,7 @@ export function fakeMail() {
 export function depsOf(
   db: Database,
   mail: ProviderMail,
-  options: { now?: Date | (() => Date); eventCap?: number } = {},
+  options: { now?: Date | (() => Date); eventCap?: number; warnNearCap?: boolean } = {},
 ): NotifyDeps & { sleeps: number[]; logs: string[] } {
   const sleeps: number[] = [];
   const logs: string[] = [];
@@ -53,6 +53,7 @@ export function depsOf(
     // A clock that never moves unless asked to, so every send after the first asks for the full spacing.
     now: () => (typeof options.now === "function" ? options.now() : (options.now ?? NOW)),
     eventCap: options.eventCap ?? 40,
+    warnNearCap: options.warnNearCap ?? false,
     sleep: async (ms) => {
       sleeps.push(ms);
     },
