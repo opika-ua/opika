@@ -142,8 +142,9 @@ function isDiscoveryPagePath(pathname: string): boolean {
  * `loading.tsx` anywhere), so a spoofed pair buys a route tree, never listings or an action.
  * `next-router-prefetch` alone still gets the full document, so it stays charged.
  * A route handler under those paths (the animal's `opengraph-image`, and any metadata image or
- * icon added later) ignores the headers and answers in full, so an entry charges it always
- * (review of #564, finding a). A request carrying `next-router-state-tree` at all is charged too
+ * icon added later, at any depth, with `generateImageMetadata`'s trailing id) ignores the headers
+ * and answers in full, so an entry charges it always (review of #564, finding a). A `route.ts`
+ * there would need its own entry: `proxy-matcher.test.ts` fails if one appears. A request carrying `next-router-state-tree` at all is charged too
  * (owner, 2026-11-20, finding b): with it a prefetch renders the head (`generateMetadata`: the
  * animal, its shelter and city). Matched on presence, never on the value, which the server
  * URL-decodes. Only the route-tree prefetch (`/_tree`) is then free: one or two per neighbour.
@@ -169,7 +170,7 @@ export const config = {
     },
     {
       source:
-        "/:path((?:tvaryny|prytulky)/.*/(?:opengraph-image|twitter-image|icon|apple-icon)[^/]*)",
+        "/:path((?:tvaryny|prytulky)(?:/.*)?/(?:opengraph-image|twitter-image|icon|apple-icon)[^/]*(?:/[^/]+)?)",
     },
     {
       source: "/:section(tvaryny|prytulky)/:rest*",

@@ -1,4 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // Next's testing helper loads modules that read AsyncLocalStorage off globalThis. Its own file, so
@@ -76,14 +78,20 @@ describe("proxy matcher", () => {
     "/tvaryny/misto/kyiv/twitter-image",
     "/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd/icon",
     "/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd/apple-icon",
+    // No segment before the file, and `generateImageMetadata`'s trailing id (re-review of #564).
+    "/tvaryny/opengraph-image",
+    "/prytulky/icon",
+    "/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc/opengraph-image/0",
+    "/tvaryny/misto/kyiv/twitter-image/small",
   ])("still charges %s with both prefetch headers (a route handler, not a page)", async (path) =>
     expect(await matches(path, PREFETCH)).toBe(true),
   );
 
   // Owner, 2026-11-20 (finding b): a prefetch carrying the route state renders the head, so any
   // `next-router-state-tree` is charged, matched on presence: the server URL-decodes the value.
-  // An empty value isn't matched (Next reads it as absent), and the server reads it as no tree,
-  // which renders no head.
+  // An empty value isn't matched (Next reads it as absent). The server can't parse it either
+  // (`parseAndValidateFlightRouterState('')` throws): an uncharged 500 that reads no head and no
+  // data, which any path outside the matcher (`/`) already allows.
   it.each([
     ["the metadata-only tree", '["",{},null,"metadata-only"]'],
     ["the same tree URL-encoded", "%5B%22%22%2C%7B%7D%2Cnull%2C%22metadata-only%22%5D"],
@@ -92,6 +100,21 @@ describe("proxy matcher", () => {
     const headers = { rsc: "1", "next-router-prefetch": "1", "next-router-state-tree": tree };
     expect(await matches("/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc", headers)).toBe(true);
     expect(await matches("/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd", headers)).toBe(true);
+  });
+
+  // A route handler under the discovery paths ignores the prefetch headers. Metadata files are
+  // charged by name above; any other one (a `route.ts`) needs its own matcher entry first.
+  it("no route.ts under /tvaryny or /prytulky, whose answer a prefetch pair would get uncharged", () => {
+    const found: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) walk(path);
+        else if (/^route\.(?:ts|tsx|js)$/.test(entry.name)) found.push(path);
+      }
+    };
+    for (const section of ["tvaryny", "prytulky"]) walk(join(__dirname, "app", section));
+    expect(found).toEqual([]);
   });
 
   it.each(["/kabinet", "/kabinet/vkhid", "/prytulkam", "/tvarynyx", "/"])(
