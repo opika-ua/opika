@@ -26,8 +26,11 @@ export type SignInLimiters = { perAddress: RateLimiter; perIp: RateLimiter };
  * charged, so alternating addresses from one IP still runs down the IP's.
  *
  * Over either limit, or with the store unreachable (both fail closed), the
- * route answers «not sent» (owner, 2026-11-20). It decides before any account
- * is read, so the answer is the same whether the address has one (N1).
+ * route answers «not sent». This supersedes N1's single «sent» answer (owner,
+ * 2026-11-20, #567: "This supersedes N1. Keep the refusal before any account
+ * lookup, identical for existing and non-existing addresses."). It decides
+ * before any account is read, so the answer is the same whether the address
+ * has one.
  */
 export async function signInAllowed(
   limiters: SignInLimiters,

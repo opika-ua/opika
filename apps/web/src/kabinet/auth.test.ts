@@ -1572,6 +1572,22 @@ describe("with the limiter store unreachable", () => {
     expect(await db.select().from(authSession)).toHaveLength(0);
   });
 
+  it("a session Better Auth counts as expired, though inside our lapse limits, is no session in an outage", async () => {
+    await createUser("olena@example.org");
+    const cookie = await signIn("olena@example.org");
+    // `findSession` returns it anyway; the hook's own expiry check is what refuses it.
+    await db.update(authSession).set({ expiresAt: new Date(Date.now() - 1_000) });
+    auth = authWith(outageKabinet());
+    for (const request of [
+      getSession(cookie),
+      post("/api/auth/sign-out", {}, { cookie, "x-forwarded-for": "203.0.113.50" }),
+    ]) {
+      const response = await route(request);
+      expect(response.status).toBe(429);
+      expect(await response.json()).toMatchObject({ code: LIMITER_UNAVAILABLE_CODE });
+    }
+  });
+
   it("get-session without a session, or with one that names no live session, is refused", async () => {
     await createUser("olena@example.org");
     const cookie = await signIn("olena@example.org");

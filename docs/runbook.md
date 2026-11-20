@@ -30,12 +30,16 @@ limiter prefix, `timeout` or `error`), at most once a minute per instance.
   photos and the city search. `/api/health` has no store to lose: its limit is in memory, per
   instance.
 - Fail closed (refused with 429): anything anonymous in the kabinet (its pages without a session,
-  the invitation link), the password sign-in («Забагато запитів. Спробуйте ще раз пізніше.», never a
+  the invitation link and its landing), except a GET of `/kabinet/vkhid`, `/kabinet/vkhid/zabuly`
+  and `/kabinet/vkhid/novyi-parol`, which load so the form can show its error; the password sign-in («Забагато запитів. Спробуйте ще раз пізніше.», never a
   wait), the magic link («Зараз не вдалося надіслати лист. Спробуйте за кілька хвилин.», never
   «sent»), the link's verify, forgot and reset password, invites and registration, because each is
   a way in, a mail or an anonymous write.
 
-`/api/health` therefore keeps answering 200 while the store is down; the warning is the signal.
+Every 429 on a page navigation, public or kabinet, outage or a real limit, is the styled page
+(`/rate-limited`, «Забагато запитів. Спробуйте ще раз пізніше.», noindex, `Retry-After`); API and
+server-action answers keep their own shape. `/api/health` therefore keeps answering 200 while the
+store is down; the warning is the signal.
 
 ## 2. A cron stopped
 

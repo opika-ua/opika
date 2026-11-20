@@ -372,6 +372,11 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
         if (!token) return refuseUnchecked();
         const found = await ctx.context.internalAdapter.findSession(token);
         if (found === null) return refuseUnchecked();
+        // `findSession` doesn't check `expiresAt` (Better Auth 1.7.26, `internal-adapter.mjs`), so
+        // the outage pass-through does: an expired session is no session (review of #567).
+        if (ipUnchecked && new Date(found.session.expiresAt).getTime() <= now.getTime()) {
+          return refuseUnchecked();
+        }
         const userId = found.session.userId;
         if (
           await sessionHasLapsed(found.session, now, () => actors.hasActiveOperatorGrant(userId))

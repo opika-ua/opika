@@ -95,13 +95,26 @@ test.describe("security headers (audit F5)", () => {
   }
 
   // The F5 headers come from next.config, not page code, so a response the proxy builds must
-  // still carry them; no other check reaches that path. Only the /kabinet 429 is built by the
-  // proxy ("Too Many Requests" pins that branch); /tvaryny is a rewrite to the rate-limited route.
+  // still carry them; no other check reaches that path. Since 2026-11-20 (owner) a /kabinet page
+  // navigation's 429 is the styled page, as /tvaryny's is; only a server action's POST still gets
+  // the proxy's own plain 429 ("Too Many Requests" pins that branch).
   // Each test's IP (.67, .68) is used by no other spec: its budget is spent on purpose.
-  test("the proxy's own 429 on a /kabinet page carries them", async ({ request }) => {
-    const refused = await firstRefusal(request, "/kabinet", 300, "198.51.100.67");
-    expect(await refused.text()).toBe("Too Many Requests");
-    expectEnforced(refused.headers(), "the proxy's /kabinet 429");
+  test("a /kabinet page's 429 is the styled page, and the proxy's own 429 for an action carries them", async ({
+    request,
+  }) => {
+    const ip = "198.51.100.67";
+    const refused = await firstRefusal(request, "/kabinet", 300, ip);
+    expect(await refused.text()).toContain("Забагато запитів. Спробуйте ще раз пізніше.");
+    expect(refused.headers()["retry-after"]).toBeDefined();
+    expect(refused.headers()["x-robots-tag"]).toBe("noindex");
+    expectEnforced(refused.headers(), "the /kabinet page's 429");
+    const action = await request.post("/kabinet/vkhid", {
+      headers: { "x-forwarded-for": ip, "next-action": "0" },
+      maxRedirects: 0,
+    });
+    expect(action.status()).toBe(429);
+    expect(await action.text()).toBe("Too Many Requests");
+    expectEnforced(action.headers(), "the proxy's own 429");
   });
 
   test("the proxy's rate-limit rewrite on a gallery page carries them", async ({ request }) => {

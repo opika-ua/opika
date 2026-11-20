@@ -209,6 +209,67 @@ describe("a page load and an API call share one allowance", () => {
       expect(await apiCall(outage(), "198.51.100.44", "user-9", path)).toBe(429);
     });
 
+    /** Owner, 2026-11-20: the sign-in pages load in an outage; every action on them stays refused. */
+    const page = (method: string, url: string) => {
+      const { pathname, searchParams } = new URL(url, "https://opika.example");
+      return { method, pathname, searchParams };
+    };
+    const loadPage = async (
+      limiters: KabinetLimiters,
+      method: string,
+      url: string,
+      onSessionRead: () => void = () => {},
+    ) =>
+      kabinetPageLoadAllowed(
+        limiters,
+        {
+          ip: "198.51.100.47",
+          userId: async () => {
+            onSessionRead();
+            return null;
+          },
+          page: page(method, url),
+        },
+        NOW,
+      );
+
+    it.each(["/kabinet/vkhid", "/kabinet/vkhid/zabuly", "/kabinet/vkhid/novyi-parol?token=t"])(
+      "a GET of %s loads, with no session read of its own",
+      async (url) => {
+        let reads = 0;
+        expect(await loadPage(outage(), "GET", url, () => reads++)).toBe(true);
+        expect(reads).toBe(0);
+      },
+    );
+
+    it.each([
+      ["the invite landing (it reads the invitation)", "GET", "/kabinet/vkhid?zaproshennia=x"],
+      ["a POST to the sign-in page (the invite landing's action)", "POST", "/kabinet/vkhid"],
+      ["another kabinet page", "GET", "/kabinet"],
+      ["the confirm page", "GET", "/kabinet/vkhid/pidtverdzhennia?token=t"],
+    ])("%s stays refused for an anonymous caller", async (_label, method, url) => {
+      expect(await loadPage(outage(), method, url)).toBe(false);
+    });
+
+    it("over a real limit, the sign-in pages are refused as before (the pass-through is outage-only)", async () => {
+      const spent: KabinetLimiters = {
+        perUser: unreachableLimiter("allow"),
+        perIp: { check: async () => false, attempt: async () => "refused" },
+      };
+      for (const url of ["/kabinet/vkhid", "/kabinet/vkhid/zabuly", "/kabinet/vkhid/novyi-parol"]) {
+        expect(await loadPage(spent, "GET", url), url).toBe(false);
+      }
+    });
+
+    it("pins the outage pages to the forms' own routes", async () => {
+      const { OUTAGE_OPEN_PAGES } = await import("./page-limit");
+      const { SIGN_IN_PAGE_PATH, FORGOT_PATH } = await import("../features/kabinet/routes");
+      const { RESET_LINK } = await import("./email-links");
+      expect([...OUTAGE_OPEN_PAGES].sort()).toEqual(
+        [SIGN_IN_PAGE_PATH, FORGOT_PATH, RESET_LINK.path].sort(),
+      );
+    });
+
     it("a real over-limit refusal is still refused, signed in or not", async () => {
       const spent: KabinetLimiters = {
         perUser: unreachableLimiter("allow"),
