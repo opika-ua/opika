@@ -1,4 +1,4 @@
-import { R4_2_ANALYTICS_SENTENCE } from "@opika/i18n";
+import { R4_2_ANALYTICS_SENTENCE, uk } from "@opika/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SITE_ORIGIN } from "./brand";
 import {
@@ -205,7 +205,7 @@ describe("assertDemoDiscoverabilityInvariant", () => {
 
 /**
  * R4-2's tripwire (`docs/decisions-inbox/docs-r4-decisions-2026-10-06.md`):
- * `uk.about.analytics` must carry `R4_2_ANALYTICS_SENTENCE` while
+ * the privacy policy's `uk.privacy.visitors.cookie` must carry `R4_2_ANALYTICS_SENTENCE` while
  * `SITE_IS_PUBLICLY_DISCOVERABLE` is true; with the flag false (a rollback) anything passes.
  * Matched against the real exported constant, not a hand-typed substring like "кукі" - a
  * reworded or partially-landed sentence must still trip this.
@@ -213,7 +213,7 @@ describe("assertDemoDiscoverabilityInvariant", () => {
 describe("assertAnalyticsCopyMatchesGateState", () => {
   it("throws when the site is publicly discoverable but the analytics copy still lacks R4-2's sentence", () => {
     expect(() => assertAnalyticsCopyMatchesGateState(INCOMPLETE_ANALYTICS_COPY, true)).toThrowError(
-      /SITE_IS_PUBLICLY_DISCOVERABLE.*uk\.about\.analytics/s,
+      /SITE_IS_PUBLICLY_DISCOVERABLE.*uk\.privacy\.visitors\.cookie/s,
     );
   });
 
@@ -228,7 +228,7 @@ describe("assertAnalyticsCopyMatchesGateState", () => {
   it("does not match on a reworded or partial version of R4-2's sentence", () => {
     const reworded = `${INCOMPLETE_ANALYTICS_COPY} Сайт ставить кукі після дії.`;
     expect(() => assertAnalyticsCopyMatchesGateState(reworded, true)).toThrowError(
-      /SITE_IS_PUBLICLY_DISCOVERABLE.*uk\.about\.analytics/s,
+      /SITE_IS_PUBLICLY_DISCOVERABLE.*uk\.privacy\.visitors\.cookie/s,
     );
   });
 
@@ -240,12 +240,12 @@ describe("assertAnalyticsCopyMatchesGateState", () => {
 
   it("defaults to the real flag – refuses the incomplete copy now that the site is discoverable", () => {
     expect(() => assertAnalyticsCopyMatchesGateState(INCOMPLETE_ANALYTICS_COPY)).toThrowError(
-      /SITE_IS_PUBLICLY_DISCOVERABLE.*uk\.about\.analytics/s,
+      /SITE_IS_PUBLICLY_DISCOVERABLE.*uk\.privacy\.visitors\.cookie/s,
     );
   });
 
-  it("defaults to the real copy and the real flag – the shipped state passes", () => {
-    expect(() => assertAnalyticsCopyMatchesGateState()).not.toThrow();
+  it("the shipped privacy policy and the real flag pass", () => {
+    expect(() => assertAnalyticsCopyMatchesGateState(uk.privacy.visitors.cookie)).not.toThrow();
   });
 });
 

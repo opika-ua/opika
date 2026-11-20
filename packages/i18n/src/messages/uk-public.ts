@@ -17,24 +17,9 @@
 export const COPY_PENDING = "[COPY PENDING]";
 
 /**
- * R4-2, Oleksii's own Ukrainian, now appended to `uk.about.analytics` (the pre-launch gate and
- * its second cookie are gone). The text has moved since his original 2026-10-06 draft
- * (`docs/decisions-inbox/docs-r4-decisions-2026-10-06.md`): PR #186 (S8)
- * appended the saved-list sentence; the global rename in copy audit #19
- * (2026-10-22, PR #183) made the right-swipe word «Написати» everywhere at
- * the time - «Запитати» no longer named anything in the product. Pet card
- * PR 5 (2026-10-27) renamed this constant (dropping the `PENDING_` prefix -
- * it was never about *his* approval being pending, only about the gate;
- * the text itself has been his approved words since 2026-10-06) and
- * swapped «Написати» for «Дати сімʼю», the pet card's own reveal-trigger
- * label. **This constant, not the 2026-10-06 file, is the text.**
- * `apps/web/src/seo-flags.ts`'s
- * `assertAnalyticsCopyMatchesGateState` checks for this exact string, not a
- * loose substring, so that a reworded or partial version of the sentence
- * still trips the tripwire. `uk.about.analytics` appends this constant
- * rather than retyping it, so the two can never drift apart.
- *
- * 2026-11-03 (owner): the swipe deck is retired, so the cookie now follows only «Дати сімʼю».
+ * R4-2, Oleksii's own Ukrainian (2026-10-06; «Дати сімʼю» since pet card PR 5, the deck gone
+ * 2026-11-03). The privacy policy's `privacy.visitors.cookie` is this constant, and
+ * `assertAnalyticsCopyMatchesGateState` (`apps/web/src/seo-flags.ts`) checks for it exactly.
  */
 export const R4_2_ANALYTICS_SENTENCE =
   "Людині, яка шукає тварину, сайт ставить одне кукі – і тільки після того, як вона натисне " +
@@ -44,15 +29,9 @@ export const R4_2_ANALYTICS_SENTENCE =
   "їхній список лежить у цьому браузері.";
 
 /**
- * GDPR erasure, option A (`docs/gdpr-analysis.md` §5 item 4). Oleksii's own
- * Ukrainian, dictated directly and checked word for word against the code
- * (2026-10-24) - earlier rounds found two real gaps (the "no live invite
- * elsewhere" guard wasn't in the sentence; the scrub itself missed a
- * second shelter entirely once it was), both fixed in code rather than in
- * the sentence. This round of the check found nothing left to differ.
- * Landed directly in `uk.about.data` below, not held: unlike
- * `PENDING_R4_2_ANALYTICS_SENTENCE`, nothing gates this one off `/pro`.
- * Recorded in the inbox as row GDPR-F1.
+ * GDPR erasure, option A (`docs/gdpr-analysis.md` §5 item 4): Oleksii's own Ukrainian, checked word
+ * for word against `eraseUsersAndScrubHistory` (2026-10-24, row GDPR-F1). The privacy policy's
+ * `privacy.kabinet.erasure`.
  */
 export const ADMIN_ERASURE_SENTENCE =
   "Коли адміністратора притулку прибирають із кабінету, скасовують його запрошення або " +
@@ -1084,53 +1063,17 @@ export const ukPublic = {
     money:
       "{site} ніколи не бере участі в грошах: немає прийому платежів, немає комісії, немає збору донатів через платформу. Кнопка «Підтримати притулок» веде на власну сторінку притулку в іншому сервісі (наприклад, monobank) – сайт лише показує посилання, гроші йдуть напряму, і видно, куди саме. Кнопка є лише в перевірених притулків.",
     /**
-     * His PR 6 text (pr6-copy-uk.md §1.5), every claim checked against code:
-     * - «бачить лише місто»: every adopter-facing view carries the city only
-     *   (`PublicCityLocationViewSchema`, EM-Q10/EM-D1,
-     *   `pre-reveal-location.test.ts`);
-     * - the kabinet sentences (KH-C1, row 90): the invite's `auth_user` row
-     *   (name, email), no user agent (D6, the session hook) and `disableIpTracking` plus
-     *   HMAC-only rate-limiter keys (`apps/web/src/api/rate-limit-key.ts`,
-     *   EM-Q11), and the `auth-cleanup` cron, every 6 hours on Pro (KH-Q12,
-     *   his VP-T1 answer): a link's 15 minutes plus two gaps, should one run
-     *   be skipped, is 12 h 15 min, inside «протягом доби». The schedule is
-     *   read from `apps/web/vercel.json` and tied to this sentence by
-     *   `apps/web/src/kabinet/auth-cleanup.test.ts`, so neither changes
-     *   alone; Vercel's own request logs are outside the sentence, by his
-     *   scoping (EM-L1);
-     * - history (his Q6): every kabinet write appends a `ShelterHistoryEntry`
-     *   with its actor; profile entries keep previous and next, animal edits
-     *   field names only (K-Q7), never adopter data
-     *   (`history-no-engagement.test.ts`); deleted only with the shelter's
-     *   record (`demo:remove --shelter`); «Ще шукає» / «Ще домовляються» and
-     *   their undo write no history line (S1, `handlers.test.ts` "confirm and
-     *   undo record nothing") and show as the card's date (his Q1 sentence);
-     * - photos: kabinet uploads are re-encoded with no metadata (PR 3, the GPS
-     *   canary test) at random keys (K-Q2, his Q7); each keeps an uncropped
-     *   source for the crop frame, also without metadata, deleted with the photo
-     *   (crop-frame approvals, his wording, 2026-11-12); a removed photo stops
-     *   showing and the clean-up job deletes its files after 7 days
-     *   (`photo-source-cleanup.test.ts`, every deletion path).
-     * - paragraph 2's first three sentences (the administrator's name and address, what that
-     *   address receives, the browser record kept separately) are owner-confirmed, 2026-11-12:
-     *   the older single sentence read as if the site sent the browser record.
-     * `copy-status.test.ts` pins it.
+     * The privacy policy's first sentence of `privacy.visitors.stats`, and /pro's own line on it: the
+     * summary below covers the cookie, not the visit statistics.
      */
-    data:
-      "Дані, які вносить притулок – адреса, контакти, картки тварин, – належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише місто. Притулок може попросити видалити свій запис у будь-який момент.\n\n" +
-      "Для притулків із доступом до кабінету сайт зберігає імʼя та адресу пошти адміністратора. На цю адресу надходять запрошення, посилання для входу чи нового пароля, повідомлення про зміну пароля, про рішення щодо перевірки й посилання на збір, а також щотижневе нагадування про непідтверджені картки. Для адміністраторів кабінетів притулків зберігається лише незворотний хеш пароля, а не сам пароль. IP-адреси не зберігаються. Вхід у кабінет притулку діє 30 днів від останнього відвідування і не довше 90 днів, після чого треба увійти знову. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом доби.\n\n" +
-      `${ADMIN_ERASURE_SENTENCE}\n\n` +
-      "Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто – адміністратор притулку чи я. Натискання «Ще шукає» чи «Ще домовляються» в історію не потрапляють – їх видно з дати на картці. Для профілю зберігаються попереднє й нове значення, для карток тварин – лише те, які поля змінено. Про людей, які шукають тварину, в історії нічого немає. Історія видаляється разом із записом притулку.\n\n" +
-      "Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Щоб фото можна було обрізати заново, зберігається також його необрізана копія – без метаданих, зокрема без місця зйомки. Вона видаляється разом із фото. Фото, прибране з картки, більше не показується, а його файли видаляються автоматично приблизно за тиждень.\n\n" +
-      // DR1-Q4, his sentence, verbatim: landed with S8 (the saved page). Distinct from the
-      // R4-2 amendment above, which is appended separately.
-      "Список збережених тварин зберігається лише в цьому браузері. Щоб показати його актуальним, сайт запитує дані про цих тварин без кукі й не зберігає, яких саме.\n\n" +
-      // H5, his sentence, verbatim (2026-11-01): names Sentry; what the code sends is pinned by
-      // apps/web/src/observability tests.
-      "Якщо на сайті стається збій, до сервісу відстеження помилок Sentry (сервери в ЄС) надсилається лише технічний опис: тип помилки, місце в коді, адреса сторінки без параметрів, браузер і система. Контакти, пошта, номери телефонів, вміст форм і кукі туди не потрапляють, а IP-адреси не зберігаються.",
     analytics:
-      "Сайт збирає базову статистику відвідувань – скільки людей заходить і наскільки швидко працюють сторінки – без реклами. " +
-      R4_2_ANALYTICS_SENTENCE,
+      "Сайт збирає базову статистику відвідувань – скільки людей заходить і наскільки швидко працюють сторінки – без реклами.",
+    /** /pro#dani since the privacy policy (owner's edit, 2026-11-20); the details are on that page. */
+    dataSummary:
+      "Коротко: я не продаю дані й не показую реклами. Людині, яка шукає тварину, не потрібен обліковий запис – сайт ставить одне кукі, лише коли ви відкриваєте контакти притулку. Притулки дають стільки даних, скільки потрібно для перевірки й кабінету; точна адреса притулку й пошта адміністраторів публічно не показуються.",
+    /** `{link}`: `dataLinkLabel`, linking to the privacy policy. */
+    dataLink: "Усе докладно – у {link}.",
+    dataLinkLabel: "політиці конфіденційності",
     contact: "Написати мені: {contact}",
     /** Owner-approved 2026-10-30 (attribution copy table); the licence wording is the dataset record's, no version. */
     sources: {

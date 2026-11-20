@@ -642,8 +642,9 @@ describe("CB-B1: the replaced strings name no «реєстр»", () => {
     "demo.bannerNotice": [uk.demo.bannerNotice, en.demo.bannerNotice],
     "detail.notFound.body": [uk.detail.notFound.body, en.detail.notFound.body],
     R4_2_ANALYTICS_SENTENCE: [R4_2_ANALYTICS_SENTENCE, ""],
-    // PR 6: his pr6-copy-uk.md §1.5 replaces the whole paragraph (0.3d: «реєстр зберігає» → «сайт зберігає»).
-    "about.data": [uk.about.data, en.about.data],
+    // PR 6: his pr6-copy-uk.md §1.5 (0.3d: «реєстр зберігає» → «сайт зберігає»); the policy since 2026-11-20.
+    "privacy.kabinet.access": [uk.privacy.kabinet.access, en.privacy.kabinet.access],
+    "about.dataSummary": [uk.about.dataSummary, en.about.dataSummary],
   };
 
   // «зареєстрований» / «незареєстрована» are legal terms (a registered
@@ -1507,67 +1508,120 @@ describe("/prytulkam A1 (forShelters.whatToPrepare)", () => {
 });
 
 /**
- * /pro `about.data`, his PR 6 text (pr6-copy-uk.md §1.5), transcribed byte for
- * byte: the kabinet history and photo facts added (his Q6, Q7, Q5), «реєстр»
- * gone (0.3d), «лише місто» since every adopter-facing view carries the city
- * only (EM-D1). One clause since changed, by his VP-T1 answer (KH-Q12,
- * 2026-10-18), verbatim: "change /pro to «…видаляються протягом доби.»"; the
- * clean-up runs every 6 hours, and `apps/web/src/kabinet/auth-cleanup.test.ts`
- * ties that schedule to the sentence.
+ * The privacy policy (owner-approved 2026-11-20: D1–D8 and the processors), transcribed from the
+ * approved copy table by script, never read from `uk.ts`. The kabinet, photo, saved-list and
+ * Sentry paragraphs are /pro's former `about.data`, his PR 6 text with PW-1's two password
+ * sentences, GDPR-F1's erasure sentence, S8's saved list and H5's Sentry sentence, moved word for
+ * word; the browser-record sentence went with the user agent (D6). The key set is pinned exactly.
  */
-describe("/pro about.data (his PR 6 text, and PW-1's two sentences)", () => {
-  /**
-   * PW-1 adds his two sentences (`docs/shelter-passwords-copy-uk.md` §G, 2026-10-19, verbatim):
-   * the password hash after what the cabinet stores, the session's length after «IP-адреси не
-   * зберігаються». The placement is the builder's (recorded under "Decisions taken"); the words
-   * are his.
-   */
-  it("carries his two password sentences, word for word", () => {
-    expect(uk.about.data).toContain(
-      "Для адміністраторів кабінетів притулків зберігається лише незворотний хеш пароля, а не сам пароль.",
-    );
-    expect(uk.about.data).toContain(
-      "Вхід у кабінет притулку діє 30 днів від останнього відвідування і не довше 90 днів, після чого треба увійти знову.",
-    );
-  });
-
-  // audit 2026-10-22 #4 and #45: the stored address's purposes widened to the invite, the reset link
-  // and the «пароль змінено» notice; the same sentences in four paragraphs.
-  // S8 (DR1-Q4), his sentence: a fifth paragraph, the saved list's own data-use line.
-  // GDPR-F1 (2026-10-24), his own dictated sentence, checked word for word against
-  // `eraseUsersAndScrubHistory`: a new paragraph, between the kabinet-access one it
-  // continues and the history paragraph it's a specific case of - six in total now.
-  // Paragraph 2's first two sentences are owner-confirmed, 2026-11-12 (the weekly reminder joined
-  // the list); its browser-record sentence was dropped with the user agent (D6, 2026-11-20).
-  it("is his text, byte for byte, in seven paragraphs", () => {
-    expect(uk.about.data.split("\n\n")).toEqual([
-      "Дані, які вносить притулок – адреса, контакти, картки тварин, – належать притулку. Точна адреса ніколи не показується публічно: той, хто шукає тварину, бачить лише місто. Притулок може попросити видалити свій запис у будь-який момент.",
-      "Для притулків із доступом до кабінету сайт зберігає імʼя та адресу пошти адміністратора. На цю адресу надходять запрошення, посилання для входу чи нового пароля, повідомлення про зміну пароля, про рішення щодо перевірки й посилання на збір, а також щотижневе нагадування про непідтверджені картки. Для адміністраторів кабінетів притулків зберігається лише незворотний хеш пароля, а не сам пароль. IP-адреси не зберігаються. Вхід у кабінет притулку діє 30 днів від останнього відвідування і не довше 90 днів, після чого треба увійти знову. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом доби.",
-      "Коли адміністратора притулку прибирають із кабінету, скасовують його запрошення або запрошення так і не прийняли, обліковий запис і адреса пошти видаляються, якщо ця адреса не має доступу до іншого притулку і не запрошена до нього. Тоді ж адресу прибирають з історії притулку: там лишається лише запис про те, що адміністратора запрошено, додано чи прибрано.",
-      "Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто – адміністратор притулку чи я. Натискання «Ще шукає» чи «Ще домовляються» в історію не потрапляють – їх видно з дати на картці. Для профілю зберігаються попереднє й нове значення, для карток тварин – лише те, які поля змінено. Про людей, які шукають тварину, в історії нічого немає. Історія видаляється разом із записом притулку.",
-      "Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Щоб фото можна було обрізати заново, зберігається також його необрізана копія – без метаданих, зокрема без місця зйомки. Вона видаляється разом із фото. Фото, прибране з картки, більше не показується, а його файли видаляються автоматично приблизно за тиждень.",
+describe("the privacy policy's text (owner-approved 2026-11-20)", () => {
+  const APPROVED: Record<string, string> = {
+    title: "Політика конфіденційності",
+    updated: "Оновлено {date}.",
+    intro:
+      "{site} робить одна людина – я, Олексій Колотенко. Я вирішую, які дані збирає сайт і навіщо, тож відповідаю за них саме я. Тут простими словами: що сайт знає про вас, навіщо, скільки це зберігається, хто це бачить і як це видалити. Питання й запити – на {email}.",
+    "short.heading": "Коротко",
+    "short.body":
+      "Я не продаю дані, не показую реклами й не стежу за вами на інших сайтах. Людині, яка шукає тварину, не потрібен обліковий запис: сайт не знає її імені, пошти чи телефону. Про притулки я зберігаю те, що потрібно для перевірки й роботи кабінету.",
+    "visitors.heading": "Якщо ви шукаєте тварину",
+    "visitors.cookie":
+      "Людині, яка шукає тварину, сайт ставить одне кукі – і тільки після того, як вона натисне «Дати сімʼю». У ньому немає імені чи номера телефону, лише випадковий ідентифікатор: щоб сайт памʼятав, чиї контакти ви вже відкрили. Він перестає діяти через 7 днів без візитів або через 30 днів у будь-якому разі. Окремо від кукі, якщо ви зберігаєте тварин, їхній список лежить у цьому браузері.",
+    "visitors.reveals":
+      "Коли ви відкриваєте контакти притулку, сайт записує, які саме, – за випадковим ідентифікатором із кукі, без імені й контактів. Разом із записом зберігаються контакти й адреса притулку на той момент: якщо надійде скарга, буде видно, що саме вам показали. Так сайт також не рахує той самий притулок двічі в денному ліміті. Ці записи видаляються через {revealDays} днів.",
+    "visitors.saved":
       "Список збережених тварин зберігається лише в цьому браузері. Щоб показати його актуальним, сайт запитує дані про цих тварин без кукі й не зберігає, яких саме.",
-      // H5 (Sentry), his sentence verbatim, 2026-11-01.
+    "visitors.limits":
+      "Щоб захистити сайт від зловживань, він рахує запити з кожної IP-адреси. Сама адреса при цьому не зберігається – лише її незворотний цифровий відбиток, який зникає сам, щонайдовше за 2 доби.",
+    "visitors.stats":
+      "Сайт збирає базову статистику відвідувань – скільки людей заходить і наскільки швидко працюють сторінки – без реклами. Для цього я використовую Vercel Analytics, який не ставить кукі.",
+    "visitors.errors":
       "Якщо на сайті стається збій, до сервісу відстеження помилок Sentry (сервери в ЄС) надсилається лише технічний опис: тип помилки, місце в коді, адреса сторінки без параметрів, браузер і система. Контакти, пошта, номери телефонів, вміст форм і кукі туди не потрапляють, а IP-адреси не зберігаються.",
-    ]);
-    expect(uk.about.data).not.toContain("реєстр");
-    expect(uk.about.data).not.toContain("наближену");
-  });
+    "registration.heading": "Якщо ви реєструєте притулок",
+    "registration.more":
+      "Пароль зберігається лише як незворотний хеш. Підтверджену заявку я зберігаю, доки не ухвалю рішення. Якщо в листі ви натиснете «Це не я», ще не схвалену заявку буде видалено одразу; якщо її вже схвалено, я отримаю повідомлення й розберуся.",
+    "kabinet.heading": "Якщо у вас є кабінет притулку",
+    "kabinet.access":
+      "Для притулків із доступом до кабінету сайт зберігає імʼя та адресу пошти адміністратора. На цю адресу надходять запрошення, посилання для входу чи нового пароля, повідомлення про зміну пароля, про рішення щодо перевірки й посилання на збір, а також щотижневе нагадування про непідтверджені картки. Для адміністраторів кабінетів притулків зберігається лише незворотний хеш пароля, а не сам пароль. IP-адреси не зберігаються. Вхід у кабінет притулку діє 30 днів від останнього відвідування і не довше 90 днів, після чого треба увійти знову. Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом доби.",
+    "kabinet.erasure":
+      "Коли адміністратора притулку прибирають із кабінету, скасовують його запрошення або запрошення так і не прийняли, обліковий запис і адреса пошти видаляються, якщо ця адреса не має доступу до іншого притулку і не запрошена до нього. Тоді ж адресу прибирають з історії притулку: там лишається лише запис про те, що адміністратора запрошено, додано чи прибрано.",
+    "kabinet.history":
+      "Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто – адміністратор притулку чи я. Натискання «Ще шукає» чи «Ще домовляються» в історію не потрапляють – їх видно з дати на картці. Для профілю зберігаються попереднє й нове значення, для карток тварин – лише те, які поля змінено. Про людей, які шукають тварину, в історії нічого немає. Історія видаляється разом із записом притулку.",
+    "kabinet.mailLog":
+      "Щоб кожен лист надходив лише раз, сайт 90 днів зберігає журнал надісланих листів: який лист, до якого притулку і чи його доставлено. Ні адреси, ні тексту листа в журналі немає.",
+    "kabinet.mailLogo":
+      "У листах від {site} є лише одне зображення з сайту – логотип, однаковий для всіх і без жодних міток. Коли поштова програма його показує, хостинг Vercel, як і для будь-якого запиту, записує в технічний журнал IP-адресу й час. Я не використовую це, щоб дізнатися, хто відкрив лист.",
+    "kabinet.verification":
+      "Для перевірки притулку я зберігаю те, що ви надали: посилання, реквізити, контакт людини, яка може підтвердити роботу притулку. Публічно це не показується.",
+    "public.heading": "Що бачать інші",
+    "public.body":
+      "Публічно сайт показує назву притулку, опис, місто, логотип, картки тварин із фото та позначку перевірки. Контакти притулку людина бачить, лише натиснувши «Дати сімʼю». Точна адреса притулку й пошта адміністраторів публічно не показуються ніколи. Я, як оператор, бачу все, що внесено в кабінет, і дані для перевірки.",
+    photos:
+      "Фото, завантажені в кабінеті, зберігаються без даних про місце зйомки, за адресами, які неможливо вгадати. Щоб фото можна було обрізати заново, зберігається також його необрізана копія – без метаданих, зокрема без місця зйомки. Вона видаляється разом із фото. Фото, прибране з картки, більше не показується, а його файли видаляються автоматично приблизно за тиждень.",
+    "processors.heading": "Хто ще обробляє дані",
+    "processors.intro":
+      "Сайт працює на сервісах інших компаній. Вони обробляють дані лише для того, щоб сайт працював, і лише так, як я їх налаштував:",
+    "processors.vercel":
+      "Vercel – хостинг сайту (сервери у Франкфурті); як будь-який хостинг, бачить IP-адресу запиту у своїх технічних журналах.",
+    "processors.neon": "Neon – база даних (Франкфурт).",
+    "processors.cloudflare":
+      "Cloudflare – зберігання фото (переважно в Європі) й пересилання пошти на {email}.",
+    "processors.resend":
+      "Resend – надсилання листів (сервери в Ірландії; журнали надсилання можуть зберігатися у США).",
+    "processors.upstash": "Upstash – лічильники для захисту від зловживань (Франкфурт).",
+    "processors.sentry": "Sentry – відстеження помилок (ЄС).",
+    "processors.transfers":
+      "Більшість даних зберігається в ЄС. Cloudflare зберігає фото переважно в Європі, а пошту пересилає через свою глобальну мережу. Усі ці компанії – зі США: для них діють стандартні договірні умови ЄС або сертифікація за програмою Data Privacy Framework між ЄС і США.",
+    "basis.heading": "На якій підставі",
+    "basis.body":
+      "Дані заявки й кабінету потрібні, щоб надати послугу, про яку просить притулок. Захист від зловживань, історія змін, журнал листів, записи про відкриті контакти й відстеження помилок – мій законний інтерес: без них сайт не може працювати безпечно й чесно. Окремої згоди я не прошу, бо не збираю нічого понад потрібне для роботи сайту.",
+    "rights.heading": "Ваші права і як видалити дані",
+    "rights.body":
+      "Ви можете дізнатися, які дані про вас є, виправити їх, отримати копію, заперечити проти обробки або попросити все видалити. Напишіть на {email} з адреси, повʼязаної з кабінетом чи заявкою, – я відповім зазвичай протягом тижня, щонайдовше – протягом місяця. Притулок може попросити видалити свій запис повністю: разом із ним зникають кабінет, картки, фото й історія.",
+    "rights.visitors":
+      "Якщо ви шукаєте тварину, найпростіше – очистити кукі й дані сайту в браузері. Записи на сервері я не можу повʼязати з вами, бо не знаю вашого імені чи пошти, тож вони видаляться самі в строки, наведені вище.",
+    "rights.complaint":
+      "Якщо вважаєте, що я порушую ваші права, можете поскаржитися до органу захисту персональних даних у вашій країні – в Україні це Уповноважений Верховної Ради України з прав людини.",
+    changes:
+      "Якщо я суттєво зміню цю сторінку, напишу про це притулкам на пошту кабінету. Дата останнього оновлення – вгорі сторінки.",
+  };
 
-  // H5 (Sentry): the owner's English sentence, exactly, closing the paragraph (2026-11-02).
-  it("ends the English /pro data paragraph with his Sentry sentence, word for word", () => {
-    expect(
-      en.about.data.endsWith(
-        "If something breaks on the site, only a technical description is sent to the error-tracking service Sentry (servers in the EU): the error type, the place in the code, the page address without parameters, the browser and the operating system. Contacts, email addresses, phone numbers, form contents and cookies are never sent there, and IP addresses are not stored.",
-      ),
-    ).toBe(true);
-  });
-
-  /** His Q1 answer (2026-10-18): both sentences, one after the other. */
-  it("says what history records, and that «Ще шукає» / «Ще домовляються» are not in it", () => {
-    expect(uk.about.data).toContain(
-      "Кожна зміна в кабінеті записується в історію притулку: коли її зроблено і хто – адміністратор притулку чи я. Натискання «Ще шукає» чи «Ще домовляються» в історію не потрапляють – їх видно з дати на картці.",
+  function leaves(value: unknown, prefix = ""): [string, string][] {
+    if (typeof value === "string") return [[prefix, value]];
+    return Object.entries(value as Record<string, unknown>).flatMap(([key, child]) =>
+      leaves(child, prefix ? `${prefix}.${key}` : key),
     );
+  }
+
+  it("is his text, word for word, and nothing else", () => {
+    expect(Object.fromEntries(leaves(uk.privacy))).toEqual(APPROVED);
+  });
+
+  it("reuses R4-2's sentence and the erasure sentence by reference", () => {
+    expect(uk.privacy.visitors.cookie).toBe(R4_2_ANALYTICS_SENTENCE);
+    expect(uk.privacy.visitors.stats.startsWith(uk.about.analytics)).toBe(true);
+  });
+
+  it("carries the brand and the address only as slots", () => {
+    const all = leaves(uk.privacy).map(([, text]) => text);
+    expect(all.join(" ")).not.toMatch(/Opika|hello@/);
+  });
+
+  // H5 (Sentry): the owner's English sentence, exactly (2026-11-02).
+  it("keeps his English Sentry sentence, word for word", () => {
+    expect(en.privacy.visitors.errors).toBe(
+      "If something breaks on the site, only a technical description is sent to the error-tracking service Sentry (servers in the EU): the error type, the place in the code, the page address without parameters, the browser and the operating system. Contacts, email addresses, phone numbers, form contents and cookies are never sent there, and IP addresses are not stored.",
+    );
+  });
+});
+
+/** /pro#dani since the policy: the owner's summary and link sentence (2026-11-20), transcribed. */
+describe("/pro's data summary (owner-approved 2026-11-20)", () => {
+  it("is his summary and link sentence, word for word", () => {
+    expect(uk.about.dataSummary).toBe(
+      "Коротко: я не продаю дані й не показую реклами. Людині, яка шукає тварину, не потрібен обліковий запис – сайт ставить одне кукі, лише коли ви відкриваєте контакти притулку. Притулки дають стільки даних, скільки потрібно для перевірки й кабінету; точна адреса притулку й пошта адміністраторів публічно не показуються.",
+    );
+    expect(uk.about.dataLink).toBe("Усе докладно – у {link}.");
+    expect(uk.about.dataLinkLabel).toBe("політиці конфіденційності");
   });
 });
 

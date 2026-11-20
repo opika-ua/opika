@@ -10,7 +10,7 @@ function footer() {
 }
 
 describe("SiteFooter (A2)", () => {
-  it("is one contentinfo landmark: the logo, the sections, then the email and Instagram", () => {
+  it("is one contentinfo landmark: the logo, the sections, then the email, Instagram and the privacy policy", () => {
     const links = within(footer())
       .getAllByRole("link")
       .map((link) => [link.textContent, link.getAttribute("href")]);
@@ -21,6 +21,7 @@ describe("SiteFooter (A2)", () => {
       ["Про проєкт", "/pro"],
       ["hello@opika.org.ua", "mailto:hello@opika.org.ua"],
       ["Instagram", "https://www.instagram.com/opika.ua/"],
+      ["Політика конфіденційності", "/polityka-konfidentsiinosti"],
     ]);
     expect(screen.getAllByRole("contentinfo")).toHaveLength(1);
   });

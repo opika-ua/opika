@@ -11,7 +11,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * that deletes past them, and read by the kabinet's own `hooks.before` and
  * `kabinetSessionUserIdOf` (`apps/web/src/kabinet/session-lapse.ts`), so the
  * rule that ends a session and the rule that deletes it are one set of numbers,
- * and the /pro sentence on session length (`about.data`, tied to these by
+ * and the privacy policy's session sentence (`privacy.kabinet.access`, tied to these by
  * `apps/web/src/kabinet/session-claim.test.ts`) has one source.
  *
  * - **Shelter admins: 30 days since the last visit, 90 days at most** (F-B9;

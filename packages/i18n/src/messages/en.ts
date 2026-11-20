@@ -471,9 +471,12 @@ export const en = {
     free: "The site is free for shelters, with no paid tiers. If that ever changes, every shelter will know well in advance, not after the fact.",
     money:
       '{site} never touches money: no payment processing, no commission, no donations collected through the platform. The "Support the shelter" button links to the shelter\'s own page on another service (for example, monobank) – the site only shows the link; the money goes directly, and you can see exactly where. The button exists only for verified shelters.',
-    data: "Data a shelter enters – address, contact details, animal listings – belongs to the shelter. The exact address is never shown publicly: someone looking for an animal sees only the city. A shelter can ask to have its record removed at any time. For shelters with dashboard access, the site keeps the administrator's name and email address. That address receives invitations, sign-in or new-password links, password-change notices, notices of verification decisions and fundraising links, and a weekly reminder about unconfirmed cards. For shelter dashboard administrators only an irreversible hash of the password is stored, never the password itself. IP addresses are not stored. A sign-in to a shelter's dashboard lasts 30 days from the last visit and no longer than 90 days, after which you sign in again. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day. Every change in the dashboard is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record. Photos uploaded in the dashboard are stored without location data, at addresses that can't be guessed. So that a photo can be cropped again, an uncropped copy of it is kept too – without metadata, including where it was taken. It is deleted together with the photo. A photo removed from a card is no longer shown, and its files are deleted automatically in about a week. If something breaks on the site, only a technical description is sent to the error-tracking service Sentry (servers in the EU): the error type, the place in the code, the page address without parameters, the browser and the operating system. Contacts, email addresses, phone numbers, form contents and cookies are never sent there, and IP addresses are not stored.",
     analytics:
       "The site collects basic visit statistics – how many people visit and how fast the pages load – with no advertising.",
+    dataSummary:
+      "In short: I don't sell data and show no ads. Someone looking for an animal needs no account – the site sets one cookie, only when you open a shelter's contacts. Shelters give as much data as verification and the dashboard need; a shelter's exact address and its administrators' emails are never shown publicly.",
+    dataLink: "All the details are in the {link}.",
+    dataLinkLabel: "privacy policy",
     /** Template: "Get in touch: {contact}" */
     contact: "Get in touch: {contact}",
     sources: {
@@ -2043,6 +2046,85 @@ export const en = {
       },
     },
   },
+  // --- Privacy policy - see the uk key's own note ---
+  privacy: {
+    title: "Privacy policy",
+    updated: "Updated {date}.",
+    intro:
+      "{site} is made by one person – me, Oleksii Kolotenko. I decide what data the site collects and why, so I am the one responsible for it. Here, in plain words: what the site knows about you, why, how long it is kept, who sees it and how to delete it. Questions and requests: {email}.",
+    short: {
+      heading: "In short",
+      body: "I don't sell data, show no ads and don't track you on other sites. Someone looking for an animal needs no account: the site doesn't know their name, email or phone. About shelters, I keep what verification and the dashboard need.",
+    },
+    visitors: {
+      heading: "If you are looking for an animal",
+      cookie:
+        "For someone looking for an animal, the site sets one cookie – and only after they press «Give a family». It holds no name or phone number, only a random identifier, so the site remembers whose contacts you have already opened. It stops working after 7 days without visits, or after 30 days in any case. Separately from the cookie, if you save animals, their list stays in this browser.",
+      reveals:
+        "When you open a shelter's contacts, the site records which ones – under the cookie's random identifier, with no name or contacts. The shelter's contacts and address at that moment are kept with the record: if a complaint comes in, it shows exactly what you were shown. It also keeps the site from counting the same shelter twice in the daily limit. These records are deleted after {revealDays} days.",
+      saved:
+        "The list of saved animals is kept only in this browser. To show it up to date, the site requests these animals' data without a cookie and does not keep which ones.",
+      limits:
+        "To protect the site from abuse, it counts requests from each IP address. The address itself is not stored – only an irreversible fingerprint of it, which disappears on its own within 2 days at most.",
+      stats:
+        "The site collects basic visit statistics – how many people visit and how fast the pages load – with no advertising. For this I use Vercel Analytics, which sets no cookie.",
+      errors:
+        "If something breaks on the site, only a technical description is sent to the error-tracking service Sentry (servers in the EU): the error type, the place in the code, the page address without parameters, the browser and the operating system. Contacts, email addresses, phone numbers, form contents and cookies are never sent there, and IP addresses are not stored.",
+    },
+    registration: {
+      heading: "If you register a shelter",
+      more: "The password is stored only as an irreversible hash. I keep a confirmed application until I decide on it. If you press «This wasn't me» in the email, an application not yet approved is deleted at once; if it is already approved, I get a notice and look into it.",
+    },
+    kabinet: {
+      heading: "If you have a shelter dashboard",
+      access:
+        "For shelters with dashboard access, the site keeps the administrator's name and email address. That address receives invitations, sign-in or new-password links, password-change notices, notices of verification decisions and fundraising links, and a weekly reminder about unconfirmed cards. For shelter dashboard administrators only an irreversible hash of the password is stored, never the password itself. IP addresses are not stored. A sign-in to a shelter's dashboard lasts 30 days from the last visit and no longer than 90 days, after which you sign in again. Addresses typed into the sign-in form, and records of sign-ins that have lost force, are deleted within a day.",
+      erasure:
+        "When a shelter administrator is removed from the dashboard, their invitation is cancelled, or the invitation was never accepted, the account and the email address are deleted, unless that address has access to another shelter or is invited to one. The address is removed from the shelter's history at the same time: all that is left there is a record that an administrator was invited, added or removed.",
+      history:
+        "Every change in the dashboard is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record.",
+      mailLog:
+        "So that each email arrives only once, the site keeps a log of sent emails for 90 days: which email, to which shelter, and whether it was delivered. The log holds neither the address nor the text of the email.",
+      mailLogo:
+        "Emails from {site} contain one image from the site, the logo, the same for everyone with no markers. When a mail app shows it, Vercel records the IP address and time in its technical log, as for any request. I don't use this to learn who opened an email.",
+      verification:
+        "For verifying a shelter I keep what you provided: links, registration details, the contact of a person who can confirm the shelter's work. None of it is shown publicly.",
+    },
+    public: {
+      heading: "Who sees what",
+      body: "Publicly the site shows the shelter's name, description, city, logo, animal cards with photos and the verification mark. A person sees the shelter's contacts only after pressing «Give a family». The shelter's exact address and the administrators' emails are never shown publicly. As the operator, I see everything entered in the dashboard and the verification data.",
+    },
+    photos:
+      "Photos uploaded in the dashboard are stored without location data, at addresses that can't be guessed. So that a photo can be cropped again, an uncropped copy of it is kept too – without metadata, including where it was taken. It is deleted together with the photo. A photo removed from a card is no longer shown, and its files are deleted automatically in about a week.",
+    processors: {
+      heading: "Who else processes data",
+      intro:
+        "The site runs on other companies' services. They process data only to keep the site running, and only as I have set them up:",
+      vercel:
+        "Vercel – hosting the site (servers in Frankfurt); like any host, it sees a request's IP address in its technical logs.",
+      neon: "Neon – the database (Frankfurt).",
+      cloudflare: "Cloudflare – photo storage (mostly in Europe) and forwarding mail to {email}.",
+      resend: "Resend – sending emails (servers in Ireland; sending logs may be kept in the US).",
+      upstash: "Upstash – counters for abuse protection (Frankfurt).",
+      sentry: "Sentry – error tracking (EU).",
+      transfers:
+        "Most data is stored in the EU. Cloudflare stores photos mostly in Europe and forwards mail through its global network. All these companies are based in the US: for them, the EU standard contractual clauses or certification under the EU-US Data Privacy Framework apply.",
+    },
+    basis: {
+      heading: "Legal basis",
+      body: "Application and dashboard data are needed to provide the service the shelter asks for. Abuse protection, the change history, the email log, the opened-contact records and error tracking are my legitimate interest: without them the site cannot run safely and fairly. I don't ask for separate consent, because I collect nothing beyond what the site needs to work.",
+    },
+    rights: {
+      heading: "Your rights and how to delete your data",
+      body: "You can find out what data about you exists, correct it, get a copy, object to its processing or ask for all of it to be deleted. Write to {email} from the address linked to the dashboard or the application – I usually reply within a week, within a month at most. A shelter can ask for its record to be deleted completely: the dashboard, cards, photos and history go with it.",
+      visitors:
+        "If you are looking for an animal, the simplest way is to clear the site's cookies and data in your browser. I cannot link the records on the server to you, because I don't know your name or email, so they are deleted on their own within the periods given above.",
+      complaint:
+        "If you believe I am violating your rights, you can complain to the data protection authority in your country – in Ukraine, that is the Ukrainian Parliament Commissioner for Human Rights.",
+    },
+    changes:
+      "If I change this page materially, I will email the shelters at their dashboard address. The date of the last update is at the top of the page.",
+  },
   emailLayout: {
     fallbackLink: "Button not working? Copy this link:",
     reason: {
@@ -2101,6 +2183,10 @@ export const en = {
       title: "About {site} – a site where shelter animals look for a home",
       description:
         "{site} is made by one person in their spare time: no ads, no investors, free for shelters.",
+    },
+    privacy: {
+      description:
+        "I don't sell data, show no ads and don't track you on other sites. About shelters, I keep what verification and the dashboard need.",
     },
   },
 } as const;

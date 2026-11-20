@@ -458,10 +458,11 @@ describe("/pro's deletion clause and the clean-up's schedule cannot drift (KH-Q1
   const DELETION_SENTENCE =
     "Адреси, введені у формі входу, і записи про входи, що втратили силу, видаляються протягом доби.";
 
-  it("/pro promises deletion within a day, and the schedule's worst case keeps that true", () => {
-    expect(uk.about.data, "/pro about.data carries his «…видаляються протягом доби.»").toContain(
-      DELETION_SENTENCE,
-    );
+  it("the privacy policy promises deletion within a day, and the schedule's worst case keeps that true", () => {
+    expect(
+      uk.privacy.kabinet.access,
+      "the privacy policy's kabinet paragraph carries his «…видаляються протягом доби.»",
+    ).toContain(DELETION_SENTENCE);
 
     const schedule = authCleanupCrons[0]?.schedule ?? "";
     const linkMs = MAGIC_LINK_TTL_SECONDS * 1000;

@@ -2,6 +2,7 @@ import { fillTemplate, uk } from "@opika/i18n";
 import Link from "next/link";
 import { INSTAGRAM, OPERATOR_CONTACT, WORDMARK } from "../../brand";
 import { Container } from "../../ui/Container";
+import { PRIVACY_PATH } from "./privacy-path";
 
 /** MK-7, moved here from /prytulkam's body so it is shown once (owner, 2026-11-20). */
 const INDEPENDENT = fillTemplate(uk.about.independent, { site: WORDMARK });
@@ -13,7 +14,7 @@ interface FooterSection {
   readonly prefetch?: false;
 }
 
-/** In order; one entry per link, so the privacy policy joins as one line once its page exists. */
+/** In order; the privacy policy sits with the contacts, as a plain link (owner's A2 lists sections only). */
 const SECTIONS: readonly FooterSection[] = [
   { href: "/tvaryny", label: uk.nav.animals, prefetch: false },
   { href: "/prytulkam", label: uk.nav.forShelters },
@@ -68,6 +69,11 @@ export function SiteFooter() {
               >
                 {INSTAGRAM.label}
               </a>
+            </li>
+            <li>
+              <Link href={PRIVACY_PATH} className="footer-link">
+                {uk.privacy.title}
+              </Link>
             </li>
           </ul>
         </div>

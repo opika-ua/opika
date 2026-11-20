@@ -43,6 +43,7 @@ test("every public page ends with one footer", async ({ page }) => {
     shelterPage as string,
     "/pro",
     "/prytulkam",
+    "/polityka-konfidentsiinosti",
     "/zberezheni",
     "/rate-limited/screen",
     "/no-such-page",
@@ -52,7 +53,9 @@ test("every public page ends with one footer", async ({ page }) => {
   }
 });
 
-test("the footer's links lead to the site's pages, the email and Instagram", async ({ page }) => {
+test("the footer's links lead to the site's pages, the email, Instagram and the privacy policy", async ({
+  page,
+}) => {
   await openRoute(page, "/pro", DESKTOP, { readySelector: HEADER });
   const footer = page.getByRole("contentinfo");
   const links = await footer
@@ -65,6 +68,7 @@ test("the footer's links lead to the site's pages, the email and Instagram", asy
     ["Про проєкт", "/pro"],
     ["hello@opika.org.ua", "mailto:hello@opika.org.ua"],
     ["Instagram", "https://www.instagram.com/opika.ua/"],
+    ["Політика конфіденційності", "/polityka-konfidentsiinosti"],
   ]);
   await expect(footer.getByRole("link", { name: "Instagram" })).toHaveAttribute("rel", "noopener");
 
@@ -76,7 +80,7 @@ test("the footer's links lead to the site's pages, the email and Instagram", asy
 test("on a phone every footer link is a 48px target", async ({ page }) => {
   await openRoute(page, "/pro", PHONE, { readySelector: HEADER });
   const links = page.getByRole("contentinfo").getByRole("link");
-  await expect(links).toHaveCount(6);
+  await expect(links).toHaveCount(7);
   for (const link of await links.all()) await expectMinTargetHeight(link);
 });
 
