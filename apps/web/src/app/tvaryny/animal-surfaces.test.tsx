@@ -71,10 +71,10 @@ describe("the full page", () => {
       return (await generateMetadata({ params })).title;
     };
 
-    it("title is «{Name} – {noun} шукає дім, {city} | Opika»: no age bucket, no listing state", async () => {
+    it("title is «{Name} – {noun} шукає дім, {city} – Opika»: no age bucket, no listing state", async () => {
       current = stubAnimalPageClient();
       expect((await generateMetadata({ params })).title).toEqual({
-        absolute: "Мурчик – кіт шукає дім, Бровари | Opika",
+        absolute: "Мурчик – кіт шукає дім, Бровари – Opika",
       });
     });
 
@@ -85,7 +85,7 @@ describe("the full page", () => {
       ["a kitten", { species: "cat", sex: "male", ageBucket: "baby" }, "кошеня"],
     ] as const)("the noun for %s is «%s»", async (_who, animal, noun) => {
       expect(await titleOf(animal)).toEqual({
-        absolute: `Мурчик – ${noun} шукає дім, Бровари | Opika`,
+        absolute: `Мурчик – ${noun} шукає дім, Бровари – Opika`,
       });
     });
 
@@ -105,11 +105,11 @@ describe("the full page", () => {
         animal: makeDetailAnimal({ publicLocation: { cityId: "unknown-city-id" as never } }),
       });
       const metadata = await generateMetadata({ params });
-      expect(metadata.title).toEqual({ absolute: "Мурчик – кіт шукає дім | Opika" });
+      expect(metadata.title).toEqual({ absolute: "Мурчик – кіт шукає дім – Opika" });
       expect(metadata.description).toMatch(
         /^Мурчик шукає дім\. [^·]+\. Лагідний кіт, любить сидіти на підвіконні\.$/u,
       );
-      expect(metadata.openGraph).toMatchObject({ title: "Мурчик – кіт шукає дім | Opika" });
+      expect(metadata.openGraph).toMatchObject({ title: "Мурчик – кіт шукає дім – Opika" });
     });
 
     it("canonical is always the bare id, never a query string", async () => {
@@ -137,7 +137,7 @@ describe("the full page", () => {
     it("Open Graph and Twitter carry the page's own title and description (B2)", async () => {
       current = stubAnimalPageClient();
       const metadata = await generateMetadata({ params });
-      const title = "Мурчик – кіт шукає дім, Бровари | Opika";
+      const title = "Мурчик – кіт шукає дім, Бровари – Opika";
       expect(metadata.openGraph).toMatchObject({ title, description: metadata.description });
       expect(metadata.twitter).toEqual({
         card: "summary_large_image",

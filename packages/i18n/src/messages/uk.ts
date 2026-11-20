@@ -2374,7 +2374,7 @@ export const uk = {
    */
   seo: {
     /** A title that ends with the brand; a long dynamic one drops this suffix first. */
-    titleWithSite: "{title} | {site}",
+    titleWithSite: "{title} – {site}",
     nouns: {
       puppy: "цуценя",
       dog: "собака",
@@ -2407,7 +2407,7 @@ export const uk = {
         "{shelter}, {city}: {species}, які шукають дім. Контакти – на картці кожної тварини.",
     },
     forShelters: {
-      title: "Розмістити тварин притулку безкоштовно | {site}",
+      title: "Розмістити тварин притулку безкоштовно – {site}",
       description:
         "Розмістіть тварин свого притулку чи ініціативи на {site} безкоштовно, без реклами й комісій.",
       /** While self-registration is on. */

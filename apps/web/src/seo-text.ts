@@ -60,7 +60,7 @@ export const SEO_DESCRIPTION_MAX_LENGTH = 154;
 
 /**
  * The branded title while it fits in 60 characters, else the subject alone: a long dynamic
- * title drops « | Opika» before anything else (handoff B2). A subject over 60 is kept whole.
+ * title drops « – Opika» before anything else (handoff B2). A subject over 60 is kept whole.
  */
 export function fitTitle(withSite: string, subject: string): string {
   return Array.from(withSite).length <= TITLE_MAX_LENGTH ? withSite : subject;

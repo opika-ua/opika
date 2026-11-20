@@ -28,20 +28,20 @@ describe("the shelter page's title (SEO handoff B2)", () => {
   it("is the approved template with the city in the nominative, the brand at the end", () => {
     const metadata = metadataFor();
     expect(metadata.title).toEqual({
-      absolute: "Лапа допомоги – тварини шукають дім, Бровари | Opika",
+      absolute: "Лапа допомоги – тварини шукають дім, Бровари – Opika",
     });
   });
 
   it.each([
     // 21 + 31 + 8 = 60: fits, keeps the brand.
-    ["Притулок «Добрі руки»", "Притулок «Добрі руки» – тварини шукають дім, Бровари | Opika"],
-    // 61: « | Opika» goes first.
+    ["Притулок «Добрі руки»", "Притулок «Добрі руки» – тварини шукають дім, Бровари – Opika"],
+    // 61: « – Opika» goes first.
     ["Притулок «Добрі лапки»", "Притулок «Добрі лапки» – тварини шукають дім, Бровари"],
     [
       "Благодійна організація «Друзі хвостиків Київщини»",
       "Благодійна організація «Друзі хвостиків Київщини» – тварини шукають дім, Бровари",
     ],
-  ])("over 60 characters drops « | Opika» first: %s", (displayName, title) => {
+  ])("over 60 characters drops « – Opika» first: %s", (displayName, title) => {
     expect(metadataFor({ displayName }).title).toEqual({ absolute: title });
   });
 
@@ -82,7 +82,7 @@ describe("the shelter page's meta description (SEO handoff B2)", () => {
 
   it("the page, its link preview and its Twitter card carry the same title and description", () => {
     const metadata = metadataFor({ listedSpecies: ["cat"] });
-    const title = "Лапа допомоги – тварини шукають дім, Бровари | Opika";
+    const title = "Лапа допомоги – тварини шукають дім, Бровари – Opika";
     const description =
       "Лапа допомоги, Бровари: коти, які шукають дім. Контакти – на картці кожної тварини.";
     expect(metadata.description).toBe(description);

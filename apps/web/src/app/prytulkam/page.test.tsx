@@ -37,7 +37,7 @@ describe("«Для притулків»", () => {
 });
 
 describe("/prytulkam's metadata (SEO handoff B2)", () => {
-  const title = "Розмістити тварин притулку безкоштовно | Opika";
+  const title = "Розмістити тварин притулку безкоштовно – Opika";
   const description =
     "Розмістіть тварин свого притулку чи ініціативи на Opika безкоштовно, без реклами й комісій.";
 

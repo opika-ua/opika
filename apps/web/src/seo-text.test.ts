@@ -69,12 +69,12 @@ describe("fitTitle (SEO handoff B2: 60 characters, drop the brand first)", () =>
     [53, false],
     [70, false],
   ])("a %i-character subject keeps the brand: %s", (length, keepsBrand) => {
-    const withSite = `${subject(length)} | Opika`;
+    const withSite = `${subject(length)} – Opika`;
     expect(fitTitle(withSite, subject(length))).toBe(keepsBrand ? withSite : subject(length));
   });
 
   it("counts code points, not UTF-16 units", () => {
-    const withSite = `${"🐕".repeat(52)} | Opika`;
+    const withSite = `${"🐕".repeat(52)} – Opika`;
     expect(Array.from(withSite).length).toBe(60);
     expect(fitTitle(withSite, "🐕")).toBe(withSite);
   });

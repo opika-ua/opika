@@ -6,7 +6,7 @@ import { animalMetadataOf, animalSeoText, firstSentenceOf } from "./page";
 describe("animalSeoText", () => {
   it("names the animal, its noun and the effective city, then the brand", () => {
     const { title } = animalSeoText(makeDetailAnimal(), "Домівка", "Бровари");
-    expect(title).toBe("Мурчик – кіт шукає дім, Бровари | Opika");
+    expect(title).toBe("Мурчик – кіт шукає дім, Бровари – Opika");
   });
 
   it.each([
@@ -18,15 +18,15 @@ describe("animalSeoText", () => {
   ] as const)("a %s, %s, %s is «%s»", (species, sex, ageBucket, noun) => {
     const animal = makeDetailAnimal({ species, sex, ageBucket });
     expect(animalSeoText(animal, "Домівка", "Ірпінь").title).toBe(
-      `Мурчик – ${noun} шукає дім, Ірпінь | Opika`,
+      `Мурчик – ${noun} шукає дім, Ірпінь – Opika`,
     );
   });
 
-  it("over 60 characters, drops « | Opika» before anything else", () => {
+  it("over 60 characters, drops « – Opika» before anything else", () => {
     const animal = makeDetailAnimal({ name: "Принцеса Марципанка", sex: "female" });
     const { title } = animalSeoText(animal, "Домівка", "Новоград-Волинський");
     expect(title).toBe("Принцеса Марципанка – кішка шукає дім, Новоград-Волинський");
-    const branded = "Принцеса Марципанка – кішка шукає дім, Новоград-Волинський | Opika";
+    const branded = "Принцеса Марципанка – кішка шукає дім, Новоград-Волинський – Opika";
     expect(Array.from(branded).length).toBeGreaterThan(60);
   });
 
@@ -60,7 +60,7 @@ describe("animalSeoText", () => {
 
   it("a city that doesn't resolve takes the no-city pair (owner, 2026-11-18)", () => {
     expect(animalSeoText(makeDetailAnimal(), "Домівка", null)).toEqual({
-      title: "Мурчик – кіт шукає дім | Opika",
+      title: "Мурчик – кіт шукає дім – Opika",
       description: "Мурчик шукає дім. Домівка. Лагідний кіт, любить сидіти на підвіконні.",
     });
   });
@@ -70,7 +70,7 @@ describe("animalSeoText", () => {
     expect(animalSeoText(animal, "Домівка", null).description).toBe("Мурчик шукає дім. Домівка.");
   });
 
-  it("no city, over 60 characters: « | Opika» goes first; a long one is cut under 155 with «…»", () => {
+  it("no city, over 60 characters: « – Opika» goes first; a long one is cut under 155 with «…»", () => {
     const animal = makeDetailAnimal({
       name: "Принцеса Марципанка Найкраща Із Усіх",
       sex: "female",
@@ -101,9 +101,9 @@ describe("animalMetadataOf: one string for the page, Open Graph and Twitter", ()
         backToGalleryHref: "/tvaryny",
       },
     } as never);
-    expect(metadata.title).toEqual({ absolute: "Мурчик – кіт шукає дім, Бровари | Opika" });
-    expect(metadata.openGraph?.title).toBe("Мурчик – кіт шукає дім, Бровари | Opika");
-    expect(metadata.twitter?.title).toBe("Мурчик – кіт шукає дім, Бровари | Opika");
+    expect(metadata.title).toEqual({ absolute: "Мурчик – кіт шукає дім, Бровари – Opika" });
+    expect(metadata.openGraph?.title).toBe("Мурчик – кіт шукає дім, Бровари – Opika");
+    expect(metadata.twitter?.title).toBe("Мурчик – кіт шукає дім, Бровари – Opika");
     expect(metadata.openGraph?.description).toBe(metadata.description);
     expect(metadata.twitter?.description).toBe(metadata.description);
     expect(metadata.alternates?.canonical).toMatch(/^\/tvaryny\/[0-9a-f-]+$/);

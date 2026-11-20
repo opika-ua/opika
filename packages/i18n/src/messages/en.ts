@@ -2046,7 +2046,7 @@ export const en = {
   },
   /** Page titles and meta descriptions; see the Ukrainian catalogue. */
   seo: {
-    titleWithSite: "{title} | {site}",
+    titleWithSite: "{title} – {site}",
     nouns: {
       puppy: "puppy",
       dog: "dog",
@@ -2075,7 +2075,7 @@ export const en = {
         "{shelter}, {city}: {species} looking for a home. Contacts are on each animal's card.",
     },
     forShelters: {
-      title: "List your shelter's animals for free | {site}",
+      title: "List your shelter's animals for free – {site}",
       description:
         "List the animals of your shelter or initiative on {site} for free, with no ads and no fees.",
       descriptionSelfRegistration:

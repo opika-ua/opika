@@ -20,9 +20,9 @@ const loaded = (species: readonly AnimalSpecies[], name = "Бровари") =>
 
 describe("citySeoText: handoff B2's city row", () => {
   it.each([
-    [["dog"], "Собаки в добрі руки – Бровари | Opika", "Собаки з притулків"],
-    [["cat"], "Коти в добрі руки – Бровари | Opika", "Коти з притулків"],
-    [["dog", "cat"], "Собаки й коти в добрі руки – Бровари | Opika", "Собаки й коти з притулків"],
+    [["dog"], "Собаки в добрі руки – Бровари – Opika", "Собаки з притулків"],
+    [["cat"], "Коти в добрі руки – Бровари – Opika", "Коти з притулків"],
+    [["dog", "cat"], "Собаки й коти в добрі руки – Бровари – Opika", "Собаки й коти з притулків"],
   ] as const)(
     "%j: the species phrase leads the title and the description",
     (species, title, lead) => {
@@ -34,16 +34,16 @@ describe("citySeoText: handoff B2's city row", () => {
     },
   );
 
-  it("drops « | Opika» only when the title would pass 60 characters", () => {
+  it("drops « – Opika» only when the title would pass 60 characters", () => {
     const short = citySeoText("Бровари", { kind: "listed", key: "dogsAndCats" }).title;
-    expect(short.endsWith(" | Opika")).toBe(true);
+    expect(short.endsWith(" – Opika")).toBe(true);
     expect(Array.from(short).length).toBeLessThanOrEqual(60);
 
     // 29 characters of subject before the city: a 24-character name passes 60 only with the suffix.
     const longName = "Олександрівка-Покровська";
     const long = citySeoText(longName, { kind: "listed", key: "dogsAndCats" }).title;
     expect(long).toBe(`Собаки й коти в добрі руки – ${longName}`);
-    expect(Array.from(`${long} | Opika`).length).toBeGreaterThan(60);
+    expect(Array.from(`${long} – Opika`).length).toBeGreaterThan(60);
   });
 
   it("a long description is cut at a word under 155 characters, ending in «…»", () => {
@@ -56,13 +56,13 @@ describe("citySeoText: handoff B2's city row", () => {
   it("the link preview and the Twitter card carry the same strings", () => {
     const metadata = cityPageMetadataOf(loaded(["cat"]), 1);
     expect(metadata.openGraph).toMatchObject({
-      title: "Коти в добрі руки – Бровари | Opika",
+      title: "Коти в добрі руки – Бровари – Opika",
       description: metadata.description,
       siteName: "Opika",
       locale: "uk_UA",
     });
     expect(metadata.twitter).toMatchObject({
-      title: "Коти в добрі руки – Бровари | Opika",
+      title: "Коти в добрі руки – Бровари – Opika",
       description: metadata.description,
     });
   });
