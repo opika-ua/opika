@@ -408,6 +408,37 @@
     outline-offset: -3px;
   }
 }
+/* From desktop the scrollbar's room is kept on every page, so a short page or a scroll-locked dialog
+   never shifts the centred layout sideways (the lock's body overflow goes to the viewport; the gutter
+   stays). Not below: phones and tablets have overlay scrollbars, and there the layout is full width.
+   An empty gutter shows html's background; body paints the page itself, so only the gutter is html's. */
+html {
+  background-color: var(--color-page);
+}
+@media (min-width: 1024px) {
+  html {
+    scrollbar-gutter: stable;
+  }
+}
+body {
+  min-height: 100dvh;
+  background-color: var(--color-page);
+}
+/* A backdrop stops at the gutter; while scroll is locked (ui/body-scroll-lock) the gutter takes the
+   backdrop's look over the page: ink/40 (Modal, Sheet, the drawer), the overlay's accent/30, or both. */
+html[data-scroll-locked] {
+  background-color: color-mix(in srgb, var(--color-ink) 40%, var(--color-page));
+}
+html[data-scroll-locked]:has([data-testid="pet-card-overlay-open"]) {
+  background-color: color-mix(in srgb, var(--color-accent) 30%, var(--color-page));
+}
+html[data-scroll-locked]:has([data-testid="pet-card-overlay-open"]):has(dialog:modal) {
+  background-color: color-mix(
+    in srgb,
+    var(--color-ink) 40%,
+    color-mix(in srgb, var(--color-accent) 30%, var(--color-page))
+  );
+}
 /* The skip link's target takes programmatic focus only; it is not a control, so no outline. */
 main:focus {
   outline: none;

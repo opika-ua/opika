@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { Button, buttonClass } from "../../ui/Button";
 import { Container } from "../../ui/Container";
 import { cx } from "../../ui/cx";
+import { focusOnArrival } from "../../ui/focus-on-arrival";
 import { Heading } from "../../ui/Heading";
 import { Mascot } from "../../ui/Mascot";
 import { Panel } from "../../ui/Panel";
@@ -38,7 +39,7 @@ export function LoadErrorScreen({
 
   // Focus moves to the heading (docs/design/README.md, E1/E2); tabIndex -1 keeps it out of Tab order.
   useEffect(() => {
-    headingRef.current?.focus();
+    focusOnArrival(headingRef.current);
   }, []);
 
   return (

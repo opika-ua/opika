@@ -14,11 +14,15 @@
 let holders = 0;
 let overflowBeforeFirstLock = "";
 
+/** On `<html>` while any hold is on: globals.css dims the reserved scrollbar gutter to match the backdrop. */
+export const SCROLL_LOCKED_ATTRIBUTE = "data-scroll-locked";
+
 /** Locks the page's scroll; the returned function releases this hold, once. */
 export function lockBodyScroll(): () => void {
   if (holders === 0) {
     overflowBeforeFirstLock = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.documentElement.setAttribute(SCROLL_LOCKED_ATTRIBUTE, "");
   }
   holders += 1;
   let released = false;
@@ -26,6 +30,9 @@ export function lockBodyScroll(): () => void {
     if (released) return;
     released = true;
     holders -= 1;
-    if (holders === 0) document.body.style.overflow = overflowBeforeFirstLock;
+    if (holders === 0) {
+      document.body.style.overflow = overflowBeforeFirstLock;
+      document.documentElement.removeAttribute(SCROLL_LOCKED_ATTRIBUTE);
+    }
   };
 }

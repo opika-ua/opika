@@ -40,7 +40,8 @@ async function moments(page: Page) {
           width: box.width,
           left: box.left,
           right: box.right,
-          viewportWidth: window.innerWidth,
+          // The width the page lays out in, less the scrollbar gutter (`layoutWidth` in harness.ts).
+          viewportWidth: document.documentElement.getBoundingClientRect().width,
           key: node.getAttribute("data-mascot") ?? "group",
           // Off screen, elementFromPoint is null: a click can only be taken where the mascot is shown.
           onScreen: box.bottom > 0 && box.top < window.innerHeight,
