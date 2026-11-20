@@ -1,12 +1,13 @@
 import { sharedRedisStore } from "../api/rate-limit";
 
 /**
- * Resend's Free plan sends 100 mails a day. Counts successful sends per UTC day on the shared
- * Upstash store (the in-process fallback elsewhere), and logs one warning when the day reaches 80
- * and another at 100. Counting never affects a send: every failure here is swallowed.
+ * A plan-level alarm for Resend Pro (about 50k mails a month), not a cap: it counts all mail, so a
+ * busy registration day must not trip it. Successful sends per UTC day on the shared Upstash store
+ * (the in-process fallback elsewhere); one warning at 1,000 and one at 1,500. Counting never
+ * affects a send: every failure here is swallowed.
  */
-export const MAIL_DAILY_WARN_AT = 80;
-export const MAIL_DAILY_LIMIT = 100;
+export const MAIL_DAILY_WARN_AT = 1000;
+export const MAIL_DAILY_CRITICAL_AT = 1500;
 
 export type MailDayCounter = { increment(day: string): Promise<number> };
 
@@ -14,7 +15,7 @@ export type MailVolumeLine = {
   event: "mail_daily_volume";
   count: number;
   warnAt: number;
-  limit: number;
+  criticalAt: number;
 };
 
 const utcDay = (now: Date): string => now.toISOString().slice(0, 10);
@@ -61,12 +62,12 @@ export async function noteMailSent(
 ): Promise<void> {
   try {
     const count = await counter.increment(utcDay(now));
-    if (count === MAIL_DAILY_WARN_AT || count === MAIL_DAILY_LIMIT) {
+    if (count === MAIL_DAILY_WARN_AT || count === MAIL_DAILY_CRITICAL_AT) {
       log({
         event: "mail_daily_volume",
         count,
         warnAt: MAIL_DAILY_WARN_AT,
-        limit: MAIL_DAILY_LIMIT,
+        criticalAt: MAIL_DAILY_CRITICAL_AT,
       });
     }
   } catch {
