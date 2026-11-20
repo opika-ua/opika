@@ -40,6 +40,8 @@ export interface SmokeSittingInput {
   previousTotal: number;
   /** What's new since `previousTotal`, for the "Expected" comment. */
   newCheckDescription: string;
+  /** Which smoke the child branch runs; "auth" is the kabinet's Better Auth one (an auth library bump). */
+  smoke?: SmokeKind;
   /**
    * A PR with a migration, by its journal tag: the child branch is migrated before its smoke,
    * and the production migration (never a smoke) follows only once that smoke passed in full.
@@ -74,6 +76,14 @@ export interface SmokeSittingInput {
 }
 
 const AGAINST_PRODUCTION = /against\s+production/i;
+
+export type SmokeKind = "db" | "auth";
+
+/** Both refuse production and any endpoint but `--expect`, so the guard block is the same. */
+const SMOKES: Record<SmokeKind, { command: string; name: string }> = {
+  db: { command: "pnpm --filter @opika/db db:neon-smoke", name: "neon-smoke" },
+  auth: { command: "pnpm --filter @opika/web kabinet:neon-auth-smoke", name: "neon-auth-smoke" },
+};
 
 /** The migration variant's extra lines; empty strings leave a plain smoke sitting unchanged. */
 function migrationParts(
@@ -221,6 +231,7 @@ function freshBranchNote(retired: readonly string[] = []): string {
 function assembled(input: SmokeSittingInput): string {
   const worktreePath = sittingWorktreePath(input.prNumber, input.sha);
   const m = migrationParts(input.migration, input.preMigrateChecks);
+  const smoke = SMOKES[input.smoke ?? "db"];
   return `${input.title} - merge sitting, ${input.date}. PowerShell.
 ${freshBranchNote(input.retiredBranches)}
 ${input.migrationNote}
@@ -257,7 +268,7 @@ ${headProblems(worktreePath, input.sha)}
   $smokeOk = $false
   if ($problems.Count -eq 0) {
     $ok = $true
-    ${m.childSteps}if ($ok) { pnpm --filter @opika/db db:neon-smoke --expect $child; $ok = ($LASTEXITCODE -eq 0) }
+    ${m.childSteps}if ($ok) { ${smoke.command} --expect $child; $ok = ($LASTEXITCODE -eq 0) }
     $smokeOk = $ok
     if (-not $ok) { Write-Host "STOP: the step above failed, so nothing after it ran. Paste the full output." -ForegroundColor Red }
 ${importParts(input.settlementImport)}  } else {
@@ -274,7 +285,7 @@ ${m.productionStep}
 cd D:\\Startup\\opika
 git worktree remove ${worktreePath}
 
-Paste back: the full neon-smoke output, or at minimum its last ~20 lines including the new check.${m.pasteBack}${importPasteBack(input.settlementImport)}
+Paste back: the full ${smoke.name} output, or at minimum its last ~20 lines including the new check.${m.pasteBack}${importPasteBack(input.settlementImport)}
 `;
 }
 

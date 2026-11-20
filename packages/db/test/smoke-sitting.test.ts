@@ -34,6 +34,16 @@ describe("renderSmokeSitting", () => {
     expect(text).toContain(BASE.sha);
   });
 
+  it("runs the kabinet auth smoke instead when asked, inside the same guard", () => {
+    const text = renderSmokeSitting({ ...BASE, smoke: "auth" });
+    const guard = text.indexOf("if ($problems.Count -eq 0)");
+    const smoke = text.indexOf("pnpm --filter @opika/web kabinet:neon-auth-smoke --expect $child");
+    expect(guard).toBeGreaterThan(-1);
+    expect(smoke).toBeGreaterThan(guard);
+    expect(text).not.toContain("db:neon-smoke");
+    expect(text).toContain("Paste back: the full neon-auth-smoke output");
+  });
+
   it("stops the setup when pnpm i failed or left no packages/db/node_modules", () => {
     const text = renderSmokeSitting(BASE);
     const lines = text.split(/\r?\n/).map((line) => line.trim());
