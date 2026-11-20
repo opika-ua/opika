@@ -80,6 +80,20 @@ describe("proxy matcher", () => {
     expect(await matches(path, PREFETCH)).toBe(true),
   );
 
+  // Owner, 2026-11-20 (finding b): a prefetch carrying the route state renders the head, so any
+  // `next-router-state-tree` is charged, matched on presence: the server URL-decodes the value.
+  // An empty value isn't matched (Next reads it as absent), and the server reads it as no tree,
+  // which renders no head.
+  it.each([
+    ["the metadata-only tree", '["",{},null,"metadata-only"]'],
+    ["the same tree URL-encoded", "%5B%22%22%2C%7B%7D%2Cnull%2C%22metadata-only%22%5D"],
+    ["a tree the proxy can't parse", "garbage"],
+  ])("still charges a prefetch carrying %s", async (_label, tree) => {
+    const headers = { rsc: "1", "next-router-prefetch": "1", "next-router-state-tree": tree };
+    expect(await matches("/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc", headers)).toBe(true);
+    expect(await matches("/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd", headers)).toBe(true);
+  });
+
   it.each(["/kabinet", "/kabinet/vkhid", "/prytulkam", "/tvarynyx", "/"])(
     "still runs on a router prefetch of %s",
     async (path) => expect(await matches(path, PREFETCH)).toBe(true),

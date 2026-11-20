@@ -135,8 +135,9 @@ test.describe("the gallery's animal overlay", () => {
      * `NeighbourLink` - the one `/tvaryny` link in this codebase that is,
      * unlike every other gallery/animal link's `prefetch={false}`), so
      * opening a card fetches the opened animal's own path plus up to two
-     * more - its neighbours. Since 2026-11-20 a router prefetch skips the
-     * proxy (owner), so only the opened animal is charged. What this test
+     * more - its neighbours. Since 2026-11-20 (owner) a route-tree prefetch
+     * skips the proxy; the prefetch that carries the route state (it renders
+     * the head) is charged, once per neighbour. What this test
      * guards: no *unbounded* or *gallery* re-fetch - every fetched path is
      * the opened animal or a real `/tvaryny/{uuid}` neighbour, never a second
      * `/tvaryny` gallery-list fetch or more than two distinct neighbours.
@@ -154,8 +155,11 @@ test.describe("the gallery's animal overlay", () => {
         if (pathname === "/tvaryny" || pathname.startsWith("/tvaryny/")) {
           fetched.push(pathname + search);
           const headers = request.headers();
-          const prefetch = headers.rsc === "1" && headers["next-router-prefetch"] === "1";
-          if (!prefetch) charged.push(pathname);
+          const free =
+            headers.rsc === "1" &&
+            headers["next-router-prefetch"] === "1" &&
+            headers["next-router-state-tree"] === undefined;
+          if (!free) charged.push(pathname);
         }
       });
 
@@ -167,7 +171,17 @@ test.describe("the gallery's animal overlay", () => {
 
       const distinctPaths = [...new Set(fetched.map((url) => url.split("?")[0]))];
       expect(distinctPaths, "the opened animal's own path is always fetched").toContain(href);
-      expect([...new Set(charged)], "only the opened animal is charged").toEqual([href]);
+      const chargedPaths = [...new Set(charged)];
+      expect(chargedPaths, "the opened animal is charged").toContain(href);
+      expect(
+        chargedPaths
+          .filter((path) => path !== href)
+          .every((path) => /^\/tvaryny\/[0-9a-f-]{36}$/.test(path)),
+        "anything else charged is one of its two neighbours",
+      ).toBe(true);
+      expect(chargedPaths.length, "the animal and at most its two neighbours").toBeLessThanOrEqual(
+        3,
+      );
       const neighbours = distinctPaths.filter((path) => path !== href);
       expect(neighbours.length, "at most the prev and next neighbours").toBeLessThanOrEqual(2);
       for (const path of neighbours) {
