@@ -27,8 +27,8 @@ permissions:
   contents: read
 
 # The vitest suite runs as three shards beside `build` (typecheck, lint, build, harness), and
-# `check`, the ruleset's required check, gates them all. Wall clock, median of 5 runs:
-# 22.9 min serial (default branch, 2026-11-19) -> (sharded: being measured).
+# `check`, the ruleset's required check, gates them all. Wall clock, median of 5 runs: 22.9 min
+# serial (2026-11-19) -> 7.5 min sharded (2026-11-20, #553); `build` (the harness) is the longest.
 jobs:
   # Documentation only? Then `build` and `test` are skipped and `check` still passes (Oleksii,
   # 2026-10-19: "A required check skipped this way must still report success"). `--no-renames`
