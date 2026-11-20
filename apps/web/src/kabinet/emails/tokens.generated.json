@@ -1,0 +1,20 @@
+{
+  "color-page": "#faf7f6",
+  "color-ink": "#270041",
+  "color-ink-2": "#735263",
+  "color-line": "#e7dae0",
+  "color-on-ink": "#faf8f9",
+  "color-on-accent-strong": "#ffffff",
+  "color-status-published": "#ede6f7",
+  "color-status-reserved": "#fde6d8",
+  "color-success-bg": "#e4f2e8",
+  "radius-panel": "20px",
+  "radius-card": "24px",
+  "text-title": "26px",
+  "text-title--line-height": "1.2",
+  "text-title--font-weight": "700",
+  "text-body": "16px",
+  "text-label": "16px",
+  "text-caption": "14px",
+  "spacing-target": "48px"
+}

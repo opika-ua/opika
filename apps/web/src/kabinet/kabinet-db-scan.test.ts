@@ -241,6 +241,8 @@ function resolveLocal(specifier: string, fromFile: string, fs: FileSystem): stri
   if (alias !== undefined) base = join(alias[1], specifier.slice(alias[0].length));
   else if (specifier.startsWith(".")) base = resolve(dirname(fromFile), specifier);
   else return null;
+  // A JSON module (the email kit's generated tokens) imports nothing, so no path runs through it.
+  if (base.endsWith(".json") && fs.exists(base)) return null;
   const candidates = [
     base,
     `${base}.ts`,

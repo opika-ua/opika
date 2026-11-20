@@ -2,7 +2,8 @@
 // JavaScript and fails if any chunk a public route loads contains zod. The source half of this
 // guard is src/client-bundle-guard.test.ts; this one reads what the bundler actually emitted, so
 // it also catches a path the source scan cannot see. Kabinet routes ship zod on purpose.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 
 const STATS = ".next/diagnostics/route-bundle-stats.json";
@@ -33,5 +34,23 @@ if (failures.length > 0) {
   process.stderr.write(
     `\nzod found in a public route's first-load chunks:\n${failures.join("\n")}\n`,
   );
+  process.exit(1);
+}
+
+// The email kit (src/kabinet/emails, React Email) renders on the server only: no browser chunk of any route,
+// kabinet included, may carry it. Its head's markers survive minification as strings.
+const EMAIL_MARKERS = ["x-apple-disable-message-reformatting", "o-mso-head"];
+const browserChunks = (dir) =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return browserChunks(path);
+    return entry.name.endsWith(".js") ? [path] : [];
+  });
+const emailLeaks = browserChunks(".next/static").filter((chunk) => {
+  const text = readFileSync(chunk, "utf8");
+  return EMAIL_MARKERS.some((marker) => text.includes(marker));
+});
+if (emailLeaks.length > 0) {
+  process.stderr.write(`\nthe email kit reached the browser bundle:\n${emailLeaks.join("\n")}\n`);
   process.exit(1);
 }
