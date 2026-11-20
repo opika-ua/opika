@@ -70,8 +70,8 @@ https://neon.com/docs/guides/branch-restore); the repo has no restore script.
 
 1. Neon console, project `opika`, Branches, New branch. Parent branch: production. Name it so
    section 5's listing tells it apart, e.g. `restore-<yyyy-mm-dd>`. Choose **Past data** and a time
-   just before the damage. Neon turns auto-deletion on by default (1 day): switch it off, so the
-   branch stays until you delete it. Create. Production is untouched.
+   just before the damage. Uncheck "Automatically delete branch after" (checked by default in the
+   console, section 5), so the branch stays until you delete it. Create. Production is untouched.
 2. Verify on the new branch, read-only: row counts of the damaged tables, and
    `pnpm --filter @opika/db db:check-hashes` with `$env:DATABASE_URL = Read-Secret "Restore branch
    DIRECT connection string"`. `db:check-hashes` takes no `--expect`; it prints `Target: Neon
@@ -113,8 +113,20 @@ table). Migrations and the smokes need the direct string and refuse a pooled one
 
 ### Branches: read-only listing
 
-Nothing in this repo deletes a Neon branch: no cron, no script. The owner deletes stale branches by
-hand, in the console, after reading this list.
+Nothing in this repo deletes a Neon branch (no cron, no script); the owner deletes stale branches by
+hand, in the console, after reading this list. Two things outside the repo can delete one by itself:
+
+- **The Vercel–Neon integration** deletes a `preview/<git-branch>` branch when its Vercel deployments
+  are removed ("Preview branches are automatically deleted when their corresponding Vercel
+  deployments are removed", https://neon.com/docs/guides/vercel-managed-integration). We expect
+  none: only the default branch deploys (`apps/web/vercel.json`).
+- **Neon's branch expiry.** Neon's docs: "By default, Automatically delete branch after is checked
+  with 1 day selected", "This default only applies when creating branches through the Console" and
+  "API and CLI branches have no expiration by default"
+  (https://neon.com/docs/manage/branches; https://neon.com/docs/guides/branch-expiration). A
+  smoke-sitting child branch made in the console with the box left checked may disappear by itself
+  after that time; that is fine, since every sitting uses a fresh branch. A restore branch must not
+  expire: section 4, step 1 says to uncheck it.
 
 1. Neon console, project `opika`, Branches: each row shows the name, when it was created and its
    parent. Tell them apart:
@@ -125,10 +137,9 @@ hand, in the console, after reading this list.
    - restore points named before a risky step (`pre-reset-1`, `pre-reset-2` in
      `docs/prelaunch/child-sitting.md`, the import sitting's `restoreBranchName`) and section 4's
      `restore-...` and `production_old_...`: keep until the step they protect is settled;
-   - Vercel preview branches: the Neon integration names them `preview/<git-branch>`
-     (https://neon.com/docs/guides/vercel-managed-integration). Only the default branch deploys
-     (`apps/web/vercel.json`), so none are expected; one here predates that or means preview
-     branching was switched on.
+   - Vercel preview branches, named `preview/<git-branch>` by the integration (see above). None
+     are expected; one here predates the default-branch-only deploys or means preview branching
+     was switched on.
 2. Optional, CLI (syntax from https://neon.com/docs/reference/cli-branches and
    https://neon.com/docs/reference/neon-cli; `neonctl` is an alias of `neon`). Lists only. The API
    key goes through the environment, never on the command line or in chat:
