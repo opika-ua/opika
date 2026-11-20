@@ -27,7 +27,7 @@ import { kabinetInvitationRepo } from "@opika/db/repos";
 import { authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
-import { expectTabRowSound } from "./harness";
+import { expectTabRowSound, layoutWidth } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.35";
@@ -189,7 +189,8 @@ test.describe("/kabinet/prytulok K4 profile editing (a shelter's own admin)", ()
       await expect(pill).toBeVisible();
       const box = await pill.boundingBox();
       if (box === null) throw new Error("no layout");
-      expect(Math.abs(box.x + box.width / 2 - width / 2)).toBeLessThanOrEqual(1);
+      const centre = (await layoutWidth(page)) / 2;
+      expect(Math.abs(box.x + box.width / 2 - centre)).toBeLessThanOrEqual(1);
       expect(box.height).toBeGreaterThanOrEqual(56 - 1);
       if (width === 1024) {
         // A hugging pill must clear the side nav's content.

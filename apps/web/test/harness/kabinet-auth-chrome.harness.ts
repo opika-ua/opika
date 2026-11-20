@@ -10,7 +10,7 @@
 
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { expect, type Page, test } from "@playwright/test";
-import { noSidewaysScroll } from "./harness";
+import { layoutWidth, noSidewaysScroll } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.93" }, trace: "off" });
@@ -85,12 +85,13 @@ test.describe("pre-sign-in pages wear the public header", () => {
       expect(await noSidewaysScroll(page), `${path} scrolls sideways`).toBe(true);
 
       // The owner saw the card off-centre (2026-11-20): its centre is the page's.
-      const offset = await page.evaluate(() => {
+      const centre = (await layoutWidth(page)) / 2;
+      const offset = await page.evaluate((pageCentre) => {
         const card = document.querySelector("main")?.firstElementChild;
         if (!card) return Number.NaN;
         const r = card.getBoundingClientRect();
-        return Math.abs(r.left + r.width / 2 - document.documentElement.clientWidth / 2);
-      });
+        return Math.abs(r.left + r.width / 2 - pageCentre);
+      }, centre);
       expect(offset, `${path}: card centre off the page centre`).toBeLessThanOrEqual(1);
     }
   });

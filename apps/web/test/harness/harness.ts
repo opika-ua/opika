@@ -103,6 +103,15 @@ export async function expectReachableByTab(
   expect(reached, `${target.label} was not reached within ${maxTabPresses} Tab presses`).toBe(true);
 }
 
+/**
+ * The width the page centres in: the viewport less the scrollbar gutter (`scrollbar-gutter: stable`
+ * from desktop). Not `innerWidth`, nor the root's `clientWidth`, which Chromium reports without the
+ * reserved gutter on a page too short to scroll.
+ */
+export function layoutWidth(page: Page): Promise<number> {
+  return page.evaluate(() => document.documentElement.getBoundingClientRect().width);
+}
+
 /** True when the page does not scroll sideways (an accessibility floor, not a look). Used by every spec that checks the page does not overflow. */
 export function noSidewaysScroll(page: Page): Promise<boolean> {
   return page.evaluate(

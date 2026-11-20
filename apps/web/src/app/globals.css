@@ -408,12 +408,17 @@
     outline-offset: -3px;
   }
 }
-/* The scrollbar's room is kept on every page, so a short page or a scroll-locked dialog never shifts
-   the centred layout sideways (the lock's body overflow goes to the viewport; the gutter stays). An
-   empty gutter shows html's background; body paints the page itself, so only the gutter is html's. */
+/* From desktop the scrollbar's room is kept on every page, so a short page or a scroll-locked dialog
+   never shifts the centred layout sideways (the lock's body overflow goes to the viewport; the gutter
+   stays). Not below: phones and tablets have overlay scrollbars, and there the layout is full width.
+   An empty gutter shows html's background; body paints the page itself, so only the gutter is html's. */
 html {
-  scrollbar-gutter: stable;
   background-color: var(--color-page);
+}
+@media (min-width: 1024px) {
+  html {
+    scrollbar-gutter: stable;
+  }
 }
 body {
   min-height: 100dvh;
