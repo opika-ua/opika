@@ -106,13 +106,16 @@ async function insertShelter(
   return shelter;
 }
 
-/** As `register.ts` writes it: no address until the operator adds one, so city precision. */
-async function insertSelfRegistered(): Promise<void> {
+/**
+ * As `register.ts` writes it: no address until the operator adds one, so city precision.
+ * `withAddressNoPoint`: a street added later without its point, still city precision.
+ */
+async function insertSelfRegistered(withAddressNoPoint = false): Promise<void> {
   const base = makeShelter({ publicLocation: at(cityId) as never });
   await shelterRepo(db).insert({
     ...base,
     legalEntity: null,
-    exactAddress: null,
+    exactAddress: withAddressNoPoint ? { ...base.exactAddress, cityId, coordinates: null } : null,
     publicLocation: { precision: "city", cityId, district: null },
     verification: {
       status: "application",
@@ -502,6 +505,15 @@ describe("demo:remove's test-only-key guard counts only shelters that carry a ke
     const demo = await insertShelter({ id: seedId(1), onTestKey: true });
     await insertAnimal(demo.id);
     await insertSelfRegistered();
+    const plan = await planDemoRemoval(db, testKey);
+    expect(plan.refusals).toEqual([]);
+    expect(plan.otherShelters).toBe(1);
+  });
+
+  it("passes a self-registered shelter whose address has no point: still city precision, no key", async () => {
+    const demo = await insertShelter({ id: seedId(1), onTestKey: true });
+    await insertAnimal(demo.id);
+    await insertSelfRegistered(true);
     const plan = await planDemoRemoval(db, testKey);
     expect(plan.refusals).toEqual([]);
     expect(plan.otherShelters).toBe(1);
