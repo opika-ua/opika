@@ -1305,7 +1305,8 @@ same month, well before this launch-gate pass - found stale on 2026-10-24 and co
 requires those credentials the moment a real Vercel deployment is detected (RL-2), so every
 production and Preview instance gets the shared store, never the in-memory fallback. Provisioned
 via Vercel's Marketplace (RL-4): one Upstash database, both environments connected, region
-`iad1` to match the Vercel function region. Per-environment budget isolation via a
+`eu-central-1` (Frankfurt), beside the `fra1` functions and Neon. (Moved 2026-11-20 from the
+original `iad1` store to `opika-ratelimit-eu`, same `KV_*` names; RL-4.) Per-environment budget isolation via a
 `VERCEL_ENV`-keyed prefix, not two databases (RL-3). Store-outage handling: a 1s bounded timeout
 and a `catch` around `ratelimit.limit()`, both resolving `false` rather than hanging the request
 open to the SDK's own multi-second default retry/backoff (RL-1). The file's own comments no
