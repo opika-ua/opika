@@ -104,7 +104,7 @@ async function search(
       now: NOW,
       newId: () => crypto.randomUUID(),
       operatorDisplayName: "Олексій",
-      locationPolicy: testOnlyLocationPolicy("cities-search"),
+      locationPolicy: testOnlyLocationPolicy(process.env.NODE_ENV, "cities-search"),
       production: false,
       shelterWrites: SHELTER_WRITE_POLICY,
       citySearch: roomyCitySearch(),

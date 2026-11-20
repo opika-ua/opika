@@ -37,7 +37,7 @@ afterAll(async () => cleanup?.());
 
 const NOW = new Date("2026-10-13T10:00:00.000Z");
 const MOD = "mod-1" as ModeratorId;
-const policy = testOnlyLocationPolicy("repo-test");
+const policy = testOnlyLocationPolicy(process.env.NODE_ENV, "repo-test");
 let homeCity: string;
 let otherCity: string;
 

@@ -48,7 +48,7 @@ afterAll(async () => cleanup?.());
 const NOW = new Date("2026-11-18T10:00:00.000Z");
 const ADMIN = "33333333-3333-4333-8333-333333333333" as ShelterAdminId;
 const OPERATOR = "0ec0ec0e-0000-4000-8000-000000000001" as ModeratorId;
-const policy = testOnlyLocationPolicy("animal-location-test");
+const policy = testOnlyLocationPolicy(process.env.NODE_ENV, "animal-location-test");
 let shelter: Shelter;
 let shelterCity: CityId;
 let fosterCity: CityId;

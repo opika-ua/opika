@@ -220,7 +220,7 @@ export function parseSeedProfile(argv: readonly string[]): SeedProfile {
 }
 
 const DAY_MS = 86_400_000;
-const policy = testOnlyLocationPolicy(SEED_LOCATION_POLICY_KEY);
+const policy = testOnlyLocationPolicy(process.env.NODE_ENV, SEED_LOCATION_POLICY_KEY);
 
 /**
  * Writes the built data: cities, then each shelter with its `shelter_created`

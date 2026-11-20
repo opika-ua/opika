@@ -72,7 +72,7 @@ afterAll(async () => cleanup?.());
 const NOW = new Date("2026-10-15T12:00:00.000Z");
 const ACTOR = { moderatorId: "0ec0ec0e-0000-4000-8000-0000000000aa" as never, now: NOW };
 /** The seed's key and reserved range, written out rather than imported from the code under test. */
-const testKey = testOnlyLocationPolicy("seed");
+const testKey = testOnlyLocationPolicy(process.env.NODE_ENV, "seed");
 const seedId = (n: number) => `51000000-0000-4000-8000-00000000000${n}` as ShelterId;
 
 const ZERO: DemoRemovalCounts = Object.fromEntries(

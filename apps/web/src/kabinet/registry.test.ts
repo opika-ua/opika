@@ -80,7 +80,7 @@ const NOW = new Date("2026-10-13T10:00:00.000Z");
 /** A UUID, as Better Auth generates (`ModeratorId` is a UUID). */
 const OPERATOR = "0ec0ec0e-0000-4000-8000-000000000001";
 const asOperator: KabinetPrincipal = { kind: "super_admin", moderatorId: OPERATOR as ModeratorId };
-const policy = testOnlyLocationPolicy("registry-test");
+const policy = testOnlyLocationPolicy(process.env.NODE_ENV, "registry-test");
 let cityId: string;
 let otherCityId: string;
 /** What the invitation emails do in this test; reset to "sent" before each. */

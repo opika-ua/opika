@@ -33,7 +33,10 @@ const exactAddress: ExactAddress = {
   coordinates: { lat: 49.9935, lng: 36.2304 },
 };
 
-const privacyPolicy: LocationPrivacyPolicy = testOnlyLocationPolicy("test-key");
+const privacyPolicy: LocationPrivacyPolicy = testOnlyLocationPolicy(
+  process.env.NODE_ENV,
+  "test-key",
+);
 
 // Not hand-assembled: the branded fuzzed type makes publicLocationOf the only
 // way to build this, which is exactly the property under test.

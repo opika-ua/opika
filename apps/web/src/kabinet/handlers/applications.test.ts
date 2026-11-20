@@ -517,7 +517,7 @@ describe("through the served route", () => {
         now: NOW,
         newId: () => randomUUID(),
         operatorDisplayName: "Олексій",
-        locationPolicy: testOnlyLocationPolicy("applications-test"),
+        locationPolicy: testOnlyLocationPolicy(process.env.NODE_ENV, "applications-test"),
         production: false,
         shelterWrites: SHELTER_WRITE_POLICY,
         citySearch: roomyCitySearch(),

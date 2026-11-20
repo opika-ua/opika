@@ -24,7 +24,7 @@ import {
 } from "@opika/domain";
 import { KYIV_OBLAST_REGION_ID } from "../geography/regions-data";
 
-const policy = testOnlyLocationPolicy();
+const policy = testOnlyLocationPolicy(process.env.NODE_ENV);
 
 function uuid<T extends string>(): T {
   return randomUUID() as T;

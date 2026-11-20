@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   assertProductionLocationPolicy,
   type Coordinates,
@@ -21,7 +21,7 @@ const EXACT: Coordinates = { lat: 49.9935, lng: 36.2304 };
 const policy = (
   overrides: { digest?: KeyedUnitDigest; fuzzRadiusMetres?: number } = {},
 ): LocationPrivacyPolicy => {
-  const base = testOnlyLocationPolicy("server-key-1", overrides.fuzzRadiusMetres);
+  const base = testOnlyLocationPolicy("test", "server-key-1", overrides.fuzzRadiusMetres);
   return overrides.digest === undefined ? base : { ...base, digest: overrides.digest };
 };
 
@@ -43,8 +43,8 @@ describe("the offset cannot be reproduced without the key", () => {
   it("differs between two servers holding different keys", () => {
     // The whole point. If these matched, the offset would be derivable from the
     // shelter id - which ships to every client alongside the fuzzed point.
-    const a = fuzzCoordinates(EXACT, "shelter-1", testOnlyLocationPolicy("key-a"));
-    const b = fuzzCoordinates(EXACT, "shelter-1", testOnlyLocationPolicy("key-b"));
+    const a = fuzzCoordinates(EXACT, "shelter-1", testOnlyLocationPolicy("test", "key-a"));
+    const b = fuzzCoordinates(EXACT, "shelter-1", testOnlyLocationPolicy("test", "key-b"));
     expect(a.center).not.toEqual(b.center);
   });
 
@@ -164,11 +164,13 @@ describe("a test-only policy cannot reach production unnoticed", () => {
     // The failure mode being closed: the unkeyed digest used to be the only
     // implementation in the repo, so wiring it up in M2 would have silently
     // reduced the fuzzing to decoration with nothing failing anywhere.
-    expect(() => assertProductionLocationPolicy(testOnlyLocationPolicy())).toThrow(/test-only/);
+    expect(() => assertProductionLocationPolicy(testOnlyLocationPolicy("test"))).toThrow(
+      /test-only/,
+    );
   });
 
   it("says what to do instead, not just that it refused", () => {
-    expect(() => assertProductionLocationPolicy(testOnlyLocationPolicy())).toThrow(
+    expect(() => assertProductionLocationPolicy(testOnlyLocationPolicy("test"))).toThrow(
       /keyedLocationPolicy/,
     );
   });
@@ -179,7 +181,7 @@ describe("a test-only policy cannot reach production unnoticed", () => {
   });
 
   it("marks its assurance in the value, so it is inspectable at runtime", () => {
-    expect(testOnlyLocationPolicy().assurance).toBe("test_only");
+    expect(testOnlyLocationPolicy("test").assurance).toBe("test_only");
     expect(keyedLocationPolicy(() => 0.5).assurance).toBe("keyed");
   });
 });
@@ -192,22 +194,16 @@ describe("a test-only policy cannot reach production unnoticed", () => {
  * value exists in a production process, remembered-to-be-checked or not.
  */
 describe("testOnlyLocationPolicy refuses to construct in production", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
   it("throws when NODE_ENV is production", () => {
-    vi.stubEnv("NODE_ENV", "production");
-    expect(() => testOnlyLocationPolicy()).toThrow(/NODE_ENV=production/);
+    expect(() => testOnlyLocationPolicy("production")).toThrow(/NODE_ENV=production/);
   });
 
   it("names the production alternative", () => {
-    vi.stubEnv("NODE_ENV", "production");
-    expect(() => testOnlyLocationPolicy()).toThrow(/keyedLocationPolicy/);
+    expect(() => testOnlyLocationPolicy("production")).toThrow(/keyedLocationPolicy/);
   });
 
   it("does not throw outside production", () => {
-    vi.stubEnv("NODE_ENV", "test");
-    expect(() => testOnlyLocationPolicy()).not.toThrow();
+    expect(() => testOnlyLocationPolicy("test")).not.toThrow();
+    expect(() => testOnlyLocationPolicy(undefined)).not.toThrow();
   });
 });

@@ -141,7 +141,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   const out: Outcome[] = [];
   const check = (name: string, ok: boolean, detail: string) => out.push({ name, ok, detail });
   const tag = randomUUID().slice(0, 8);
-  const policy = testOnlyLocationPolicy(`smoke-${tag}`);
+  const policy = testOnlyLocationPolicy(process.env.NODE_ENV, `smoke-${tag}`);
   const operator = randomUUID() as ModeratorId;
   const by = { moderatorId: operator, now: NOW };
 

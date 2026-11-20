@@ -113,7 +113,7 @@ export async function verifyShelterLocations(
   return compareLocations(
     rows,
     productionLocationPolicy(secret),
-    testOnlyLocationPolicy(SEED_LOCATION_POLICY_KEY),
+    testOnlyLocationPolicy(process.env.NODE_ENV, SEED_LOCATION_POLICY_KEY),
   );
 }
 

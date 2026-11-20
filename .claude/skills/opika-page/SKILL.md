@@ -44,8 +44,7 @@ A new state with new Ukrainian text needs copy approval first.
 There is no root `app/not-found.tsx`; each segment owns its own. Existing files:
 
 - `app/tvaryny/[animalId]/not-found.tsx` (animal 404) and `app/prytulky/[shelterId]/not-found.tsx` (shelter 404).
-- `app/tvaryny/error.tsx` (gallery error boundary, renders the shared `features/gallery/LoadErrorScreen.tsx`)
-  and `app/tvaryny/gortaty/error.tsx` (deck).
+- `app/tvaryny/error.tsx` (gallery error boundary, renders the shared `features/gallery/LoadErrorScreen.tsx`).
 
 **Canonical reference: `app/tvaryny/[animalId]/not-found.tsx`.** It is built only from the kit (`Panel`,
 `Heading`, `Text`, `LinkButton`), has no arbitrary values, and takes copy from `uk.detail.notFound`. Copy

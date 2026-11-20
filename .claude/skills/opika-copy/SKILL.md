@@ -18,7 +18,7 @@ description: Use for any Ukrainian or English user-facing text in Opika (labels,
 - **Typography:** the apostrophe in Ukrainian words is U+02BC, quotation marks are «…».
 - **Dates, numbers, plurals:** native `Intl` only (formatters in `packages/domain`, four Ukrainian plural
   forms); never a hand-rolled month array or an `n === 1` branch.
-- **Voice and product rules:** the swipe is filtering, not judging («Не зараз», never "nope"); freshness is
+- **Voice and product rules:** freshness is
   honest and never alarming; an unknown field reads «Не записано»; no streaks or celebration; the platform
   never touches money. Details and the `/prytulkam` commitments table: `docs/standing-constraints.md`. Any
   copy near those commitments must keep every row true.
