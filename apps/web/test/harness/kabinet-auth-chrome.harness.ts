@@ -64,10 +64,6 @@ test.describe("pre-sign-in pages wear the public header", () => {
     for (const path of PAGES) {
       await open(page, origin(), path, 1440);
       await expect(page.getByRole("contentinfo"), path).toHaveCount(1);
-      await expect(
-        page.getByRole("contentinfo").getByRole("link", { name: "Правила" }),
-        path,
-      ).toHaveAttribute("href", "/prytulkam#pravyla");
       const nav = page.locator(HEADER).getByRole("navigation", { name: "Opika" });
       await expect(nav.getByRole("link", { name: "Тварини" }), path).toHaveAttribute(
         "href",

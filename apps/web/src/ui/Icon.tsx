@@ -86,8 +86,8 @@ export function Icon({ name, size = "lg", className, label }: IconProps) {
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
-      role={label === undefined ? undefined : "img"}
-      aria-hidden={label === undefined ? true : undefined}
+      // Spread, not `undefined` props: those are serialised into the page's flight data.
+      {...(label === undefined ? { "aria-hidden": true } : { role: "img" })}
       className={cx("shrink-0", SIZE[size], className)}
     >
       {label === undefined ? null : <title>{label}</title>}

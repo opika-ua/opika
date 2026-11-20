@@ -26,7 +26,7 @@ export function RateLimitedScreen() {
     <div className="flex min-h-dvh flex-col bg-page">
       {/* A static page: no cookie read, so the visitor header (the cabinet link is a hint only). */}
       <SiteHeader kabinetSignedIn={false} />
-      <Container as="main" className="flex justify-center py-8 desktop:py-14">
+      <Container as="main" className="flex flex-1 items-start justify-center py-8 desktop:py-14">
         {/* Sunken: surface is near-identical to the page, so only the fill makes the card visible. Ink text, since ink-2 is 4.1:1 on it. */}
         <Panel
           tone="sunken"

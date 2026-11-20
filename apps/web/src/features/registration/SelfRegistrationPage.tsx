@@ -47,7 +47,10 @@ export function SelfRegistrationPage({
     <div className="flex min-h-dvh flex-col bg-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} current="forShelters" />
       <OpenAnchoredDetails />
-      <Container as="main" className="flex flex-col gap-12 py-8 desktop:gap-16 desktop:py-14">
+      <Container
+        as="main"
+        className="flex flex-1 flex-col gap-12 py-8 desktop:gap-16 desktop:py-14"
+      >
         <div className="grid grid-cols-1 gap-8 desktop:grid-cols-12 desktop:items-start desktop:gap-x-6">
           <div className="flex flex-col gap-5 desktop:col-span-5 desktop:pt-6">
             <Heading level={1} look="display-l" className="desktop:text-display-xl">

@@ -295,9 +295,17 @@
 @utility nav-kabinet-row {
   @apply nav-kabinet-look flex w-full;
 }
-/* The site footer's links as one class, for the same reason: the footer is in every public page. */
-@utility footer-link {
-  @apply inline-flex min-h-target items-center text-body text-ink-2 hover:text-ink focus-ring;
+/* The site footer (A2, on `ink`), one class per look for the same reason: it is in every public page.
+   Lavender is `mascot-dog-light`, the nearest token to the design's; 15px is `text-chip` at 400, 19px
+   `text-cta` at 600. On a phone the sections are full-width rows with hairlines. */
+@utility footer-section {
+  @apply flex min-h-target items-center border-b border-on-ink/15 text-cta font-semibold text-on-ink hover:underline focus-ring-on-ink desktop:border-0;
+}
+@utility footer-contact {
+  @apply inline-flex min-h-target items-center gap-2 text-chip font-normal text-mascot-dog-light hover:text-on-ink focus-ring-on-ink;
+}
+@utility footer-note {
+  @apply text-chip font-normal text-mascot-dog-light;
 }
 @utility gcard {
   @apply relative flex flex-col gap-3 focus-ring tablet:block tablet:overflow-clip tablet:rounded-card;

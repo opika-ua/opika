@@ -1,18 +1,18 @@
 /**
- * The site footer (owner, 2026-11-20): one `contentinfo` on every page that wears the public header,
- * with its links, and the independence line once. On the main server, so self-registration is off
- * and «Правила» is absent; `self-registration.harness.ts` follows that link with the flag on.
- * Found by role and text only.
+ * The site footer (owner, 2026-11-20, concept A2): one `contentinfo` on every public page, with its
+ * links, and the independence line once. Found by role and text; the only measure is the 48px
+ * target floor on a phone.
  */
 
 import { expect, type Page, test } from "@playwright/test";
 import {
+  expectMinTargetHeight,
   noSidewaysScroll,
   openRoute,
   servedAnimalIds,
   useClientAddressPerRepetition,
 } from "./harness";
-import { DESKTOP, NARROW_PHONE } from "./viewports";
+import { DESKTOP, NARROW_PHONE, PHONE } from "./viewports";
 
 const INDEPENDENT = "Opika робить одна людина, незалежно. Це не державний і не міський сервіс.";
 const HEADER = "[data-testid='site-header']";
@@ -70,6 +70,13 @@ test("the footer's links lead to the site's pages, the email and Instagram", asy
   await footer.getByRole("link", { name: "Для притулків" }).click();
   await page.waitForURL((url) => url.pathname === "/prytulkam");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+});
+
+test("on a phone every footer link is a 48px target", async ({ page }) => {
+  await openRoute(page, "/pro", PHONE, { readySelector: HEADER });
+  const links = page.getByRole("contentinfo").getByRole("link");
+  await expect(links).toHaveCount(5);
+  for (const link of await links.all()) await expectMinTargetHeight(link);
 });
 
 test("at 320 the footer wraps without widening the page", async ({ page }) => {

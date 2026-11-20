@@ -323,37 +323,6 @@ export function AnimalDetailContent({
           </div>
         </div>
       </div>
-
-      {/* Footer divider */}
-      <div className="flex items-center justify-center gap-10 pt-2">
-        <Image
-          src="/pet-card/divider-left.svg"
-          alt=""
-          aria-hidden="true"
-          width={431}
-          height={6}
-          unoptimized
-          className="h-auto min-w-0 flex-1"
-        />
-        <Image
-          src="/pet-card/mascot-divider.svg"
-          alt=""
-          aria-hidden="true"
-          width={63}
-          height={60}
-          unoptimized
-          className="h-15 w-auto flex-none"
-        />
-        <Image
-          src="/pet-card/divider-right.svg"
-          alt=""
-          aria-hidden="true"
-          unoptimized
-          width={431}
-          height={6}
-          className="h-auto min-w-0 flex-1"
-        />
-      </div>
     </div>
   );
 }

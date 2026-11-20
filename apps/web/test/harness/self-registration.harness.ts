@@ -110,28 +110,3 @@ test.describe("/prytulkam's registration form", () => {
     }
   });
 });
-
-/** The footer's «Правила» (owner, 2026-11-20) lands on the closed rules question, opened and in view. */
-test.describe("the footer's «Правила» opens /prytulkam's rules", () => {
-  const rules = (page: Page) => page.locator("details#pravyla");
-
-  async function followRules(page: Page): Promise<void> {
-    await hydrated(page, "footer a[href='/prytulkam#pravyla']");
-    await page.getByRole("contentinfo").getByRole("link", { name: "Правила" }).click();
-    await page.waitForURL((url) => url.pathname === "/prytulkam" && url.hash === "#pravyla");
-    await expect(rules(page)).toHaveAttribute("open", "");
-    await expect(rules(page).locator("summary")).toBeInViewport();
-    await expect(rules(page).getByRole("listitem").first()).toBeVisible();
-  }
-
-  test("from another page", async ({ page }) => {
-    await page.goto("/pro", { waitUntil: "load" });
-    await followRules(page);
-  });
-
-  test("from /prytulkam itself", async ({ page }) => {
-    await page.goto("/prytulkam", { waitUntil: "load" });
-    await expect(rules(page)).not.toHaveAttribute("open", "");
-    await followRules(page);
-  });
-});

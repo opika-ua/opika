@@ -2,69 +2,75 @@ import { fillTemplate, uk } from "@opika/i18n";
 import Link from "next/link";
 import { INSTAGRAM, OPERATOR_CONTACT, WORDMARK } from "../../brand";
 import { Container } from "../../ui/Container";
-import { InlineList } from "../../ui/InlineList";
-import { Text } from "../../ui/Text";
-import { isSelfRegistrationEnabled } from "../registration/flag";
-import { RULES_HREF } from "../registration/form-state";
+import { Icon } from "../../ui/Icon";
+import { Mascot, MascotPerch } from "../../ui/Mascot";
+import { BrandLogo } from "./BrandLogo";
 
 /** MK-7, moved here from /prytulkam's body so it is shown once (owner, 2026-11-20). */
 const INDEPENDENT = fillTemplate(uk.about.independent, { site: WORDMARK });
 
-interface FooterLink {
+interface FooterSection {
   readonly href: string;
   readonly label: string;
   /** /tvaryny is charged to the visitor's per-IP budget (`proxy.ts`), so never prefetched. */
   readonly prefetch?: false;
-  /** /prytulkam has its «Правила» section only while self-registration is on. */
-  readonly needsSelfRegistration?: true;
 }
 
 /** In order; one entry per link, so the privacy policy joins as one line once its page exists. */
-const LINKS: readonly FooterLink[] = [
+const SECTIONS: readonly FooterSection[] = [
   { href: "/tvaryny", label: uk.nav.animals, prefetch: false },
   { href: "/prytulkam", label: uk.nav.forShelters },
   { href: "/pro", label: uk.nav.about },
-  { href: RULES_HREF, label: uk.registration.page.jump.rules, needsSelfRegistration: true },
 ];
 
 /**
- * The public site's footer, under every page that wears `SiteHeader` (the signed-in kabinet has its
- * own shell). Server markup only: it is in every public page's HTML, hence `footer-link`.
+ * The public site's footer (owner, 2026-11-20, concept A2): a full-width ink band with the cat and
+ * dog on its top edge, under every page that wears `SiteHeader` (the signed-in kabinet has its own
+ * shell, the animal overlay none). Server markup only: it is in every public page's HTML, so the
+ * links' looks are single classes (`footer-*` in globals.css).
  */
 export function SiteFooter() {
-  const selfRegistration = isSelfRegistrationEnabled();
-  const links = LINKS.filter((link) => selfRegistration || !link.needsSelfRegistration);
   return (
-    <footer className="mt-auto border-line border-t">
-      <Container className="flex flex-col gap-2 py-6 desktop:flex-row desktop:flex-wrap desktop:justify-between">
-        <InlineList
-          itemWrap="never"
-          items={links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              {...(link.prefetch === false ? { prefetch: false } : {})}
-              className="footer-link"
-            >
-              {link.label}
-            </Link>
-          ))}
-        />
-        <InlineList
-          itemWrap="never"
-          items={[
-            <a key="email" href={`mailto:${OPERATOR_CONTACT.email}`} className="footer-link">
-              {OPERATOR_CONTACT.email}
-            </a>,
-            // The site sends only its origin cross-site (strict-origin-when-cross-origin): no `noreferrer`.
-            <a key="ig" href={INSTAGRAM.url} target="_blank" rel="noopener" className="footer-link">
-              {INSTAGRAM.label}
-            </a>,
-          ]}
-        />
-        <Text look="hint" className="desktop:basis-full">
-          {INDEPENDENT}
-        </Text>
+    <footer className="mt-20 bg-ink">
+      <Container className="relative flex flex-col gap-8 py-10 desktop:flex-row desktop:justify-between desktop:py-12">
+        <MascotPerch perch="top-right" offset={32}>
+          <Mascot kind="cat" pose="sit" size={64} />
+          <Mascot kind="dog" pose="sit" size={64} />
+        </MascotPerch>
+        <div className="flex max-w-80 flex-col gap-4">
+          <BrandLogo tone="light" />
+          <p className="footer-note">{INDEPENDENT}</p>
+        </div>
+        <div className="flex flex-col gap-4 desktop:items-end desktop:gap-2">
+          <ul className="flex flex-col desktop:flex-row desktop:gap-9">
+            {SECTIONS.map((section) => (
+              <li key={section.href}>
+                <Link
+                  href={section.href}
+                  {...(section.prefetch === false ? { prefetch: false } : {})}
+                  className="footer-section"
+                >
+                  {section.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <ul className="flex flex-col desktop:flex-row desktop:gap-6">
+            <li>
+              <a href={`mailto:${OPERATOR_CONTACT.email}`} className="footer-contact">
+                <Icon name="mail" size="sm" />
+                {OPERATOR_CONTACT.email}
+              </a>
+            </li>
+            <li>
+              {/* The site sends only its origin cross-site (strict-origin-when-cross-origin): no `noreferrer`. */}
+              <a href={INSTAGRAM.url} target="_blank" rel="noopener" className="footer-contact">
+                <Icon name="instagram" size="sm" />
+                {INSTAGRAM.label}
+              </a>
+            </li>
+          </ul>
+        </div>
       </Container>
     </footer>
   );
