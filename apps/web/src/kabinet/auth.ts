@@ -306,6 +306,9 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
     databaseHooks: {
       session: {
         create: {
+          // No user agent on the session row (D6, see `advanced.ipAddress`). User hooks run after
+          // plugins' and their `data` is merged last; Better Auth 1.7.26 never writes it on update.
+          before: async () => ({ data: { userAgent: null } }),
           /**
            * The first sign-in of a user an invitation created (RG-Q3, RS-Q0):
            * stamped once, and from then on the clean-up never deletes them.
@@ -384,11 +387,11 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       // here is ours, keyed on the request's IP in the limiter store, never
       // in this table: `signInLimiters` on magic-link requests (HS-Q5), and
       // the kabinet limiters on verify, get-session and sign-out (the
-      // `hooks.before` above, `LIMITED_AUTH_PATHS`). Better Auth has no option
-      // for the user agent: `createSession` always copies the `user-agent`
-      // header as is, and Oleksii chose to keep it rather than have our code
-      // rewrite Better Auth's session row (KH-Q6, answered 2026-10-14).
-      // `auth.test.ts` asserts what the row holds after a sign-in.
+      // `hooks.before` above, `LIMITED_AUTH_PATHS`). The user agent has no option
+      // (`createSession` copies the header); KH-Q6 kept it until Oleksii, 2026-11-20 (D6):
+      // "drop privacy.kabinet.userAgent. Separate small PR: stop storing the session user
+      // agent if Better Auth allows it without patching". `databaseHooks.session.create.before`
+      // clears it; `auth.test.ts` asserts what the row holds after a sign-in.
       ipAddress: { disableIpTracking: true },
       // Prefixes are ours (`kabinetCookieName`), not Better Auth's. The
       // `kabinet` prefix still names any cookie not listed below, so nothing

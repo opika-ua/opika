@@ -11,10 +11,9 @@
  * every sign-in would land in the one shared bucket of the address
  * "unknown". All three of `clientIp`'s headers come along, in its
  * order of preference, so the inner request's key is the outer request's (the
- * proxy's) for the same visitor. `user-agent`, so a session Better Auth
- * creates records the real browser (KH-Q6 keeps it).
+ * proxy's) for the same visitor. No `user-agent`: the session row keeps none (D6).
  */
-const FORWARDED = ["user-agent", "x-vercel-forwarded-for", "x-forwarded-for", "x-real-ip"] as const;
+const FORWARDED = ["x-vercel-forwarded-for", "x-forwarded-for", "x-real-ip"] as const;
 
 export function forwardedClientHeaders(source: Headers): Headers {
   const headers = new Headers();
