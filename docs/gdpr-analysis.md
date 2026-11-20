@@ -20,26 +20,23 @@ framing (§6, "Hosting and infrastructure") already anticipates this via Art. 3(
 applies extraterritorially "the moment you serve Polish adopters." That's a real, but
 conditional, basis: it depends on actually having EU-based adopters.
 
-**A second, unconditional basis exists and doesn't depend on who the adopters are: GDPR
-Art. 3(1) applies GDPR to any controller established in the Union, for processing carried
-out in the context of that establishment's activities - regardless of where the data
-subjects are.** Oleksii is the controller (he decides what data is collected and why;
-there is no separate company), and he said directly, in the brief this analysis answers,
-that he lives in Poland - that's the source for this fact, not something inferred or found
-elsewhere in the repo. That alone is enough, independent
-of Art. 3(2)'s audience-dependent test. Worth being explicit about which clause is doing
-the work, because the fixes below (a controller identity, a lawful basis per purpose, data
-subject rights) follow from ordinary controller obligations either way - but *why* they're
-mandatory rather than aspirational, right now, rests on Art. 3(1) alone, since there's no
-verified fact in this repo about actual EU-resident adopters yet.
+**A second basis wouldn't depend on who the adopters are: GDPR Art. 3(1) applies GDPR to
+any controller established in the Union, for processing carried out in the context of that
+establishment's activities – regardless of where the data subjects are.** Oleksii is the
+controller (he decides what data is collected and why; there is no separate company). Where
+the controller is established is not stated in this repo, so this analysis doesn't decide
+whether Art. 3(1) applies; that is the controller's fact to confirm, not one to infer here.
+The fixes below (a controller identity, a lawful basis per purpose, data subject rights) are
+ordinary controller obligations either way, and this analysis treats them as mandatory now
+rather than waiting on Art. 3(2)'s audience-dependent test, since there's no verified fact in
+this repo about actual EU-resident adopters yet.
 
-**Ukrainian law's own view, for the mirror case (data mostly about Ukrainian residents,
-controller in the EU):** `docs/stack-decision.md` §6 already verified Ukraine has no
-data-localisation mandate for private-sector personal data, and Law 2297-VI Art. 29 treats
-transfers to EEA states as going to an adequate-protection jurisdiction. So there's no
-Ukrainian-law obstacle to the Neon-in-Frankfurt setup this project already has, separately
-from where Oleksii himself is established - the open questions below are all on the GDPR
-side.
+**Ukrainian law's own view, for data mostly about Ukrainian residents stored in the EU:**
+`docs/stack-decision.md` §6 already verified Ukraine has no data-localisation mandate for
+private-sector personal data, and Law 2297-VI Art. 29 treats transfers to EEA states as going
+to an adequate-protection jurisdiction. So there's no Ukrainian-law obstacle to the
+Neon-in-Frankfurt setup this project already has – the open questions below are all on the
+GDPR side.
 
 ## 2. Data inventory
 
@@ -48,8 +45,8 @@ side.
 | What | Where | Why | Retention | Likely legal basis |
 |---|---|---|---|---|
 | `sessions` (token hash, `adopter_id`, `created_at`, `last_seen_at`) - the token itself is a SHA-256 hash of a server-issued, ≥256-bit random value (CLAUDE.md decision #13) | Postgres (Neon, Frankfurt) | Lets the site remember what this device has already revealed, across visits | **Deleted on a schedule since S3 (audit F6, 2026-10-29).** A row past the 30-day absolute or 7-day idle limit is deleted by the 6-hourly clean-up cron (`/api/cron/auth-cleanup`, `sessionRepo.deleteLapsed`), using the same limits `validateSession` refuses by (`ADOPTER_SESSION_POLICY`, `packages/db/src/repos/session-repo.ts`) – so within about 12 hours of lapsing, allowing for one skipped run, unless a backlog exceeds the 5,000-row batch each run takes. Still also deleted at once when its cookie comes back past a limit | Legitimate interest (Art. 6(1)(f)), arguably - remembering which contacts a visitor has opened is the product's one adopter-visible mechanism; **whether the cookie needs ePrivacy consent at all is a live judgment call**, see G7 |
-| `adopters` (one row per `sessions` row, device-bound, carries `device_session_id`) | Postgres | Identity the rest of this table hangs off | **Since S3 (audit F6, 2026-10-29), deleted by the same cron only when nothing hangs off it:** an anonymous adopter more than 31 days old (its one session's 30-day cap plus a day) with no session and no reveal (`adopterRepo.deleteOrphaned`, 5,000 a run). **An adopter with any reveal is kept indefinitely**, with its `device_session_id`, because deleting it means deleting those rows first, and their retention is undecided (G3). `demo:remove` still never removes adopters | Same basis |
-| `reveals` (adopter_id, animal_id, shelter_id, revealed_at, shelter_snapshot, animal_snapshot) | Postgres | Lets `animals.reveal` be idempotent (don't re-charge a rate-limit unit for the same shelter); historical record of who was shown what shelter contact | **Append-only by design** (CLAUDE.md decision #9), except that `demo:remove --shelter` deletes the reveals on a removed shelter's animals. `shelter_snapshot`/`animal_snapshot` freeze the shelter's name/contact/animal facts *as revealed*, so this is also the one place a shelter's now-changed contact details stay recorded against a specific adopter | Legitimate interest (abuse prevention via idempotency) for the fact of the reveal; the *snapshot's* indefinite retention is harder to justify on the same basis - see gap G3 |
+| `adopters` (one row per `sessions` row, device-bound, carries `device_session_id`) | Postgres | Identity the rest of this table hangs off | **Since S3 (audit F6, 2026-10-29), deleted by the same cron only when nothing hangs off it:** an anonymous adopter more than 31 days old (its one session's 30-day cap plus a day) with no session and no reveal (`adopterRepo.deleteOrphaned`, 5,000 a run). **An adopter with a reveal is kept until its last reveal passes 90 days** (2026-11-20, G3 closed): the same cron run that deletes that reveal deletes the adopter, so at most about 120 days after it was created (a reveal can only be made within its session's 30 days). `demo:remove` still never removes adopters | Same basis |
+| `reveals` (adopter_id, animal_id, shelter_id, revealed_at, shelter_snapshot, animal_snapshot) | Postgres | Lets `animals.reveal` be idempotent (don't re-charge a rate-limit unit for the same shelter); historical record of who was shown what shelter contact | **Deleted 90 days after `revealed_at`** (owner, 2026-11-20, privacy policy D2; G3 closed): the 6-hourly clean-up cron (`revealRepo.deleteExpired`, `REVEAL_RETENTION_DAYS`, 5,000 a run) deletes it within about 12 hours of passing 90 days, allowing for one skipped run. Never updated before then (decision #9); `demo:remove --shelter` also deletes the reveals on a removed shelter's animals. `shelter_snapshot`/`animal_snapshot` freeze the shelter's name/contact/exact address/animal facts *as revealed*, so this is also the one place a shelter's now-changed contact details stay recorded against a specific adopter, for those 90 days | Legitimate interest (abuse prevention via idempotency) for the fact of the reveal; the snapshot's retention is now bounded at 90 days (G3) |
 | Saved list (which animals a visitor has bookmarked) | **Not server-side at all** - `localStorage`, this browser only. `animals.cardsByIds`'s batch read is a `credentials: 'omit'` POST, no cookie, and the server doesn't log or store which ids were asked for | n/a - client state | n/a - never reaches the server as a record | n/a - nothing to have a legal basis for |
 | Per-IP rate-limit keys (`ip:` + HMAC-SHA256 under `RATE_LIMIT_KEY_SECRET` - never the raw address itself) | Upstash Redis | Abuse/scraping prevention (per-IP throttling on the gallery, reveals, kabinet routes) | Short TTLs only: ~2 minutes (kabinet per-IP), ~2 hours (sign-in per-IP and the typed-address key) - `@upstash/ratelimit`'s sliding-window `PEXPIRE` | Legitimate interest (Art. 6(1)(f), security/anti-abuse - one of GDPR's own listed examples of a likely legitimate interest, Recital 49) |
 | Vercel Analytics / Speed Insights | Vercel's own infrastructure, not this app's database | Aggregate traffic/performance numbers | Vercel's own retention (not controlled by this app) | **Cookieless** (`SiteAnalytics.tsx`'s own comment) - Vercel's documented approach avoids a persistent per-visitor identifier, which is the usual basis for treating this kind of aggregate, non-tracking analytics as not needing consent under ePrivacy. Worth confirming this is still true of the current `@vercel/analytics` version rather than assumed, see G6 |
@@ -156,7 +153,12 @@ Neither Resend's nor Upstash's data-processing terms (SCCs, a signed DPA) are re
 anywhere in the repo. They may already be covered by each vendor's standard terms - that's
 worth confirming rather than assuming is fine or assuming is a problem.
 
-**G3 - No retention policy tied to an adopter's own age or inactivity.** Not every category
+**G3 - No retention policy tied to an adopter's own age or inactivity. Closed 2026-11-20** by
+the reveal-retention PR. Owner, privacy policy D2, verbatim: "D2: 90 days. Small PR: delete
+reveals (and orphaned adopters rows) older than 90 days in the 6-hourly cron; smoke sitting +
+reviewer. Policy text uses {revealDays}=90." The cron now deletes reveals 90 days after
+`revealed_at`, then the adopters they alone kept, in the same run (§2). The original gap
+follows for the record. Not every category
 in this doc has a stated window - `shelter_history` and `support_sessions` in §2 are
 deliberately permanent, by his own decision, not gaps - but none of the adopter-side
 `sessions`, `adopters` and `reveals` rows has *any* cleanup tied to the adopter's
@@ -170,8 +172,8 @@ deletes the *rows* once that purpose has lapsed; GDPR's storage-limitation princ
 (Art. 5(1)(e)) is about the data outliving its purpose, and here that's concrete and
 measurable against the formula above, not merely "no number was ever chosen."
 *Narrowed by S3 (audit F6, 2026-10-29):* lapsed `sessions` rows and adopters with nothing
-attached are now deleted on the cron's schedule (§2). Still open: `reveals`, and the
-`adopters` rows they keep alive.
+attached are now deleted on the cron's schedule (§2). *Closed 2026-11-20:* `reveals` go 90
+days after `revealed_at`, and the `adopters` rows they kept go with the last of them.
 
 **G4 - No mechanism for a data subject rights request, and one structural case that today's
 tooling can't close at all.**
@@ -235,7 +237,7 @@ decisions (`docs/standing-constraints.md`'s Ukrainian-copy and public-claim gate
    inventory), processor list with their locations, data subject rights and how to exercise
    them, supervisory-authority complaint right. This is the one item that actually closes G1,
    and it's a genuinely new page, not an edit to `/pro`.
-2. **Decide a retention window for `adopters`/`sessions`/`reveals`** (closes G3) -
+2. **Done 2026-11-20 (90 days, see G3).** **Decide a retention window for `adopters`/`sessions`/`reveals`** (closes G3) -
    e.g., a scheduled sweep deleting rows whose owning session has been expired for some
    stated grace period, alongside the existing auth-cleanup cron. A product decision (how
    long is "necessary" for a returning visitor's reveals to keep working across a plausible return

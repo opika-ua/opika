@@ -1,11 +1,20 @@
-import type { AdopterId, AnimalId, ContactReveal, RevealId, ShelterId } from "@opika/domain";
+import {
+  type AdopterId,
+  type AnimalId,
+  type ContactReveal,
+  type RevealId,
+  revealRetentionCutoff,
+  type ShelterId,
+} from "@opika/domain";
 import {
   and,
+  count,
   countDistinct,
   desc,
   eq,
   exists,
   gt,
+  inArray,
   lt,
   notExists,
   or,
@@ -16,6 +25,7 @@ import { type Database, inOneTransaction } from "../client";
 import { adopters } from "../schema/adopters";
 import { reveals } from "../schema/reveals";
 import { revealToRow, rowToReveal } from "./mappers";
+import { ADOPTER_CLEANUP_BATCH } from "./session-repo";
 
 /** The per-adopter reveal budget: a window start and how many distinct shelters fit in it. */
 export type RevealBudget = { since: Date; maxShelters: number };
@@ -145,6 +155,24 @@ export function revealRepo(db: Database) {
     ): Promise<boolean> {
       const rows = await shelterRevealedSince(adopterId, shelterId, since).limit(1);
       return rows.length > 0;
+    },
+
+    /**
+     * Deletes up to `limit` reveals older than `REVEAL_RETENTION_DAYS` (the clean-up cron, before
+     * the orphaned-adopter sweep). A reveal can only be made inside its adopter's 30-day session,
+     * so one this old can't be read back, re-revealed or counted in the 24-hour budget.
+     */
+    async deleteExpired(now: Date, limit: number = ADOPTER_CLEANUP_BATCH): Promise<number> {
+      const batch = db
+        .select({ id: reveals.id })
+        .from(reveals)
+        .where(lt(reveals.revealedAt, revealRetentionCutoff(now)))
+        .limit(limit);
+      const deleted = db
+        .$with("expired_reveals")
+        .as(db.delete(reveals).where(inArray(reveals.id, batch)).returning({ id: reveals.id }));
+      const [row] = await db.with(deleted).select({ count: count() }).from(deleted);
+      return row?.count ?? 0;
     },
 
     async insert(reveal: ContactReveal): Promise<void> {

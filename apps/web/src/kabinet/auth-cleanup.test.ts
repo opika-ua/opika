@@ -2,7 +2,14 @@ import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { adopterRepo, sessionRepo } from "@opika/db/repos";
+import {
+  adopterRepo,
+  animalRepo,
+  cityRepo,
+  revealRepo,
+  sessionRepo,
+  shelterRepo,
+} from "@opika/db/repos";
 import {
   adopters as adopterRows,
   sessions as adopterSessionRows,
@@ -13,8 +20,17 @@ import {
   authVerification,
   invitationCreatedUsers,
   notificationSends,
+  reveals as revealRows,
 } from "@opika/db/schema";
-import { makeAdopter, setupTestDatabase, truncateAll } from "@opika/db/test";
+import {
+  makeAdopter,
+  makeAnimal,
+  makeCity,
+  makeReveal,
+  makeShelter,
+  setupTestDatabase,
+  truncateAll,
+} from "@opika/db/test";
 import type { AdopterId } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -142,6 +158,7 @@ describe("the auth clean-up cron (KH-Q9)", () => {
       sessions: 1,
       erasedInvitedUsers: 0,
       adopterSessions: 1,
+      agedOutReveals: 0,
       orphanedAdopters: 1,
       notificationSends: 1,
     });
@@ -162,6 +179,7 @@ describe("the auth clean-up cron (KH-Q9)", () => {
       sessions: 0,
       erasedInvitedUsers: 0,
       adopterSessions: 0,
+      agedOutReveals: 0,
       orphanedAdopters: 0,
       notificationSends: 0,
     });
@@ -177,6 +195,7 @@ describe("the auth clean-up cron (KH-Q9)", () => {
       sessions: 1,
       erasedInvitedUsers: 0,
       adopterSessions: 1,
+      agedOutReveals: 0,
       orphanedAdopters: 1,
       notificationSends: 1,
     });
@@ -294,6 +313,82 @@ describe("the auth clean-up cron (KH-Q9)", () => {
       expect(await rows()).toEqual(ALL);
     },
   );
+});
+
+/**
+ * Owner, 2026-11-20, privacy policy D2, verbatim: "90 days. Small PR: delete reveals (and
+ * orphaned adopters rows) older than 90 days in the 6-hourly cron". Old reveals go before the
+ * orphaned-adopter sweep, so an adopter whose last reveal goes now is deleted in the same run.
+ */
+describe("the auth clean-up cron's 90-day reveal retention", () => {
+  const DAY = 86_400_000;
+  const EXPIRED = "dddddddd-0000-4000-8000-00000000000d" as AdopterId;
+  const AT_LIMIT = "eeeeeeee-0000-4000-8000-00000000000e" as AdopterId;
+  const MIXED = "ffffffff-0000-4000-8000-00000000000f" as AdopterId;
+
+  async function revealFixture() {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = makeShelter({
+      exactAddress: { ...makeShelter().exactAddress, cityId: city.id },
+    });
+    await shelterRepo(db).insert(shelter);
+    const animals = [makeAnimal({ shelterId: shelter.id }), makeAnimal({ shelterId: shelter.id })];
+    for (const animal of animals) await animalRepo(db).insert(animal, city.id);
+    // Sessions long gone, as a 30-day cap makes them: only the reveals hold these adopters.
+    for (const [id, createdAt] of [
+      [EXPIRED, at(-120 * DAY)],
+      [AT_LIMIT, at(-100 * DAY)],
+      [MIXED, at(-120 * DAY)],
+    ] as const) {
+      await adopterRepo(db).insert(makeAdopter({ id, createdAt }));
+    }
+    const reveal = (adopterId: AdopterId, animal: number, revealedAt: Date) =>
+      revealRepo(db).insert(
+        makeReveal({
+          adopterId,
+          animalId: animals[animal]?.id as never,
+          shelterId: shelter.id,
+          revealedAt,
+        }),
+      );
+    await reveal(EXPIRED, 0, at(-90 * DAY - 1));
+    await reveal(AT_LIMIT, 0, at(-90 * DAY));
+    await reveal(MIXED, 0, at(-91 * DAY));
+    await reveal(MIXED, 1, at(-89 * DAY));
+  }
+  const revealsOf = async () =>
+    (await db.select().from(revealRows))
+      .map((r) => `${r.adopterId}@${(NOW.getTime() - r.revealedAt.getTime()) / DAY}`)
+      .sort();
+
+  it("deletes reveals older than 90 days, then the adopters they alone kept, in the same run", async () => {
+    await revealFixture();
+    const { response, lines } = await run({ authorization: `Bearer ${SECRET}` });
+    const counts = await response.json();
+    expect(counts.agedOutReveals).toBe(2);
+    // The lapsed-session adopter, and EXPIRED, whose only reveal this run just deleted.
+    expect(counts.orphanedAdopters).toBe(2);
+    expect(JSON.parse(lines[0] ?? "")).toMatchObject({ agedOutReveals: 2, orphanedAdopters: 2 });
+    expect(await revealsOf()).toEqual([`${AT_LIMIT}@90`, `${MIXED}@89`]);
+    expect((await rows()).adopters).toEqual([AT_LIMIT, LIVE_ADOPTER, MIXED].sort());
+    for (const id of [EXPIRED, AT_LIMIT, MIXED]) expect(lines[0]).not.toContain(id);
+  });
+
+  it("a later run takes the rest once they pass 90 days, leaving no adopter with nothing attached", async () => {
+    await revealFixture();
+    await run({ authorization: `Bearer ${SECRET}` });
+    const later = new Date(NOW.getTime() + 2 * DAY);
+    const response = await handleAuthCleanup(
+      new Request("https://opika.example/api/cron/auth-cleanup", {
+        headers: { authorization: `Bearer ${SECRET}` },
+      }),
+      { cronSecret: SECRET, db: () => db, now: later, log: () => {} },
+    );
+    expect(await response.json()).toMatchObject({ agedOutReveals: 2, orphanedAdopters: 2 });
+    expect(await revealsOf()).toEqual([]);
+    expect((await rows()).adopters).toEqual([LIVE_ADOPTER]);
+  });
 });
 
 /**

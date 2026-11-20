@@ -46,8 +46,8 @@ export function adopterRepo(db: Database) {
      * Deletes up to `limit` anonymous adopters that nothing can reach or needs (audit F6): no
      * session (only `session.bootstrap` makes one, always with a new adopter, so none can come
      * back), no reveal, and older than `ORPHAN_ADOPTER_MIN_AGE_MS`. An adopter with
-     * a reveal stays: deleting it means deleting those first, and reveals are an
-     * append-only record (decision 9) whose retention is not decided (gdpr-analysis G3).
+     * a reveal stays until `revealRepo.deleteExpired` (90 days, run just before this) takes its
+     * last one; it is then far past the minimum age, so it goes in the same run.
      * With no session, nothing can add a child while this runs; were one added anyway, the
      * foreign key refuses the whole statement rather than leave it orphaned.
      */
