@@ -1,7 +1,7 @@
 // Renders every email template (src/kabinet/emails) with its fixture to HTML and text, and screenshots it in
 // light and dark (Chromium, emulated prefers-color-scheme) and at phone width, into <out>/<template>/.
 // The wired emails are rendered a second time from their real send paths (the senders Better Auth
-// and the registration flow call), as `wired-*` files beside them. Development only, never a route.
+// and the registration flow call), as `wired2-*` files beside them. Development only, never a route.
 // Images resolve to public/email/ on disk, the files production serves under SITE_ORIGIN/email/.
 //   pnpm --filter @opika/web email:preview --out "<folder outside the repo>"
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -111,7 +111,7 @@ try {
       const sent = await build();
       line += `, wired ${(Buffer.byteLength(sent.html) / 1024).toFixed(1)} KB`;
       // The live site doesn't serve /email/ until this deploys: point the images at the files.
-      await write(dir, "wired-", {
+      await write(dir, "wired2-", {
         ...sent,
         html: sent.html.replaceAll(LIVE_ASSET_BASE, assetBase),
       });
