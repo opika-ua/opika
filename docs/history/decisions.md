@@ -86,7 +86,13 @@ Moved verbatim from CLAUDE.md in DS PR 5. Settled decisions (M1, M4, gallery con
    and cats.
 9. **`swipes.record` and `animals.reveal` stay separate.** Swipes are
    best-effort and batchable; a reveal is transactional, idempotent and
-   append-only, and is the Phase 2 reward-ledger event.
+   append-only, and is the Phase 2 reward-ledger event. **Revised 2026-11-20
+   (owner, privacy policy D2, verbatim): "90 days. Small PR: delete reveals
+   (and orphaned adopters rows) older than 90 days in the 6-hourly cron".**
+   A reveal is still never updated, but it is no longer kept indefinitely:
+   the clean-up cron deletes it 90 days after `revealed_at`
+   (`REVEAL_RETENTION_DAYS`, `revealRepo.deleteExpired`), then the adopter it
+   alone kept. A Phase 2 ledger needing longer is a new decision.
 10. **Feed ordering: keyset on `(last_confirmed_at DESC, id)`**, with
     `scoreAnimal` re-ranking within the fetched page. No materialised score
     column, so no recompute job as freshness decays and no backfill when the

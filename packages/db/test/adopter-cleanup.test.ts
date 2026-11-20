@@ -1,4 +1,4 @@
-import type { AdopterId, AdopterProfile, CityId, ShelterId } from "@opika/domain";
+import type { AdopterId, AdopterProfile, AnimalId, CityId, ShelterId } from "@opika/domain";
 import { eq } from "drizzle-orm";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -205,5 +205,89 @@ describe("adopterRepo.deleteOrphaned", () => {
 
   it("the minimum age is the session's 30-day cap plus a day (a literal, so a change fails here)", () => {
     expect(ORPHAN_ADOPTER_MIN_AGE_MS).toBe(31 * DAY);
+  });
+});
+
+/**
+ * Owner, 2026-11-20, privacy policy D2, verbatim: "90 days. Small PR: delete reveals (and orphaned
+ * adopters rows) older than 90 days in the 6-hourly cron". The policy's {revealDays} is 90.
+ */
+describe("revealRepo.deleteExpired", () => {
+  /** A literal, not REVEAL_RETENTION_DAYS, so a changed window fails here. */
+  const RETENTION_MS = 90 * DAY;
+
+  async function spot(): Promise<{ shelterId: ShelterId; animals: AnimalId[] }> {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = makeShelter({
+      exactAddress: { ...makeShelter().exactAddress, cityId: city.id },
+    });
+    await shelterRepo(db).insert(shelter);
+    const animals: AnimalId[] = [];
+    for (let i = 0; i < 6; i++) {
+      const animal = makeAnimal({ shelterId: shelter.id });
+      await animalRepo(db).insert(animal, city.id);
+      animals.push(animal.id);
+    }
+    return { shelterId: shelter.id, animals };
+  }
+
+  async function revealAt(
+    where: { shelterId: ShelterId; animals: AnimalId[] },
+    adopterId: AdopterId,
+    animal: number,
+    revealedAt: Date,
+  ) {
+    const reveal = makeReveal({
+      adopterId,
+      animalId: where.animals[animal] as AnimalId,
+      shelterId: where.shelterId,
+      revealedAt,
+    });
+    await revealRepo(db).insert(reveal);
+    return reveal.id;
+  }
+  const revealIds = async () =>
+    (await db.select({ id: reveals.id }).from(reveals)).map((r) => r.id).sort();
+
+  it("deletes a reveal a millisecond past 90 days, keeps one exactly at 90 days and younger ones", async () => {
+    const where = await spot();
+    const adopter = await adopterWith(at(-120 * DAY));
+    const past = await revealAt(where, adopter, 0, at(-RETENTION_MS - 1));
+    const atLimit = await revealAt(where, adopter, 1, at(-RETENTION_MS));
+    const young = await revealAt(where, adopter, 2, at(-DAY));
+    const justNow = await revealAt(where, adopter, 3, NOW);
+
+    expect(await revealRepo(db).deleteExpired(NOW)).toBe(1);
+    expect(await revealIds()).toEqual([atLimit, young, justNow].sort());
+    expect(await revealIds()).not.toContain(past);
+  });
+
+  it("deletes at most `limit` per run, the rest on later runs, then nothing (idempotent)", async () => {
+    const where = await spot();
+    const adopter = await adopterWith(at(-120 * DAY));
+    for (let i = 0; i < 5; i++) await revealAt(where, adopter, i, at(-100 * DAY - i));
+    const kept = await revealAt(where, adopter, 5, at(-DAY));
+
+    const runs = [];
+    for (let i = 0; i < 4; i++) runs.push(await revealRepo(db).deleteExpired(NOW, 2));
+    expect(runs).toEqual([2, 2, 1, 0]);
+    expect(await revealIds()).toEqual([kept]);
+  });
+
+  it("with the reveals gone, the orphaned-adopter sweep takes their adopter in the same run", async () => {
+    const where = await spot();
+    const onlyOld = await adopterWith(at(-120 * DAY));
+    const oldAndYoung = await adopterWith(at(-120 * DAY));
+    await revealAt(where, onlyOld, 0, at(-RETENTION_MS - DAY));
+    await revealAt(where, oldAndYoung, 1, at(-RETENTION_MS - DAY));
+    const young = await revealAt(where, oldAndYoung, 2, at(-RETENTION_MS + DAY));
+
+    // Before the reveals go, the reveal keeps both (the cron's order is what makes this matter).
+    expect(await adopterRepo(db).deleteOrphaned(NOW)).toBe(0);
+    expect(await revealRepo(db).deleteExpired(NOW)).toBe(2);
+    expect(await adopterRepo(db).deleteOrphaned(NOW)).toBe(1);
+    expect(await adopterIds()).toEqual([oldAndYoung]);
+    expect(await revealIds()).toEqual([young]);
   });
 });

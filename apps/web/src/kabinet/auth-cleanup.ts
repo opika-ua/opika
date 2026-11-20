@@ -5,6 +5,7 @@ import {
   authExpiryRepo,
   kabinetInvitedUsersRepo,
   notificationSendsRepo,
+  revealRepo,
   sessionRepo,
 } from "@opika/db/repos";
 import { pingHealthcheck } from "./cron-healthcheck";
@@ -38,9 +39,11 @@ import { pingHealthcheck } from "./cron-healthcheck";
  *   cron's own 6-hour worst case, not left to wait indefinitely.
  * - **And the adopters' side** (audit F6, owner's S3 scope, 2026-10-29): anonymous sessions
  *   past decision 13's limits (`sessionRepo.deleteLapsed`, the rule `validateSession` refuses
- *   by), then adopters left with no session or reveal (`adopterRepo.deleteOrphaned`),
- *   at most `ADOPTER_CLEANUP_BATCH` of each per run, so a backlog takes several runs rather
- *   than one long statement. Sessions first, so an adopter whose session goes now can go too.
+ *   by), then reveals older than 90 days (`revealRepo.deleteExpired`; owner, 2026-11-20,
+ *   privacy policy D2), then adopters left with no session or reveal
+ *   (`adopterRepo.deleteOrphaned`), at most `ADOPTER_CLEANUP_BATCH` of each per run, so a
+ *   backlog takes several runs rather than one long statement. Sessions and reveals first, so
+ *   an adopter whose last one goes now can go too.
  * - **And the notification send log** (`notificationSendsRepo.purgeOlderThan`): rows older
  *   than 90 days, the retention `docs/gdpr-analysis.md` states for it.
  * - **Who may call it:** Vercel's cron, which sends
@@ -98,6 +101,7 @@ async function runAuthCleanup(deps: {
           deps.now,
         );
   const adopterSessions = await sessionRepo(deps.db()).deleteLapsed(deps.now);
+  const agedOutReveals = await revealRepo(deps.db()).deleteExpired(deps.now);
   const orphanedAdopters = await adopterRepo(deps.db()).deleteOrphaned(deps.now);
   const notificationSends = await notificationSendsRepo(deps.db()).purgeOlderThan(deps.now);
   deps.log(
@@ -108,6 +112,7 @@ async function runAuthCleanup(deps: {
       sessions: counts.sessions,
       erasedInvitedUsers,
       adopterSessions,
+      agedOutReveals,
       orphanedAdopters,
       notificationSends,
     }),
@@ -116,6 +121,7 @@ async function runAuthCleanup(deps: {
     ...counts,
     erasedInvitedUsers,
     adopterSessions,
+    agedOutReveals,
     orphanedAdopters,
     notificationSends,
   });

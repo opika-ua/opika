@@ -43,5 +43,7 @@ export const reveals = pgTable(
     index("reveals_adopter_id_idx").on(t.adopterId, t.revealedAt),
     index("reveals_shelter_id_idx").on(t.shelterId),
     index("reveals_adopter_animal_idx").on(t.adopterId, t.animalId),
+    // The 90-day clean-up's range (`revealRepo.deleteExpired`); the composite above leads on adopter_id.
+    index("reveals_revealed_at_idx").on(t.revealedAt),
   ],
 );
