@@ -60,6 +60,9 @@ export type PeekableRateLimiter = RateLimiter & {
 
 type SlidingWindowEntry = { timestamps: number[] };
 
+/** Keys one in-memory limiter keeps before it sweeps: `/api/health` uses one in production. */
+const MAX_IN_MEMORY_KEYS = 10_000;
+
 /**
  * In-memory sliding-window rate limiter.
  *
@@ -68,7 +71,8 @@ type SlidingWindowEntry = { timestamps: number[] };
  * (limit × number_of_instances). Used for local dev, CI, and the harness -
  * `apiRateLimiter` below only ever falls back to this when no Upstash
  * credentials are configured, which is true everywhere except a real
- * Vercel deployment.
+ * Vercel deployment. The one production use is `/api/health` (owner,
+ * 2026-11-20), where a per-instance limit is enough.
  */
 export function inMemoryRateLimiter(opts: {
   windowMs: number;
@@ -83,6 +87,7 @@ export function inMemoryRateLimiter(opts: {
 
       let entry = store.get(key);
       if (!entry) {
+        if (store.size >= MAX_IN_MEMORY_KEYS) sweep(store, cutoff);
         entry = { timestamps: [] };
         store.set(key, entry);
       }
@@ -108,6 +113,14 @@ export function inMemoryRateLimiter(opts: {
       return counted < opts.maxRequests;
     },
   };
+}
+
+/** Drops keys with nothing left in the window; if every key is still live, starts over. */
+function sweep(store: Map<string, SlidingWindowEntry>, cutoff: number): void {
+  for (const [key, entry] of store) {
+    if (!entry.timestamps.some((t) => t > cutoff)) store.delete(key);
+  }
+  if (store.size >= MAX_IN_MEMORY_KEYS) store.clear();
 }
 
 /**

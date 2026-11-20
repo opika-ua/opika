@@ -62,4 +62,23 @@ test.describe("gallery rate limiting", () => {
     expect(retryAfter).toBeGreaterThanOrEqual(1);
     expect(retryAfter).toBeLessThanOrEqual(60);
   });
+
+  // Owner, 2026-11-20: a router prefetch (the overlay's prev/next) skips the proxy's matcher.
+  test("a router prefetch is not charged; the next document request still goes through", async ({
+    request,
+  }) => {
+    const testIp = `198.51.100.${Math.floor(Math.random() * 254) + 1}`;
+    const prefetch = {
+      "x-forwarded-for": testIp,
+      rsc: "1",
+      "next-router-prefetch": "1",
+      "next-router-segment-prefetch": "/_tree",
+    };
+    for (let i = 0; i < BUDGET + 1; i++) {
+      const response = await request.get(ROUTE, { headers: prefetch });
+      expect(response.status(), `prefetch ${i + 1} was charged`).not.toBe(429);
+    }
+    const page = await request.get(ROUTE, { headers: { "x-forwarded-for": testIp } });
+    expect(page.status()).toBe(200);
+  });
 });

@@ -253,7 +253,7 @@ describe("the kabinet body ceiling (P-Q7)", () => {
    */
   it("is not truncated by Next's proxy body buffer, because the kabinet is outside the matcher", async () => {
     const { config } = await import("../proxy");
-    expect(config.matcher[0]).toContain("api/kabinet(?:/|$)");
+    expect(config.matcher[0]?.source).toContain("api/kabinet(?:/|$)");
     expect(defaultConfig.experimental?.proxyClientMaxBodySize).toBe(10 * MiB);
     expect(nextConfig.experimental?.proxyClientMaxBodySize).toBeLessThan(KABINET_MAX_BODY_BYTES);
   });

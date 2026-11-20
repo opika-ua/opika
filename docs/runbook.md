@@ -20,9 +20,11 @@ rules (a Neon child branch for anything experimental; `--prod --expect ep-...` f
 ### When Upstash is down
 
 Each limiter has an explicit fail mode (`onUnavailable`). Fail open (allowed, unthrottled, each
-logged as `rate_limiter_unreachable`): public reads (`api`), adopter minting, and the `health`,
-`monitoring` and `monitoring-test` probes, because an outage of the limiter store must not take the
-site or its health probe down with it. Fail closed (refused with 429): sign-in, forgot and reset
+logged as `rate_limiter_unreachable`): public reads (`api`), adopter minting, and the `monitoring`
+and `monitoring-test` probes, because an outage of the limiter store must not take the site down
+with it. `/api/health` has no store to lose: its limit is in memory, per instance (2026-11-20). The
+warning also reaches Sentry as «rate limiter unreachable» (tags: limiter prefix, `timeout` or
+`error`), at most once a minute per instance. Fail closed (refused with 429): sign-in, forgot and reset
 password, invites, the sign-in delay store, the kabinet per-user and per-IP limits, photo uploads and
 the per-IP reveal budget, because each guards a credential, a mail, a write or shelter contact data.
 `/api/health` therefore keeps answering 200 while the store is down; the warning is the signal.

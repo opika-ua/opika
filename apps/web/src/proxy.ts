@@ -134,7 +134,47 @@ function isDiscoveryPagePath(pathname: string): boolean {
  * `/api/auth`. Those two are out because a matched non-GET request has its whole body buffered
  * before the route runs, which defeats `/api/kabinet`'s 16 KB cap; buffering for the rest is
  * bounded by `PROXY_CLIENT_MAX_BODY_BYTES` in `next.config.ts`.
+ *
+ * On the discovery pages, a router prefetch skips the proxy, so it costs no Upstash command
+ * (owner, 2026-11-20). Next strips the Flight headers from `request.headers` before the proxy runs,
+ * so only the matcher, which reads the raw request, can tell one apart. Exempt only with `rsc: 1`
+ * and `next-router-prefetch: 1` together and no `next-action`: Next then renders no page (no
+ * `loading.tsx` anywhere), so a spoofed pair buys a route tree, never listings or an action.
+ * `next-router-prefetch` alone still gets the full document, so it stays charged.
+ * A route handler under those paths (the animal's `opengraph-image`, and any metadata image or
+ * icon added later, at any depth, with `generateImageMetadata`'s trailing id) ignores the headers
+ * and answers in full, so an entry charges it always (review of #564, finding a). A `route.ts`
+ * there would need its own entry: `proxy-matcher.test.ts` fails if one appears. A request carrying `next-router-state-tree` at all is charged too
+ * (owner, 2026-11-20, finding b): with it a prefetch renders the head (`generateMetadata`: the
+ * animal, its shelter and city). Matched on presence, never on the value, which the server
+ * URL-decodes. Only the route-tree prefetch (`/_tree`) is then free: one or two per neighbour.
+ * Literals only: Next reads this object statically.
  */
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/kabinet(?:/|$)|api/auth(?:/|$)).*)"],
+  matcher: [
+    {
+      source:
+        "/((?!_next/static|_next/image|favicon.ico|api/kabinet(?:/|$)|api/auth(?:/|$)|tvaryny(?:/|$)|prytulky(?:/|$)).*)",
+    },
+    {
+      source: "/:section(tvaryny|prytulky)/:rest*",
+      missing: [{ type: "header", key: "rsc", value: "1" }],
+    },
+    {
+      source: "/:section(tvaryny|prytulky)/:rest*",
+      missing: [{ type: "header", key: "next-router-prefetch", value: "1" }],
+    },
+    {
+      source: "/:section(tvaryny|prytulky)/:rest*",
+      has: [{ type: "header", key: "next-action" }],
+    },
+    {
+      source:
+        "/:path((?:tvaryny|prytulky)(?:/.*)?/(?:opengraph-image|twitter-image|icon|apple-icon)[^/]*(?:/[^/]+)?)",
+    },
+    {
+      source: "/:section(tvaryny|prytulky)/:rest*",
+      has: [{ type: "header", key: "next-router-state-tree" }],
+    },
+  ],
 };

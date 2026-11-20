@@ -75,4 +75,32 @@ describe("app/api/health/route.ts", () => {
     expect(Number(last.headers.get("retry-after"))).toBeGreaterThanOrEqual(1);
     expect((await route.GET(req("GET", "203.0.113.5"))).status).toBe(200);
   });
+
+  it("keeps its budget in memory: with the shared store configured, a probe sends no Redis command", async () => {
+    vi.stubEnv("KV_REST_API_URL", "https://unreachable.invalid");
+    vi.stubEnv("KV_REST_API_TOKEN", "t");
+    const limit = vi.fn();
+    const getRemaining = vi.fn();
+    vi.doMock("@upstash/ratelimit", () => ({
+      Ratelimit: Object.assign(
+        vi.fn(function RatelimitMock() {
+          return { limit, getRemaining };
+        }),
+        { slidingWindow: vi.fn() },
+      ),
+    }));
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    try {
+      const route = await import("../app/api/health/route");
+      const statuses: number[] = [];
+      for (let i = 0; i < 31; i++) statuses.push((await route.GET(req())).status);
+      expect(statuses.at(-1)).toBe(429);
+      expect(limit).not.toHaveBeenCalled();
+      expect(getRemaining).not.toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      vi.doUnmock("@upstash/ratelimit");
+    }
+  });
 });
