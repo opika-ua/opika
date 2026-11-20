@@ -167,8 +167,9 @@ export async function handleKabinetRpc(
   if (ipOutcome === "refused") {
     return tooMany(retryAfterSecondsOf(deps.limiters.perIp, ipKey, deps.now));
   }
-  // Store unreachable (owner, 2026-11-20): only a call whose session is validated below goes on;
-  // the invitation link and anything without a live session are refused, as before.
+  // Store unreachable (owner, 2026-11-20): only a call whose session is validated below goes on.
+  // The invitation link goes to its procedure, whose own budget refuses it as unavailable before
+  // any lookup, so its form can say so; anything else without a live session is refused here.
   const ipUnchecked = ipOutcome === "unavailable";
   const refusedUnchecked = () => tooMany(retryAfterSecondsOf(deps.limiters.perIp, ipKey, deps.now));
   if (deps.availability.kind === "unavailable") {
@@ -190,7 +191,6 @@ export async function handleKabinetRpc(
   // except on the invitation link.
   const path = new URL(request.url).pathname;
   const invitationLink = KABINET_ANONYMOUS_PATHS.has(path);
-  if (ipUnchecked && invitationLink) return refusedUnchecked();
   if (!invitationLink && !hasSessionCookie(request.headers.get("cookie"))) {
     return unauthorized();
   }
@@ -224,7 +224,7 @@ export async function handleKabinetRpc(
     return new Response("Registry is not available", { status: 503 });
   }
   const { principal, userId, db, cursorSecret } = identity ?? (await deps.resolve());
-  if (ipUnchecked && userId === null) return refusedUnchecked();
+  if (ipUnchecked && userId === null && !invitationLink) return refusedUnchecked();
   if (userId !== null) {
     const userKey = kabinetUserKey(userId);
     if (!(await deps.limiters.perUser.check(userKey, deps.now))) {

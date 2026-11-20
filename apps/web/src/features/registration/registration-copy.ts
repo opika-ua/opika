@@ -82,6 +82,7 @@ export function registrationCopy() {
     requiredBy: REQUIRED_BY_FIELD,
     summary: r.errors.summary,
     rateLimited: r.errors.rateLimited,
+    unavailable: r.errors.unavailable,
     emailTaken: r.errors.emailTaken,
     generic: r.errors.generic,
     dailyCap: fillTemplate(r.errors.dailyCap, { email: OPERATOR_CONTACT.email }),

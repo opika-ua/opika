@@ -162,6 +162,8 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
         "submitPassword",
         "throttled",
         "title",
+        // The password sign-in with the limiter's store down (owner, approved 2026-11-20).
+        "unavailable",
         "useLink",
         "wrongCredentials",
       ],
@@ -2319,7 +2321,8 @@ describe("kabinet passwords copy (PW-1, his Ukrainian, 2026-10-19)", () => {
         "submit",
         "title",
       ],
-      password: ["common", "mismatch", "personal", "tooLong", "tooShort"],
+      // `changeUnavailable`: the limiter's store down (owner, approved 2026-11-20).
+      password: ["changeUnavailable", "common", "mismatch", "personal", "tooLong", "tooShort"],
       forgot: ["intro", "sent", "submit", "throttled", "title"],
       reset: ["done", "invalidLink", "invalidLinkText", "submit", "title"],
       changePassword: [

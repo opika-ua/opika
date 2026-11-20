@@ -326,11 +326,11 @@ describe("K1 · the password, first (PW-1)", () => {
     );
   });
 
-  it("the limiter store down: the approved «спробуйте пізніше», no minutes and no claim of attempts", async () => {
+  it("the limiter store down: «Зараз не вдалося увійти…», no minutes and no claim of attempts (owner, 2026-11-20)", async () => {
     const { user, onSignedIn } = renderWith({ kind: "unavailable" });
     await fill(user);
     expect(screen.getByRole("alert").textContent).toBe(
-      "Забагато запитів. Спробуйте ще раз пізніше.",
+      "Зараз не вдалося увійти. Спробуйте за кілька хвилин.",
     );
     expect(onSignedIn).not.toHaveBeenCalled();
   });

@@ -121,6 +121,14 @@ describe("«Створіть пароль»", () => {
     );
   });
 
+  it("the limiter store down: «Зараз не вдалося змінити пароль…» (owner, 2026-11-20)", async () => {
+    const { user } = renderWith({ kind: "unavailable" });
+    await submit(user, "ялинка-під-вікном");
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Зараз не вдалося змінити пароль. Спробуйте за кілька хвилин.",
+    );
+  });
+
   it("no answer at all: «Не вдалося звʼязатися із сайтом…» (G4, audit 2026-10-22)", async () => {
     const { user } = renderWith({ kind: "no_answer" });
     await submit(user, "ялинка-під-вікном");
@@ -145,6 +153,7 @@ describe("setPasswordOutcomeOf: the POST's answer, read by code and data only", 
     [{ kind: "something" }, false, { kind: "failed" }],
     [new ORPCError("INVITE_UNUSABLE", { status: 410 }), true, { kind: "unusable" }],
     [new ORPCError("RATE_LIMITED", { status: 429 }), true, { kind: "throttled" }],
+    [new ORPCError("RATE_LIMITER_UNAVAILABLE", { status: 429 }), true, { kind: "unavailable" }],
     [
       new ORPCError("PASSWORD_REJECTED", { status: 422, data: { reason: "common" } }),
       true,

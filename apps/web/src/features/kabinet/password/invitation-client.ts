@@ -30,6 +30,8 @@ export type SetPasswordOutcome =
   | { kind: "unusable" }
   | { kind: "refused"; refusal: PasswordRefusal }
   | { kind: "throttled" }
+  /** The limiter's store could not be asked (owner, 2026-11-20). */
+  | { kind: "unavailable" }
   /** G4 (audit 2026-10-22): the request got no answer at all (the fetch threw). */
   | { kind: "no_answer" }
   /** A server error, or an answer this form has no sentence for. */
@@ -52,6 +54,8 @@ export function setPasswordOutcomeOf(
       return { kind: "unusable" };
     case "RATE_LIMITED":
       return { kind: "throttled" };
+    case "RATE_LIMITER_UNAVAILABLE":
+      return { kind: "unavailable" };
     case "PASSWORD_REJECTED": {
       // The contract's reasons are the refusals' own names.
       const reason = (answer.data as { reason?: unknown } | undefined)?.reason;

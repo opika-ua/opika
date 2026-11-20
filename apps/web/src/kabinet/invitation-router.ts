@@ -60,6 +60,8 @@ export const invitationRouter = guarded.router({
             throw errors.PASSWORD_REJECTED({ data: { reason: result.reason } });
           case "rate_limited":
             throw errors.RATE_LIMITED();
+          case "limiter_unavailable":
+            throw errors.RATE_LIMITER_UNAVAILABLE();
           /* v8 ignore next 4 -- exists so the compiler rejects an unhandled result; unreachable at runtime */
           default: {
             const unreachable: never = result;

@@ -108,6 +108,15 @@ export function SetPasswordCard({
           message: uk.kabinet.forgot.throttled,
         });
         return;
+      case "unavailable":
+        // Owner, 2026-11-20: the limiter's store down, not a limit reached.
+        setState({
+          kind: "entering",
+          refusal: null,
+          mismatch: false,
+          message: uk.kabinet.password.changeUnavailable,
+        });
+        return;
       case "no_answer":
         setState({
           kind: "entering",

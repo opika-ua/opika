@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { inMemoryRateLimiter, type RateLimiter } from "../../api/rate-limit";
 import {
+  firstLimit,
   firstRefusal,
   mailCapKeyOf,
   REGISTRATION_LIMITS,
@@ -38,6 +39,34 @@ describe("self-registration's budgets (owner, 2026-11-18)", () => {
     // The hour's is spent too now: refused there, the day's isn't asked.
     expect(await firstRefusal([hour, day], "k", NOW)).toBe(hour);
     expect(charged).toEqual(["k", "k"]);
+  });
+
+  it("firstLimit tells a limit reached from a store that's down, and charges nothing after either", async () => {
+    const asked: string[] = [];
+    const answering = (
+      name: string,
+      outcome: "allowed" | "refused" | "unavailable",
+    ): RateLimiter => ({
+      check: async () => outcome === "allowed",
+      attempt: async () => {
+        asked.push(name);
+        return outcome;
+      },
+    });
+    expect(
+      await firstLimit([answering("a", "allowed"), answering("b", "allowed")], "k", NOW),
+    ).toEqual({
+      kind: "ok",
+    });
+    const spent = answering("c", "refused");
+    expect(await firstLimit([spent, answering("d", "allowed")], "k", NOW)).toEqual({
+      kind: "refused",
+      by: spent,
+    });
+    expect(
+      await firstLimit([answering("e", "unavailable"), answering("f", "allowed")], "k", NOW),
+    ).toEqual({ kind: "unavailable" });
+    expect(asked).toEqual(["a", "b", "c", "e"]);
   });
 
   it("the cap's key is the UTC day, so Kyiv's evening still counts towards the UTC date", () => {

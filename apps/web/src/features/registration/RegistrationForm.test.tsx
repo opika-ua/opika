@@ -189,6 +189,15 @@ describe("RegistrationForm", () => {
     renderForm(async (previous) => ({ ...previous, result: answer }));
     await submit();
     expect(await screen.findByText(copy.rateLimited)).toBeTruthy();
+    // Owner, 2026-11-20: the limiter store down says so, never «Забагато спроб…».
+    answer = { kind: "limiter_unavailable" };
+    await submit();
+    expect(
+      await screen.findByText(
+        "Зараз не вдалося зареєструвати притулок. Спробуйте за кілька хвилин.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(copy.rateLimited)).toBeNull();
     answer = { kind: "failed" };
     await submit();
     expect(await screen.findByText(copy.generic)).toBeTruthy();

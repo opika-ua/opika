@@ -174,8 +174,8 @@ export function SignInCard({
         setState({ kind: "entering", error: throttledMessage(outcome.minutes) });
         return;
       case "unavailable":
-        // No wait to name: the approved «Забагато запитів. Спробуйте ще раз пізніше.».
-        setState({ kind: "entering", error: uk.kabinet.forgot.throttled });
+        // The limiter's store down (owner, 2026-11-20): no limit was reached, so none is named.
+        setState({ kind: "entering", error: uk.kabinet.signIn.unavailable });
         return;
       case "no_answer":
         setState({ kind: "entering", error: uk.kabinet.signIn.failed });

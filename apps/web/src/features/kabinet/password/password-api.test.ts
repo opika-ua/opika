@@ -30,6 +30,14 @@ describe("the password answers, read by status and code only", () => {
   it("forgot: sent, throttled, failed", () => {
     expect(forgotOutcomeOf(answer(200, { status: true }))).toEqual({ kind: "sent" });
     expect(forgotOutcomeOf(answer(429))).toEqual({ kind: "throttled" });
+    // Owner, 2026-11-20: the store down is its own outcome; a limit reached stays throttled.
+    expect(forgotOutcomeOf(answer(429, { code: "RATE_LIMITER_UNAVAILABLE" }))).toEqual({
+      kind: "unavailable",
+    });
+    expect(resetOutcomeOf(answer(429, { code: "RATE_LIMITER_UNAVAILABLE" }))).toEqual({
+      kind: "unavailable",
+    });
+    expect(resetOutcomeOf(answer(429))).toEqual({ kind: "throttled" });
     expect(forgotOutcomeOf(null)).toEqual({ kind: "failed" });
   });
 

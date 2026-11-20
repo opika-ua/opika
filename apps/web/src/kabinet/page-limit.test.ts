@@ -3,6 +3,7 @@ import { inMemoryRateLimiter } from "../api/rate-limit";
 import { unreachableLimiter } from "../api/test-outage";
 import { SHELTER_WRITE_POLICY } from "./access";
 import { capturingInvitationSender } from "./email-senders";
+import type { InvitePasswords } from "./invite-password";
 import { isChargedKabinetPageLoad, isKabinetPagePath, kabinetPageLoadAllowed } from "./page-limit";
 import { capturingPasswordMail } from "./password-mail";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
@@ -107,11 +108,14 @@ describe("a page load and an API call share one allowance", () => {
    * API call is refused at the access middleware (a no_role caller), which
    * charges both budgets first and never touches the database.
    */
+  let lastBody = "";
   async function apiCall(
     limiters: KabinetLimiters,
     ip: string,
     userId: string | null,
     path = "/api/kabinet/shelter/profile/get",
+    invitePasswords?: () => InvitePasswords,
+    input: unknown = {},
   ) {
     const response = await handleKabinetRpc(
       new Request(`http://localhost${path}`, {
@@ -121,7 +125,7 @@ describe("a page load and an API call share one allowance", () => {
           origin: "http://localhost",
           cookie: TEST_SESSION_COOKIE,
         },
-        body: JSON.stringify({ json: {} }),
+        body: JSON.stringify({ json: input }),
       }),
       {
         availability: {
@@ -148,8 +152,10 @@ describe("a page load and an API call share one allowance", () => {
         shelterWrites: SHELTER_WRITE_POLICY,
         citySearch: roomyCitySearch(),
         transactionalMail: null,
+        ...(invitePasswords === undefined ? {} : { invitePasswords }),
       },
     );
+    lastBody = await response.text();
     return response.status;
   }
 
@@ -202,11 +208,31 @@ describe("a page load and an API call share one allowance", () => {
       expect(await apiCall(outage(), "198.51.100.43", null)).toBe(429);
     });
 
-    it("the invitation link (anonymous use) is refused, even from someone signed in", async () => {
+    it("the invitation link is refused by its own budget as unavailable, signed in or not, before any lookup", async () => {
       const [path] = [...KABINET_ANONYMOUS_PATHS];
       if (path === undefined) throw new Error("no anonymous path");
-      expect(await apiCall(outage(), "198.51.100.44", null, path)).toBe(429);
-      expect(await apiCall(outage(), "198.51.100.44", "user-9", path)).toBe(429);
+      // Owner, 2026-11-20: the procedure answers, so the form can say «не вдалося змінити пароль».
+      const invite = (): InvitePasswords => ({
+        kind: "on",
+        perIp: unreachableLimiter("deny"),
+        ip: "198.51.100.44",
+        credentials: {
+          markVerified: async () => {
+            throw new Error("nothing is written");
+          },
+          createCredential: async () => {
+            throw new Error("nothing is written");
+          },
+          signIn: async () => {
+            throw new Error("nobody signs in");
+          },
+        },
+      });
+      for (const userId of [null, "user-9"]) {
+        const input = { token: "t".repeat(43), password: "ялинка-під-вікном" };
+        expect(await apiCall(outage(), "198.51.100.44", userId, path, invite, input)).toBe(429);
+        expect(lastBody).toContain("RATE_LIMITER_UNAVAILABLE");
+      }
     });
 
     /** Owner, 2026-11-20: the sign-in pages load in an outage; every action on them stays refused. */

@@ -119,6 +119,14 @@ export const apiErrors = {
     message: "Too many requests.",
   },
   /**
+   * The rate limiter's store could not be asked, so the request was refused without a limit being
+   * reached: the form says to try again in a few minutes, never that there were too many tries.
+   */
+  RATE_LIMITER_UNAVAILABLE: {
+    status: 429,
+    message: "Rate limiting is unavailable.",
+  },
+  /**
    * H2 kabinet. Authenticated, but not as an actor this procedure accepts,
    * by role, never by resource: another shelter's animal id is NOT_FOUND, the
    * same as a missing one (QA-2026-10-29; S3-Q2 had it FORBIDDEN).

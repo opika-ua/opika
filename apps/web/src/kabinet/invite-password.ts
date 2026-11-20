@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { InviteTokenRow } from "@opika/db/repos";
+import { attemptOf } from "../api/limit-outcome";
 import type { RateLimiter } from "../api/rate-limit";
 import { ipRateLimitKey } from "../api/rate-limit-key";
 import type { KabinetAuth } from "./auth";
@@ -136,7 +137,8 @@ export type AcceptWithPasswordResult =
   | { kind: "password_set" }
   | { kind: "unusable" }
   | { kind: "rejected"; reason: PasswordRefusal }
-  | { kind: "rate_limited" };
+  | { kind: "rate_limited" }
+  | { kind: "limiter_unavailable" };
 
 export type AcceptWithPasswordDeps = {
   lookup: InviteLookup;
@@ -189,7 +191,10 @@ export async function acceptInvitationWithPassword(
   input: { token: string; password: string },
   deps: AcceptWithPasswordDeps,
 ): Promise<AcceptWithPasswordResult> {
-  if (!(await deps.perIp.check(ipRateLimitKey(deps.ip), deps.now))) return { kind: "rate_limited" };
+  // Before any lookup. A store that can't be asked is its own answer (owner, 2026-11-20).
+  const limit = await attemptOf(deps.perIp, ipRateLimitKey(deps.ip), deps.now);
+  if (limit === "refused") return { kind: "rate_limited" };
+  if (limit === "unavailable") return { kind: "limiter_unavailable" };
   if (!INVITE_TOKEN.test(input.token)) return UNUSABLE;
   const state = invitePasswordStateOf(await deps.lookup(input.token), deps.now);
   if (state.kind === "unusable") return UNUSABLE;

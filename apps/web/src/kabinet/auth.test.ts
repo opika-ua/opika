@@ -1640,20 +1640,58 @@ describe("with the limiter store unreachable", () => {
     expect(answers[0]).not.toContain("retryAfterMinutes");
   });
 
-  it("«Забули пароль?» and a reset link stay refused (429)", async () => {
+  /** Owner, 2026-11-20: an outage names no limit; a limit reached keeps «Забагато…» (no code). */
+  const forgotFor = async (email: string) =>
+    answerOf(await route(post("/api/auth/request-password-reset", { email })));
+  const reset = async () =>
+    route(post("/api/auth/reset-password", { token: "t".repeat(24), newPassword: "x".repeat(12) }));
+
+  it("«Забули пароль?» and a reset link: the store down refuses as unavailable, the same for every address", async () => {
+    await createUser("olena@example.org");
     auth = authWith(unlimitedKabinet(), {
       ...generousPasswordLimiters(),
       forgotPerIp: unreachableLimiter("deny"),
       forgotPerAddress: unreachableLimiter("deny"),
       resetPerIp: unreachableLimiter("deny"),
     });
-    const forgot = await route(
-      post("/api/auth/request-password-reset", { email: "olena@example.org" }),
-    );
-    expect(forgot.status).toBe(429);
-    const reset = await route(
-      post("/api/auth/reset-password", { token: "t".repeat(24), newPassword: "x".repeat(12) }),
-    );
-    expect(reset.status).toBe(429);
+    const answers = [await forgotFor("olena@example.org"), await forgotFor("nobody@example.org")];
+    expect(answers[0]).toBe(answers[1]);
+    expect(answers[0]?.startsWith("429 ")).toBe(true);
+    expect(answers[0]).toContain(LIMITER_UNAVAILABLE_CODE);
+    const refused = await reset();
+    expect(refused.status).toBe(429);
+    expect(await refused.text()).toContain(LIMITER_UNAVAILABLE_CODE);
+  });
+
+  it("«Забули пароль?» and a reset link over a real limit: a plain 429, no unavailable code, the same for every address", async () => {
+    await createUser("olena@example.org");
+    const spent = () => inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 0 });
+    auth = authWith(unlimitedKabinet(), {
+      ...generousPasswordLimiters(),
+      forgotPerAddress: spent(),
+      resetPerIp: spent(),
+    });
+    const answers = [await forgotFor("olena@example.org"), await forgotFor("nobody@example.org")];
+    expect(answers[0]).toBe(answers[1]);
+    expect(answers[0]?.startsWith("429 ")).toBe(true);
+    expect(answers[0]).not.toContain(LIMITER_UNAVAILABLE_CODE);
+    const refused = await reset();
+    expect(refused.status).toBe(429);
+    expect(await refused.text()).not.toContain(LIMITER_UNAVAILABLE_CODE);
+  });
+
+  it("password sign-in over a real limit keeps its wait, no unavailable code, the same for every address", async () => {
+    await createUser("olena@example.org");
+    auth = authWith({
+      perUser: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 100_000 }),
+      perIp: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 0 }),
+    });
+    const answers: string[] = [];
+    for (const email of ["olena@example.org", "nobody@example.org"]) {
+      answers.push(await answerOf(await route(passwordSignIn(email))));
+    }
+    expect(answers[0]).toBe(answers[1]);
+    expect(answers[0]?.startsWith("429 ")).toBe(true);
+    expect(answers[0]).not.toContain(LIMITER_UNAVAILABLE_CODE);
   });
 });
