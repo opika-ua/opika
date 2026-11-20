@@ -515,12 +515,11 @@ describe("the kabinet session (HS-Q8; F-B9, §9 answers 3 and 6)", () => {
   });
 
   /**
-   * KH-Q6: IP tracking off. A sign-in whose verify request carries a client
-   * IP and a user agent, read back from the row itself: every column of
-   * `auth_session`, pinned, so a column Better Auth starts filling (or the
-   * IP coming back) shows up here.
+   * KH-Q6, D6: a sign-in whose request carries a client IP and a user agent, read back from the
+   * row itself: every column of `auth_session` pinned, so a column Better Auth starts filling
+   * (or the IP or user agent coming back) shows up here.
    */
-  it("stores no client IP on the session row; the user agent is stored as sent (no option for it)", async () => {
+  it("stores no client IP and no user agent on the session row", async () => {
     const user = await createUser("olena@example.org");
     await route(post("/api/auth/sign-in/magic-link", { email: "olena@example.org" }));
     const link = sender.sent[0]?.url;
@@ -528,7 +527,8 @@ describe("the kabinet session (HS-Q8; F-B9, §9 answers 3 and 6)", () => {
     const userAgent = "Mozilla/5.0 (Linux; Android 14; TestPhone) KH-Q6";
     const before = new Date();
     // Through the confirm page's POST, the one way a link signs in since
-    // IN-Q11: its server-built verify carries these over (`forwardedClientHeaders`).
+    // IN-Q11: its server-built verify carries the IP headers over, not the user agent
+    // (`forwardedClientHeaders`).
     const verified = await confirm(link, auth, BASE, undefined, {
       "x-forwarded-for": "203.0.113.77",
       "x-real-ip": "203.0.113.78",
@@ -556,7 +556,8 @@ describe("the kabinet session (HS-Q8; F-B9, §9 answers 3 and 6)", () => {
     // Better Auth writes `getIp(...) || ""`: an empty string, never an address.
     expect(row.ipAddress).toBe("");
     expect(JSON.stringify(row)).not.toContain("203.0.113.");
-    expect(row.userAgent).toBe(userAgent);
+    expect(row.userAgent).toBeNull();
+    expect(JSON.stringify(row)).not.toContain("TestPhone");
     expect(row.id).toMatch(UUID);
     expect(row.userId).toBe(user.id);
     expect(row.token).toMatch(/^[A-Za-z0-9]{32}$/);
@@ -586,6 +587,60 @@ describe("the kabinet session (HS-Q8; F-B9, §9 answers 3 and 6)", () => {
       ),
     ).toBe(user.id);
     expect(await kabinetSessionUserIdOf(auth, db, new Headers(), new Date())).toBeNull();
+  });
+
+  // The confirm page drops the header (above); these reach Better Auth with it, so only the
+  // session hook stands between the header and the row.
+  const D6_AGENT = "Mozilla/5.0 (Linux; Android 14; TestPhone) D6";
+
+  async function onlySessionRow() {
+    const rows = await db.select().from(authSession);
+    expect(rows).toHaveLength(1);
+    return rows[0];
+  }
+
+  it("magic link: a verify that reaches Better Auth with a user agent stores none (D6)", async () => {
+    await createUser("olena@example.org");
+    await route(post("/api/auth/sign-in/magic-link", { email: "olena@example.org" }));
+    const token = new URL(sender.sent[0]?.url ?? BASE).searchParams.get("token");
+    if (token === null) throw new Error("no link");
+    const verified = await auth.handler(
+      new Request(`${BASE}/api/auth/magic-link/verify?token=${token}`, {
+        headers: { "user-agent": D6_AGENT },
+      }),
+    );
+    await Promise.all(pending);
+    expect(verified.headers.getSetCookie().some((c) => c.includes("session_token="))).toBe(true);
+    expect((await onlySessionRow())?.userAgent).toBeNull();
+  });
+
+  it("password: a sign-in with a user agent stores none (D6)", async () => {
+    const ctx = await auth.$context;
+    const user = await createUser("olena@example.org");
+    const password = "ялинка-під-вікном-1987";
+    await ctx.internalAdapter.linkAccount({
+      userId: user.id,
+      accountId: user.id,
+      providerId: "credential",
+      password: await ctx.password.hash(password),
+    });
+    const signedIn = await route(
+      post(
+        "/api/auth/sign-in/email",
+        { email: "olena@example.org", password },
+        { "user-agent": D6_AGENT },
+      ),
+    );
+    expect(signedIn.status).toBe(200);
+    expect((await onlySessionRow())?.userAgent).toBeNull();
+  });
+
+  it("the confirm page's server-built request carries no user agent (D6)", () => {
+    const forwarded = forwardedClientHeaders(
+      new Headers({ "user-agent": D6_AGENT, "x-forwarded-for": "203.0.113.22" }),
+    );
+    expect(forwarded.get("user-agent")).toBeNull();
+    expect(forwarded.get("x-forwarded-for")).toBe("203.0.113.22");
   });
 
   /**
