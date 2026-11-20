@@ -13,7 +13,7 @@ rules (a Neon child branch for anything experimental; `--prod --expect ep-...` f
    down" below for which routes stay open), database errors (Neon: check
    its status page and the project's compute state, section 5), or a boot error naming a missing
    variable (an env change without a redeploy, section 6).
-4. Neon console: is the compute suspended or out of compute hours (Free plan, section 5)?
+4. Neon console: is the compute suspended or over a plan limit (section 5)?
 5. Vercel status, Upstash status, Cloudflare (R2 and DNS) status.
 6. If it is an attack, section 7.
 
@@ -62,7 +62,7 @@ ping is the alert.
 
 ## 4. Restore the database (Neon point-in-time)
 
-History retention is 6 hours on Free (longer on Launch); act inside it.
+History retention: not recorded yet for Launch (section 5); act inside it.
 
 1. Neon console, Branches: create a branch from production at a timestamp just before the damage.
    This is a child branch; production is untouched.
@@ -77,10 +77,9 @@ History retention is 6 hours on Free (longer on Launch); act inside it.
 
 ## 5. Neon limits (what to expect)
 
-- Free plan: 100 CU-hours a month per project; compute scales to zero after 5 minutes idle (the first
-  request after that is a cold start, a second or two at most); when the hours are spent the compute
-  suspends until the month turns. Launch is pay-as-you-go and removes the cap (`docs/launch-gate.md`
-  section A: upgrade before onboarding; `docs/stack-decision.md` section 3.1).
+- Launch plan since at least 2026-11-20; its limits are not recorded here yet: the owner reads them from the Neon dashboard, then fill them in (compute
+  hours, scale-to-zero, history retention). A compute that scales to zero answers its first request
+  with a cold start.
 - The app reads `DATABASE_URL` as the pooled string (`docs/launch-sequence.md`, Vercel environment
   table). Migrations and the smokes need the direct string and refuse a pooled one.
 
