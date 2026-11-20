@@ -21,6 +21,7 @@ import {
   removeDemoCorpus,
 } from "../src/demo-remove";
 import { IMAGE_VARIANT_NAMES, PHOTO_FORMATS } from "../src/image-pipeline/variants";
+import { productionLocationPolicy } from "../src/location-policy";
 import { expectedTargetOf } from "../src/prod-guard";
 import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
@@ -103,6 +104,22 @@ async function insertShelter(
     : base;
   await shelterRepo(db).insert(shelter);
   return shelter;
+}
+
+/** As `register.ts` writes it: no address until the operator adds one, so city precision. */
+async function insertSelfRegistered(): Promise<void> {
+  const base = makeShelter({ publicLocation: at(cityId) as never });
+  await shelterRepo(db).insert({
+    ...base,
+    legalEntity: null,
+    exactAddress: null,
+    publicLocation: { precision: "city", cityId, district: null },
+    verification: {
+      status: "application",
+      appliedAt: NOW,
+      evidence: base.verification.evidence,
+    },
+  });
 }
 
 async function insertAnimal(shelterId: ShelterId, confirmedAt: Date = NOW) {
@@ -454,6 +471,17 @@ describe("demo:remove refuses, and deletes nothing", () => {
     await nothingDeleted();
   });
 
+  it("when one shelter is on the test-only key, counting it alone among keyless self-registered ones", async () => {
+    const demo = await insertShelter({ id: seedId(1), onTestKey: true });
+    await insertAnimal(demo.id);
+    await insertSelfRegistered();
+    await insertSelfRegistered();
+    await insertShelter({ onTestKey: true });
+    const result = await removeDemoCorpus(db, testKey);
+    expect(result.plan.refusals).toEqual([{ kind: "test_key_on_real_shelter", shelters: 1 }]);
+    await nothingDeleted();
+  });
+
   it("when a reveal links a demo animal to a non-demo shelter", async () => {
     const demo = await insertShelter({ id: seedId(1), onTestKey: true });
     const demoAnimal = await insertAnimal(demo.id);
@@ -466,6 +494,41 @@ describe("demo:remove refuses, and deletes nothing", () => {
     const result = await removeDemoCorpus(db, testKey);
     expect(result.plan.refusals).toEqual([{ kind: "reveal_crosses_the_corpus", reveals: 1 }]);
     await nothingDeleted();
+  });
+});
+
+describe("demo:remove's test-only-key guard counts only shelters that carry a key", () => {
+  it("passes a self-registered shelter with no address yet: city precision carries no key", async () => {
+    const demo = await insertShelter({ id: seedId(1), onTestKey: true });
+    await insertAnimal(demo.id);
+    await insertSelfRegistered();
+    const plan = await planDemoRemoval(db, testKey);
+    expect(plan.refusals).toEqual([]);
+    expect(plan.otherShelters).toBe(1);
+  });
+
+  it("passes a shelter whose exact address is fuzzed with a real key", async () => {
+    const demo = await insertShelter({ id: seedId(1), onTestKey: true });
+    await insertAnimal(demo.id);
+    const base = makeShelter({ publicLocation: at(cityId) as never });
+    await shelterRepo(db).insert({
+      ...base,
+      publicLocation: publicLocationOf(
+        base.id,
+        base.exactAddress,
+        productionLocationPolicy("k".repeat(32)),
+      ),
+    });
+    const plan = await planDemoRemoval(db, testKey);
+    expect(plan.refusals).toEqual([]);
+  });
+
+  it("with --shelter too: a keyless self-registered shelter is no refusal", async () => {
+    const target = await insertShelter();
+    await insertShelter();
+    await insertSelfRegistered();
+    const plan = await planDemoRemoval(db, testKey, { kind: "shelters", ids: [target.id] });
+    expect(plan.refusals).toEqual([]);
   });
 });
 

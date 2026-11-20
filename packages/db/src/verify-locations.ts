@@ -65,17 +65,21 @@ export type StoredLocationRow = {
   publicLocation: PublicLocation;
 };
 
-/**
- * Whether the row's stored public location is what `policy` computes for it.
- * `demo:remove` uses it with the seed's policy to refuse while a shelter
- * outside the seed range sits on the test-only key (RG-Q11's privacy bug).
- */
+/** Whether the row's stored public location is what `policy` computes for it. */
 export const storedWith = (row: StoredLocationRow, policy: LocationPrivacyPolicy): boolean =>
   canonical(
     row.exactAddress === null
       ? cityPublicLocationOf(row.cityId as CityId, null)
       : publicLocationOf(row.id as ShelterId, row.exactAddress, policy),
   ) === canonical(row.publicLocation);
+
+/**
+ * Whether the row carries `testPolicy`'s fuzz offset (RG-Q11's privacy bug). A row with
+ * no point on file is stored at city precision, the same under every key, so it carries
+ * none: a self-registered shelter with no address yet is never "on the test key".
+ */
+export const onTestKey = (row: StoredLocationRow, testPolicy: LocationPrivacyPolicy): boolean =>
+  row.exactAddress !== null && row.exactAddress.coordinates !== null && storedWith(row, testPolicy);
 
 export function compareLocations(
   rows: readonly StoredLocationRow[],
@@ -86,7 +90,7 @@ export function compareLocations(
   for (const row of rows) {
     if (storedWith(row, policy)) {
       report.match += 1;
-    } else if (storedWith(row, testPolicy)) {
+    } else if (onTestKey(row, testPolicy)) {
       if (isSeedShelterId(row.id)) report.demo += 1;
       else report.testKeyOnRealShelter += 1;
     } else {
