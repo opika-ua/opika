@@ -29,7 +29,7 @@ const searchParams = Promise.resolve({});
 describe("the shelter page's metadata (PR B, the SEO review of page titles)", () => {
   it("title is handoff B2's, with the shelter's name and city", async () => {
     expect((await generateMetadata({ params, searchParams })).title).toEqual({
-      absolute: "Лапа допомоги – тварини шукають дім, Бровари | Opika",
+      absolute: "Лапа допомоги – тварини шукають дім, Бровари – Opika",
     });
   });
 
@@ -52,7 +52,7 @@ describe("the shelter page's metadata (PR B, the SEO review of page titles)", ()
 
   it("openGraph carries the same title as the page", async () => {
     const metadata = await generateMetadata({ params, searchParams });
-    expect(metadata.openGraph?.title).toBe("Лапа допомоги – тварини шукають дім, Бровари | Opika");
+    expect(metadata.openGraph?.title).toBe("Лапа допомоги – тварини шукають дім, Бровари – Opika");
   });
 
   it("RATE_LIMITED is kept out of search results", async () => {

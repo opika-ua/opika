@@ -7,9 +7,9 @@ import { ImageResponse } from "next/og";
 import sharp from "sharp";
 import { SITE_TITLE } from "../brand";
 import type { AnimalPageView } from "../features/animal-detail/animal-page-load";
+import { OG_SIZE } from "./og-image-size";
 
-export const OG_SIZE = { width: 1200, height: 630 } as const;
-export const OG_CONTENT_TYPE = "image/png";
+export { OG_CONTENT_TYPE, OG_SIZE } from "./og-image-size";
 
 // Colours repeat the tokens in globals.css: an image has no CSS variables.
 const INK = "#270041";

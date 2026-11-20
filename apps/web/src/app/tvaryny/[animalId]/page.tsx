@@ -112,7 +112,7 @@ export function animalMetadataOf(load: AnimalPageLoad): Metadata {
       ? // A link preview must not suggest a verified shelter (N14).
         uk.underReview.sharePreview
       : own.description;
-  const seo = seoMetadata(own.title, description);
+  const seo = seoMetadata(own.title, description, "segment");
   return {
     ...seo,
     openGraph: { ...seo.openGraph, type: "article" },
@@ -134,7 +134,7 @@ export function firstSentenceOf(text: string): string {
 /**
  * Handoff B2's title and description for the animal page, in the effective city (its own, or the
  * shelter's); a city that doesn't resolve takes the owner's no-city pair (2026-11-18). The title
- * drops « | Opika» past 60 characters (`fitTitle`); the description stays under 155 with «…»
+ * drops « – Opika» past 60 characters (`fitTitle`); the description stays under 155 with «…»
  * (`truncateDescription`) and, with no story, ends after the shelter.
  */
 export function animalSeoText(

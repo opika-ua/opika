@@ -1,6 +1,6 @@
 /**
- * BR-7 against a real server: the animal page's og:image and twitter:image point at a route that
- * answers a 1200x630 PNG, and the site card and the per-animal card are reachable by anyone (no gate since launch step 14).
+ * BR-7 against a real server: every public page's og:image and twitter:image point at a route that
+ * answers a 1200x630 PNG, and the site card and the per-animal card are reachable by anyone.
  */
 
 import { expect, test } from "@playwright/test";
@@ -38,6 +38,45 @@ test("an animal page's preview tags point at a 1200x630 PNG that renders", async
   expect(pngSize(body)).toEqual({ width: 1200, height: 630 });
   // A seeded animal has a photo, so this is well beyond the few KB of an empty card.
   expect(body.length).toBeGreaterThan(50_000);
+});
+
+// A page's own `openGraph` once dropped the root's file-based image: every public page type is checked.
+test("every public page type previews with a 1200x630 PNG in og:image and twitter:image", async ({
+  page,
+}) => {
+  await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
+  const animal = (await page.locator(CARD).first().getAttribute("href")) as string;
+  await page.goto(animal);
+  const shelter = (await page
+    .locator("a[href^='/prytulky/']")
+    .first()
+    .getAttribute("href")) as string;
+
+  const checked = new Set<string>();
+  for (const route of [
+    "/tvaryny",
+    "/pro",
+    "/prytulkam",
+    "/tvaryny/misto/brovary",
+    shelter,
+    animal,
+  ]) {
+    await page.goto(route);
+    const meta = (selector: string) => page.locator(selector).first().getAttribute("content");
+    const ogImage = await meta("meta[property='og:image']");
+    expect(ogImage, route).toContain("/opengraph-image");
+    expect(await meta("meta[name='twitter:image']"), route).toBe(ogImage);
+    expect(await meta("meta[name='twitter:card']"), route).toBe("summary_large_image");
+
+    const url = new URL(ogImage as string);
+    const path = url.pathname + url.search;
+    if (checked.has(path)) continue;
+    checked.add(path);
+    const response = await page.request.get(path);
+    expect(response.status(), route).toBe(200);
+    expect(response.headers()["content-type"], route).toBe("image/png");
+    expect(pngSize(await response.body()), route).toEqual({ width: 1200, height: 630 });
+  }
 });
 
 test("the site card renders and an unknown animal falls back to a card, with no cookie", async ({

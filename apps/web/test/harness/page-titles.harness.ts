@@ -33,19 +33,19 @@ test("/tvaryny's title is SEO handoff B2's, ending in the owner's en-dash separa
   expect(title).not.toContain(" — Opika");
 });
 
-test("an animal page's title is SEO handoff B2's, dropping « | Opika» only past 60 characters", async ({
+test("an animal page's title is SEO handoff B2's, dropping « – Opika» only past 60 characters", async ({
   page,
 }) => {
   await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
   const href = await page.locator(CARD).first().getAttribute("href");
   await page.goto(href as string);
   const title = await page.title();
-  expect(title).toMatch(/^.+ – (цуценя|собака|кошеня|кіт|кішка) шукає дім, [^|]+( \| Opika)?$/u);
-  expect(title.endsWith(" | Opika")).toBe(Array.from(title).length <= 60);
-  expect(title).not.toContain(EN_DASH_SEPARATOR);
+  expect(title).toMatch(/^.+ – (цуценя|собака|кошеня|кіт|кішка) шукає дім, .+?( – Opika)?$/u);
+  expect(title.endsWith(EN_DASH_SEPARATOR)).toBe(Array.from(title).length <= 60);
+  expect(title).not.toContain("|");
 });
 
-test("the shelter page's title is SEO handoff B2's, dropping « | Opika» only past 60 characters", async ({
+test("the shelter page's title is SEO handoff B2's, dropping « – Opika» only past 60 characters", async ({
   page,
 }) => {
   await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
@@ -63,7 +63,7 @@ test("the shelter page's title is SEO handoff B2's, dropping « | Opika» only p
     animalTitle,
   );
   const title = await page.title();
-  expect(title).toMatch(/^.+ – тварини шукають дім, [^|]+( \| Opika)?$/u);
-  expect(title.endsWith(" | Opika")).toBe(Array.from(title).length <= 60);
-  expect(title).not.toContain(" – Opika");
+  expect(title).toMatch(/^.+ – тварини шукають дім, .+?( – Opika)?$/u);
+  expect(title.endsWith(EN_DASH_SEPARATOR)).toBe(Array.from(title).length <= 60);
+  expect(title).not.toContain("|");
 });

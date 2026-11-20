@@ -3,23 +3,41 @@ import type { Metadata } from "next";
 import { WORDMARK } from "../brand";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../seo-flags";
 import { LINK_PREVIEW_DESCRIPTION } from "../seo-text";
+import { OG_CONTENT_TYPE, OG_SIZE } from "./og-image-size";
 
-/** The root layout's `openGraph` fields: Next replaces a parent's `openGraph` wholesale, so a page repeats them. */
-export const OPEN_GRAPH_SITE = { type: "website", siteName: WORDMARK, locale: "uk_UA" } as const;
+/**
+ * `app/opengraph-image.tsx`'s card, named by hand: a page's own `openGraph` replaces the root's
+ * wholesale, the file-based image included, so these pages previewed with no image at all.
+ */
+const SITE_IMAGE = { url: "/opengraph-image", ...OG_SIZE, type: OG_CONTENT_TYPE } as const;
+
+const OPEN_GRAPH_BASE = { type: "website", siteName: WORDMARK, locale: "uk_UA" } as const;
+const TWITTER_BASE = { card: "summary_large_image" } as const;
+
+/** The root layout's `openGraph` fields plus the site card, which a page must repeat (above). */
+export const OPEN_GRAPH_SITE = { ...OPEN_GRAPH_BASE, images: [SITE_IMAGE] } as const;
 
 /** The root layout's `twitter`, repeated for the same reason. */
-export const TWITTER_CARD = { card: "summary_large_image" } as const;
+export const TWITTER_CARD = { ...TWITTER_BASE, images: [SITE_IMAGE.url] } as const;
+
+/** The site card, or the route segment's own `opengraph-image` file, which Next adds itself (BR-7). */
+export type PreviewImage = "site" | "segment";
 
 /**
  * One title and description for the page, its link preview and its Twitter card (handoff B2).
  * `absolute`: these approved titles carry their own brand, so `TITLE_TEMPLATE` must not add one.
  */
-export function seoMetadata(title: string, description: string): Metadata {
+export function seoMetadata(
+  title: string,
+  description: string,
+  image: PreviewImage = "site",
+): Metadata {
+  const site = image === "site";
   return {
     title: { absolute: title },
     description,
-    openGraph: { ...OPEN_GRAPH_SITE, title, description },
-    twitter: { ...TWITTER_CARD, title, description },
+    openGraph: { ...(site ? OPEN_GRAPH_SITE : OPEN_GRAPH_BASE), title, description },
+    twitter: { ...(site ? TWITTER_CARD : TWITTER_BASE), title, description },
   };
 }
 
