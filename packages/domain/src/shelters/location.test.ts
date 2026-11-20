@@ -5,7 +5,7 @@ import { type ExactAddress, publicLocationOf } from "./location";
 
 const SHELTER = ShelterIdSchema.parse("11111111-1111-4111-8111-111111111111");
 const CITY = CityIdSchema.parse("22222222-2222-4222-8222-222222222222");
-const POLICY = testOnlyLocationPolicy("location-test-key");
+const POLICY = testOnlyLocationPolicy("test", "location-test-key");
 
 const address = (coordinates: ExactAddress["coordinates"]): ExactAddress => ({
   line1: "вул. Тестова, 1",

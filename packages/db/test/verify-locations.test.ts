@@ -28,7 +28,7 @@ const KEY = "k".repeat(32);
 const OTHER_KEY = "o".repeat(32);
 const production = productionLocationPolicy(KEY);
 /** The seed's key, written out: a drifted shared constant must turn these tests red. */
-const testKey = testOnlyLocationPolicy("seed");
+const testKey = testOnlyLocationPolicy(process.env.NODE_ENV, "seed");
 /** The seed's reserved range, written out rather than built from the constant under test. */
 const seedId = (n: number) => `51000000-0000-4000-8000-00000000000${n}` as ShelterId;
 let cityId: string;

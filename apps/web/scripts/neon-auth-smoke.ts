@@ -151,7 +151,11 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
   await shelterRepo(db).insert({
     ...base,
     exactAddress: address,
-    publicLocation: publicLocationOf(base.id, address, testOnlyLocationPolicy(`auth-smoke-${tag}`)),
+    publicLocation: publicLocationOf(
+      base.id,
+      address,
+      testOnlyLocationPolicy(process.env.NODE_ENV, `auth-smoke-${tag}`),
+    ),
   });
   const operator = randomUUID();
   await db.insert(authUser).values({

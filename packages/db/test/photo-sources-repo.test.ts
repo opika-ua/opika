@@ -463,10 +463,14 @@ describe("every deletion path leaves no source row behind", () => {
     await withSources(2, leaving);
     const kept = await withSources(1, staying);
 
-    const result = await removeDemoCorpus(db, testOnlyLocationPolicy("seed"), {
-      kind: "shelters",
-      ids: [leaving],
-    });
+    const result = await removeDemoCorpus(
+      db,
+      testOnlyLocationPolicy(process.env.NODE_ENV, "seed"),
+      {
+        kind: "shelters",
+        ids: [leaving],
+      },
+    );
 
     expect(result.kind).toBe("removed");
     expect(await storedKeys()).toEqual(kept.keys);

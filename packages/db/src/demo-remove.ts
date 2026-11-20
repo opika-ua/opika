@@ -699,7 +699,7 @@ async function main(): Promise<void> {
   // which has no interactive transactions, and the removal must be one.
   const client = postgres(url, { max: 1 });
   const db = createDatabaseWithClient(client);
-  const testPolicy = testOnlyLocationPolicy(SEED_LOCATION_POLICY_KEY);
+  const testPolicy = testOnlyLocationPolicy(process.env.NODE_ENV, SEED_LOCATION_POLICY_KEY);
   const nothing = `Nothing to remove: no ${noun(target)} shelters.`;
   let exitCode: 0 | 1 = 0;
   try {

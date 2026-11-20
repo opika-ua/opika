@@ -254,7 +254,7 @@ describe("a photo's source goes with its photo, through the clean-up job only (c
     const gone = await animalWith(store, 2, undefined, leaving);
     const kept = await animalWith(store, 1, undefined, staying);
     const target = { kind: "shelters", ids: [leaving] } as const;
-    const policy = testOnlyLocationPolicy("seed");
+    const policy = testOnlyLocationPolicy(process.env.NODE_ENV, "seed");
 
     // The dry run lists every object the clean-up will take, sources included, and the rows.
     const plan = await planDemoRemoval(db, policy, target);

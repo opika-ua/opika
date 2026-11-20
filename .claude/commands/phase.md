@@ -18,7 +18,7 @@ Implement phase **$ARGUMENTS** from `docs/build-plan.md`.
 ## Read first
 
 `CLAUDE.md`, `docs/standing-constraints.md`, `docs/build-plan.md`, and the sections of
-`docs/design/README.md` relevant to this phase. These are the source of truth. If you
+`docs/ui/README.md`, `docs/ui/tokens.md` and `docs/design/brand-constraints.md` (plus `docs/ui/components/<Name>.md` for the kit pieces the phase touches) where the phase touches UI. These are the source of truth. (`docs/design/README.md` is the retired «Реєстр» spec, history only.) If you
 believe one is wrong, say so and stop - do not quietly work around it.
 
 **Check the documents against reality before trusting them.** A plan describes a moment.
@@ -48,7 +48,7 @@ Then check it against the gate conditions below.
 - a change to `packages/contracts`, or to any type in `packages/domain`
 - anything touching sessions, authentication, rate limiting, cursors, or the fields that
   `implement(contract)` strips
-- a deviation from `docs/design/README.md`, including any value the design specifies
+- a deviation from `docs/ui` (tokens, kit components) or `docs/design/brand-constraints.md`, including any value they specify
   exactly (colours, spacing, motion timings, thresholds)
 - a decision the build plan does not settle, or a conflict between two documents
 - an estimate exceeding 150% of the plan's hours

@@ -156,7 +156,7 @@ const shelterIdOf = (i: number) =>
   seededUuid(SEED_SHELTER_ID_PREFIX, SHELTER_INDEX_BASE + i) as ShelterId;
 const animalIdOf = (g: number) => seededUuid("a0000000", ANIMAL_INDEX_BASE + g) as AnimalId;
 
-const policy = testOnlyLocationPolicy(SEED_LOCATION_POLICY_KEY);
+const policy = testOnlyLocationPolicy(process.env.NODE_ENV, SEED_LOCATION_POLICY_KEY);
 
 const BIG_CITY_INDEXES = [0, 8, 10] as const;
 

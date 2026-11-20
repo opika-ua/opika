@@ -42,7 +42,7 @@ afterAll(async () => cleanup?.());
 
 const OPERATOR = "0ec0ec0e-0000-4000-8000-000000000001" as ModeratorId;
 const asOperator: KabinetPrincipal = { kind: "super_admin", moderatorId: OPERATOR };
-const policy = testOnlyLocationPolicy("hooks-test");
+const policy = testOnlyLocationPolicy(process.env.NODE_ENV, "hooks-test");
 const limiters = {
   perUser: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),
   perIp: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 10_000 }),

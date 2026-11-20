@@ -95,7 +95,7 @@ async function create(input: RegistryCreateInput, now: Date = NOW) {
     now,
     newId: () => crypto.randomUUID(),
     operatorDisplayName: "Олексій",
-    locationPolicy: testOnlyLocationPolicy("registry-create-screen-test"),
+    locationPolicy: testOnlyLocationPolicy(process.env.NODE_ENV, "registry-create-screen-test"),
     production: false,
     shelterWrites: SHELTER_WRITE_POLICY,
     citySearch: roomyCitySearch(),

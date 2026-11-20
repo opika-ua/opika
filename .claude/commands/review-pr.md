@@ -8,7 +8,7 @@ during implementation. This asks a different question: **is what the pull reques
 actually true?**
 
 Read `CLAUDE.md`, `docs/standing-constraints.md`, `docs/build-plan.md` and the relevant
-sections of `docs/design/README.md` first.
+sections of `docs/ui/README.md` and `docs/design/brand-constraints.md` first (`docs/design/README.md` is the retired «Реєстр» spec, history only).
 
 Fetch the pull request body and diff (`gh pr view`, `gh pr diff`). Run the tests. A review
 that did not run the tests is an opinion.
@@ -50,8 +50,8 @@ compiling is not evidence.**
 
 ## 3. Check it against the design
 
-Where the pull request touches UI, compare against `docs/design/README.md`. The design
-specifies exact values - colours, spacing, motion timings, thresholds, pip geometry. A
+Where the pull request touches UI, compare against `docs/ui` (`README.md`, `tokens.md`, `components/<Name>.md`, skill `opika-ui`, the live kit at `/dev/ui`) and `docs/design/brand-constraints.md`. The kit
+specifies exact values - colours, spacing, motion timings, thresholds. A
 deviation is a finding whether or not it looks fine, because the next surface built will
 inherit the drift. *Until the brand lands (CLAUDE.md, "Test logic, not looks"): check structure,
 states, copy and behaviour against the design, and that styling uses theme tokens only; visual

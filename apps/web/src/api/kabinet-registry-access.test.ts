@@ -78,7 +78,7 @@ async function call(path: string, input: unknown, principal: KabinetPrincipal) {
     now: new Date(),
     newId: () => crypto.randomUUID(),
     operatorDisplayName: "Олексій",
-    locationPolicy: testOnlyLocationPolicy("access-test"),
+    locationPolicy: testOnlyLocationPolicy(process.env.NODE_ENV, "access-test"),
     production: false,
     shelterWrites: SHELTER_WRITE_POLICY,
     citySearch: roomyCitySearch(),
