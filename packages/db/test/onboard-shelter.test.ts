@@ -6,7 +6,9 @@ import {
   buildAnimal,
   buildShelter,
   deterministicId,
+  foldPathCase,
   framingOfOnboardFrame,
+  isInsideRoot,
   OnboardInputSchema,
   onboardAgeOf,
   refuseIfInsideRepo,
@@ -505,15 +507,24 @@ describe("refuseIfInsideRepo", () => {
     vi.restoreAllMocks();
   });
 
-  /**
-   * Windows-only because it is a Windows-only hole, and this script is run
-   * from a Windows machine (`CLAUDE.md`'s "Windows development notes"): NTFS
-   * is case-insensitive, so `d:...` and `D:...` name the same file, and a
-   * case-sensitive `startsWith` against the repo root would let the
-   * lowercase spelling through. Fails on that platform if `canonicalPath`
-   * stops case-folding; on POSIX a differently-cased path is a genuinely
-   * different file, so there is nothing to assert.
-   */
+  // Runs on every OS (CI is Linux): the Windows case-folding rule, through the same two
+  // functions `refuseIfInsideRepo` uses, with the platform passed in.
+  it.each([
+    ["win32", true],
+    ["linux", false],
+    ["darwin", false],
+  ] as const)(
+    "on %s, a differently-cased path inside the root is inside: %s",
+    (platform, inside) => {
+      const root = foldPathCase("/Startup/Opika", platform);
+      const path = foldPathCase("/STARTUP/opika/packages/shelter.json", platform);
+      expect(isInsideRoot(path, root, "/")).toBe(inside);
+      expect(isInsideRoot(foldPathCase("/Startup/Opika2/x.json", platform), root, "/")).toBe(false);
+    },
+  );
+
+  // Windows-only on purpose: the end-to-end check needs a real case-insensitive NTFS path and
+  // `realpathSync` on it, which a Linux runner cannot provide. The rule itself is tested above.
   it.runIf(process.platform === "win32")(
     "exits for a differently-cased spelling of a path inside the repository",
     () => {
