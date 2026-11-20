@@ -29,7 +29,12 @@ export function ContentPageLayout({
 
       <Container as="main" className="flex-1 py-8 desktop:py-14">
         <div className="mx-auto flex max-w-180 flex-col gap-8 rounded-t-sheet bg-surface p-6 tablet:p-10 desktop:p-14">
-          <Heading level={1} look="display-l" className="desktop:text-display-xl">
+          {/* «конфіденційності» is wider than a 390 phone at display-l: hyphenate, else break. */}
+          <Heading
+            level={1}
+            look="display-l"
+            className="hyphens-auto break-words desktop:text-display-xl"
+          >
             {title}
           </Heading>
           {children}

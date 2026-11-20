@@ -35,6 +35,18 @@ describe("the privacy policy page", () => {
     expect(screen.getByText(/Ці записи видаляються через 90 днів\.$/)).toBeTruthy();
   });
 
+  it("follows the mail log with the email logo paragraph, the brand filled in", () => {
+    render(renderPrivacyPage(false));
+    const section = screen
+      .getByRole("heading", { name: "Якщо у вас є кабінет притулку" })
+      .closest("section") as HTMLElement;
+    const mailLog = within(section).getByText(/^Щоб кожен лист надходив лише раз/);
+    const logo = within(section).getByText(
+      "У листах від Opika є лише одне зображення з сайту – логотип, однаковий для всіх і без жодних міток. Коли поштова програма його показує, хостинг Vercel, як і для будь-якого запиту, записує в технічний журнал IP-адресу й час. Я не використовую це, щоб дізнатися, хто відкрив лист.",
+    );
+    expect(mailLog.nextElementSibling).toBe(logo);
+  });
+
   it("shows the registration section only while self-registration is on", () => {
     const off = render(renderPrivacyPage(false, { selfRegistration: false }));
     expect(screen.queryByRole("heading", { name: "Якщо ви реєструєте притулок" })).toBeNull();
@@ -49,7 +61,9 @@ describe("the privacy policy page", () => {
 
   it("links every address to the operator's mailbox", () => {
     render(renderPrivacyPage(false));
-    const links = screen.getAllByRole("link", { name: "hello@opika.org.ua" });
+    const links = within(screen.getByRole("main")).getAllByRole("link", {
+      name: "hello@opika.org.ua",
+    });
     expect(links).toHaveLength(3);
     for (const link of links) expect(link.getAttribute("href")).toBe("mailto:hello@opika.org.ua");
   });
@@ -65,10 +79,13 @@ describe("the privacy policy page", () => {
     expect(items).toEqual(["Vercel", "Neon", "Cloudflare", "Resend", "Upstash", "Sentry"]);
   });
 
-  it("marks no header entry as the current page", () => {
+  it("marks no header entry as the current page, and the footer links here", () => {
     render(renderPrivacyPage(false));
-    const header = screen.getByRole("banner");
-    expect(header.querySelector("[aria-current]")).toBeNull();
+    expect(screen.getByRole("banner").querySelector("[aria-current]")).toBeNull();
+    const footer = screen.getByRole("contentinfo");
+    expect(
+      within(footer).getByRole("link", { name: "Політика конфіденційності" }).getAttribute("href"),
+    ).toBe("/polityka-konfidentsiinosti");
   });
 });
 

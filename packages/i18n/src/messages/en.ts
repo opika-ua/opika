@@ -2085,6 +2085,8 @@ export const en = {
         "Every change in the dashboard is recorded in the shelter's history: when it was made and by whom, a shelter administrator or me. Taps on «Still looking» or «Still arranging» don't go into the history: they show as the date on the card. For the profile, the previous and the new value are kept; for animal cards, only which fields changed. The history holds nothing about the people looking for animals. It is deleted together with the shelter's record.",
       mailLog:
         "So that each email arrives only once, the site keeps a log of sent emails for 90 days: which email, to which shelter, and whether it was delivered. The log holds neither the address nor the text of the email.",
+      mailLogo:
+        "Emails from {site} contain one image from the site, the logo, the same for everyone with no markers. When a mail app shows it, Vercel records the IP address and time in its technical log, as for any request. I don't use this to learn who opened an email.",
       verification:
         "For verifying a shelter I keep what you provided: links, registration details, the contact of a person who can confirm the shelter's work. None of it is shown publicly.",
     },

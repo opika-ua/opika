@@ -113,6 +113,7 @@ export function renderPrivacyPage(
         <Paragraph>{p.kabinet.erasure}</Paragraph>
         <Paragraph>{p.kabinet.history}</Paragraph>
         <Paragraph>{p.kabinet.mailLog}</Paragraph>
+        <Paragraph>{fillTemplate(p.kabinet.mailLogo, { site: WORDMARK })}</Paragraph>
         <Paragraph>{p.kabinet.verification}</Paragraph>
       </Section>
       <Section heading={p.public.heading}>

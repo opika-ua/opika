@@ -303,8 +303,12 @@
 @utility footer-section {
   @apply flex min-h-target items-center border-b border-on-ink/15 text-cta font-semibold text-on-ink hover:underline focus-ring-on-ink desktop:border-0;
 }
+@utility footer-link {
+  @apply inline-flex min-h-target items-center text-chip font-normal text-mascot-dog-light hover:text-on-ink focus-ring-on-ink;
+}
+/* A contact: the plain link's look with its icon. */
 @utility footer-contact {
-  @apply inline-flex min-h-target items-center gap-2 text-chip font-normal text-mascot-dog-light hover:text-on-ink focus-ring-on-ink before:size-4 before:shrink-0 before:bg-current;
+  @apply footer-link gap-2 before:size-4 before:shrink-0 before:bg-current;
 }
 @utility footer-mail {
   &::before {
