@@ -9,10 +9,14 @@ describe("proxy matcher", () => {
   // Next buffers a matched non-GET request's whole body before the route or the proxy's own
   // 403/429 can answer, which defeats `/api/kabinet`'s 16 KB cap; both excluded prefixes take
   // no other proxy effect.
-  async function matches(pathname: string): Promise<boolean> {
+  async function matches(pathname: string, headers?: Record<string, string>): Promise<boolean> {
     const { config } = await import("./proxy");
     const { unstable_doesMiddlewareMatch } = await import("next/experimental/testing/server");
-    return unstable_doesMiddlewareMatch({ config, url: `https://opika.example${pathname}` });
+    return unstable_doesMiddlewareMatch({
+      config,
+      url: `https://opika.example${pathname}`,
+      ...(headers === undefined ? {} : { headers }),
+    });
   }
 
   it.each([
@@ -38,6 +42,36 @@ describe("proxy matcher", () => {
     "/tvaryny",
     "/",
   ])("still runs on %s", async (path) => expect(await matches(path)).toBe(true));
+
+  // What Next 16's segment cache sends for a `<Link>` prefetch (`segment-cache/cache.js`).
+  const PREFETCH = {
+    rsc: "1",
+    "next-router-prefetch": "1",
+    "next-router-segment-prefetch": "/_tree",
+  };
+  const DISCOVERY = ["/tvaryny", "/tvaryny/some-animal", "/tvaryny/misto/kyiv", "/prytulky/x"];
+
+  it.each(DISCOVERY)("skips a router prefetch of %s, so it is never charged", async (path) =>
+    expect(await matches(path, PREFETCH)).toBe(false),
+  );
+
+  it.each(DISCOVERY)("still runs on a document request for %s", async (path) =>
+    expect(await matches(path, { accept: "text/html" })).toBe(true),
+  );
+
+  it.each([
+    ["the prefetch header alone (Next renders the full document)", { "next-router-prefetch": "1" }],
+    ["rsc alone (a navigation, which renders the page)", { rsc: "1" }],
+    ["a runtime prefetch (value 2 renders data)", { rsc: "1", "next-router-prefetch": "2" }],
+    ["a server action dressed as a prefetch", { ...PREFETCH, "next-action": "abc" }],
+  ])("still charges a discovery page for %s", async (_label, headers) =>
+    expect(await matches("/tvaryny", headers)).toBe(true),
+  );
+
+  it.each(["/kabinet", "/kabinet/vkhid", "/prytulkam", "/tvarynyx", "/"])(
+    "still runs on a router prefetch of %s",
+    async (path) => expect(await matches(path, PREFETCH)).toBe(true),
+  );
 });
 
 describe("proxy body buffering bound", () => {

@@ -7,7 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * (owner, 2026-11-06). The tables below are the policy; a limiter missing from them, or in the
  * wrong mode, fails here.
  */
-const ALLOW = ["api", "adopter-mint", "health", "monitoring", "monitoring-test"];
+// `health` is in memory since 2026-11-20 (owner): it has no store to lose.
+const ALLOW = ["api", "adopter-mint", "monitoring", "monitoring-test"];
 const DENY = [
   "kabinet-sign-in-address",
   "kabinet-sign-in-ip",
@@ -109,7 +110,6 @@ describe("limiter fail modes with the store unreachable", () => {
     expect(callers.sort()).toEqual([
       "api/per-ip-budgets.ts",
       "api/rate-limit.ts",
-      "app/api/health/route.ts",
       "app/api/monitoring/route.ts",
       "app/api/monitoring/test/route.ts",
       "features/registration/limits.ts",

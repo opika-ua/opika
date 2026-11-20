@@ -134,23 +134,28 @@ test.describe("the gallery's animal overlay", () => {
      * deliberately prefetched (`AnimalOverlay.tsx`'s own comment on
      * `NeighbourLink` - the one `/tvaryny` link in this codebase that is,
      * unlike every other gallery/animal link's `prefetch={false}`), so
-     * opening a card now charges the opened animal's own path plus up to
-     * two more - its neighbours. What this test still guards: no
-     * *unbounded* or *gallery* re-fetch - every charged path is either the
-     * opened animal or a real `/tvaryny/{uuid}` neighbour, never a second
+     * opening a card fetches the opened animal's own path plus up to two
+     * more - its neighbours. Since 2026-11-20 a router prefetch skips the
+     * proxy (owner), so only the opened animal is charged. What this test
+     * guards: no *unbounded* or *gallery* re-fetch - every fetched path is
+     * the opened animal or a real `/tvaryny/{uuid}` neighbour, never a second
      * `/tvaryny` gallery-list fetch or more than two distinct neighbours.
      */
     test("opening a card charges only itself and its own neighbours - never a re-prefetch of the gallery", async ({
       page,
     }) => {
       await openGallery(page);
-      // Every request proxy.ts charges to the per-IP limit: the page routes
-      // under /tvaryny, documents and client fetches alike.
+      // Every request to the page routes under /tvaryny, documents and client fetches alike;
+      // `charged` leaves out the router prefetches the proxy's matcher skips.
+      const fetched: string[] = [];
       const charged: string[] = [];
       page.on("request", (request) => {
         const { pathname, search } = new URL(request.url());
         if (pathname === "/tvaryny" || pathname.startsWith("/tvaryny/")) {
-          charged.push(pathname + search);
+          fetched.push(pathname + search);
+          const headers = request.headers();
+          const prefetch = headers.rsc === "1" && headers["next-router-prefetch"] === "1";
+          if (!prefetch) charged.push(pathname);
         }
       });
 
@@ -160,8 +165,9 @@ test.describe("the gallery's animal overlay", () => {
       // again. Wait for the network to settle rather than for a time.
       await network.untilSettled();
 
-      const distinctPaths = [...new Set(charged.map((url) => url.split("?")[0]))];
-      expect(distinctPaths, "the opened animal's own path is always charged").toContain(href);
+      const distinctPaths = [...new Set(fetched.map((url) => url.split("?")[0]))];
+      expect(distinctPaths, "the opened animal's own path is always fetched").toContain(href);
+      expect([...new Set(charged)], "only the opened animal is charged").toEqual([href]);
       const neighbours = distinctPaths.filter((path) => path !== href);
       expect(neighbours.length, "at most the prev and next neighbours").toBeLessThanOrEqual(2);
       for (const path of neighbours) {
