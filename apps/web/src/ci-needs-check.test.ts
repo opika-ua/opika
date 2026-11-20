@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -55,23 +56,61 @@ describe("needs-check: which pull requests skip the full check", () => {
 
 /**
  * The required `check`'s gate, driven as the workflow drives it: the `needs` context as JSON in
- * $NEEDS, exit 0 or not. A skipped required check counts as passing, so every non-success has to
- * fail here, except the gated jobs skipped on a documentation-only change.
+ * $NEEDS and the shards' file counts in $TEST_FILES_DIR, exit 0 or not. A skipped required check
+ * counts as passing, so every non-success has to fail here, except the docs-only skip.
  */
 const GATE = resolve(REPO, ".github/scripts/check-gate.mjs");
+const { SHARDS, TEST_FILE_FLOORS } = (await import(
+  pathToFileURL(resolve(REPO, ".github/scripts/test-file-floors.mjs")).href
+)) as { SHARDS: number; TEST_FILE_FLOORS: Record<string, number> };
+
 type Result = "success" | "failure" | "cancelled" | "skipped";
-const gate = (classify: Result, code: string, build: Result, test: Result): number | null =>
-  spawnSync(process.execPath, [GATE], {
+/** shard number -> its counts file's content; a missing shard writes no file. */
+type Counts = Record<number, unknown>;
+
+/** Every floor met exactly: shard 1 ran all of it, the others none (as packages/ui's do). */
+const AT_FLOOR: Counts = {
+  1: TEST_FILE_FLOORS,
+  ...Object.fromEntries(
+    Array.from({ length: SHARDS - 1 }, (_, i) => [
+      i + 2,
+      Object.fromEntries(Object.keys(TEST_FILE_FLOORS).map((pkg) => [pkg, 0])),
+    ]),
+  ),
+};
+
+const writeCounts = (counts: Counts): string => {
+  const dir = mkdtempSync(join(tmpdir(), "opika-gate-"));
+  for (const [shard, content] of Object.entries(counts)) {
+    writeFileSync(
+      join(dir, `shard-${shard}.json`),
+      typeof content === "string" ? content : JSON.stringify(content),
+    );
+  }
+  return dir;
+};
+
+const gate = (
+  classify: Result,
+  code: string,
+  build: Result,
+  test: Result,
+  counts: Counts | null = AT_FLOOR,
+): number | null => {
+  const { TEST_FILES_DIR: _unset, ...env } = process.env;
+  return spawnSync(process.execPath, [GATE], {
     env: {
-      ...process.env,
+      ...env,
       NEEDS: JSON.stringify({
         classify: { result: classify, outputs: classify === "success" ? { code } : {} },
         build: { result: build, outputs: {} },
         test: { result: test, outputs: {} },
       }),
+      ...(counts ? { TEST_FILES_DIR: writeCounts(counts) } : {}),
     },
     encoding: "utf8",
   }).status;
+};
 
 describe("check-gate: when the required check passes", () => {
   it.each([
@@ -99,6 +138,62 @@ describe("check-gate: when the required check passes", () => {
     expect(
       spawnSync(process.execPath, [GATE], { env: { ...process.env, NEEDS: "{}" } }).status,
     ).toBe(1);
+  });
+});
+
+describe("check-gate: the test files the shards ran, against the pinned floors", () => {
+  const passed = (counts: Counts | null) => gate("success", "true", "success", "success", counts);
+
+  it("passes with every floor met exactly", () => {
+    expect(passed(AT_FLOOR)).toBe(0);
+  });
+
+  it("passes above the floors, with the files spread over the shards", () => {
+    const spread = Object.fromEntries(
+      Array.from({ length: SHARDS }, (_, i) => [
+        i + 1,
+        Object.fromEntries(
+          Object.entries(TEST_FILE_FLOORS).map(([pkg, floor]) => [pkg, Math.ceil(floor / SHARDS)]),
+        ),
+      ]),
+    );
+    expect(passed(spread)).toBe(0);
+  });
+
+  it.each(Object.keys(TEST_FILE_FLOORS))("fails one file below the floor of %s", (pkg) => {
+    const first = AT_FLOOR[1] as Record<string, number>;
+    expect(passed({ ...AT_FLOOR, 1: { ...first, [pkg]: (first[pkg] ?? 0) - 1 } })).toBe(1);
+  });
+
+  it("fails when a package's count is missing altogether (its tests vanished)", () => {
+    const { "packages/ui": _gone, ...rest } = AT_FLOOR[1] as Record<string, number>;
+    expect(passed({ ...AT_FLOOR, 1: rest })).toBe(1);
+  });
+
+  it.each(Array.from({ length: SHARDS }, (_, i) => i + 1))(
+    "fails when shard %i's counts are missing",
+    (shard) => {
+      const { [shard]: _gone, ...rest } = AT_FLOOR;
+      expect(passed(rest)).toBe(1);
+    },
+  );
+
+  it("fails with no counts directory at all", () => {
+    expect(passed(null)).toBe(1);
+  });
+
+  it("fails on an unreadable or malformed counts file", () => {
+    expect(passed({ ...AT_FLOOR, 2: "{not json" })).toBe(1);
+    expect(passed({ ...AT_FLOOR, 2: { "packages/db": -1 } })).toBe(1);
+    expect(passed({ ...AT_FLOOR, 2: { "packages/db": "44" } })).toBe(1);
+  });
+
+  it("fails on a package that has no floor yet", () => {
+    expect(passed({ ...AT_FLOOR, 2: { "packages/new": 3 } })).toBe(1);
+  });
+
+  it("needs no counts on documentation only", () => {
+    expect(gate("success", "false", "skipped", "skipped", null)).toBe(0);
   });
 });
 
@@ -135,12 +230,27 @@ describe("ci.yml", () => {
     expect(check).toContain("node .github/scripts/check-gate.mjs");
   });
 
-  it("splits the suite into three shards that all run", () => {
+  it("splits the suite into the gate's number of shards, all of which run", () => {
     const test = jobs.get("test") ?? "";
-    expect(test).toMatch(/shard: \[1, 2, 3\]/);
+    const shards = Array.from({ length: SHARDS }, (_, i) => i + 1).join(", ");
+    expect(test).toContain(`shard: [${shards}]`);
     expect(test).toMatch(/fail-fast: false/);
+    expect(test).toContain(
+      `pnpm run test --shard=\${{ matrix.shard }}/${SHARDS} --passWithNoTests`,
+    );
+  });
+
+  it("hands each shard's file counts to the gate", () => {
+    const test = jobs.get("test") ?? "";
+    expect(test).toContain("--reporter=json --outputFile.json=.vitest-shard.json");
+    expect(test).toContain("node .github/scripts/shard-summary.mjs");
     // biome-ignore lint/suspicious/noTemplateCurlyInString: a GitHub Actions expression, matched literally
-    expect(test).toContain("pnpm run test --shard=${{ matrix.shard }}/3");
+    expect(test).toContain("name: test-files-shard-${{ matrix.shard }}");
+    const check = jobs.get("check") ?? "";
+    expect(check).toContain("if: needs.test.result == 'success'");
+    expect(check).toContain("pattern: test-files-shard-*");
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: a GitHub Actions expression, matched literally
+    expect(check).toContain("TEST_FILES_DIR: ${{ runner.temp }}/test-files");
   });
 
   it("lists a rename's source as well as its destination", () => {
