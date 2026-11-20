@@ -1,6 +1,7 @@
 import { ukPublic as uk } from "@opika/i18n/public";
 import { Container } from "../../ui/Container";
 import { Heading } from "../../ui/Heading";
+import { SiteFooter } from "../chrome/SiteFooter";
 import { SiteHeader } from "../chrome/SiteHeader";
 import { SavedCards } from "./SavedCards";
 
@@ -19,7 +20,8 @@ export function SavedPageScreen({ kabinetSignedIn = false }: SavedPageScreenProp
     <div className="min-h-dvh bg-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} current="saved" />
 
-      <Container as="main" className="flex flex-col gap-13 pt-10 pb-10 desktop:pb-14">
+      {/* At least a screen tall: the list fills in after hydration, and a footer in view would jump. */}
+      <Container as="main" className="flex min-h-dvh flex-col gap-13 pt-10 pb-10 desktop:pb-14">
         <SavedCards
           intro={
             <>
@@ -31,6 +33,7 @@ export function SavedPageScreen({ kabinetSignedIn = false }: SavedPageScreenProp
           }
         />
       </Container>
+      <SiteFooter />
     </div>
   );
 }

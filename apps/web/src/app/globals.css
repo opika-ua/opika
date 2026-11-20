@@ -295,6 +295,10 @@
 @utility nav-kabinet-row {
   @apply nav-kabinet-look flex w-full;
 }
+/* The site footer's links as one class, for the same reason: the footer is in every public page. */
+@utility footer-link {
+  @apply inline-flex min-h-target items-center text-body text-ink-2 hover:text-ink focus-ring;
+}
 @utility gcard {
   @apply relative flex flex-col gap-3 focus-ring tablet:block tablet:overflow-clip tablet:rounded-card;
 }

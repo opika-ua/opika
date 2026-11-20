@@ -1,5 +1,5 @@
 import { R4_2_ANALYTICS_SENTENCE } from "@opika/i18n";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { metadata, renderAboutPage } from "./page";
 
@@ -11,7 +11,10 @@ describe("AboutPage", () => {
         "Opika – сайт, де тварини з притулків України шукають дім. Його робить одна людина, у вільний від роботи час і незалежно: немає команди й інвестора. Це не державний і не міський сервіс.",
       ),
     ).toBeTruthy();
-    expect(screen.queryByText(/робить одна людина, незалежно/)).toBeNull();
+    // The short line is the site footer's, not this page's content.
+    expect(
+      within(screen.getByRole("main")).queryByText(/робить одна людина, незалежно/),
+    ).toBeNull();
   });
 
   it("sets its own canonical (PR B, the SEO review of page titles)", () => {

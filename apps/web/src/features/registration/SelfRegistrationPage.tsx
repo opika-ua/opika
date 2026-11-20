@@ -7,10 +7,10 @@ import { Heading } from "../../ui/Heading";
 import { Icon } from "../../ui/Icon";
 import { Panel } from "../../ui/Panel";
 import { Text } from "../../ui/Text";
+import { SiteFooter } from "../chrome/SiteFooter";
 import { SiteHeader } from "../chrome/SiteHeader";
 import { OpenAnchoredDetails } from "./OpenAnchoredDetails";
 
-const INDEPENDENT = fillTemplate(uk.about.independent, { site: WORDMARK });
 const WHAT_THIS_IS = fillTemplate(uk.forShelters.whatThisIs, { site: WORDMARK });
 const WHO_CONTACTS_WHOM = fillTemplate(uk.forShelters.whoContactsWhom, { site: WORDMARK });
 const WHO_IS_BEHIND_THIS = fillTemplate(uk.forShelters.whoIsBehindThis, { site: WORDMARK });
@@ -44,7 +44,7 @@ export function SelfRegistrationPage({
 }) {
   const p = uk.registration.page;
   return (
-    <div className="min-h-dvh bg-page">
+    <div className="flex min-h-dvh flex-col bg-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} current="forShelters" />
       <OpenAnchoredDetails />
       <Container as="main" className="flex flex-col gap-12 py-8 desktop:gap-16 desktop:py-14">
@@ -86,6 +86,7 @@ export function SelfRegistrationPage({
         <HowItWorks />
         <Questions whatToPrepare={whatToPrepare} />
       </Container>
+      <SiteFooter />
     </div>
   );
 }
@@ -221,7 +222,6 @@ function Questions({ whatToPrepare }: { whatToPrepare: string }) {
           </Question>
         </Group>
       </div>
-      <Text look="hint">{INDEPENDENT}</Text>
     </section>
   );
 }

@@ -26,6 +26,7 @@ import { MAIN_LANDMARK } from "../../ui/landmark";
 import { MetaLine } from "../../ui/MetaLine";
 import { BOTTOM_BAR } from "../../ui/sticky-bar";
 import { Text } from "../../ui/Text";
+import { SiteFooter } from "../chrome/SiteFooter";
 import { SiteHeader } from "../chrome/SiteHeader";
 import { chipDisplayLabel, similarAnimalsHref, similarAnimalsLabel } from "../gallery/filter-url";
 import { SaveButton } from "../likes/SaveButton";
@@ -106,6 +107,7 @@ export function AnimalDetailScreen({
           </div>
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }

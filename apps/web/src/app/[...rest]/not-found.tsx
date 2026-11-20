@@ -1,6 +1,7 @@
 import { ukPublic as uk } from "@opika/i18n/public";
 import type { Metadata } from "next";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
+import { SiteFooter } from "../../features/chrome/SiteFooter";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
 import { LinkButton } from "../../ui/Button";
 import { Container } from "../../ui/Container";
@@ -19,7 +20,7 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 export default async function NotFound() {
   const copy = uk.siteNotFound;
   return (
-    <div className="min-h-dvh bg-page">
+    <div className="flex min-h-dvh flex-col bg-page">
       <SiteHeader kabinetSignedIn={await kabinetSessionCookiePresent()} />
       <Container as="main" className="flex justify-center py-8 desktop:py-14">
         <Panel padding="lg" className="flex w-full max-w-140 flex-col items-start gap-4">
@@ -38,6 +39,7 @@ export default async function NotFound() {
           </LinkButton>
         </Panel>
       </Container>
+      <SiteFooter />
     </div>
   );
 }

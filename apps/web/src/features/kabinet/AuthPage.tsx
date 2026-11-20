@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import { Container } from "../../ui/Container";
+import { SiteFooter } from "../chrome/SiteFooter";
 import { SiteHeader } from "../chrome/SiteHeader";
 
 /**
  * The frame of every page before sign-in (sign-in and invitation landing, forgot, new password,
- * the registration email's links): the public site header with «Кабінет притулку» as the current
+ * the registration email's links): the public site header and footer, with «Кабінет притулку» as the current
  * section (owner, 2026-11-20, option A), then one card, centred from tablet, full width on a phone.
  * The kabinet shell is for signed-in pages only.
  */
@@ -25,6 +26,7 @@ export function AuthPage({
       >
         {children}
       </Container>
+      <SiteFooter />
     </div>
   );
 }

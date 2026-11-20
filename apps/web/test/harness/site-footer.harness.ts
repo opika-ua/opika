@@ -1,0 +1,82 @@
+/**
+ * The site footer (owner, 2026-11-20): one `contentinfo` on every page that wears the public header,
+ * with its links, and the independence line once. On the main server, so self-registration is off
+ * and «Правила» is absent; `self-registration.harness.ts` follows that link with the flag on.
+ * Found by role and text only.
+ */
+
+import { expect, type Page, test } from "@playwright/test";
+import {
+  noSidewaysScroll,
+  openRoute,
+  servedAnimalIds,
+  useClientAddressPerRepetition,
+} from "./harness";
+import { DESKTOP, NARROW_PHONE } from "./viewports";
+
+const INDEPENDENT = "Opika робить одна людина, незалежно. Це не державний і не міський сервіс.";
+const HEADER = "[data-testid='site-header']";
+
+test.beforeEach(async ({ page }, testInfo) => {
+  await useClientAddressPerRepetition(page, testInfo);
+});
+
+async function expectOneFooter(page: Page, route: string): Promise<void> {
+  const footer = page.getByRole("contentinfo");
+  await expect(footer, route).toHaveCount(1);
+  await expect(footer.getByText(INDEPENDENT), route).toBeVisible();
+  await expect(page.getByText(INDEPENDENT), route).toHaveCount(1);
+}
+
+test("every public page ends with one footer", async ({ page }) => {
+  test.setTimeout(90_000);
+  const [animalId] = await servedAnimalIds(page, 1);
+  const animalPage = `/tvaryny/${animalId}`;
+  await openRoute(page, animalPage, DESKTOP, { readySelector: HEADER });
+  const shelterPage = await page.locator("main a[href^='/prytulky/']").first().getAttribute("href");
+  expect(shelterPage, "the animal page links its shelter").toMatch(/^\/prytulky\//);
+
+  for (const route of [
+    "/tvaryny",
+    "/tvaryny/misto/brovary",
+    animalPage,
+    shelterPage as string,
+    "/pro",
+    "/prytulkam",
+    "/zberezheni",
+    "/rate-limited/screen",
+    "/no-such-page",
+  ]) {
+    await openRoute(page, route, DESKTOP, { readySelector: HEADER });
+    await expectOneFooter(page, route);
+  }
+});
+
+test("the footer's links lead to the site's pages, the email and Instagram", async ({ page }) => {
+  await openRoute(page, "/pro", DESKTOP, { readySelector: HEADER });
+  const footer = page.getByRole("contentinfo");
+  const links = await footer
+    .getByRole("link")
+    .evaluateAll((all) => all.map((a) => [a.textContent, a.getAttribute("href")]));
+  expect(links).toEqual([
+    ["Тварини", "/tvaryny"],
+    ["Для притулків", "/prytulkam"],
+    ["Про проєкт", "/pro"],
+    ["hello@opika.org.ua", "mailto:hello@opika.org.ua"],
+    ["Instagram", "https://www.instagram.com/opika.ua/"],
+  ]);
+  await expect(footer.getByRole("link", { name: "Instagram" })).toHaveAttribute("rel", "noopener");
+
+  await footer.getByRole("link", { name: "Для притулків" }).click();
+  await page.waitForURL((url) => url.pathname === "/prytulkam");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+});
+
+test("at 320 the footer wraps without widening the page", async ({ page }) => {
+  for (const route of ["/tvaryny", "/prytulkam"]) {
+    await openRoute(page, route, NARROW_PHONE, { readySelector: HEADER });
+    await page.getByRole("contentinfo").scrollIntoViewIfNeeded();
+    await expect(page.getByRole("contentinfo").getByText(INDEPENDENT)).toBeVisible();
+    expect(await noSidewaysScroll(page), route).toBe(true);
+  }
+});

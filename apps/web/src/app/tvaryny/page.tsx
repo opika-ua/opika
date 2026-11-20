@@ -6,6 +6,7 @@ import { permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import { anonymousRouterClient } from "../../api/server-client";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
+import { SiteFooter } from "../../features/chrome/SiteFooter";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
 import { ActiveFilterChips } from "../../features/gallery/ActiveFilterChips";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
@@ -526,6 +527,7 @@ export async function renderGallery(
           )}
         </div>
       </Container>
+      <SiteFooter />
     </div>
   );
 }
