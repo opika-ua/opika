@@ -26,7 +26,10 @@
     "email:delivery-test": "pnpm --filter @opika/db exec tsx ../../apps/web/scripts/email-delivery-test.ts",
     "neon-perf-routes": "pnpm --filter @opika/db exec tsx ../../apps/web/scripts/neon-perf-routes.ts",
     "kabinet:neon-auth-smoke": "pnpm --filter @opika/db exec tsx ../../apps/web/scripts/neon-auth-smoke.ts",
-    "kabinet:sign-in-delay-smoke": "pnpm --filter @opika/db exec tsx ../../apps/web/scripts/sign-in-delay-smoke.ts"
+    "kabinet:sign-in-delay-smoke": "pnpm --filter @opika/db exec tsx ../../apps/web/scripts/sign-in-delay-smoke.ts",
+    "email:tokens": "pnpm --filter @opika/db exec tsx ../../apps/web/scripts/email-tokens.ts",
+    "email:images": "pnpm --filter @opika/db exec tsx ../../apps/web/scripts/email-images.ts",
+    "email:preview": "pnpm --filter @opika/db exec tsx --tsconfig ../../apps/web/tsconfig.json ../../apps/web/scripts/email-preview.ts"
   },
   "dependencies": {
     "@opika/contracts": "workspace:*",
@@ -48,6 +51,8 @@
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-easy-crop": "catalog:",
+    "react-email": "catalog:",
+    "@react-email/render": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

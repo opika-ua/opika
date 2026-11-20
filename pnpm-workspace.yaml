@@ -129,6 +129,11 @@ catalog:
   # dependency; drag, pinch, wheel, a fixed aspect and keyboard moves (ADR §12: cropping is "buy").
   # Exactly 6.2.4: 6.2.5 was under the owner's 7-day rule (crop-frame approvals, Q9).
   react-easy-crop: 6.2.4
+  # Branded HTML emails (plan 2026-11-20, owner-approved tooling), server-only (`src/kabinet/emails`).
+  # Resend's own library, MIT, npm provenance. `react-email` 6 replaces the deprecated
+  # `@react-email/components`; render is pinned too, since react-email asks for it by range.
+  react-email: 6.11.16
+  "@react-email/render": 2.3.1
 
 allowBuilds:
   esbuild: true
