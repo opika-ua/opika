@@ -43,7 +43,8 @@
  *     production isn't 0 when I run it, I decide again with the number in
  *     front of me.";
  *   - a shelter outside the seed range sits on the seed's test-only location
- *     key (RG-Q11's privacy bug, the same rule as `location:verify`);
+ *     key (RG-Q11's privacy bug, the same rule as `location:verify`); one with
+ *     no point on file (a self-registered shelter before its address) carries no key;
  *   - a reveal links a targeted animal to a shelter not targeted or the
  *     reverse, which no code path writes, so deleting it would touch a row
  *     outside the target set;
@@ -97,7 +98,7 @@ import { reveals } from "./schema/reveals";
 import { shelterHistory } from "./schema/shelter-history";
 import { shelters } from "./schema/shelters";
 import { isSeedShelterId, SEED_LOCATION_POLICY_KEY, SEED_SHELTER_ID_PREFIX } from "./seed-ids";
-import { storedWith } from "./verify-locations";
+import { onTestKey } from "./verify-locations";
 
 /** Every table the removal deletes from, in the order it deletes. */
 export const DEMO_REMOVAL_TABLES = [
@@ -360,7 +361,7 @@ export async function planDemoRemoval(
     .where(
       sql`(${scope.isTargetAnimalReveal} AND NOT ${scope.isTargetShelterReveal}) OR (${scope.isTargetShelterReveal} AND NOT ${scope.isTargetAnimalReveal})`,
     );
-  const testKeyShelters = outsideSeedRange.filter((row) => storedWith(row, testPolicy)).length;
+  const testKeyShelters = outsideSeedRange.filter((row) => onTestKey(row, testPolicy)).length;
 
   const targetPhotos = await db
     .select({ photos: animals.photos })
