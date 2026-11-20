@@ -13,7 +13,7 @@ rules (a Neon child branch for anything experimental; `--prod --expect ep-...` f
    down" below for which routes stay open), database errors (Neon: check
    its status page and the project's compute state, section 5), or a boot error naming a missing
    variable (an env change without a redeploy, section 6).
-4. Neon console: is the compute suspended or over a plan limit (section 5)?
+4. Neon console: is the compute suspended, or held at its 2 CU maximum by a runaway query (section 5)?
 5. Vercel status, Upstash status, Cloudflare (R2 and DNS) status.
 6. If it is an attack, section 7.
 
@@ -62,26 +62,97 @@ ping is the alert.
 
 ## 4. Restore the database (Neon point-in-time)
 
-History retention: not recorded yet for Launch (section 5); act inside it.
+Owner only. History retention is 7 days (section 5): a timestamp older than that cannot be restored.
+Always restore onto a **new branch first, never straight over the production branch**. Neon's
+console is the source of truth for these steps (labels from Neon's docs: "Create a branch",
+https://neon.com/docs/manage/branches, and "Instant restore",
+https://neon.com/docs/guides/branch-restore); the repo has no restore script.
 
-1. Neon console, Branches: create a branch from production at a timestamp just before the damage.
-   This is a child branch; production is untouched.
-2. Verify on the child, read-only: row counts of the damaged tables, and `pnpm --filter @opika/db
-   db:check-hashes` (the child's direct string via `Read-Secret`, `--expect` the child endpoint).
-3. Either swap (Neon "restore" of the production branch to that point, which keeps the old state as
-   a backup branch) or copy back only the damaged tables from the child with `pg_dump` / `psql`.
-   Prefer copy-back when the damage is one table; prefer the swap when it is wide.
-4. After a swap the compute restarts: expect a cold start, then recheck `/api/health` and a page.
+1. Neon console, project `opika`, Branches, New branch. Parent branch: production. Name it so
+   section 5's listing tells it apart, e.g. `restore-<yyyy-mm-dd>`. Choose **Past data** and a time
+   just before the damage. Uncheck "Automatically delete branch after" (checked by default in the
+   console, section 5), so the branch stays until you delete it. Create. Production is untouched.
+2. Verify on the new branch, read-only: row counts of the damaged tables, and
+   `pnpm --filter @opika/db db:check-hashes` with `$env:DATABASE_URL = Read-Secret "Restore branch
+   DIRECT connection string"`. `db:check-hashes` takes no `--expect`; it prints `Target: Neon
+   endpoint ep-...` first, so check that id is the new branch's endpoint, not production's, before
+   reading the hashes. Every migration should read `match`. Then `Remove-Item Env:DATABASE_URL`.
+3. Decide, with what step 2 showed:
+   - **Copy back** only the damaged tables from the new branch with `pg_dump` / `psql`. Prefer this
+     when the damage is one table.
+   - **Restore production in place** (Neon: the production branch, Postgres database, Backup &
+     Restore, Restore from history, From history, the same timestamp, Next, Restore). Prefer this
+     when the damage is wide. Neon keeps the pre-restore state as a branch named
+     `production_old_<timestamp>`; existing connections drop during the restore and reconnect after,
+     with the same connection string.
+   Any write to production afterwards (a migration, `onboard:shelter`) goes through the usual guards:
+   `--prod --expect ep-...` with `PROD_NEON_ENDPOINT` set (CLAUDE.md, Commands).
+4. After an in-place restore expect a cold start, then recheck `/api/health` and a page, and run
+   `db:check-hashes` against production (its `Target:` line must name the production endpoint).
 5. R2 is not restored by any of this (section 8). Photos referenced by restored rows may be missing;
    shelters can re-upload.
+6. Delete the restore branch (and, once sure, the `_old_` backup) by hand when done (section 5,
+   "Branches").
 
-## 5. Neon limits (what to expect)
+## 5. Neon plan and limits
 
-- Launch plan since at least 2026-11-20; its limits are not recorded here yet: the owner reads them from the Neon dashboard, then fill them in (compute
-  hours, scale-to-zero, history retention). A compute that scales to zero answers its first request
-  with a cold start.
-- The app reads `DATABASE_URL` as the pooled string (`docs/launch-sequence.md`, Vercel environment
-  table). Migrations and the smokes need the direct string and refuse a pooled one.
+Owner's dashboard facts, 2026-11-20:
+
+- Project `opika`, AWS eu-central-1 (Frankfurt), **Launch** plan (through the Vercel Marketplace),
+  Postgres 18.
+- Default compute: autoscaling, min 0.25 CU, max 2 CU (lowered from 8 CU to bound the cost of a
+  runaway query; typical use is ~0.25 CU), scale-to-zero on. A compute that scales to zero answers
+  its first request with a cold start.
+- History retention (the point-in-time restore window, section 4): 7 days, raised from 6 hours.
+- Usage since 2026-11-08 (a snapshot read on 2026-11-20, not a limit): 28.6 CU-hours, 63 MB storage,
+  257 MB transfer.
+- 4 branches on 2026-11-20.
+
+The app reads `DATABASE_URL` as the pooled string (`docs/launch-sequence.md`, Vercel environment
+table). Migrations and the smokes need the direct string and refuse a pooled one.
+
+### Branches: read-only listing
+
+Nothing in this repo deletes a Neon branch (no cron, no script); the owner deletes stale branches by
+hand, in the console, after reading this list. Two things outside the repo can delete one by itself:
+
+- **The Vercel–Neon integration** deletes a `preview/<git-branch>` branch when its Vercel deployments
+  are removed ("Preview branches are automatically deleted when their corresponding Vercel
+  deployments are removed", https://neon.com/docs/guides/vercel-managed-integration). We expect
+  none: only the default branch deploys (`apps/web/vercel.json`).
+- **Neon's branch expiry.** Neon's docs: "By default, Automatically delete branch after is checked
+  with 1 day selected", "This default only applies when creating branches through the Console" and
+  "API and CLI branches have no expiration by default"
+  (https://neon.com/docs/manage/branches; https://neon.com/docs/guides/branch-expiration). A
+  smoke-sitting child branch made in the console with the box left checked may disappear by itself
+  after that time; that is fine, since every sitting uses a fresh branch. A restore branch must not
+  expire: section 4, step 1 says to uncheck it.
+
+1. Neon console, project `opika`, Branches: each row shows the name, when it was created and its
+   parent. Tell them apart:
+   - the production branch: the root, no parent;
+   - smoke-sitting child branches: parent production. `smoke-sitting.ts` does not name them (the
+     owner does, or Neon generates a name); a sitting names used ones by endpoint id only, as never
+     to be reused. Match a row to a sitting by its endpoint id and creation date;
+   - restore points named before a risky step (`pre-reset-1`, `pre-reset-2` in
+     `docs/prelaunch/child-sitting.md`, the import sitting's `restoreBranchName`) and section 4's
+     `restore-...` and `production_old_...`: keep until the step they protect is settled;
+   - Vercel preview branches, named `preview/<git-branch>` by the integration (see above). None
+     are expected; one here predates the default-branch-only deploys or means preview branching
+     was switched on.
+2. Optional, CLI (syntax from https://neon.com/docs/reference/cli-branches and
+   https://neon.com/docs/reference/neon-cli; `neonctl` is an alias of `neon`). Lists only. The API
+   key goes through the environment, never on the command line or in chat:
+
+   ```powershell
+   $env:NEON_API_KEY = Read-Secret "Neon API key"
+   neonctl branches list --project-id <project-id> --output json
+   Remove-Item Env:NEON_API_KEY
+   ```
+
+   `<project-id>` is in the console's project Settings. Read `name`, `created_at`, `parent_id`
+   (absent on the root) and `creation_source` per branch. The default table output shows name and
+   creation time but not the parent.
 
 ## 6. Rotating secrets
 
