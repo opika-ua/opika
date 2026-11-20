@@ -331,8 +331,8 @@ Identical to step 6. Sweeps the rehearsal's own photos, now genuinely orphaned: 
 
 ### 12. Onboard the real shelters
 
-The rehearsal stays on the Neon Free plan; upgrade to Launch before the first real shelter, so
-before this step's first `--commit`.
+Neon is already on the Launch plan (owner, 2026-11-20), so no upgrade is needed before this
+step's first `--commit`.
 
 **The existing path**, `docs/onboarding-a-shelter.md` in full, run once per real shelter:
 

@@ -48,7 +48,7 @@ GDPR side.
 | `adopters` (one row per `sessions` row, device-bound, carries `device_session_id`) | Postgres | Identity the rest of this table hangs off | **Since S3 (audit F6, 2026-10-29), deleted by the same cron only when nothing hangs off it:** an anonymous adopter more than 31 days old (its one session's 30-day cap plus a day) with no session and no reveal (`adopterRepo.deleteOrphaned`, 5,000 a run). **An adopter with a reveal is kept until its last reveal passes 90 days** (2026-11-20, G3 closed): the same cron run that deletes that reveal deletes the adopter, so at most about 120 days after it was created (a reveal can only be made within its session's 30 days). `demo:remove` still never removes adopters | Same basis |
 | `reveals` (adopter_id, animal_id, shelter_id, revealed_at, shelter_snapshot, animal_snapshot) | Postgres | Lets `animals.reveal` be idempotent (don't re-charge a rate-limit unit for the same shelter); historical record of who was shown what shelter contact | **Deleted 90 days after `revealed_at`** (owner, 2026-11-20, privacy policy D2; G3 closed): the 6-hourly clean-up cron (`revealRepo.deleteExpired`, `REVEAL_RETENTION_DAYS`, 5,000 a run) deletes it within about 12 hours of passing 90 days, allowing for one skipped run. Never updated before then (decision #9); `demo:remove --shelter` also deletes the reveals on a removed shelter's animals. `shelter_snapshot`/`animal_snapshot` freeze the shelter's name/contact/exact address/animal facts *as revealed*, so this is also the one place a shelter's now-changed contact details stay recorded against a specific adopter, for those 90 days | Legitimate interest (abuse prevention via idempotency) for the fact of the reveal; the snapshot's retention is now bounded at 90 days (G3) |
 | Saved list (which animals a visitor has bookmarked) | **Not server-side at all** - `localStorage`, this browser only. `animals.cardsByIds`'s batch read is a `credentials: 'omit'` POST, no cookie, and the server doesn't log or store which ids were asked for | n/a - client state | n/a - never reaches the server as a record | n/a - nothing to have a legal basis for |
-| Per-IP rate-limit keys (`ip:` + HMAC-SHA256 under `RATE_LIMIT_KEY_SECRET` - never the raw address itself) | Upstash Redis | Abuse/scraping prevention (per-IP throttling on the gallery, reveals, kabinet routes) | Short TTLs only: ~2 minutes (kabinet per-IP), ~2 hours (sign-in per-IP and the typed-address key) - `@upstash/ratelimit`'s sliding-window `PEXPIRE` | Legitimate interest (Art. 6(1)(f), security/anti-abuse - one of GDPR's own listed examples of a likely legitimate interest, Recital 49) |
+| Per-IP rate-limit keys (`ip:` + HMAC-SHA256 under `RATE_LIMIT_KEY_SECRET` - never the raw address itself) | Upstash Redis (`eu-central-1`, Frankfurt) | Abuse/scraping prevention (per-IP throttling on the gallery, reveals, kabinet routes) | Short TTLs only: ~2 minutes (kabinet per-IP), ~2 hours (sign-in per-IP and the typed-address key) - `@upstash/ratelimit`'s sliding-window `PEXPIRE` | Legitimate interest (Art. 6(1)(f), security/anti-abuse - one of GDPR's own listed examples of a likely legitimate interest, Recital 49) |
 | Vercel Analytics / Speed Insights | Vercel's own infrastructure, not this app's database | Aggregate traffic/performance numbers | Vercel's own retention (not controlled by this app) | **Cookieless** (`SiteAnalytics.tsx`'s own comment) - Vercel's documented approach avoids a persistent per-visitor identifier, which is the usual basis for treating this kind of aggregate, non-tracking analytics as not needing consent under ePrivacy. Worth confirming this is still true of the current `@vercel/analytics` version rather than assumed, see G6 |
 
 **2026-11-03 (owner): the `swipes` table is dropped (migration 0022) with the swipe deck, so one less table holds adopter activity.** What remains per adopter is `sessions`, `adopters` and `reveals`; the table's rows are gone with it, not archived.
@@ -136,22 +136,44 @@ handling"); the brief that asked for this analysis is effectively pulling H5's a
 not its build.
 
 **G2 - Processors with US data storage aren't disclosed anywhere, and no SCC/DPA status is
-recorded.** Two known cases:
-- **Resend** (sign-in and invite emails): account data - email metadata and logs, 30-day
-  retention - is stored in the US regardless of the EU sending region. Recorded in
-  `docs/decisions-inbox.md` row EM-F3 as his own relayed statement, not independently
-  re-verified against Resend's own terms this pass.
-- **Upstash** (rate-limit keys): row RL-4 (2026-10-06) records Upstash's own database region
-  as `iad1` (US East), set to match what the dashboard showed as the app's Vercel Function
-  Region at provisioning time. But the app's `vercel.json` has `regions: ["fra1"]`
-  (Frankfurt), pinned a month *earlier* (`61183b2`, 2026-09-09) - so the region RL-4 matched
-  against was itself already stale by the time Upstash was provisioned. I haven't checked
-  the live Upstash dashboard to see whether its region is still `iad1`, still pointed at a
-  fact that stopped being true in September - flagging the conflict, not guessing the answer.
+recorded. Closed 2026-11-20** (owner, verified in each dashboard): the Upstash region conflict
+is resolved and every processor's DPA is recorded below. What remains is naming them in the
+privacy policy (fix 1).
 
-Neither Resend's nor Upstash's data-processing terms (SCCs, a signed DPA) are referenced
-anywhere in the repo. They may already be covered by each vendor's standard terms - that's
-worth confirming rather than assuming is fine or assuming is a problem.
+Regions:
+- **Vercel functions:** `fra1` (Frankfurt).
+- **Neon:** `aws-eu-central-1` (Frankfurt), Launch plan, provisioned through the Vercel
+  Marketplace.
+- **Upstash** (rate-limit keys): `eu-central-1` (Frankfurt). Owner, verbatim: "moved today.
+  New store opika-ratelimit-eu in eu-central-1 (Frankfurt), connected to opika-web for
+  Production and Preview with the same KV_* env var names; the old us-east-1 store is
+  disconnected and deleted; production redeployed. (The old store used 211k of 500k free
+  commands this month.)"
+- **Cloudflare R2** (`opika-photos`): location hint EEUR. A hint is best effort, not the `eu`
+  jurisdiction, so the data is mostly in Europe; the policy says «переважно в Європі» (owner
+  decision).
+- **Resend:** both sending domains in `eu-west-1` (Ireland), open and click tracking off.
+  Sending logs may be kept in the US (EM-F3).
+- **Sentry:** EU region (`de.sentry.io`); "Prevent storing of IP addresses" is on at
+  organisation level, default scrubbers on.
+
+DPAs:
+
+| Processor | DPA | How it binds |
+|---|---|---|
+| Vercel | https://vercel.com/legal/dpa | Automatic, Terms §11.1 |
+| Cloudflare | https://www.cloudflare.com/cloudflare-customer-dpa/ | Automatic, Self-Serve Agreement §6.1 |
+| Resend | https://resend.com/legal/dpa | Automatic on acceptance of its terms |
+| Upstash | https://upstash.com/trust/dpa.pdf | Incorporated into its ToS |
+| Neon (Databricks, Inc. / Neon, LLC) | https://neon.com/platform-terms → Databricks MCSA §1.1.4.1, which incorporates databricks.com/legal/dpa | Binds on use for self-service plans. The processor is Databricks/Neon, not Vercel: Vercel's Marketplace terms say the customer contracts with the vendor directly |
+| Sentry | https://sentry.io/legal/dpa/ | Not automatic; accepted by the owner on 2026-11-20 in Organization Settings › Legal & Compliance |
+
+All six include the 2021/914 SCCs, and all six state EU-US Data Privacy Framework compliance.
+
+*The original gap, for the record:* Resend's and Upstash's data-processing terms were
+referenced nowhere in the repo, and RL-4 (2026-10-06) had put the Upstash store in `iad1`
+(US East) to match a Vercel function region that `vercel.json` had already moved to `fra1`
+on 2026-09-09 (`61183b2`).
 
 **G3 - No retention policy tied to an adopter's own age or inactivity. Closed 2026-11-20** by
 the reveal-retention PR. Owner, privacy policy D2, verbatim: "D2: 90 days. Small PR: delete
@@ -242,10 +264,9 @@ decisions (`docs/standing-constraints.md`'s Ukrainian-copy and public-claim gate
    stated grace period, alongside the existing auth-cleanup cron. A product decision (how
    long is "necessary" for a returning visitor's reveals to keep working across a plausible return
    visit) before it's a build, and the deletion order from G4 applies here too.
-3. **Resolve the Upstash region conflict and record both processors' status** - confirm
-   which region the live Upstash database is actually in, and obtain/confirm DPA/SCC
-   coverage for both Resend and Upstash, naming both in the new privacy policy once it
-   exists (closes G2 alongside #1).
+3. **Done 2026-11-20 (see G2).** The Upstash store is in `eu-central-1` (Frankfurt), and
+   every processor's DPA and SCC coverage is recorded in G2, Sentry's accepted by the owner
+   that day. Naming them in the privacy policy is part of #1.
 4. **Define a data-subject-request procedure** covering both the adopter case and the
    departed-shelter-admin case in G4. For the adopter case, the *deletion itself* is just
    three statements in FK order (already worked out in G4) - what's still missing is intake
