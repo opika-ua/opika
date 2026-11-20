@@ -111,6 +111,42 @@ test.describe("header frame: public site and kabinet", () => {
     });
   }
 
+  // Owner, 2026-11-20 (a geometry check by his request): the header moved ~8px between the short
+  // sign-in page, with no scrollbar, and a long page with one. Its own browser draws scrollbars,
+  // which Playwright hides by default.
+  test("the logo has the same x on the short sign-in page and on long /prytulkam at 1440", async ({
+    playwright,
+  }) => {
+    if (server === undefined) throw new Error("no sign-in server");
+    const browser = await playwright.chromium.launch({ ignoreDefaultArgs: ["--hide-scrollbars"] });
+    try {
+      const page = await browser.newPage({
+        baseURL: server.origin,
+        extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR },
+        viewport: { width: 1440, height: 900 },
+      });
+      await page.goto("/prytulkam");
+      const scrollbar = await page.evaluate(() => ({
+        tall: document.documentElement.scrollHeight > window.innerHeight,
+        drawn: window.innerWidth > document.documentElement.clientWidth,
+      }));
+      expect(scrollbar, "/prytulkam scrolls, with a drawn scrollbar").toEqual({
+        tall: true,
+        drawn: true,
+      });
+      const long = await logoX(page, "[data-testid='site-header']");
+      await page.goto("/kabinet/vkhid");
+      expect(await logoX(page, "[data-testid='site-header']")).toBe(long);
+      await page.setViewportSize({ width: 390, height: 844 });
+      for (const path of ["/kabinet/vkhid", "/prytulkam"]) {
+        await page.goto(path);
+        expect(await noSidewaysScroll(page), `${path} at 390`).toBe(true);
+      }
+    } finally {
+      await browser.close();
+    }
+  });
+
   test("neither header scrolls sideways at 320", async () => {
     const page = await signedInPage();
     await page.setViewportSize({ width: 320, height: 700 });

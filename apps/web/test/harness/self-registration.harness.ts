@@ -81,6 +81,31 @@ test.describe("/prytulkam's registration form", () => {
     expect(new URL(page.url()).search).toBe("");
   });
 
+  // The link from sign-in lands on step 1's heading with no ring; a step move by keyboard keeps its ring.
+  test("#reyestratsiia: focus on the step heading, no ring; Enter on «Далі» rings step 2", async ({
+    page,
+  }) => {
+    await page.goto("/prytulkam#reyestratsiia", { waitUntil: "load" });
+    await hydrated(page, "#reyestratsiia form button[type='submit']");
+    const stepOne = page.getByRole("heading", { name: "Крок 1 з 2 · Про притулок" });
+    await expect(stepOne).toBeFocused();
+    expect(await stepOne.evaluate((el) => el.matches(":focus-visible"))).toBe(false);
+
+    await fillStepOne(page);
+    const [city] = await db.select({ name: cities.nameUk }).from(cities).limit(1);
+    if (city === undefined) throw new Error("no seeded city");
+    await page.getByRole("combobox", { name: "Місто" }).fill(city.name);
+    await page
+      .getByRole("option", { name: new RegExp(city.name) })
+      .first()
+      .click();
+    await page.getByRole("button", { name: "Далі" }).focus();
+    await page.keyboard.press("Enter");
+    const stepTwo = page.getByRole("heading", { name: "Крок 2 з 2 · Ваш акаунт" });
+    await expect(stepTwo).toBeFocused();
+    expect(await stepTwo.evaluate((el) => el.matches(":focus-visible"))).toBe(true);
+  });
+
   test("without JS: the form posts natively and the page answers in place", async ({ browser }) => {
     const context = await browser.newContext({
       javaScriptEnabled: false,

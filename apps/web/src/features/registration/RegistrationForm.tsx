@@ -17,6 +17,7 @@ import { Combobox, type ComboboxOption, type ComboboxResult } from "../../ui/Com
 import { cx } from "../../ui/cx";
 import { ErrorSummary, type ErrorSummaryItem, errorFocusOf } from "../../ui/ErrorSummary";
 import { InlineStatus } from "../../ui/feedback";
+import { focusOnArrival } from "../../ui/focus-on-arrival";
 import { TextField } from "../../ui/form";
 import { PasswordField } from "../../ui/PasswordField";
 import { Text } from "../../ui/Text";
@@ -166,7 +167,7 @@ export function RegistrationForm({
   // A direct link to the section (`/prytulkam#reyestratsiia`) lands on its heading.
   useEffect(() => {
     if (window.location.hash === `#${REGISTRATION_ANCHOR}`) {
-      document.getElementById(headingId)?.focus({ preventScroll: true });
+      focusOnArrival(document.getElementById(headingId), { preventScroll: true });
     }
   }, [headingId]);
 

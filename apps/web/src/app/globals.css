@@ -408,6 +408,13 @@
     outline-offset: -3px;
   }
 }
+/* The scrollbar's room is kept on every page, so a short page or a scroll-locked dialog never shifts
+   the centred layout sideways (the lock's body overflow goes to the viewport; the gutter stays). An
+   empty gutter shows the root's background, hence the page colour here rather than white. */
+html {
+  scrollbar-gutter: stable;
+  background-color: var(--color-page);
+}
 /* The skip link's target takes programmatic focus only; it is not a control, so no outline. */
 main:focus {
   outline: none;
