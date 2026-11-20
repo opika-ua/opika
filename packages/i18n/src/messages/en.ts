@@ -1453,6 +1453,10 @@ export const en = {
         body: "{count} registration and re-confirmation emails were sent today – the daily limit. Until the end of the day new registrations see «Too many applications». Check «Заявки» for signs of abuse: many applications with the same names, links or email domains.",
         action: "Open «Заявки»",
       },
+      notificationCapWarning: {
+        subject: "Notification emails: 80% of today's limit used",
+        body: "{count} of {cap} notification emails have already been sent today (dashboard events, reminders, retries). After {cap}, new notifications are not sent until the end of the day. If this is not a normal day, check whether a mailing is stuck in a loop.",
+      },
       signIn: {
         subject: `A sign-in link for the shelter's dashboard`,
         intro: `Hello. A sign-in link for the shelter's dashboard was requested for this address.`,

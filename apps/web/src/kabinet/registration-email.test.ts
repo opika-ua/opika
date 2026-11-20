@@ -43,6 +43,7 @@ const samples: Record<RegistrationEmail["template"], RegistrationEmail> = {
     count: 300,
     queueUrl: "https://opika.org.ua/kabinet/prytulky",
   },
+  notification_cap_warning: { template: "notification_cap_warning", count: 240, cap: 300 },
 };
 
 describe("safeSubject (header injection, §11.3)", () => {

@@ -25,14 +25,12 @@ import {
 } from "./intents";
 
 /**
- * Mails the two scheduled batches may send in a Kyiv day, all together: the daily cron's retries
- * and O4, and the weekly reminder on Mondays share this one budget (`remainingBatchBudget`).
- * Resend's free plan allows 100 a day and a sign-in link must always have room. Everything they
- * send also counts against the event cap (40), so a day's event mails stay within 40 plus 20 = 60
- * at the very most, and in practice within the cap. Both tallies are re-read before every claim,
- * so concurrent runs overshoot by at most the one mail each has in flight.
+ * Mails the two scheduled batches may send in a Kyiv day, all together (the daily cron's retries
+ * and O4, the weekly reminder on Mondays): a runaway-loop guard, not a plan quota (owner,
+ * 2026-11-20). Their sends also count against the event cap, which is the binding limit; both
+ * tallies are re-read before every claim, so concurrent runs overshoot by one in-flight mail each.
  */
-export const DAILY_SEND_BUDGET = 20;
+export const DAILY_SEND_BUDGET = 300;
 
 /**
  * A run stops claiming after this long (Vercel gives the route 300 s): a send can take its 10 s

@@ -143,23 +143,27 @@ Follow `docs/operator-playbook.md` (signals, triage, suspend and reinstate, what
 
 Event mails (review requests, donation links, decisions, early-listing reminders, the weekly
 «непідтверджені картки» email) and the retries of any of them share a cap of
-`NOTIFICATION_DAILY_EVENT_CAP` a Kyiv day (default 40), counted from `notification_sends`: a first
+`NOTIFICATION_DAILY_EVENT_CAP` a Kyiv day (default 300), counted from `notification_sends`: a first
 attempt on the day its row was created, a retry on the day it was made. Over the cap a mail is
 skipped, not queued, and a retry is left failed for a later run: the log line
 `notification event cap reached: N mail(s) not sent` (or `skippedOverCap` in a cron's line) says
-how many. A weekly mail that a Monday cap skipped waits for next Monday. Raise the variable in Vercel and redeploy only if the day was real: a shelter that
+how many. A weekly mail that a Monday cap skipped waits for next Monday. The cap is a runaway-loop
+guard, not a plan quota (Resend is on Pro, no daily limit). At 80% of it (240 of 300) `hello@` gets
+one email a Kyiv day, «Листи-сповіщення: використано 80% добового ліміту», with the two numbers and
+nothing about any recipient; a normal day never sends it, so read it as a possible loop. A failed
+warning changes nothing and is not retried. Raise the variable in Vercel and redeploy only if the day was real: a shelter that
 repeats itself is already held to one review-request mail and one proposed-link mail per
 operator per Kyiv day, so a day over the cap means many shelters or many decisions.
 
-The two scheduled crons also share one batch budget of 20 sends a Kyiv day: the daily cron's
+The two scheduled crons also share one batch budget of 300 sends a Kyiv day: the daily cron's
 retries and early-listing reminders and, on Mondays, the weekly reminder together. Both the budget
 and the cap are re-read from `notification_sends` before every claim, so two runs at the same moment
-see each other's sends. A Monday cannot send more than 20 between them, plus at most one mail in
-flight per run that is still unclaimed when the other run reads (the residual bound: 20 + 1 per
-concurrent run, so 22 for the daily and weekly crons at once, and the cap of 40 + 1 per run likewise).
+see each other's sends. A Monday cannot send more than 300 between them, plus at most one mail in
+flight per run that is still unclaimed when the other run reads (the residual bound: 300 + 1 per
+concurrent run, so 302 for the daily and weekly crons at once, and the cap of 300 + 1 per run likewise).
 What does not fit waits, and the weekly run serves the shelter that waited longest first, so none is
-starved. The arithmetic: event cap 40 plus batch budget 20 is at most 60 of the provider's 100 a day
-(and in practice within the cap), so about 38 or more stay free for sign-in even at the residual bound. The log's `deferred` (budget or time) and `skippedOverCap` (cap) say what waited.
+starved. The batch budget equals the event cap and its sends count against the cap too, so the cap is the
+binding limit; neither is sized to the provider. The log's `deferred` (budget or time) and `skippedOverCap` (cap) say what waited.
 
 The weekly email can be switched off for one shelter on its operator page («Лист про непідтверджені
 картки»), usually because the shelter replied to ask; the page records who and when in the history.

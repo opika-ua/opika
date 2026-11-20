@@ -55,9 +55,9 @@ adopter actions, so those cost 0 emails. A magic link is sent only if the addres
 (`auth.ts:413-417`); a reset link only for shelter admins. Therefore the rate-limit probes with `<owner-email>+nobody`
 send 0 emails while still counting against the limiter.
 
-Resend free plan (owner's figures; NOT in the repo): 100 mails per day, 3,000 per month, SHARED with the
+Resend is on Pro (owner's figures; NOT in the repo): no daily limit, SHARED with the
 `hello@opika.org.ua` SMTP relay, which sends through Resend on the apex domain
-(`docs/onboarding-a-shelter.md:709-716`). Keep each day under about 60. Do not send from `hello@` during the
+(`docs/onboarding-a-shelter.md:709-716`). The per-day counts below are a rough tally, not a quota. Do not send from `hello@` during the
 rehearsal days beyond what is needed.
 
 | Day | Block | Emails |

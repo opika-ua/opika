@@ -358,19 +358,19 @@ describe("runDailyNotifications: O4", () => {
     expect(second).toMatchObject({ endingSent: 2, duplicates: 4, deferred: 0 });
   });
 
-  it("the budget is 20, so the cap (40) plus a full run is 60 of Resend's 100 a day", () => {
-    expect(DAILY_SEND_BUDGET).toBe(20);
+  it("the budget is a 300 runaway-loop guard, not Resend's plan quota", () => {
+    expect(DAILY_SEND_BUDGET).toBe(300);
   });
 
-  it("a run with the default budget sends at most 20 and leaves the rest for tomorrow", async () => {
+  it("a run stops at its budget and leaves the rest for tomorrow", async () => {
     for (let n = 0; n < 11; n += 1) {
       await seedShelter(db, { overrides: early(ago(EARLY_LISTING_DAYS - 2 - (n % 5))) });
     }
     await seedOperator(db, "op1@example.org");
     await seedOperator(db, "op2@example.org");
     const { mail, sent } = fakeMail();
-    const counts = await runDailyNotifications(depsOf(db, mail));
-    expect(sent).toHaveLength(DAILY_SEND_BUDGET);
+    const counts = await runDailyNotifications(depsOf(db, mail), 20);
+    expect(sent).toHaveLength(20);
     expect(counts).toMatchObject({ endingSent: 20, deferred: 2 });
   });
 
@@ -538,7 +538,7 @@ describe("the daily cap on event mails", () => {
     expect(deps.logs).toEqual(["[kabinet] notification event cap reached: 2 mail(s) not sent"]);
   });
 
-  it("with the default 40: the 40th of the day sends and the 41st does not", async () => {
+  it("at a cap of 40: the 40th of the day sends and the 41st does not", async () => {
     await claimedRows(38, NOW);
     const { shelter } = await seedShelter(db, { admins: admins(3) });
     const { mail, sent } = fakeMail();
@@ -596,6 +596,122 @@ describe("the daily cap on event mails", () => {
     const counts = await runDailyNotifications(depsOf(db, mail, { eventCap: 2 }));
     expect(sent).toHaveLength(1);
     expect(counts).toMatchObject({ endingSent: 1, skippedOverCap: 1 });
+  });
+
+  describe("the operator's warning at 80% of the cap", () => {
+    const OPERATOR = "hello@opika.org.ua";
+    const warnings = <T extends { to: string }>(sent: T[]) =>
+      sent.filter((email) => email.to === OPERATOR);
+    const warnDeps = (mail: Parameters<typeof depsOf>[1], options: { now?: Date } = {}) =>
+      depsOf(db, mail, { eventCap: 10, warnNearCap: true, ...options });
+
+    it("stays quiet while the mail being claimed leaves the day below 80%", async () => {
+      await claimedRows(6, NOW);
+      const { shelter } = await seedShelter(db, { admins: admins(1) });
+      const { mail, sent } = fakeMail();
+      await notifyAfterWrite(warnDeps(mail), shelter, [approveLine()]);
+      expect(sent.map((email) => email.to)).toEqual(["cap-0@example.org"]);
+    });
+
+    it("mails the operator once, when the mail that reaches 8 of 10 is claimed, carrying no recipient", async () => {
+      await claimedRows(7, NOW);
+      const { shelter } = await seedShelter(db, { admins: admins(2) });
+      const { mail, sent } = fakeMail();
+      await notifyAfterWrite(warnDeps(mail), shelter, [approveLine()]);
+      expect(sent[0]?.to).toBe(OPERATOR);
+      expect(
+        sent
+          .slice(1)
+          .map((email) => email.to)
+          .sort(),
+      ).toEqual(["cap-0@example.org", "cap-1@example.org"]);
+      const [warning] = warnings(sent);
+      expect(warning?.text).toContain("8 із 10");
+      expect(warning?.text).not.toContain("@");
+      expect(
+        (await sendRows()).filter((row) => row.kind === "notification_cap_warning"),
+      ).toHaveLength(1);
+    });
+
+    it("is not itself counted against the cap", async () => {
+      await claimedRows(7, NOW);
+      const { shelter } = await seedShelter(db, { admins: admins(2) });
+      const { mail, sent } = fakeMail();
+      await notifyAfterWrite(warnDeps(mail), shelter, [approveLine()]);
+      // 7 earlier plus the two admin mails: 9 of 10, so a tenth (the warning not among them) still goes out.
+      const second = await seedShelter(db, { admins: ["second@example.org"] });
+      await notifyAfterWrite(warnDeps(mail), second.shelter, [approveLine("approve-2")]);
+      expect(sent.filter((email) => email.to !== OPERATOR)).toHaveLength(3);
+    });
+
+    it("once per Kyiv day across runs, and again the next day", async () => {
+      await claimedRows(7, NOW);
+      const { shelter } = await seedShelter(db, { admins: admins(1) });
+      const { mail, sent } = fakeMail();
+      await notifyAfterWrite(warnDeps(mail), shelter, [approveLine("one")]);
+      await notifyAfterWrite(warnDeps(mail), shelter, [approveLine("two")]);
+      expect(warnings(sent)).toHaveLength(1);
+      const tomorrow = new Date(NOW.getTime() + DAY_MS);
+      await claimedRows(7, tomorrow);
+      await notifyAfterWrite(warnDeps(mail, { now: tomorrow }), shelter, [approveLine("three")]);
+      expect(warnings(sent)).toHaveLength(2);
+    });
+
+    it("also fires when the cap is already spent", async () => {
+      await claimedRows(10, NOW);
+      const { shelter } = await seedShelter(db, { admins: admins(1) });
+      const { mail, sent } = fakeMail();
+      await notifyAfterWrite(warnDeps(mail), shelter, [approveLine()]);
+      expect(sent.map((email) => email.to)).toEqual([OPERATOR]);
+    });
+
+    it("a daily-batch run warns too, since its mails take the same cap", async () => {
+      await claimedRows(7, NOW);
+      await seedShelter(db, {
+        overrides: {
+          verification: PENDING,
+          earlyListingSince: new Date(NOW.getTime() - (EARLY_LISTING_DAYS - 5) * DAY),
+        } as Partial<Shelter>,
+      });
+      await seedOperator(db, "op1@example.org");
+      const { mail, sent } = fakeMail();
+      await runDailyNotifications(warnDeps(mail));
+      expect(warnings(sent)).toHaveLength(1);
+      expect(sent.filter((email) => email.to === "op1@example.org")).toHaveLength(1);
+    });
+
+    it("a warning the provider refuses changes nothing: the mails still go and no second try follows", async () => {
+      await claimedRows(7, NOW);
+      const { shelter } = await seedShelter(db, { admins: admins(2) });
+      const { mail, sent } = fakeMail();
+      const refusing = {
+        ...mail,
+        sender: {
+          send: async (email: Parameters<typeof mail.sender.send>[0]) => {
+            if (email.to === OPERATOR) throw new Error("provider down");
+            return mail.sender.send(email);
+          },
+        },
+      };
+      const deps = warnDeps(refusing);
+      await notifyAfterWrite(deps, shelter, [approveLine()]);
+      expect(sent.map((email) => email.to).sort()).toEqual([
+        "cap-0@example.org",
+        "cap-1@example.org",
+      ]);
+      expect(deps.logs.join("\n")).not.toContain("cap-");
+      await notifyAfterWrite(warnDeps(refusing), shelter, [approveLine("again")]);
+      const rows = (await sendRows()).filter((row) => row.kind === "notification_cap_warning");
+      expect(rows).toHaveLength(1);
+    });
+
+    it("sends no warning where it is not switched on", async () => {
+      await claimedRows(9, NOW);
+      const { shelter } = await seedShelter(db, { admins: admins(1) });
+      const { mail, sent } = fakeMail();
+      await notifyAfterWrite(depsOf(db, mail, { eventCap: 10 }), shelter, [approveLine()]);
+      expect(warnings(sent)).toEqual([]);
+    });
   });
 });
 

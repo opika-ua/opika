@@ -257,7 +257,7 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   support: 6,
 
-  email: 82,
+  email: 84,
 
   signInCard: 1,
 

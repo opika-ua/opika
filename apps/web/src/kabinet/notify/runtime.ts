@@ -16,8 +16,12 @@ function warn(line: string): void {
   console.warn(line);
 }
 
-/** Event mails a Kyiv day may send in all, unless `NOTIFICATION_DAILY_EVENT_CAP` says otherwise. */
-export const DEFAULT_DAILY_EVENT_CAP = 40;
+/**
+ * Event mails a Kyiv day may send in all, unless `NOTIFICATION_DAILY_EVENT_CAP` says otherwise.
+ * A runaway-loop guard (owner, 2026-11-20), not a plan quota: Resend is on Pro. The operator is
+ * mailed at 80% of it.
+ */
+export const DEFAULT_DAILY_EVENT_CAP = 300;
 
 let reportedBadCap = false;
 
@@ -93,6 +97,7 @@ export const notifyDepsOf = (
   mail: runtime.mail,
   context: runtime.context,
   eventCap: runtime.eventCap,
+  warnNearCap: true,
   now: () => new Date(),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   log: warn,

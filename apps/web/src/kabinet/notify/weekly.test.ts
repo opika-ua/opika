@@ -31,6 +31,8 @@ beforeEach(async () => truncateAll(db));
 const ago = (days: number, extraMs = 0) => new Date(NOW.getTime() - days * DAY - extraMs);
 const stale = (days = 20) => ({ kind: "published", confirmedAt: ago(days) }) as const;
 const sentTo = (sent: { to: string }[]) => sent.map((email) => email.to).sort();
+/** The shared budget is a parameter: the default is far too big to exhaust in a test. */
+const SMALL_BUDGET = 20;
 const verified = { verification: VERIFIED } as Partial<Shelter>;
 
 async function listedShelter(admins = ["a@example.org"], overrides: Partial<Shelter> = verified) {
@@ -280,17 +282,17 @@ describe("the daily and the weekly cron share one budget; the quota arithmetic i
   };
   const NEXT_WEEK = new Date(NOW.getTime() + 7 * DAY);
 
-  it("pins the arithmetic: event cap 40 plus the batch budget 20 is at most 60 of the 100 a day", () => {
-    expect(DEFAULT_DAILY_EVENT_CAP).toBe(40);
-    expect(DAILY_SEND_BUDGET).toBe(20);
-    expect(DEFAULT_DAILY_EVENT_CAP + DAILY_SEND_BUDGET).toBeLessThanOrEqual(60);
+  it("pins the guards: the batch budget never exceeds the event cap it also counts against", () => {
+    expect(DEFAULT_DAILY_EVENT_CAP).toBe(300);
+    expect(DAILY_SEND_BUDGET).toBe(300);
+    expect(DAILY_SEND_BUDGET).toBeLessThanOrEqual(DEFAULT_DAILY_EVENT_CAP);
   });
 
   it("Monday: what the daily run left of the budget is all the weekly run may send", async () => {
     await staleShelters(3);
     await fill(18, "earlyListingEnding");
     const { mail, sent } = fakeMail();
-    const counts = await runWeeklyReminders(depsOf(db, mail, { eventCap: 1000 }));
+    const counts = await runWeeklyReminders(depsOf(db, mail, { eventCap: 1000 }), SMALL_BUDGET);
     expect(sent).toHaveLength(2);
     expect(counts).toMatchObject({ sent: 2, deferred: 1 });
   });
@@ -299,14 +301,14 @@ describe("the daily and the weekly cron share one budget; the quota arithmetic i
     const emails = await staleShelters(3);
     await fill(20, "earlyListingEnding");
     const { mail, sent } = fakeMail();
-    const counts = await runWeeklyReminders(depsOf(db, mail, { eventCap: 1000 }));
+    const counts = await runWeeklyReminders(depsOf(db, mail, { eventCap: 1000 }), SMALL_BUDGET);
     expect(sent).toEqual([]);
     expect(counts).toMatchObject({ shelters: 3, sent: 0, deferred: 3 });
     // Nothing was claimed, so nothing reads as sent.
     expect(
       (await db.select().from(notificationSends)).filter((row) => row.kind === "freshnessReminder"),
     ).toEqual([]);
-    await runWeeklyReminders(depsOf(db, mail, { now: NEXT_WEEK, eventCap: 1000 }));
+    await runWeeklyReminders(depsOf(db, mail, { now: NEXT_WEEK, eventCap: 1000 }), SMALL_BUDGET);
     expect(sentTo(sent)).toEqual([...emails].sort());
   });
 
@@ -343,10 +345,10 @@ describe("the daily and the weekly cron share one budget; the quota arithmetic i
     await seedOperator(db, "op1@example.org");
     await seedOperator(db, "op2@example.org");
     const { mail, sent } = fakeMail();
-    const first = await runDailyNotifications(depsOf(db, mail, { eventCap: 1000 }));
+    const first = await runDailyNotifications(depsOf(db, mail, { eventCap: 1000 }), SMALL_BUDGET);
     expect(sent).toHaveLength(20);
     expect(first.endingSent).toBe(20);
-    const again = await runDailyNotifications(depsOf(db, mail, { eventCap: 1000 }));
+    const again = await runDailyNotifications(depsOf(db, mail, { eventCap: 1000 }), SMALL_BUDGET);
     expect(sent).toHaveLength(20);
     expect(again.endingSent).toBe(0);
   });
@@ -429,12 +431,12 @@ describe("two runs at the same moment (a Monday's daily and weekly cron, or a cr
     daily.state.delayMs = 3;
     weekly.state.delayMs = 3;
     await Promise.all([
-      runDailyNotifications(depsOf(db, daily.mail, { eventCap: 1000 })),
-      runWeeklyReminders(depsOf(db, weekly.mail, { eventCap: 1000 })),
+      runDailyNotifications(depsOf(db, daily.mail, { eventCap: 1000 }), SMALL_BUDGET),
+      runWeeklyReminders(depsOf(db, weekly.mail, { eventCap: 1000 }), SMALL_BUDGET),
     ]);
     const combined = daily.sent.length + weekly.sent.length;
-    expect(combined).toBeGreaterThanOrEqual(DAILY_SEND_BUDGET);
-    expect(combined).toBeLessThanOrEqual(DAILY_SEND_BUDGET + 2 * IN_FLIGHT_PER_RUN);
+    expect(combined).toBeGreaterThanOrEqual(SMALL_BUDGET);
+    expect(combined).toBeLessThanOrEqual(SMALL_BUDGET + 2 * IN_FLIGHT_PER_RUN);
     expect(daily.sent.length).toBeGreaterThan(0);
     expect(weekly.sent.length).toBeGreaterThan(0);
   });
