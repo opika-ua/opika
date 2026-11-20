@@ -94,7 +94,7 @@ agent to.
 |---|---|
 | Contacts adopters already received | They are in those people's hands; nothing in the product reaches adopters |
 | Adopter rows that pointed at the shelter | Only the anonymous `adopters` rows; the 6-hourly clean-up removes them once nothing hangs off them |
-| Neon restore history | Deleted rows stay restorable for the plan's retention window (`docs/runbook.md`, section 4) |
+| Neon restore history | Deleted rows stay restorable for the plan's retention window (7 days since 2026-11-20, `docs/runbook.md`, sections 4 and 5) |
 | The mail provider's own sending logs | Its own retention (`docs/gdpr-analysis.md`, G2) |
 | Your mailbox and your notes | Yours to delete (step 10) |
 
