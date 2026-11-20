@@ -13,10 +13,10 @@ describe("runOperatorDeleteSmoke against the local database", () => {
   });
   afterAll(async () => cleanup?.());
 
-  it("passes every check, and there are 7", async () => {
+  it("passes every check, and there are 8", async () => {
     const outcomes = await runOperatorDeleteSmoke(db);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes).toHaveLength(7);
+    expect(outcomes).toHaveLength(8);
   });
 
   it("passes the same over a driver whose raw results are `{ rows }`", async () => {

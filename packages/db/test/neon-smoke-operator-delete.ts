@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
 import type { CityId, ShelterId } from "@opika/domain";
-import { eq, sql } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
 import type { Database } from "../src/client";
 import { executeRows } from "../src/raw-rows";
+import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
 import { applicationDeletionRepo } from "../src/repos/application-deletion-repo";
 import { cityRepo } from "../src/repos/city-repo";
+import { revealRepo } from "../src/repos/reveal-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
 import { animalPhotoSources } from "../src/schema/animal-photo-sources";
 import { animals } from "../src/schema/animals";
@@ -16,12 +18,21 @@ import {
   authOrganization,
   authSession,
   authUser,
+  authVerification,
   superAdmins,
   supportSessions,
 } from "../src/schema/auth";
+import { reveals } from "../src/schema/reveals";
 import { shelterHistory } from "../src/schema/shelter-history";
 import { shelters } from "../src/schema/shelters";
-import { makeAnimal, makeCity, makeDraftAnimal, makeShelter } from "../src/test-utils/index";
+import {
+  makeAdopter,
+  makeAnimal,
+  makeCity,
+  makeDraftAnimal,
+  makeReveal,
+  makeShelter,
+} from "../src/test-utils/index";
 
 type Outcome = { name: string; ok: boolean; detail: string };
 
@@ -32,7 +43,9 @@ const HOUR = 3_600_000;
  * The operator's «Видалити притулок» on Neon's driver: migration 0032 (the audit line's operator
  * column and checks), `deletionCounts`' count subqueries, and `deleteShelterByOperator`'s batch
  * (three FOR UPDATE locks, the marker under its guard, the erasure statement as a raw batch item
- * read through `rowsOfRawResult`). Rows stay on the child branch, which is thrown away.
+ * read through `rowsOfRawResult`), over a reveal, an invitation, sign-in links, a support session
+ * and admins, so no delete runs over an empty set. Rows stay on the child branch, which is thrown
+ * away.
  */
 export async function runOperatorDeleteSmoke(db: Database): Promise<Outcome[]> {
   const out: Outcome[] = [];
@@ -60,19 +73,20 @@ export async function runOperatorDeleteSmoke(db: Database): Promise<Outcome[]> {
 
   const city = makeCity({ id: randomUUID() as CityId, slug: `smoke-${randomUUID()}` as never });
   await cityRepo(db).insertMissing([city]);
-  const user = async () => {
+  const user = async (): Promise<{ id: string; email: string }> => {
     const id = randomUUID();
+    const email = `smoke-${id}@example.org`;
     await db.insert(authUser).values({
       id,
       name: "Смоук",
-      email: `smoke-${id}@example.org`,
+      email,
       emailVerified: true,
       createdAt: NOW,
       updatedAt: NOW,
     });
-    return id;
+    return { id, email };
   };
-  const operator = await user();
+  const operator = (await user()).id;
   await db.insert(superAdmins).values({ id: randomUUID(), userId: operator, grantedAt: NOW });
   const withOrganization = async (label: string) => {
     const shelter = makeShelter({
@@ -87,39 +101,75 @@ export async function runOperatorDeleteSmoke(db: Database): Promise<Outcome[]> {
     await db.update(shelters).set({ organizationId }).where(eq(shelters.id, shelter.id));
     return { shelterId: shelter.id, name: shelter.displayName, organizationId };
   };
+  const member = (organizationId: string, userId: string) =>
+    db
+      .insert(authMember)
+      .values({ id: randomUUID(), organizationId, userId, role: "admin", createdAt: NOW });
+  const invite = (organizationId: string, email: string) =>
+    db.insert(authInvitation).values({
+      id: randomUUID(),
+      organizationId,
+      email,
+      role: "admin",
+      status: "pending",
+      expiresAt: new Date(NOW.getTime() + 24 * HOUR),
+      createdAt: NOW,
+      inviterId: operator,
+    });
+  const history = (shelterId: ShelterId) =>
+    db.insert(shelterHistory).values({
+      id: randomUUID(),
+      shelterId,
+      kind: "admin_removed",
+      at: NOW,
+      entry: {
+        kind: "admin_removed",
+        at: NOW,
+        moderatorId: operator,
+        email: "smoke@example.org",
+        wasPending: false,
+      } as never,
+    });
+
   const target = await withOrganization("видалення");
   const other = await withOrganization("інший");
+  // The target's admins: one erasable, one kept by a live invitation to the other shelter.
   const admin = await user();
   const kept = await user();
-  for (const userId of [admin, kept]) {
-    await db.insert(authMember).values({
-      id: randomUUID(),
-      organizationId: target.organizationId,
-      userId,
-      role: "admin",
-      createdAt: NOW,
-    });
-  }
+  await member(target.organizationId, admin.id);
+  await member(target.organizationId, kept.id);
+  await invite(other.organizationId, kept.email);
+  // An invitee of the target only: erased with it.
+  const invitee = await user();
+  await invite(target.organizationId, invitee.email);
+  // The erasable admin's session and two sign-in links (a reset link and a magic link).
   await db.insert(authSession).values({
     id: randomUUID(),
     token: randomUUID(),
-    userId: admin,
+    userId: admin.id,
     expiresAt: new Date(NOW.getTime() + HOUR),
     createdAt: NOW,
     updatedAt: NOW,
   });
-  // A live invitation elsewhere protects `kept` (the erasure invariant).
-  const [keptRow] = await db.select().from(authUser).where(eq(authUser.id, kept));
-  await db.insert(authInvitation).values({
-    id: randomUUID(),
-    organizationId: other.organizationId,
-    email: keptRow?.email ?? "",
-    role: "admin",
-    status: "pending",
-    expiresAt: new Date(NOW.getTime() + 24 * HOUR),
-    createdAt: NOW,
-    inviterId: operator,
-  });
+  await db.insert(authVerification).values([
+    {
+      id: randomUUID(),
+      identifier: randomUUID(),
+      value: admin.id,
+      expiresAt: new Date(NOW.getTime() + HOUR),
+      createdAt: NOW,
+      updatedAt: NOW,
+    },
+    {
+      id: randomUUID(),
+      identifier: randomUUID(),
+      value: JSON.stringify({ type: "magic-link", email: admin.email }),
+      expiresAt: new Date(NOW.getTime() + HOUR),
+      createdAt: NOW,
+      updatedAt: NOW,
+    },
+  ]);
+
   const photographed = makeAnimal({
     shelterId: target.shelterId,
     photos: [{ storageKey: `animals/${randomUUID()}/p`, width: 1024, height: 768, alt: null }],
@@ -136,19 +186,7 @@ export async function runOperatorDeleteSmoke(db: Database): Promise<Outcome[]> {
     createdAt: NOW,
   });
   await animalRepo(db).insert(makeDraftAnimal({ shelterId: target.shelterId }), city.id);
-  await db.insert(shelterHistory).values({
-    id: randomUUID(),
-    shelterId: target.shelterId,
-    kind: "admin_removed",
-    at: NOW,
-    entry: {
-      kind: "admin_removed",
-      at: NOW,
-      moderatorId: operator,
-      email: "smoke@example.org",
-      wasPending: false,
-    } as never,
-  });
+  await history(target.shelterId);
   const sessionId = randomUUID();
   await db.insert(supportSessions).values({
     id: sessionId,
@@ -158,6 +196,21 @@ export async function runOperatorDeleteSmoke(db: Database): Promise<Outcome[]> {
     startedAt: NOW,
     lastSeenAt: NOW,
   });
+
+  // The other shelter: an admin, an animal, a reveal and a history line, all to stay.
+  const otherAdmin = await user();
+  await member(other.organizationId, otherAdmin.id);
+  const otherAnimal = makeAnimal({ shelterId: other.shelterId });
+  await animalRepo(db).insert(otherAnimal, city.id);
+  await history(other.shelterId);
+  const visitor = makeAdopter();
+  await adopterRepo(db).insert(visitor);
+  await revealRepo(db).insert(
+    makeReveal({ adopterId: visitor.id, animalId: photographed.id, shelterId: target.shelterId }),
+  );
+  await revealRepo(db).insert(
+    makeReveal({ adopterId: visitor.id, animalId: otherAnimal.id, shelterId: other.shelterId }),
+  );
 
   const repo = applicationDeletionRepo(db);
   const counts = await repo.deletionCounts(target.shelterId);
@@ -220,8 +273,8 @@ export async function runOperatorDeleteSmoke(db: Database): Promise<Outcome[]> {
     organization: await rows(
       db.select().from(authOrganization).where(eq(authOrganization.id, target.organizationId)),
     ),
-    admin: await rows(db.select().from(authUser).where(eq(authUser.id, admin))),
-    sessions: await rows(db.select().from(authSession).where(eq(authSession.userId, admin))),
+    admin: await rows(db.select().from(authUser).where(eq(authUser.id, admin.id))),
+    sessions: await rows(db.select().from(authSession).where(eq(authSession.userId, admin.id))),
   };
   check(
     "deleteShelterByOperator (batch, locks, marker): the shelter and everything of it go",
@@ -231,13 +284,39 @@ export async function runOperatorDeleteSmoke(db: Database): Promise<Outcome[]> {
     `${deleted.kind}, ${JSON.stringify(left)}`,
   );
   check(
-    "deleteShelterByOperator: the erasure statement's counts read from the batch (one erased, one kept)",
-    deleted.kind === "deleted" && deleted.erasedAccounts === 1 && deleted.keptAccounts === 1,
+    "deleteShelterByOperator: the erasure statement's counts read from the batch (two erased, one kept)",
+    deleted.kind === "deleted" && deleted.erasedAccounts === 2 && deleted.keptAccounts === 1,
     deleted.kind === "deleted"
       ? `${deleted.erasedAccounts} erased, ${deleted.keptAccounts} kept`
       : deleted.kind,
   );
-  const keptLeft = await rows(db.select().from(authUser).where(eq(authUser.id, kept)));
+  const goneToo = {
+    reveals: await rows(db.select().from(reveals).where(eq(reveals.shelterId, target.shelterId))),
+    invitations: await rows(
+      db
+        .select()
+        .from(authInvitation)
+        .where(eq(authInvitation.organizationId, target.organizationId)),
+    ),
+    invitee: await rows(db.select().from(authUser).where(eq(authUser.id, invitee.id))),
+    links: await rows(
+      db
+        .select()
+        .from(authVerification)
+        .where(
+          or(
+            eq(authVerification.value, admin.id),
+            sql`strpos(${authVerification.value}, ${admin.email}) > 0`,
+          ),
+        ),
+    ),
+  };
+  check(
+    "deleteShelterByOperator: the reveal, the invitation, the invitee's account and the admin's sign-in links go",
+    Object.values(goneToo).every((n) => n === 0),
+    JSON.stringify(goneToo),
+  );
+  const keptLeft = await rows(db.select().from(authUser).where(eq(authUser.id, kept.id)));
   const [session] = await db
     .select()
     .from(supportSessions)
@@ -256,10 +335,29 @@ export async function runOperatorDeleteSmoke(db: Database): Promise<Outcome[]> {
       lines[0]?.operatorUserId === operator,
     `kept ${keptLeft}, session ${session === undefined ? "gone" : `shelter ${session.shelterId}`}, ${lines.length} line(s) ${lines[0]?.reason ?? ""}`,
   );
-  const otherLeft = await repo.deletionCounts(other.shelterId as ShelterId);
+  const otherLeft = {
+    counts: await repo.deletionCounts(other.shelterId),
+    history: await rows(
+      db.select().from(shelterHistory).where(eq(shelterHistory.shelterId, other.shelterId)),
+    ),
+    reveals: await rows(db.select().from(reveals).where(eq(reveals.shelterId, other.shelterId))),
+    invitations: await rows(
+      db
+        .select()
+        .from(authInvitation)
+        .where(eq(authInvitation.organizationId, other.organizationId)),
+    ),
+    admin: await rows(db.select().from(authUser).where(eq(authUser.id, otherAdmin.id))),
+  };
   check(
-    "deleteShelterByOperator: the other shelter is untouched",
-    otherLeft !== null,
+    "deleteShelterByOperator: the other shelter's animal, membership, history, reveal and invitation are untouched",
+    otherLeft.counts?.animals === 1 &&
+      otherLeft.counts.published === 1 &&
+      otherLeft.counts.admins === 1 &&
+      otherLeft.history === 1 &&
+      otherLeft.reveals === 1 &&
+      otherLeft.invitations === 1 &&
+      otherLeft.admin === 1,
     JSON.stringify(otherLeft),
   );
   return out;

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { CityId, ShelterId } from "@opika/domain";
 import { eq, inArray, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { Database } from "../src/client";
 import { adopterRepo } from "../src/repos/adopter-repo";
 import { animalRepo } from "../src/repos/animal-repo";
 import {
@@ -509,6 +510,89 @@ describe("deleteShelterByOperator", () => {
       kind: "not_operator",
     });
     expect(await shelterCount(w.target.shelterId)).toBe(1);
+    expect(await auditLines(w.target.shelterId)).toHaveLength(0);
+  });
+
+  /**
+   * A handle whose transaction first runs `between`: a change committed after the repository's
+   * read and before its batch, which only the batch's own guard can see.
+   */
+  const changingBeforeTheBatch = (between: () => Promise<void>): Database =>
+    new Proxy(db, {
+      get(target, property, receiver) {
+        if (property === "transaction") {
+          return async (...args: Parameters<Database["transaction"]>) => {
+            await between();
+            return target.transaction(...args);
+          };
+        }
+        return Reflect.get(target, property, receiver);
+      },
+    }) as Database;
+
+  it("refuses under the lock when the shelter is renamed after the read, and deletes nothing", async () => {
+    const w = await world();
+    const counts = await repo().deletionCounts(w.target.shelterId);
+    if (counts === null) throw new Error("no counts");
+    const renaming = changingBeforeTheBatch(async () => {
+      await db
+        .update(shelters)
+        .set({ displayName: "Лапа допомоги 2" })
+        .where(eq(shelters.id, w.target.shelterId));
+    });
+
+    const outcome = await applicationDeletionRepo(renaming).deleteShelterByOperator(
+      {
+        shelterId: w.target.shelterId,
+        typedName: "Лапа допомоги",
+        counts,
+        operatorUserId: operator,
+      },
+      NOW,
+    );
+
+    expect(outcome).toEqual({ kind: "name_mismatch" });
+    expect(await shelterCount(w.target.shelterId)).toBe(1);
+    expect(
+      await rows(db.select().from(animals).where(eq(animals.shelterId, w.target.shelterId))),
+    ).toBe(3);
+    expect(await rows(db.select().from(authUser).where(eq(authUser.id, w.olena)))).toBe(1);
+    expect(await auditLines(w.target.shelterId)).toHaveLength(0);
+  });
+
+  it("refuses under the lock when the accounts to erase change after the read, with the same counts", async () => {
+    const w = await world();
+    const counts = await repo().deletionCounts(w.target.shelterId);
+    if (counts === null) throw new Error("no counts");
+    let lateInvitee = "";
+    const inviting = changingBeforeTheBatch(async () => {
+      // An invitation changes none of the three counts, only whose accounts would go.
+      lateInvitee = await user();
+      await invitation(w.target.organizationId, await emailOf(lateInvitee));
+    });
+
+    const outcome = await applicationDeletionRepo(inviting).deleteShelterByOperator(
+      {
+        shelterId: w.target.shelterId,
+        typedName: "Лапа допомоги",
+        counts,
+        operatorUserId: operator,
+      },
+      NOW,
+    );
+
+    expect(outcome).toEqual({ kind: "counts_changed", counts });
+    expect(await shelterCount(w.target.shelterId)).toBe(1);
+    expect(await rows(db.select().from(authUser).where(eq(authUser.id, lateInvitee)))).toBe(1);
+    expect(await rows(db.select().from(authUser).where(eq(authUser.id, w.invitee)))).toBe(1);
+    expect(
+      await rows(
+        db
+          .select()
+          .from(authInvitation)
+          .where(eq(authInvitation.organizationId, w.target.organizationId)),
+      ),
+    ).toBe(2);
     expect(await auditLines(w.target.shelterId)).toHaveLength(0);
   });
 

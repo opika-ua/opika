@@ -134,9 +134,6 @@ function rehearsalGuard(expectedName: string): SQL {
 /** The three numbers the operator's dialog shows and the deletion re-checks (owner, 2026-11-20). */
 export type ShelterDeletionCounts = { animals: number; published: number; admins: number };
 
-/** «з них опубліковано»: the cards the gallery shows now (published or reserved). */
-export const PUBLISHED_FOR_DELETION = DISCOVERABLE_LISTING_KINDS;
-
 export type OperatorShelterDeletion = {
   shelterId: ShelterId;
   /** As typed: trimmed here, then compared exactly with the stored name (stored names are trimmed). */
@@ -170,7 +167,8 @@ export type OperatorShelterDeletionOutcome =
 const COUNTS_SQL = {
   animals: sql<number>`(SELECT count(*)::int FROM "animals" a WHERE a."shelter_id" = "shelters"."id")`,
   published: sql<number>`(SELECT count(*)::int FROM "animals" a WHERE a."shelter_id" = "shelters"."id" AND a."listing_kind" IN (${sql.join(
-    PUBLISHED_FOR_DELETION.map((kind) => sql`${kind}`),
+    // «з них опубліковано»: the cards the gallery shows now (published or reserved).
+    DISCOVERABLE_LISTING_KINDS.map((kind) => sql`${kind}`),
     sql`, `,
   )}))`,
   admins: sql<number>`(SELECT count(*)::int FROM "auth_member" m WHERE m."organization_id" = "shelters"."organization_id")`,
