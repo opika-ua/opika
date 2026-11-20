@@ -523,6 +523,13 @@ describe("refuseIfInsideRepo", () => {
     },
   );
 
+  // A hard-coded "/" default would switch the guard off on Windows, where paths use "\".
+  it("compares with the platform's own separator by default", () => {
+    const other = sep === "/" ? "\\" : "/";
+    expect(isInsideRoot(`root${sep}x.json`, "root")).toBe(true);
+    expect(isInsideRoot(`root${other}x.json`, "root")).toBe(false);
+  });
+
   // Windows-only on purpose: the end-to-end check needs a real case-insensitive NTFS path and
   // `realpathSync` on it, which a Linux runner cannot provide. The rule itself is tested above.
   it.runIf(process.platform === "win32")(
