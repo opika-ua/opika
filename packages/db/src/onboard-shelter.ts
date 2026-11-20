@@ -122,7 +122,17 @@ function canonicalPath(input: string): string {
       real = resolved;
     }
   }
-  return process.platform === "win32" ? real.toLowerCase() : real;
+  return foldPathCase(real, process.platform);
+}
+
+/** Windows paths are case-insensitive; elsewhere a differently-cased path is another file. */
+export function foldPathCase(path: string, platform: NodeJS.Platform): string {
+  return platform === "win32" ? path.toLowerCase() : path;
+}
+
+/** Both arguments already through `canonicalPath`; pure, so every OS can test the Windows rule. */
+export function isInsideRoot(path: string, root: string, separator: string = sep): boolean {
+  return path === root || path.startsWith(`${root}${separator}`);
 }
 
 const REPO_ROOT = canonicalPath(fileURLToPath(new URL("../../..", import.meta.url)));
@@ -441,7 +451,7 @@ export async function withCityIdFromSlug(raw: unknown, lookup: CitySlugLookup): 
 
 export function refuseIfInsideRepo(inputPath: string): void {
   const resolved = canonicalPath(inputPath);
-  if (resolved === REPO_ROOT || resolved.startsWith(`${REPO_ROOT}${sep}`)) {
+  if (isInsideRoot(resolved, REPO_ROOT)) {
     console.error(
       "ERROR: input file is inside the repository.\n" +
         `  ${resolve(inputPath)}\n` +
