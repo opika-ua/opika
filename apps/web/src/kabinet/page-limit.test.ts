@@ -189,7 +189,7 @@ describe("a page load and an API call share one allowance", () => {
       expect(await load(outage(), 1, { ip: "198.51.100.40", userId: "user-5" })).toBe(true);
     });
 
-    it("an anonymous page load (the sign-in pages included) is refused", async () => {
+    it("an anonymous load of another kabinet page is refused", async () => {
       expect(await load(outage(), 1, { ip: "198.51.100.41", userId: null })).toBe(false);
     });
 
