@@ -33,6 +33,8 @@
   --color-danger-bg: #fdeceb;
   /* A quiet tint inside a surface card (the auth card's footer strip); ink-2 on it 6.0:1. */
   --color-tint: #f6f1f3;
+  /* The mint «success» info box of the emails (src/kabinet/emails); ink on it 15.6:1. */
+  --color-success-bg: #e4f2e8;
   /* Status chips of a card and of a shelter: a soft tint with its own text colour, every pair AA
    * (docs/ui/tokens.md lists the measured ratios). Not warnings: nothing here is alarming. */
   --color-status-published: #ede6f7;

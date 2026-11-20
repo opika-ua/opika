@@ -89,32 +89,6 @@ const fill = (template: string, values: Record<string, string>) =>
   template.replace(/\{(\w+)\}/g, (whole, name: string) => values[name] ?? whole);
 
 /**
- * E1: the magic-link email. Its link is the sign-in confirm page (IN-E1: a GET
- * never consumes the token). Since Oleksii's delivery test 2 (2026-10-14:
- * the personal invite reached Gmail's Primary tab, the short impersonal
- * sign-in email Promotions) it has the invite's personal shape: a greeting,
- * and the last line signed `{operator}`, filled the way the invite's is.
- */
-export function magicLinkEmail(input: {
-  to: string;
-  url: string;
-  ttlMinutes: number;
-  /** Nominative display name (`operatorDisplayName`), the same value that signs the invite. */
-  operatorName: string;
-}): OutgoingEmail {
-  const copy = uk.kabinet.email.signIn;
-  return emailBody(input.to, {
-    subject: copy.subject,
-    before: [copy.intro],
-    link: { label: copy.action, url: input.url },
-    after: [
-      fill(copy.expiry, { minutes: countPhrase(input.ttlMinutes, uk.kabinet.units.minutes) }),
-      fill(copy.notYou, { operator: input.operatorName }),
-    ],
-  });
-}
-
-/**
  * E2: the invite email. Not a sign-in link (IN-Q3): it opens the invite
  * landing. Oleksii's final copy (2026-10-14) is a personal note: the intro has
  * no `{operator}`, and the name signs the last line instead (`{operator}`,
@@ -145,33 +119,6 @@ export function invitationEmail(input: {
     link: { label: copy.action, url: input.url },
     after: [
       fill(copy.expiry, { hours: countPhrase(input.ttlHours, uk.kabinet.units.hours) }),
-      fill(copy.notYou, { operator: input.operatorName }),
-    ],
-  });
-}
-
-/**
- * F1, the reset link (PW-1, `docs/shelter-passwords.md` §4.4): sent only to a
- * shelter admin's address, never the operator's (§4.6). Its link is the reset
- * page (`RESET_LINK`), whose GET only shows the form, so a mail scanner that
- * opens it consumes nothing; Better Auth's own redirecting
- * `/reset-password/:token` is never emailed. Signed `{operator}` like the
- * others.
- */
-export function passwordResetEmail(input: {
-  to: string;
-  url: string;
-  ttlMinutes: number;
-  /** Nominative display name (`operatorDisplayName`), the value that signs every kabinet email. */
-  operatorName: string;
-}): OutgoingEmail {
-  const copy = uk.kabinet.email.reset;
-  return emailBody(input.to, {
-    subject: copy.subject,
-    before: [copy.intro],
-    link: { label: copy.action, url: input.url },
-    after: [
-      fill(copy.expiry, { minutes: String(input.ttlMinutes) }),
       fill(copy.notYou, { operator: input.operatorName }),
     ],
   });

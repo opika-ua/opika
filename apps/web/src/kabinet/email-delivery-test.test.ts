@@ -89,12 +89,15 @@ describe("runDeliveryTest: both emails through Resend", () => {
     // Oleksii's answer sheet (2026-10-14), with the real TTLs, the fictional
     // shelter and the configured operator name filled in.
     expect(signIn.subject).toBe("Посилання для входу до кабінету притулку");
+    // The sign-in email is the branded kit's since plan step 3: heading, labelled link, footer.
     expect(signIn.text).toBe(
       [
+        "Посилання для входу до кабінету притулку",
         "Добрий день. На цю адресу запитали посилання для входу до кабінету притулку.",
-        "http://localhost:3000/kabinet/vkhid/pidtverdzhennia?token=TEST-r1",
+        "Відкрити сторінку входу:\nhttp://localhost:3000/kabinet/vkhid/pidtverdzhennia?token=TEST-r1",
         "Посилання спрацює один раз і діє 15 хвилин.",
         "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.\nОлексій",
+        "--\nOpika робить одна людина, незалежно. Це не державний і не міський сервіс.\nhello@opika.org.ua",
       ].join("\n\n"),
     );
     expect(invite.subject).toBe("Ваш доступ до кабінету притулку");
@@ -108,7 +111,7 @@ describe("runDeliveryTest: both emails through Resend", () => {
       ].join("\n\n"),
     );
     expect(invite.html).toContain("<br>Олексій</p>");
-    expect(signIn.html).toContain("<br>Олексій</p>");
+    expect(signIn.html).toContain("<br/>Олексій</p>");
   });
 
   it("sends both with exactly Resend's six fields: no headers, tags or List-Unsubscribe, on the bytes that went out", async () => {
@@ -131,7 +134,7 @@ describe("runDeliveryTest: both emails through Resend", () => {
       expect(await runDeliveryTest({ ...h.input, operatorName })).toBe(0);
       const [signIn, invite] = h.calls.map(bodyOf);
       // Round 2, answer 6, verbatim: "Email signature fallback: capitalise it → «— Адміністратор сайту»."
-      expect(signIn.text.endsWith("\nАдміністратор сайту"), String(operatorName)).toBe(true);
+      expect(signIn.text, String(operatorName)).toContain("\nАдміністратор сайту\n\n--");
       expect(invite.text.endsWith("\nАдміністратор сайту"), String(operatorName)).toBe(true);
     }
   });
@@ -140,10 +143,11 @@ describe("runDeliveryTest: both emails through Resend", () => {
   it("signs both emails with the name given, as --operator-name passes it", async () => {
     const h = harness();
     expect(await runDeliveryTest({ ...h.input, operatorName: "Олексій Колотенко" })).toBe(0);
-    for (const body of h.calls.map(bodyOf)) {
-      expect(body.text.endsWith("\nОлексій Колотенко")).toBe(true);
-      expect(body.html).toContain("<br>Олексій Колотенко</p>");
-    }
+    const [signIn, invite] = h.calls.map(bodyOf);
+    expect(signIn.text).toContain("\nОлексій Колотенко\n\n--");
+    expect(signIn.html).toContain("<br/>Олексій Колотенко</p>");
+    expect(invite.text.endsWith("\nОлексій Колотенко")).toBe(true);
+    expect(invite.html).toContain("<br>Олексій Колотенко</p>");
   });
 
   it("refuses while any email-template string is still pending, sending nothing", async () => {

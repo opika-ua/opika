@@ -197,8 +197,8 @@ What the code does now (`packages/db/src/test-utils/test-database.ts`):
   It can be removed later with `docker volume rm <project>_opika-db-data` (for the main checkout:
   `opika_opika-db-data`); the owner decides when.
 - Production Neon is on the Launch plan since at least 2026-11-20, provisioned through the Vercel
-  Marketplace (`docs/launch-gate.md` section A). Its limits are not recorded here yet: the owner reads
-  them from the Neon dashboard, then fill them in.
+  Marketplace (`docs/launch-gate.md` section A). Plan facts (owner, 2026-11-20): compute 0.25 to 2 CU
+  with scale-to-zero on, 7 days of history retention; full list in `docs/runbook.md`, section 5.
 
 ## Error reporting (Sentry, H5)
 

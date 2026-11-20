@@ -2125,7 +2125,13 @@ export const en = {
     changes:
       "If I change this page materially, I will email the shelters at their dashboard address. The date of the last update is at the top of the page.",
   },
-
+  emailLayout: {
+    fallbackLink: "Button not working? Copy this link:",
+    reason: {
+      registrant: "You got this email because this address was given when the shelter registered.",
+      shelterAdmin: "You got this email because this address was added to a shelter's dashboard.",
+    },
+  },
   cityPage: {
     heading: "Looking for a home: {city}",
     intro:

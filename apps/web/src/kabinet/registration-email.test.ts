@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   REGISTRATION_EMAIL_TEMPLATES,
   type RegistrationEmail,
-  registrationEmailOf,
+  registrationEmailFor,
   safeSubject,
 } from "./registration-email";
 
@@ -47,23 +47,23 @@ const samples: Record<RegistrationEmail["template"], RegistrationEmail> = {
 };
 
 describe("safeSubject (header injection, §11.3)", () => {
-  it("turns CR, LF, other controls and Unicode separators into single spaces", () => {
+  it("turns CR, LF, other controls and Unicode separators into single spaces", async () => {
     expect(safeSubject("a\r\nBcc: x\u0000y z\u0085w")).toBe("a Bcc: x y z w");
   });
 
-  it("caps the subject at 200 characters, counted as a reader would", () => {
+  it("caps the subject at 200 characters, counted as a reader would", async () => {
     expect([...safeSubject("я".repeat(500))]).toHaveLength(200);
   });
 });
 
-describe("registrationEmailOf", () => {
-  it("has a sample for every template", () => {
+describe("registrationEmailFor", () => {
+  it("has a sample for every template", async () => {
     expect(Object.keys(samples).sort()).toEqual([...REGISTRATION_EMAIL_TEMPLATES].sort());
   });
 
   for (const template of REGISTRATION_EMAIL_TEMPLATES) {
-    it(`${template}: no line break in the subject, applicant text escaped in the HTML`, () => {
-      const email = registrationEmailOf(samples[template], TO);
+    it(`${template}: no line break in the subject, applicant text escaped in the HTML`, async () => {
+      const email = await registrationEmailFor(samples[template], TO);
       expect(email.to).toBe(TO);
       expect(email.subject).not.toMatch(/[\r\n]/);
       expect(email.html).not.toContain("<script>");
@@ -72,13 +72,13 @@ describe("registrationEmailOf", () => {
 
   it.each(["application_confirm", "operator_new_application"] as const)(
     "%s: the name in the body is escaped, not dropped",
-    (template) => {
-      expect(registrationEmailOf(samples[template], TO).html).toContain("&lt;script&gt;");
+    async (template) => {
+      expect((await registrationEmailFor(samples[template], TO)).html).toContain("&lt;script&gt;");
     },
   );
 
-  it("the confirmation carries both links, «Це не я» after the explanation", () => {
-    const email = registrationEmailOf(samples.application_confirm, TO);
+  it("the confirmation carries both links, «Це не я» after the explanation", async () => {
+    const email = await registrationEmailFor(samples.application_confirm, TO);
     const confirm = email.html.indexOf("pidtverdyty");
     const notMe = email.html.indexOf("tse-ne-ya");
     expect(confirm).toBeGreaterThan(-1);
@@ -87,25 +87,27 @@ describe("registrationEmailOf", () => {
     expect(email.text).toContain("Це не я: https://opika.org.ua/kabinet/email/tse-ne-ya?t=def");
   });
 
-  it("the approval ends on his R5 open-sources line", () => {
-    expect(registrationEmailOf(samples.application_approved, TO).text).toContain(
+  it("the approval ends on his R5 open-sources line", async () => {
+    expect((await registrationEmailFor(samples.application_approved, TO)).text).toContain(
       "Якщо для повної перевірки мені забракне інформації з відкритих джерел, я напишу вам.",
     );
   });
 
-  it("the rejection states the preset reason, with «Інше» carrying its text", () => {
-    const text = registrationEmailOf(samples.application_rejected, TO).text;
+  it("the rejection states the preset reason, with «Інше» carrying its text", async () => {
+    const text = (await registrationEmailFor(samples.application_rejected, TO)).text;
     expect(text).toContain("Причина: Інше: Це магазин.");
     expect(text).toContain("Дані заявки я видалю через 30 днів.");
-    const duplicate = registrationEmailOf(
-      {
-        template: "application_rejected",
-        name: "Лапа",
-        reason: { code: "duplicate_submission", note: null },
-        contactEmail: "hello@example.org",
-        telegram: "@operator",
-      },
-      TO,
+    const duplicate = (
+      await registrationEmailFor(
+        {
+          template: "application_rejected",
+          name: "Лапа",
+          reason: { code: "duplicate_submission", note: null },
+          contactEmail: "hello@example.org",
+          telegram: "@operator",
+        },
+        TO,
+      )
     ).text;
     expect(duplicate).toContain("Причина: Такий притулок уже є на Opika.");
   });

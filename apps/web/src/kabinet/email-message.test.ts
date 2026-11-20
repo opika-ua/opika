@@ -1,7 +1,8 @@
 import { uk } from "@opika/i18n";
 import { describe, expect, it } from "vitest";
-import { emailBody, invitationEmail, looksLikeUrl, magicLinkEmail } from "./email-message";
+import { emailBody, invitationEmail, looksLikeUrl } from "./email-message";
 import { fetchEmailSender } from "./email-provider";
+import { signInEmail } from "./emails/account-mail";
 import { operatorDisplayName } from "./operator";
 
 /**
@@ -20,15 +21,19 @@ const INVITE_URL =
 /** Hosts a click and open tracker uses (IN-E8, IN-E10; the removed Brevo's): none may appear in what we send. */
 const TRACKER = /sendibt\d*\.com|sender-sib|\/tr\/(cl|op)\//i;
 
+/** The independence line and hello@ under every branded email's body (plan §3). */
+const FOOTER =
+  "--\nOpika робить одна людина, незалежно. Це не державний і не міський сервіс.\nhello@opika.org.ua";
+
 const builders = {
   "magic link": () =>
-    magicLinkEmail({
+    signInEmail({
       to: "a@example.org",
       url: SIGN_IN_URL,
       ttlMinutes: 15,
       operatorName: "Олексій",
     }),
-  invitation: () =>
+  invitation: async () =>
     invitationEmail({
       to: "a@example.org",
       url: INVITE_URL,
@@ -100,14 +105,14 @@ describe("emailBody", () => {
 });
 
 describe.each(Object.entries(builders))("the %s email", (name, build) => {
-  it("labels its one HTML link with copy, never a URL", () => {
-    const texts = anchorTexts(build().html);
+  it("labels its one HTML link with copy, never a URL", async () => {
+    const texts = anchorTexts((await build()).html);
     expect(texts).toHaveLength(1);
     for (const text of texts) expect(looksLikeUrl(text), text).toBe(false);
   });
 
   it("is sent to Resend with the exact raw URL in the text part, no tracker host anywhere, and a label as the anchor text", async () => {
-    const email = build();
+    const email = await build();
     // Known per builder, never read back out of what it built.
     const url = name === "magic link" ? SIGN_IN_URL : INVITE_URL;
     let body: { text: string; html: string } | null = null;
@@ -140,37 +145,40 @@ describe.each(Object.entries(builders))("the %s email", (name, build) => {
  * pass for any text at all.
  */
 describe("the builders fill his final copy", () => {
-  it("magic link: subject, greeting intro (row 79), label, the 15-minute expiry and the signed last line (row 82), in order", () => {
-    const email = builders["magic link"]();
+  it("magic link: subject, greeting intro (row 79), label, the 15-minute expiry and the signed last line (row 82), in order", async () => {
+    const email = await builders["magic link"]();
     expect(email.subject).toBe("Посилання для входу до кабінету притулку");
     expect(anchorTexts(email.html)).toEqual(["Відкрити сторінку входу"]);
+    // The branded kit (plan step 3): the subject as heading, the link under its label, the footer.
     expect(email.text).toBe(
       [
+        "Посилання для входу до кабінету притулку",
         "Добрий день. На цю адресу запитали посилання для входу до кабінету притулку.",
-        SIGN_IN_URL,
+        `Відкрити сторінку входу:\n${SIGN_IN_URL}`,
         "Посилання спрацює один раз і діє 15 хвилин.",
         "Якщо ви цього не запитували, просто проігноруйте лист: без посилання нічого не відбудеться.\nОлексій",
+        FOOTER,
       ].join("\n\n"),
     );
     // Delivery test 2 (2026-10-14): signed like the invite, a line break in HTML too.
-    expect(email.html).toContain("нічого не відбудеться.<br>Олексій</p>");
+    expect(email.html).toContain("нічого не відбудеться.<br/>Олексій</p>");
     expect(email.text).not.toMatch(/\{\w+\}/);
   });
 
-  it("magic link: with no display name configured, the signature is the catalogue's fallback, never a blank or a raw {operator}", () => {
-    const email = magicLinkEmail({
+  it("magic link: with no display name configured, the signature is the catalogue's fallback, never a blank or a raw {operator}", async () => {
+    const email = await signInEmail({
       to: "a@example.org",
       url: SIGN_IN_URL,
       ttlMinutes: 15,
       operatorName: operatorDisplayName({}),
     });
     // Round 2, answer 6, verbatim: "Email signature fallback: capitalise it → «— Адміністратор сайту»."
-    expect(email.text.endsWith("нічого не відбудеться.\nАдміністратор сайту")).toBe(true);
-    expect(email.html).toContain("<br>Адміністратор сайту</p>");
+    expect(email.text).toContain("нічого не відбудеться.\nАдміністратор сайту\n\n--");
+    expect(email.html).toContain("<br/>Адміністратор сайту</p>");
   });
 
-  it("invitation: the shelter in the intro, the 72-hour expiry, and the operator signing the last line (row 88)", () => {
-    const email = builders.invitation();
+  it("invitation: the shelter in the intro, the 72-hour expiry, and the operator signing the last line (row 88)", async () => {
+    const email = await builders.invitation();
     expect(email.subject).toBe("Ваш доступ до кабінету притулку");
     expect(anchorTexts(email.html)).toEqual(["Створити пароль"]);
     expect(email.text).toBe(

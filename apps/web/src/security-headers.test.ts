@@ -346,3 +346,26 @@ describe("the layouts above a kabinet page set no referrer policy of their own",
     }
   });
 });
+
+describe("the emails' versioned files", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.doUnmock("./seo-flags");
+  });
+
+  it.each([true, false])(
+    "are cached a year, immutable, and nothing else is, discoverable: %s",
+    async (discoverable) => {
+      const sent = await headersUnder(undefined, discoverable);
+      for (const url of ["/email/logo@2x-v1.png", "/email/logo@2x-v2.png"]) {
+        expect(sent(url).get("cache-control"), url).toBe("public, max-age=31536000, immutable");
+        // The security headers still apply; none of them stops a mail client loading an image.
+        expect(sent(url).get("x-content-type-options"), url).toBe("nosniff");
+        expect(sent(url).has("cross-origin-resource-policy"), url).toBe(false);
+      }
+      for (const url of ["/", "/tvaryny", "/emails", "/kabinet/email/x", "/brand-v3/logo.svg"]) {
+        expect(sent(url).has("cache-control"), url).toBe(false);
+      }
+    },
+  );
+});

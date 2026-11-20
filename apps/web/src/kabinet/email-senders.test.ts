@@ -252,8 +252,9 @@ describe("providerMagicLinkSender", () => {
       operatorName: "Олексій Колотенко",
       log: () => {},
     }).send({ email: "olena@example.org", url: URL_WITH_TOKEN });
-    expect(m.sent[0]?.text.endsWith("нічого не відбудеться.\nОлексій Колотенко")).toBe(true);
-    expect(m.sent[0]?.html).toContain("нічого не відбудеться.<br>Олексій Колотенко</p>");
+    // The signature ends the body; the branded footer follows it (plan step 3).
+    expect(m.sent[0]?.text).toContain("нічого не відбудеться.\nОлексій Колотенко\n\n--");
+    expect(m.sent[0]?.html).toContain("нічого не відбудеться.<br/>Олексій Колотенко</p>");
   });
 });
 

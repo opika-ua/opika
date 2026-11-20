@@ -5,7 +5,7 @@ One set, defined in `apps/web/src/app/globals.css` (`@theme`). Class names have 
 
 | Group | Tokens | Use |
 |---|---|---|
-| Colour | `page`, `surface`, `ink`, `ink-2`, `muted`, `line`, `accent`, `accent-strong`, `accent-text`, `on-ink`, `species-dog`, `species-cat`, `focus`, `success`, `warning`, `danger`, `danger-bg`, `tint` | `ink` text and primary fills; `ink-2` secondary text and hints; `muted` placeholders only (not for text that carries meaning); `line` borders and quiet fills; `accent` the call to action (fill only; text on it is `on-ink`, white; orange as text on a light background, and the focus ring, is `accent-text`); `accent-strong` #D9531A the fill of the primary accent Button only, with `on-accent-strong` #FFFFFF as its label colour (nothing else uses either); `danger` and `danger-bg` form errors (below); `tint` the auth card's footer strip |
+| Colour | `page`, `surface`, `ink`, `ink-2`, `muted`, `line`, `accent`, `accent-strong`, `accent-text`, `on-ink`, `species-dog`, `species-cat`, `focus`, `success`, `warning`, `danger`, `danger-bg`, `tint`, `success-bg` | `ink` text and primary fills; `ink-2` secondary text and hints; `muted` placeholders only (not for text that carries meaning); `line` borders and quiet fills; `accent` the call to action (fill only; text on it is `on-ink`, white; orange as text on a light background, and the focus ring, is `accent-text`); `accent-strong` #D9531A the fill of the primary accent Button only, with `on-accent-strong` #FFFFFF as its label colour (nothing else uses either, but for the emails' white card); `success-bg` the emails' mint info box only; `danger` and `danger-bg` form errors (below); `tint` the auth card's footer strip |
 | Radius | `tag` 8, `field` 12, `bar` 16 (the page save bar only), `panel` 20, `card` 24, `sheet` 48, `pill` | tags, inputs, grouped boxes, cards, tablet sheets, buttons and chips |
 | Shadow | `float` | floating layers only |
 | Motion | `--duration-quick/settle/reveal`, `--ease-standard` | all go to 0 under reduced motion |
@@ -57,6 +57,18 @@ No dark mode: the token set has none.
 The invalid look keys on the control's own `aria-invalid="true"` (the `aria-invalid:` variant in
 `globals.css`), so it outranks the control's `line` border and `surface` fill. A placeholder on
 `danger-bg` stays `muted`: placeholders carry no meaning.
+
+## Email info boxes
+
+The emails (`apps/web/src/kabinet/emails`, no Tailwind) read these through a generated bridge
+(`tokens.generated.json`, `pnpm --filter @opika/web email:tokens`; a test fails while it disagrees with
+`globals.css`). The card is `on-accent-strong` (pure white), its only use outside the accent Button.
+
+| Box | Fill | Text | Contrast |
+|---|---|---|---|
+| information | `status-published` #EDE6F7 | `ink` | 14.8:1 |
+| success | `success-bg` #E4F2E8 (emails only) | `ink` | 15.6:1 |
+| warning | `status-reserved` #FDE6D8 | `ink` | 15.0:1 |
 
 ## Mascot colours
 
