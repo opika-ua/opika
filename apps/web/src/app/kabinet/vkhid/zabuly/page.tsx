@@ -1,5 +1,6 @@
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
+import { kabinetSessionCookiePresent } from "../../../../features/chrome/kabinet-signed-in";
 import { AuthPage } from "../../../../features/kabinet/AuthPage";
 import { ForgotPasswordCard } from "../../../../features/kabinet/password/ForgotPasswordCard";
 import { RESET_PASSWORD_TTL_SECONDS } from "../../../../kabinet/password-mail";
@@ -14,10 +15,10 @@ export const metadata: Metadata = { title: uk.kabinet.forgot.title };
  * «Змінити пароль»'s note), so it never redirects home. While sign-in is
  * unavailable it answers its own 404, like every kabinet page.
  */
-export default function ForgotPasswordPage() {
+export default async function ForgotPasswordPage() {
   kabinetAvailabilityOrNotFound();
   return (
-    <AuthPage>
+    <AuthPage kabinetSignedIn={await kabinetSessionCookiePresent()}>
       <ForgotPasswordCard minutes={RESET_PASSWORD_TTL_SECONDS / 60} />
     </AuthPage>
   );

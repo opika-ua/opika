@@ -103,6 +103,25 @@ describe("SiteHeader", () => {
     expect(screen.getByRole("link", { name: uk.nav.animals })).toBeTruthy();
   });
 
+  it("before sign-in «Кабінет притулку» is the current section, in the row and the menu; no text link is", () => {
+    render(<SiteHeader kabinetSignedIn={false} current="kabinet" />);
+
+    for (const id of ["nav-kabinet", "nav-kabinet-menu"]) {
+      expect(screen.getByTestId(id).getAttribute("aria-current")).toBe("true");
+    }
+    for (const name of [uk.nav.animals, uk.nav.forShelters, uk.nav.about]) {
+      expect(screen.getByRole("link", { name }).getAttribute("aria-current")).toBe(null);
+    }
+  });
+
+  it("elsewhere the kabinet entry is never current", () => {
+    render(<SiteHeader kabinetSignedIn={true} current="forShelters" />);
+
+    for (const id of ["nav-kabinet", "nav-kabinet-menu"]) {
+      expect(screen.getByTestId(id).getAttribute("aria-current")).toBe(null);
+    }
+  });
+
   it("the entry's person icon is decorative, so the name is the label alone", () => {
     render(<SiteHeader kabinetSignedIn={false} />);
 

@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { uk } from "@opika/i18n";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -7,7 +8,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  */
 const outcome = vi.hoisted(() => vi.fn());
 const read = vi.hoisted(() => vi.fn());
-vi.mock("next/headers", () => ({ headers: async () => new Headers({ cookie: "a=b" }) }));
+const cookiePresent = vi.hoisted(() => ({ value: false }));
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers({ cookie: "a=b" }),
+  cookies: async () => ({ has: () => cookiePresent.value }),
+}));
 vi.mock("../../../kabinet/registration/email-link-runtime", () => ({
   servedRegistrationLinkOutcome: outcome,
 }));
@@ -35,6 +40,7 @@ const confirmed = { kind: "page", state: { kind: "confirmed" }, status: 200 };
 beforeEach(() => {
   outcome.mockReset();
   read.mockReset();
+  cookiePresent.value = false;
 });
 
 describe("the confirm page's confirmed card, through the page", () => {
@@ -73,5 +79,31 @@ describe("the session is read only on a served confirm link", () => {
     render(await NotMeLinkPage({ searchParams }));
     expect(screen.getByRole("alert")).toBeDefined();
     expect(read).not.toHaveBeenCalled();
+  });
+});
+
+// Option A (owner, 2026-11-20): the public header, «Кабінет притулку» marked as the current section.
+describe("the public header on both link pages", () => {
+  it("has the site nav, with the kabinet entry current; the session cookie picks where it leads", async () => {
+    outcome.mockResolvedValue({ kind: "page", state: { kind: "expired" }, status: 400 });
+    const { unmount } = render(await NotMeLinkPage({ searchParams }));
+    const nav = screen.getByRole("navigation", { name: "Opika" });
+    expect(within(nav).getByRole("link", { name: uk.nav.animals }).getAttribute("href")).toBe(
+      "/tvaryny",
+    );
+    expect(within(nav).getByRole("link", { name: uk.nav.forShelters }).getAttribute("href")).toBe(
+      "/prytulkam",
+    );
+    expect(within(nav).getByRole("link", { name: uk.nav.about }).getAttribute("href")).toBe("/pro");
+    const entry = screen.getByTestId("nav-kabinet");
+    expect(entry.getAttribute("aria-current")).toBe("true");
+    expect(entry.getAttribute("href")).toBe("/kabinet/vkhid");
+    unmount();
+
+    cookiePresent.value = true;
+    outcome.mockResolvedValue(confirmed);
+    read.mockResolvedValue(null);
+    render(await ConfirmEmailLinkPage({ searchParams }));
+    expect(screen.getByTestId("nav-kabinet").getAttribute("href")).toBe("/kabinet");
   });
 });
