@@ -14,7 +14,6 @@ import { Heading } from "../../ui/Heading";
 import { Panel } from "../../ui/Panel";
 import { Text } from "../../ui/Text";
 
-const INDEPENDENT = fillTemplate(uk.about.independent, { site: WORDMARK });
 const WHAT_THIS_IS = fillTemplate(uk.forShelters.whatThisIs, { site: WORDMARK });
 const WHO_CONTACTS_WHOM = fillTemplate(uk.forShelters.whoContactsWhom, { site: WORDMARK });
 const WHO_IS_BEHIND_THIS = fillTemplate(uk.forShelters.whoIsBehindThis, { site: WORDMARK });
@@ -200,8 +199,6 @@ export function renderForSheltersPage(
       <KabinetEntryLink to="signIn" variant="secondary" className="self-start">
         {uk.forShelters.signInLink}
       </KabinetEntryLink>
-
-      <Text look="hint">{INDEPENDENT}</Text>
 
       <Section heading={h.whatThisIs}>
         <Body>{WHAT_THIS_IS}</Body>

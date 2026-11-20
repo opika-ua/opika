@@ -2,7 +2,7 @@
  * The privacy layer under every Sentry event, from the browser, the server and the tunnel.
  * Pure and SDK-free, so the tunnel can run it without loading the SDK. The SDK's own collection is
  * already set to nothing (`options.ts`); this is the second layer for what still slips into a string.
- * The approved /pro sentence (`about.data`) depends on what is kept here: error type, place in code,
+ * The privacy policy's approved sentence (`privacy.visitors.errors`) depends on what is kept here: error type, place in code,
  * page address without parameters, browser and system - nothing else.
  */
 

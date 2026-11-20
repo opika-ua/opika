@@ -105,7 +105,8 @@ describe("the shelter page", () => {
   it("says «Зараз тут немає тварин, які шукають дім.» when the list is empty, with no list or sort", () => {
     renderScreen({ animals: makeListOutput([]) });
     expect(screen.getByText("Зараз тут немає тварин, які шукають дім.")).toBeTruthy();
-    expect(screen.queryByRole("list")).toBeNull();
+    // The page's own content: the site footer has lists of its own.
+    expect(within(screen.getByRole("main")).queryByRole("list")).toBeNull();
     expect(screen.queryByRole("navigation", { name: "Сортування" })).toBeNull();
   });
 

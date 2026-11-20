@@ -3,18 +3,19 @@ import type {
   RegistrationFieldError,
   RegistrationResult,
 } from "@opika/contracts";
+import { PRIVACY_PATH } from "../chrome/privacy-path";
 
 /**
  * What the registration form and its server action pass each other. Types and plain constants
  * only: the form is a public client file, so nothing here may pull zod or the catalogue in.
  */
 
-/** The section's anchor (`/prytulkam#reyestratsiia`), the rules' and the privacy section's. */
+/** The section's anchor (`/prytulkam#reyestratsiia`), the rules' and the privacy policy's. */
 export const REGISTRATION_ANCHOR = "reyestratsiia";
 /** The form's heading: where the anchor and a direct link move focus. */
 export const REGISTRATION_HEADING_ID = `${REGISTRATION_ANCHOR}-title`;
 export const RULES_HREF = "/prytulkam#pravyla";
-export const PRIVACY_HREF = "/pro#dani";
+export const PRIVACY_HREF = PRIVACY_PATH;
 
 /** The honeypot's input name: meaningless to autofill, so a password manager leaves it empty. */
 export const HONEYPOT_NAME = "reg_hp_x";

@@ -29,6 +29,12 @@ export const OPERATOR_CONTACT = {
   telegramUrl: "https://t.me/oleshaz",
 } as const;
 
+/** The project's own Instagram (owner, 2026-11-20), linked from the site footer. A proper name, not copy. */
+export const INSTAGRAM = {
+  label: "Instagram",
+  url: "https://www.instagram.com/opika.ua/",
+} as const;
+
 /** The separator is an en dash (owner, 2026-10-26), pinned by `no-em-en-dash.test.ts`. */
 export const TITLE_TEMPLATE = `%s – ${WORDMARK}`;
 

@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { OPERATOR_CONTACT, WORDMARK } from "../../brand";
 import { ContentPageLayout } from "../../features/chrome/ContentPageLayout";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
-import { isSelfRegistrationEnabled } from "../../features/registration/flag";
+import { PRIVACY_PATH } from "../../features/chrome/privacy-path";
+import { withSlot } from "../../features/chrome/with-slot";
 import { ABOUT_SEO } from "../../seo/page-metadata";
 import { Heading } from "../../ui/Heading";
 import { Mascot, MascotPerch } from "../../ui/Mascot";
@@ -37,9 +38,9 @@ export const metadata: Metadata = {
  * The contact address (`OPERATOR_CONTACT.email`) is live: Cloudflare Email Routing, delivery
  * tested by the owner on 2026-09-02. A "get in touch" page is worse than absent if it bounces.
  *
- * `uk.about.analytics` discloses @vercel/analytics + @vercel/speed-insights
- * (mounted in the root layout) - the disclosure ships in the same phase as
- * the collection, not after.
+ * `uk.about.analytics` names the visit statistics (@vercel/analytics and
+ * speed-insights, mounted in the root layout); the details, the cookie included, are on the
+ * privacy policy, which the data summary links to.
  *
  * **Designer feedback batch D (2026-10-23):** reading the kabinet cookie
  * for the role-aware header makes this page `force-dynamic` (below) rather
@@ -58,17 +59,14 @@ export const dynamic = "force-dynamic";
 
 export default async function AboutPage() {
   const kabinetSignedIn = await kabinetSessionCookiePresent();
-  return renderAboutPage(kabinetSignedIn, { selfRegistration: isSelfRegistrationEnabled() });
+  return renderAboutPage(kabinetSignedIn);
 }
 
-/** Where the data paragraphs start: the registration form's consent links here. */
+/** The data summary: old links to `/pro#dani` still land on it. */
 export const DATA_SECTION_ANCHOR = "dani";
 
 /** The page body; exported so `page.test.tsx` can render it without a real request scope. */
-export function renderAboutPage(
-  kabinetSignedIn: boolean,
-  { selfRegistration }: { selfRegistration: boolean } = { selfRegistration: false },
-) {
+export function renderAboutPage(kabinetSignedIn: boolean) {
   return (
     <ContentPageLayout kabinetSignedIn={kabinetSignedIn} current="about" title={uk.about.title}>
       <Text look="lead" className="text-ink-2">
@@ -80,25 +78,19 @@ export function renderAboutPage(
       <Text look="lead" className="text-ink-2">
         {MONEY}
       </Text>
-      {/* Four paragraphs in one catalogue string (audit 2026-10-22 #45), split on the blank line. */}
-      {uk.about.data.split("\n\n").map((paragraph, index) => (
-        <Text
-          key={paragraph}
-          {...(index === 0 ? { id: DATA_SECTION_ANCHOR } : {})}
-          look="lead"
-          className="scroll-mt-24 text-ink-2"
-        >
-          {paragraph}
-        </Text>
-      ))}
-      {/* A7: what registering collects and how long an application is kept (flag-gated). */}
-      {selfRegistration ? (
-        <Text look="lead" className="text-ink-2">
-          {uk.registration.privacy}
-        </Text>
-      ) : null}
+      {/* The summary only (owner, 2026-11-20); the privacy policy has the details. */}
+      <Text id={DATA_SECTION_ANCHOR} look="lead" className="scroll-mt-24 text-ink-2">
+        {uk.about.dataSummary}
+      </Text>
       <Text look="lead" className="text-ink-2">
         {uk.about.analytics}
+      </Text>
+      <Text look="lead" className="text-ink-2">
+        {withSlot(
+          uk.about.dataLink,
+          "link",
+          <TextLink href={PRIVACY_PATH}>{uk.about.dataLinkLabel}</TextLink>,
+        )}
       </Text>
       {/* Decorative divider; the one mascot moment on this page. */}
       <div aria-hidden="true" className="relative mt-8 border-t border-line">

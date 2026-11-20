@@ -1,6 +1,7 @@
 /**
  * Brand mascots: decorative accents that must never get in the way. Behaviour only: a mascot never
- * takes a click, never overflows a 360px phone, and no screen shows two mascot moments at once.
+ * takes a click, never overflows a 360px phone, and no screen shows two mascot moments at once (the
+ * site footer's pair, at every public page's end, is checked on its own).
  * Set MASCOT_SHOTS_DIR to also save the review screenshots (1440, 393, 360 and 320, every placement).
  */
 
@@ -30,6 +31,8 @@ async function moments(page: Page) {
   return page.locator(MOMENT).evaluateAll((nodes) =>
     // A mascot hidden by the breakpoint (display: none) is no moment.
     nodes
+      // The site footer's pair is its own moment at the page's end, checked by its own test below.
+      .filter((node) => node.closest("footer") === null)
       .filter((node) => node.getBoundingClientRect().width > 0)
       .map((node) => {
         const box = node.getBoundingClientRect();
@@ -191,6 +194,26 @@ for (const viewport of [DESKTOP_1440, PHONE_393, PHONE_360, PHONE_320]) {
       // The close button stays usable: the mascots sit above the dialog, not on its controls.
       await expect(page.getByTestId("reveal-close")).toBeVisible();
       await shoot(page, "4-reveal", viewport);
+    });
+
+    test("8-footer: the cat and the dog on the footer's edge take no click and stay on screen", async ({
+      page,
+    }) => {
+      await openRoute(page, "/pro", viewport, { readySelector: "footer" });
+      // A static SVG drawn as a background (owner, 2026-11-20), so the pair is one element.
+      const group = page.locator("footer .footer-mascots");
+      await group.scrollIntoViewIfNeeded();
+      await expect(group).toHaveAttribute("aria-hidden", "true");
+      const found = await group.evaluate((node) => {
+        const box = node.getBoundingClientRect();
+        const under = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        return {
+          inside: box.left >= 0 && box.right <= document.documentElement.clientWidth,
+          underIsMascot: under?.closest(".footer-mascots") != null,
+        };
+      });
+      expect(found).toEqual({ inside: true, underIsMascot: false });
+      await shoot(page, "8-footer", viewport);
     });
 
     test("2b-shelter-no-animals: the empty shelter page shows one mascot", async ({ page }) => {

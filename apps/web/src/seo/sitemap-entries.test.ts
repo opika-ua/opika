@@ -44,6 +44,13 @@ describe("buildSitemapEntries", () => {
     expect(urls.every((u) => u.startsWith(SITE_ORIGIN))).toBe(true);
   });
 
+  it("lists the privacy policy, indexed like the other static pages", async () => {
+    const urls = (
+      await buildSitemapEntries(true, { animals: async () => [], cities: async () => [] })
+    ).map((e) => e.url);
+    expect(urls).toContain(`${SITE_ORIGIN}/polityka-konfidentsiinosti`);
+  });
+
   it("never exceeds the protocol limit", async () => {
     const items = Array.from({ length: SITEMAP_URL_LIMIT + 5 }, (_, i) => ({
       id: `a${i}`,

@@ -11,6 +11,7 @@ import { Heading } from "../../ui/Heading";
 import { Mascot } from "../../ui/Mascot";
 import { Pagination } from "../../ui/Pagination";
 import { Toggle } from "../../ui/Toggle";
+import { SiteFooter } from "../chrome/SiteFooter";
 import { SiteHeader } from "../chrome/SiteHeader";
 import { ActiveFilterChips } from "../gallery/ActiveFilterChips";
 import { ArrowKeyGrid } from "../gallery/ArrowKeyGrid";
@@ -365,6 +366,7 @@ export function ShelterPageScreen({
           </section>
         )}
       </Container>
+      <SiteFooter />
     </div>
   );
 }

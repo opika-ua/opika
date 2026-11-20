@@ -1,10 +1,11 @@
 import { uk } from "@opika/i18n";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { forSheltersMetadata, renderForSheltersPage, whatToPrepareFor } from "./page";
 
 const OFF = { selfRegistration: false };
 const ON = { selfRegistration: true };
+const INDEPENDENT = "Opika робить одна людина, незалежно. Це не державний і не міський сервіс.";
 
 /** Commitment #6's A1 sentence (§7) and today's §11, as the flag-off page must keep them. */
 const A1 = "Доступ до кабінету я надсилаю сам – листом на адресу, яку ви мені вкажете.";
@@ -16,12 +17,14 @@ const HOW_TO_START_ON =
   "Зареєструйте притулок формою на цій сторінці – це займає 3 хвилини. Потім я перевірю притулок, зазвичай до 2 днів. Якщо зручніше, напишіть на hello@opika.org.ua: хто ви і скільки у вас тварин – і я створю притулок сам.";
 
 describe("«Для притулків»", () => {
-  it("states it is run by one person, independent of any state or city service", () => {
-    render(renderForSheltersPage(false));
-    expect(
-      screen.getByText("Opika робить одна людина, незалежно. Це не державний і не міський сервіс."),
-    ).toBeTruthy();
-  });
+  it.each([OFF, ON])(
+    "states once, in the footer, that it is run by one person, independently (%o)",
+    (flags) => {
+      render(renderForSheltersPage(false, flags));
+      expect(screen.getAllByText(INDEPENDENT)).toHaveLength(1);
+      expect(within(screen.getByRole("contentinfo")).getByText(INDEPENDENT)).toBeTruthy();
+    },
+  );
 
   /** PW-2, his scope item 1, verbatim: "«Для притулків» page: add «Увійти в кабінет» → /kabinet/vkhid." */
   it("links «Увійти в кабінет» to the kabinet's sign-in page", () => {

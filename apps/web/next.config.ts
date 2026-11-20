@@ -48,6 +48,15 @@ assertBuildEnv(process.env);
  */
 export const PROXY_CLIENT_MAX_BODY_BYTES = 128 * 1024;
 
+/**
+ * The emails' images and font (`public/email/`) are versioned by name and never change once
+ * published, so a year's immutable cache is safe (owner, 2026-11-20); a new look is a new file.
+ */
+export const EMAIL_ASSET_CACHE_RULE = {
+  source: "/email/:file*",
+  headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+};
+
 const nextConfig: NextConfig = {
   // Do not announce the framework on every response (audit I2).
   poweredByHeader: false,
@@ -98,6 +107,7 @@ const nextConfig: NextConfig = {
       { source: "/:path*", headers: securityHeaders(policy) },
       ...REFERRER_POLICY_RULES,
       ...cspReportingRules(policy, process.env.NEXT_PUBLIC_SENTRY_DSN),
+      EMAIL_ASSET_CACHE_RULE,
     ];
     if (SITE_IS_PUBLICLY_DISCOVERABLE) return security;
     return [

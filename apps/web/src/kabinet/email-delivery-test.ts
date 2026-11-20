@@ -3,7 +3,7 @@ import { parseEnv } from "node:util";
 import { INVITATION_TTL_MS } from "@opika/db/repos";
 import { COPY_PENDING, pendingCopyPaths, uk } from "@opika/i18n";
 import { INVITE_LINK, linkTo, SIGN_IN_LINK } from "./email-links";
-import { invitationEmail, magicLinkEmail } from "./email-message";
+import { invitationEmail } from "./email-message";
 import {
   type EmailProviderConfig,
   emailRoutesOf,
@@ -12,6 +12,7 @@ import {
   PROVIDER_KEY_NAMES,
   type SentEmail,
 } from "./email-provider";
+import { signInEmail } from "./emails/account-mail";
 import { MAGIC_LINK_TTL_SECONDS } from "./magic-link-sender";
 import { operatorDisplayName } from "./operator";
 
@@ -19,7 +20,7 @@ import { operatorDisplayName } from "./operator";
  * The delivery test Oleksii runs by hand (email setup handoff, 2026-10-13:
  * "Run it now against my Gmail only: the magic-link email and the invite
  * email, real-length placeholder text"). Its second run (IN-E15) sends the
- * final Ukrainian through the real templates: `magicLinkEmail` and
+ * final Ukrainian through the real templates: `signInEmail` (the branded kit) and
  * `invitationEmail`, the builders production uses, with the real TTLs, a
  * fictional shelter, the operator name signing both emails, from the app config
  * (`--operator-name`, else `KABINET_OPERATOR_DISPLAY_NAME`, else the
@@ -149,7 +150,7 @@ export async function runDeliveryTest(input: DeliveryTestInput): Promise<0 | 1> 
     {
       label: "magic link",
       route: routes.routes.signIn,
-      email: magicLinkEmail({
+      email: await signInEmail({
         to: input.to,
         url: testLink(SIGN_IN_LINK),
         ttlMinutes: MAGIC_LINK_TTL_SECONDS / 60,

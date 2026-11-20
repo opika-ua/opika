@@ -33,6 +33,8 @@
   --color-danger-bg: #fdeceb;
   /* A quiet tint inside a surface card (the auth card's footer strip); ink-2 on it 6.0:1. */
   --color-tint: #f6f1f3;
+  /* The mint «success» info box of the emails (src/kabinet/emails); ink on it 15.6:1. */
+  --color-success-bg: #e4f2e8;
   /* Status chips of a card and of a shelter: a soft tint with its own text colour, every pair AA
    * (docs/ui/tokens.md lists the measured ratios). Not warnings: nothing here is alarming. */
   --color-status-published: #ede6f7;
@@ -294,6 +296,45 @@
 }
 @utility nav-kabinet-row {
   @apply nav-kabinet-look flex w-full;
+}
+/* The site footer (A2, on `ink`), one class per look for the same reason: it is in every public page.
+   Lavender is `mascot-dog-light`, the nearest token to the design's; 15px is `text-chip` at 400, 19px
+   `text-cta` at 600. On a phone the sections are full-width rows with hairlines. Its graphics are
+   static SVG files (owner, 2026-11-20): bundled from `footer-art/`, so hashed and cached for good,
+   at fixed sizes so nothing shifts. The icons are masks in the text colour, drawn by `::before`. */
+@utility footer-section {
+  @apply flex min-h-target items-center border-b border-on-ink/15 text-cta font-semibold text-on-ink hover:underline focus-ring-on-ink desktop:border-0;
+}
+@utility footer-link {
+  @apply inline-flex min-h-target items-center text-chip font-normal text-mascot-dog-light hover:text-on-ink focus-ring-on-ink;
+}
+/* A contact: the plain link's look with its icon. */
+@utility footer-contact {
+  @apply footer-link gap-2 before:size-4 before:shrink-0 before:bg-current;
+}
+@utility footer-mail {
+  &::before {
+    mask: url("./footer-art/mail.svg") center / contain no-repeat;
+  }
+}
+@utility footer-ig {
+  &::before {
+    mask: url("./footer-art/instagram.svg") center / contain no-repeat;
+  }
+}
+@utility footer-note {
+  @apply text-chip font-normal text-mascot-dog-light;
+}
+/* The light logo, 120px wide on a phone and 154px from desktop, as the header's. */
+@utility footer-logo {
+  @apply flex min-h-target w-30 self-start focus-ring-on-ink desktop:w-38.5;
+  background: url("./footer-art/logo-light.svg") left center / contain no-repeat;
+}
+/* The cat and dog on the band's top edge: the kit's sitting pair at 64px (48 on a phone, 32 below
+   360), 32px in from the grid's edge (16 below 360), never taking a click. */
+@utility footer-mascots {
+  @apply pointer-events-none absolute bottom-full right-8 h-16 w-33 max-tablet:h-12 max-tablet:w-25 max-compact:right-4 max-compact:h-8 max-compact:w-16.5;
+  background: url("./footer-art/mascots.svg") right bottom / contain no-repeat;
 }
 @utility gcard {
   @apply relative flex flex-col gap-3 focus-ring tablet:block tablet:overflow-clip tablet:rounded-card;

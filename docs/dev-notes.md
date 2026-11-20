@@ -196,9 +196,9 @@ What the code does now (`packages/db/src/test-utils/test-database.ts`):
   `pnpm --filter @opika/db run db:migrate` and `db:seed`. Nothing is deleted: the old PG17 volume stays.
   It can be removed later with `docker volume rm <project>_opika-db-data` (for the main checkout:
   `opika_opika-db-data`); the owner decides when.
-- Production Neon is on the Free plan today: 100 CU-hours per month per project, compute suspends
-  when exhausted, 6 h history retention, Postgres 18, default compute 0.25 CU. Upgrade to Launch is
-  planned before shelters are onboarded (see `docs/launch-gate.md` section A).
+- Production Neon is on the Launch plan since at least 2026-11-20, provisioned through the Vercel
+  Marketplace (`docs/launch-gate.md` section A). Plan facts (owner, 2026-11-20): compute 0.25 to 2 CU
+  with scale-to-zero on, 7 days of history retention; full list in `docs/runbook.md`, section 5.
 
 ## Error reporting (Sentry, H5)
 

@@ -252,6 +252,8 @@ test.describe("/kabinet shell", () => {
     if (nav === null || main === null) throw new Error("no layout");
     expect(main.width).toBeLessThanOrEqual(821);
     expect(main.x).toBeLessThan(nav.x + nav.width + 40);
+    // The kabinet shell has no site footer (A2, owner 2026-11-20): that is for public pages.
+    await expect(page.getByRole("contentinfo")).toHaveCount(0);
     await shot(page, "prytulok-profil");
     await page.close();
   });
@@ -387,6 +389,7 @@ test.describe("/kabinet shell", () => {
       await expect(
         page.getByRole("navigation", { name: "Розділи кабінету" }).getByRole("link"),
       ).toHaveCount(2);
+      await expect(page.getByRole("contentinfo")).toHaveCount(0);
       await shot(page, "operator-prytulky");
       await page.close();
     });
