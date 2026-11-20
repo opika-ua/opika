@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { lockBodyScroll } from "./body-scroll-lock";
+import { lockBodyScroll, SCROLL_LOCKED_ATTRIBUTE } from "./body-scroll-lock";
 
 afterEach(() => {
   document.body.style.overflow = "";
@@ -22,6 +22,20 @@ describe("lockBodyScroll", () => {
       expect(document.body.style.overflow, "one dialog is still open").toBe("hidden");
       (outerFirst ? inner : outer)();
       expect(document.body.style.overflow, "both dialogs are closed").toBe("");
+    }
+  });
+
+  it("marks <html> while locked, until the last of two stacked holds is released, in either order", () => {
+    const marked = () => document.documentElement.hasAttribute(SCROLL_LOCKED_ATTRIBUTE);
+    for (const outerFirst of [true, false]) {
+      expect(marked(), "nothing open").toBe(false);
+      const outer = lockBodyScroll();
+      expect(marked(), "one dialog open").toBe(true);
+      const inner = lockBodyScroll();
+      (outerFirst ? outer : inner)();
+      expect(marked(), "one dialog is still open").toBe(true);
+      (outerFirst ? inner : outer)();
+      expect(marked(), "both dialogs are closed").toBe(false);
     }
   });
 

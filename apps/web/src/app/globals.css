@@ -410,10 +410,29 @@
 }
 /* The scrollbar's room is kept on every page, so a short page or a scroll-locked dialog never shifts
    the centred layout sideways (the lock's body overflow goes to the viewport; the gutter stays). An
-   empty gutter shows the root's background, hence the page colour here rather than white. */
+   empty gutter shows html's background; body paints the page itself, so only the gutter is html's. */
 html {
   scrollbar-gutter: stable;
   background-color: var(--color-page);
+}
+body {
+  min-height: 100dvh;
+  background-color: var(--color-page);
+}
+/* A backdrop stops at the gutter; while scroll is locked (ui/body-scroll-lock) the gutter takes the
+   backdrop's look over the page: ink/40 (Modal, Sheet, the drawer), the overlay's accent/30, or both. */
+html[data-scroll-locked] {
+  background-color: color-mix(in srgb, var(--color-ink) 40%, var(--color-page));
+}
+html[data-scroll-locked]:has([data-testid="pet-card-overlay-open"]) {
+  background-color: color-mix(in srgb, var(--color-accent) 30%, var(--color-page));
+}
+html[data-scroll-locked]:has([data-testid="pet-card-overlay-open"]):has(dialog:modal) {
+  background-color: color-mix(
+    in srgb,
+    var(--color-ink) 40%,
+    color-mix(in srgb, var(--color-accent) 30%, var(--color-page))
+  );
 }
 /* The skip link's target takes programmatic focus only; it is not a control, so no outline. */
 main:focus {
