@@ -1,6 +1,7 @@
 import { looksLikeUrl } from "../email-message";
 import type { OutgoingEmail } from "../email-provider";
-import { type RegistrationEmail, safeSubject } from "../registration-email";
+import type { RegistrationEmail } from "../registration-email";
+import { safeSubject } from "../safe-subject";
 import type { EmailModel } from "./model";
 import { renderEmail } from "./render";
 import { type EmailTemplateInput, emailChromeCopy, emailModelOf } from "./templates";
