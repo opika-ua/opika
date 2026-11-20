@@ -216,8 +216,7 @@ export const LIMITED_AUTH_PATHS: readonly string[] = [
 export function createKabinetAuth(deps: KabinetAuthDeps) {
   // Every statement this instance runs, Better Auth's and our hooks', fails with a cleaned error:
   // name, SQLSTATE and schema names, never the message or the parameters (PW1-F8,
-  // `clean-query-errors.ts`). Better Auth prints a failed fallback join whole, and an error from
-  // `auth.api.getSession` reaches whoever called it.
+  // `clean-query-errors.ts`). An error from `auth.api.getSession` reaches whoever called it.
   const db = withQueryErrorsCleaned(deps.db);
   const actors = kabinetActorRepo(db);
   const clock = deps.now ?? (() => new Date());

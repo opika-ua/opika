@@ -8,10 +8,9 @@ import { field, stringField } from "./fields";
  *
  * Why: Drizzle 0.45.2's query error carries the SQL and its parameters (an address, a session
  * token, a user id) in its message and as `query` and `params`, and the driver's error (its
- * `cause`) carries row values in its message, `detail` and `where`. Better Auth prints such an
- * error whole in one place (`@better-auth/core`'s fallback join, `console.error(error)`), and one
- * thrown from `auth.api.getSession` reaches Next's error log. Cleaned where the query fails, no
- * log anywhere can print what the error no longer holds.
+ * `cause`) carries row values in its message, `detail` and `where`. One thrown from
+ * `auth.api.getSession` reaches Next's error log (Better Auth's raw fallback-join print went in
+ * 1.7.19). Cleaned where the query fails, no log anywhere can print what the error no longer holds.
  *
  * Kept: `name`; `code`, the SQLSTATE only (five digits or capitals); and the schema object names,
  * under both drivers' spellings, so every caller reads what it read before: postgres-js's

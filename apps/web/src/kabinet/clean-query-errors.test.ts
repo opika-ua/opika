@@ -593,7 +593,7 @@ async function signedInUser(): Promise<string> {
 const signedInHeaders = () => new Headers({ cookie: cookieFor(TOKEN), origin: BASE });
 
 describe("Better Auth's two leaks, closed (the review's findings 1 and 2)", () => {
-  it("finding 1: a password sign-in whose fallback join (the account read) fails: Better Auth's console.error prints a cleaned error; the answer is an empty 500", async () => {
+  it("finding 1: a password sign-in whose fallback join (the account read) fails logs only masked lines; the answer is an empty 500", async () => {
     const userId = await signedInUser();
     const auth = authOver(
       failingDriverDatabase(db, (query) =>
@@ -612,11 +612,12 @@ describe("Better Auth's two leaks, closed (the review's findings 1 and 2)", () =
       }),
     );
     expect([answer.status, await answer.text()]).toEqual([500, ""]);
-    // The fallback join ran, and failed: Better Auth's own line about it, and its raw print.
-    expect(lines.filter((line) => line.includes("Failed to query fallback join"))).toHaveLength(1);
-    const printed = lines.filter((line) => line.startsWith("error: CleanedQueryError"));
-    expect(printed).toHaveLength(1);
-    expect(printed[0]).toContain("code: 'XX000'");
+    // The fallback join ran and failed: only our masked lines. Better Auth 1.7.19 dropped its own
+    // raw console.error of the error (better-auth#12317), which used to print a cleaned error here.
+    expect(lines).toEqual([
+      "error: [kabinet] Better Auth error: Failed to query fallback join for model auth_account: · [object]",
+      "error: [kabinet] Better Auth error: API error · Error (XX000)",
+    ]);
     expect(leaks(lines, [userId])).toEqual(none(1));
   });
 
