@@ -59,6 +59,7 @@ test("the footer's links lead to the site's pages, the email and Instagram", asy
     .getByRole("link")
     .evaluateAll((all) => all.map((a) => [a.textContent, a.getAttribute("href")]));
   expect(links).toEqual([
+    ["Opika", "/tvaryny"],
     ["Тварини", "/tvaryny"],
     ["Для притулків", "/prytulkam"],
     ["Про проєкт", "/pro"],
@@ -75,7 +76,7 @@ test("the footer's links lead to the site's pages, the email and Instagram", asy
 test("on a phone every footer link is a 48px target", async ({ page }) => {
   await openRoute(page, "/pro", PHONE, { readySelector: HEADER });
   const links = page.getByRole("contentinfo").getByRole("link");
-  await expect(links).toHaveCount(5);
+  await expect(links).toHaveCount(6);
   for (const link of await links.all()) await expectMinTargetHeight(link);
 });
 

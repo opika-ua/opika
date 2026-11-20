@@ -199,15 +199,16 @@ for (const viewport of [DESKTOP_1440, PHONE_393, PHONE_360, PHONE_320]) {
       page,
     }) => {
       await openRoute(page, "/pro", viewport, { readySelector: "footer" });
-      const group = page.locator("footer [data-mascot-group]");
+      // A static SVG drawn as a background (owner, 2026-11-20), so the pair is one element.
+      const group = page.locator("footer .footer-mascots");
       await group.scrollIntoViewIfNeeded();
-      await expect(group.locator("[data-mascot]")).toHaveCount(2);
+      await expect(group).toHaveAttribute("aria-hidden", "true");
       const found = await group.evaluate((node) => {
         const box = node.getBoundingClientRect();
         const under = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
         return {
           inside: box.left >= 0 && box.right <= document.documentElement.clientWidth,
-          underIsMascot: under?.closest("[data-mascot], [data-mascot-group]") != null,
+          underIsMascot: under?.closest(".footer-mascots") != null,
         };
       });
       expect(found).toEqual({ inside: true, underIsMascot: false });

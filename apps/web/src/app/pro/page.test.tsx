@@ -127,7 +127,7 @@ describe("AboutPage", () => {
   it("the header wordmark links back to the gallery", () => {
     render(renderAboutPage(false));
 
-    const link = screen.getByRole("link", { name: "Opika" });
+    const link = within(screen.getByRole("banner")).getByRole("link", { name: "Opika" });
     expect(link.getAttribute("href")).toBe("/tvaryny");
   });
 });

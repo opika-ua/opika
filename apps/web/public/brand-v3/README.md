@@ -1,8 +1,5 @@
 # gallery-v3 brand assets
 
-`logo-light.svg` - the same file with only the wordmark's five paths refilled `#270041` ->
-`#FAF8F9` (`on-ink`), for the site footer's ink band (owner, 2026-11-20, footer A2).
-
 `logo.svg` - the header lockup (mark + wordmark), from the design handoff
 (`D:\opika-worktrees\_incoming\figma-gallery\logo.svg`, Figma file
 `euz4JGfpToY31VJY7ppVj9`, node `58:1617`). Copied verbatim except for one

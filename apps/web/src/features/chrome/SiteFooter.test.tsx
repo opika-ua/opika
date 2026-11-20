@@ -10,11 +10,12 @@ function footer() {
 }
 
 describe("SiteFooter (A2)", () => {
-  it("is one contentinfo landmark: the sections, then the email and Instagram", () => {
+  it("is one contentinfo landmark: the logo, the sections, then the email and Instagram", () => {
     const links = within(footer())
       .getAllByRole("link")
       .map((link) => [link.textContent, link.getAttribute("href")]);
     expect(links).toEqual([
+      ["Opika", "/tvaryny"],
       ["Тварини", "/tvaryny"],
       ["Для притулків", "/prytulkam"],
       ["Про проєкт", "/pro"],
@@ -34,18 +35,15 @@ describe("SiteFooter (A2)", () => {
     expect(link.getAttribute("rel")).toBe("noopener");
   });
 
-  it("keeps the mascots, the logo and the icons out of the accessibility tree", () => {
+  it("draws its graphics from static files: no inline svg or img, the mascots hidden", () => {
     const el = footer();
-    const mascots = [...el.querySelectorAll("[data-mascot]")];
-    expect(mascots.map((m) => m.getAttribute("data-mascot"))).toEqual(["cat-sit", "dog-sit"]);
-    for (const mascot of mascots) expect(mascot.getAttribute("aria-hidden")).toBe("true");
-    const icons = within(el)
-      .getAllByRole("link")
-      .flatMap((link) => [...link.querySelectorAll("svg")]);
-    expect(icons).toHaveLength(2);
-    for (const icon of icons) expect(icon.getAttribute("aria-hidden")).toBe("true");
-    expect(el.querySelector("img")?.getAttribute("aria-hidden")).toBe("true");
+    expect(el.querySelectorAll("svg, img")).toHaveLength(0);
     expect(within(el).queryByRole("img")).toBeNull();
+    const mascots = el.querySelector(".footer-mascots");
+    expect(mascots?.getAttribute("aria-hidden")).toBe("true");
+    // The logo link is named by the wordmark alone; the icons add nothing to the contacts' names.
+    expect(within(el).getByRole("link", { name: "Opika" }).getAttribute("href")).toBe("/tvaryny");
+    expect(within(el).getByRole("link", { name: "hello@opika.org.ua" })).toBeTruthy();
   });
 
   it("has no link into /kabinet (those must be full page loads, #509)", () => {

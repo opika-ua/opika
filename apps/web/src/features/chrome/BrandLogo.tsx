@@ -9,19 +9,18 @@ import Image from "next/image";
  *
  * `width`/`height` stay the asset's own intrinsic size (the hand-off's instruction) and only fix
  * the aspect ratio; the rendered size is the classes: 120px wide on a phone, 154px (the asset's
- * 153.875) from desktop. `light` is the footer's: the wordmark in `on-ink` for the ink band.
+ * 153.875) from desktop.
  */
-export function BrandLogo({ tone = "dark" }: { tone?: "dark" | "light" }) {
+export function BrandLogo() {
   return (
     <Image
-      src={tone === "light" ? "/brand-v3/logo-light.svg" : "/brand-v3/logo.svg"}
+      src="/brand-v3/logo.svg"
       alt=""
       aria-hidden="true"
       width={153.875}
       height={39.2812}
       unoptimized
-      // The footer's copy is far below the fold.
-      loading={tone === "light" ? "lazy" : "eager"}
+      loading="eager"
       className="h-auto w-30 desktop:w-38.5"
     />
   );
