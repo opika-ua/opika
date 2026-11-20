@@ -1,6 +1,6 @@
 import { fillTemplate, uk } from "@opika/i18n";
 import type { Metadata } from "next";
-import { WORDMARK } from "../brand";
+import { titled, WORDMARK } from "../brand";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../seo-flags";
 import { LINK_PREVIEW_DESCRIPTION } from "../seo-text";
 import { OG_CONTENT_TYPE, OG_SIZE } from "./og-image-size";
@@ -50,6 +50,12 @@ export function withSite(template: string, values: Readonly<Record<string, strin
 export const GALLERY_SEO: Metadata = seoMetadata(
   withSite(uk.seo.gallery.title),
   REGISTRY_HAS_NO_REAL_SHELTERS ? LINK_PREVIEW_DESCRIPTION : uk.seo.gallery.description,
+);
+
+/** The privacy policy: its own title through `titled()`, « – Opika». */
+export const PRIVACY_SEO: Metadata = seoMetadata(
+  titled(uk.privacy.title),
+  uk.seo.privacy.description,
 );
 
 /** `/pro`. */

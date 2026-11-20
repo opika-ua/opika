@@ -57,6 +57,7 @@ test("every public page type previews with a 1200x630 PNG in og:image and twitte
     "/tvaryny",
     "/pro",
     "/prytulkam",
+    "/polityka-konfidentsiinosti",
     "/tvaryny/misto/brovary",
     shelter,
     animal,

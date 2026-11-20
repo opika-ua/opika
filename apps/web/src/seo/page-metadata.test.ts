@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ABOUT_SEO, GALLERY_SEO, seoMetadata } from "./page-metadata";
+import { ABOUT_SEO, GALLERY_SEO, PRIVACY_SEO, seoMetadata } from "./page-metadata";
 
 const SITE_CARD = "/opengraph-image";
 
@@ -22,6 +22,7 @@ describe("seoMetadata's preview image", () => {
   it.each([
     ["/tvaryny", GALLERY_SEO],
     ["/pro", ABOUT_SEO],
+    ["/polityka-konfidentsiinosti", PRIVACY_SEO],
   ])("%s carries the site card", (_route, metadata) => {
     expect(metadata.openGraph?.images).toEqual([expect.objectContaining({ url: SITE_CARD })]);
     expect(metadata.twitter?.images).toEqual([SITE_CARD]);

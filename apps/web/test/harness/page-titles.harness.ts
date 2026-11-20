@@ -33,6 +33,11 @@ test("/tvaryny's title is SEO handoff B2's, ending in the owner's en-dash separa
   expect(title).not.toContain(" — Opika");
 });
 
+test("the privacy policy's title is «Політика конфіденційності – Opika»", async ({ page }) => {
+  await openRoute(page, "/polityka-konfidentsiinosti", DETAIL_DESKTOP);
+  expect(await page.title()).toBe(`Політика конфіденційності${EN_DASH_SEPARATOR}`);
+});
+
 test("an animal page's title is SEO handoff B2's, dropping « – Opika» only past 60 characters", async ({
   page,
 }) => {

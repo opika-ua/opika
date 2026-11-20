@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { KABINET_SESSION } from "./auth";
 
 /**
- * /pro's session sentence is a public claim (Oleksii's PW-1 copy, `docs/shelter-passwords-copy-uk.md`
+ * The privacy policy's session sentence (once /pro's) is a public claim (Oleksii's PW-1 copy, `docs/shelter-passwords-copy-uk.md`
  * §G, verbatim): «Вхід у кабінет притулку діє 30 днів від останнього відвідування і не довше 90
  * днів, після чого треба увійти знову.» His note: "Bake 30/90 into the sentence only if the code
  * has one source for them; otherwise interpolate {idleDays}/{maxDays} from the same constants the
@@ -16,15 +16,15 @@ const SENTENCE =
   "Вхід у кабінет притулку діє 30 днів від останнього відвідування і не довше 90 днів, після чого треба увійти знову.";
 const DAY = 24 * 60 * 60 * 1000;
 
-describe("/pro's session sentence and the session limits are one fact", () => {
-  it("the sentence is on /pro, word for word", () => {
-    expect(uk.about.data).toContain(SENTENCE);
+describe("the privacy policy's session sentence and the session limits are one fact", () => {
+  it("the sentence is in the policy's kabinet paragraph, word for word", () => {
+    expect(uk.privacy.kabinet.access).toContain(SENTENCE);
   });
 
   it("a shelter admin's session: 30 days since the last visit, 90 days at most", () => {
     expect(
       KABINET_SESSION_LIMITS.shelterAdmin,
-      "the limits changed: «30 днів» and «90 днів» in about.data must be rewritten with them",
+      "the limits changed: «30 днів» and «90 днів» in privacy.kabinet.access must be rewritten with them",
     ).toEqual({ idleMs: 30 * DAY, absoluteMs: 90 * DAY });
   });
 

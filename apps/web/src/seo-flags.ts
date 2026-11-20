@@ -1,4 +1,4 @@
-import { R4_2_ANALYTICS_SENTENCE, ukPublic as uk } from "@opika/i18n/public";
+import { R4_2_ANALYTICS_SENTENCE } from "@opika/i18n/public";
 
 /**
  * Two facts, not one - `NOINDEX_EVERYTHING` (#43) originally collapsed
@@ -122,22 +122,20 @@ export function assertDemoDiscoverabilityInvariant(
 }
 
 /**
- * R4-2: while the site is publicly discoverable, `/pro` must carry the "one cookie" sentence
- * (`R4_2_ANALYTICS_SENTENCE`). One-sided: the claim is true whatever the flag says, so turning
- * the flag off (a rollback) must not fail it. A test-time tripwire, not a boot-time throw.
- *
- * Both inputs are parameters (defaulted to the real values) because `vi.doMock` cannot rewrite what
- * a copied-across function closes over, as with `assertDemoDiscoverabilityInvariant` above.
+ * R4-2: while the site is publicly discoverable, the privacy policy's cookie paragraph must carry the
+ * "one cookie" sentence (`R4_2_ANALYTICS_SENTENCE`). One-sided: a rollback with the flag off must not
+ * fail it. A test-time tripwire; the text is a parameter because `privacy` is in the full catalogue,
+ * which this public module does not import.
  */
 export function assertAnalyticsCopyMatchesGateState(
-  analyticsText: string = uk.about.analytics,
+  cookieText: string,
   siteIsPubliclyDiscoverable: boolean = SITE_IS_PUBLICLY_DISCOVERABLE,
 ): void {
-  if (siteIsPubliclyDiscoverable && !analyticsText.includes(R4_2_ANALYTICS_SENTENCE)) {
+  if (siteIsPubliclyDiscoverable && !cookieText.includes(R4_2_ANALYTICS_SENTENCE)) {
     throw new Error(
       "Invariant violated: SITE_IS_PUBLICLY_DISCOVERABLE is true (apps/web/src/seo-flags.ts) but " +
-        "uk.about.analytics (packages/i18n/src/messages/uk.ts) no longer carries R4-2's sentence " +
-        "(R4_2_ANALYTICS_SENTENCE).",
+        "uk.privacy.visitors.cookie (packages/i18n/src/messages/uk.ts) no longer carries R4-2's " +
+        "sentence (R4_2_ANALYTICS_SENTENCE).",
     );
   }
 }

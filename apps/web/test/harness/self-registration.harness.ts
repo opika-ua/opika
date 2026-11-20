@@ -72,6 +72,11 @@ test.describe("/prytulkam's registration form", () => {
     await page.getByRole("button", { name: "Далі" }).click();
     await expect(page.getByRole("heading", { name: "Крок 2 з 2 · Ваш акаунт" })).toBeFocused();
     await fillStepTwo(page);
+    // The consent's privacy link goes to the privacy policy (owner, 2026-11-20).
+    await expect(page.getByRole("link", { name: "політикою приватності" })).toHaveAttribute(
+      "href",
+      "/polityka-konfidentsiinosti",
+    );
     await markDocument(page);
     // Straight away: under the minimum fill time, so the server refuses with the generic line.
     await page.getByRole("button", { name: "Зареєструвати притулок" }).click();

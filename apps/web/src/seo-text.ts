@@ -31,7 +31,7 @@ export const META_DESCRIPTION_MAX_LENGTH = 160;
  * with its own test below):
  * - **Whitespace is normalised first** (runs of newlines/tabs/non-breaking spaces
  *   collapsed to one plain space, then trimmed). Free text typed by a shelter can carry
- *   a literal `\n\n` (`uk.about.data`'s own paragraphs are joined that way elsewhere in
+ *   a literal `\n\n` (some catalogue strings join paragraphs that way elsewhere in
  *   this app) or a non-breaking space, and neither belongs in a one-line meta tag; `\s`
  *   in a JS regex already matches both.
  * - **Counted and cut by Unicode code point, not UTF-16 code unit** (`Array.from`, not

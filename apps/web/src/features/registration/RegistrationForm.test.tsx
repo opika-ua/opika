@@ -194,14 +194,14 @@ describe("RegistrationForm", () => {
     expect(await screen.findByText(copy.generic)).toBeTruthy();
   });
 
-  it("the consent links to the rules and to the privacy section", () => {
+  it("the consent links to the rules and to the privacy policy", () => {
     renderForm(async (previous) => previous);
     next();
     expect(screen.getByRole("link", { name: copy.consentRules }).getAttribute("href")).toBe(
       "/prytulkam#pravyla",
     );
     expect(screen.getByRole("link", { name: copy.consentPrivacy }).getAttribute("href")).toBe(
-      "/pro#dani",
+      "/polityka-konfidentsiinosti",
     );
   });
 });
