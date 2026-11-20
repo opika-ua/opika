@@ -307,7 +307,13 @@ describe("deleteApplication", () => {
     expect(outcome).toEqual({ kind: "deleted", shelterId: seeded.shelterId, photoKeys: 3 });
     expect(await leftOf(seeded)).toEqual(NONE_LEFT);
     expect(await db.select().from(applicationDeletions)).toEqual([
-      { id: expect.any(String), shelterId: seeded.shelterId, reason: "abandoned", at: NOW },
+      {
+        id: expect.any(String),
+        shelterId: seeded.shelterId,
+        reason: "abandoned",
+        at: NOW,
+        operatorUserId: null,
+      },
     ]);
     const funnel = await db.select().from(funnelEvents);
     expect(funnel.map((row) => [row.kind, row.shelterId])).toEqual(

@@ -78,6 +78,7 @@ const NO_ACTIONS: ShelterScreenActions = {
   decision: null,
   donationDecision: null,
   admins: null,
+  deleteShelter: null,
 };
 
 const renderScreen = (

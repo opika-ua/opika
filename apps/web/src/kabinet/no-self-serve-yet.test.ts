@@ -273,11 +273,18 @@ const DEMO_REMOVE_MODULE = "packages/db/src/demo-remove.ts";
 /** GDPR erasure's own shared mechanism (`docs/gdpr-analysis.md` §5 item 4). */
 const ERASURE_MODULE = "packages/db/src/repos/admin-erasure-repo.ts";
 
-describe("Better Auth's invitation table has exactly four writers (HS-Q7, IN-Q13, DR-B1, GDPR-F1)", () => {
-  it("is kabinetInvitationRepo, the automatic accept, demo:remove, and the GDPR erasure", () => {
+/**
+ * The operator's «Видалити притулок» (owner, 2026-11-20) deletes the removed shelter's
+ * invitations with its organization, inside its guarded batch. It may only delete.
+ */
+const SHELTER_DELETION_MODULE = "packages/db/src/repos/application-deletion-repo.ts";
+
+describe("Better Auth's invitation table has exactly five writers (HS-Q7, IN-Q13, DR-B1, GDPR-F1, delete-shelter)", () => {
+  it("is kabinetInvitationRepo, the automatic accept, demo:remove, the GDPR erasure and the shelter deletion", () => {
     expect(filesMatching(new RegExp(AUTH_INVITATION_WRITE.source, "i"))).toEqual([
       DEMO_REMOVE_MODULE,
       ERASURE_MODULE,
+      SHELTER_DELETION_MODULE,
       ACCEPT_MODULE,
       "packages/db/src/repos/kabinet-invitation-repo.ts",
     ]);
@@ -296,6 +303,14 @@ describe("Better Auth's invitation table has exactly four writers (HS-Q7, IN-Q13
       [...new Set(writes)],
       `${ERASURE_MODULE} may only update invitations' email (GDPR-F1)`,
     ).toEqual(['UPDATE"auth_invitation']);
+  });
+
+  it("the shelter deletion's only write to it is .delete(authInvitation)", () => {
+    const writes = [
+      ...readFileSync(join(REPO, SHELTER_DELETION_MODULE), "utf8").matchAll(AUTH_INVITATION_WRITE),
+    ].map((match) => match[0].replace(/\s+/g, ""));
+    expect(writes.length).toBeGreaterThan(0);
+    expect([...new Set(writes)]).toEqual([".delete(authInvitation"]);
   });
 
   it("demo:remove's only write to it is .delete(authInvitation)", () => {

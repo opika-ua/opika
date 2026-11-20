@@ -68,10 +68,13 @@ const EXPECTED: ReadonlyArray<Anchor & { kind: Kind; why: string }> = [
   },
   {
     file: "repos/admin-erasure-repo.ts",
-    symbol: "eraseUsersAndScrubHistory",
+    symbol: "erasureStatement",
     text: 'DELETE FROM "auth_user"',
     kind: "mechanism",
-    why: "eraseUsersAndScrubHistory itself - the one shared mechanism every real deletion routes through",
+    why:
+      "eraseUsersAndScrubHistory's one statement - the one shared mechanism every real deletion " +
+      "routes through, awaited on its own or (the operator's «Видалити притулок», " +
+      "deleteShelterByOperator) as an item of a batch",
   },
 ];
 

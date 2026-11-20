@@ -22,6 +22,13 @@ export const APPLICATION_DELETION_REASONS = ["abandoned", "rejected_expired", "n
 export const ApplicationDeletionReasonSchema = z.enum(APPLICATION_DELETION_REASONS);
 export type ApplicationDeletionReason = z.infer<typeof ApplicationDeletionReasonSchema>;
 
+/** What an `application_deletions` line can say: the three above, or an operator's removal (owner, 2026-11-20). */
+export const SHELTER_DELETION_REASONS = [
+  ...APPLICATION_DELETION_REASONS,
+  "operator_removed",
+] as const;
+export type ShelterDeletionReason = (typeof SHELTER_DELETION_REASONS)[number];
+
 /** The columns the daily job reads; the SQL selects on the same ones (parity test). */
 export type ApplicationCleanupCandidate = {
   status: VerificationStatus;

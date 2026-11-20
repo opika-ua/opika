@@ -14,7 +14,7 @@ const { shelters, verification, donation, admins, support, earlyListing } =
  * `api/kabinet-browser-client.ts` gives (a procedure added to the contract
  * later is not callable from client JavaScript by default).
  *
- * No read is here. S4 reads on the server, through the page's own guard
+ * No read is here but the delete dialog's counts, which must be live when it opens. S4 reads on the server, through the page's own guard
  * (r-ui-plan §4: "each page guards itself"), and a control that needs the
  * record again asks the page to re-render (`use-router-reread.ts`) rather
  * than fetching it from the browser. `shelters.create` belongs to R-UI 2's
@@ -24,7 +24,7 @@ const { shelters, verification, donation, admins, support, earlyListing } =
  *
  * Every procedure here is the contract's own object, so each keeps its
  * `registry` access meta: the served route refuses it to anyone but a
- * super_admin (`kabinet-registry-access.test.ts`: all twenty-four, and a
+ * super_admin (`kabinet-registry-access.test.ts`: every one, and a
  * rename-shaped `updateProfile` on its own). Same origin, so the Origin check
  * and the per-user limit of `/api/kabinet` apply as they do to K4's editor.
  */
@@ -33,6 +33,9 @@ export const registryActionsBrowserContract = {
     shelters: {
       updateProfile: shelters.updateProfile,
       updateVerifiedData: shelters.updateVerifiedData,
+      // «Видалити притулок»: the dialog's live counts are the one read made from here.
+      deletionCounts: shelters.deletionCounts,
+      delete: shelters.delete,
     },
     verification: {
       startReview: verification.startReview,

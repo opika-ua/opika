@@ -6,6 +6,7 @@ import { AboutForm } from "./AboutForm";
 import { AddEvidencePanel } from "./AddEvidencePanel";
 import { AdminsManager } from "./AdminsManager";
 import { DecisionPanel } from "./DecisionPanel";
+import { DeleteShelter } from "./DeleteShelter";
 import { DonationDecision } from "./DonationDecision";
 import { EarlyListingPanel } from "./EarlyListingPanel";
 import { OperatorActionsRoot } from "./OperatorActionsRoot";
@@ -61,6 +62,7 @@ export function ShelterActionsScreen({
           ),
           donationDecision: <DonationDecision />,
           admins: <AdminsManager now={now} />,
+          deleteShelter: <DeleteShelter />,
         }}
       />
     </OperatorActionsRoot>

@@ -116,6 +116,12 @@ const REGISTRY_CALLS = (shelter: Shelter): [string, unknown][] => {
       "registry.shelters.updateProfile",
       { ...ref, expectedVersion: 0, description: { uk: "Нове", en: null } },
     ],
+    // «Видалити притулок» (owner, 2026-11-20), with the shelter's own name: refused all the same.
+    ["registry.shelters.deletionCounts", ref],
+    [
+      "registry.shelters.delete",
+      { ...ref, typedName: shelter.displayName, counts: { animals: 0, published: 0, admins: 0 } },
+    ],
     ["registry.verification.startReview", ref],
     ["registry.verification.approve", ref],
     ["registry.verification.reinstate", ref],
@@ -178,8 +184,8 @@ const NOT_OPERATORS: [string, KabinetPrincipal, number][] = [
 ];
 
 describe("registry.* refuses everyone but a super_admin", () => {
-  it("covers all twenty-seven registry procedures (not vacuous)", () => {
-    expect(REGISTRY_CALLS(makeShelter())).toHaveLength(27);
+  it("covers all twenty-nine registry procedures (not vacuous)", () => {
+    expect(REGISTRY_CALLS(makeShelter())).toHaveLength(29);
   });
 
   for (const [who, principal, status] of NOT_OPERATORS) {

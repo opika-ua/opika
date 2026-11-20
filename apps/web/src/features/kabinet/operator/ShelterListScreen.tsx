@@ -8,6 +8,7 @@ import { Heading } from "../../../ui/Heading";
 import { Text } from "../../../ui/Text";
 import { NEW_SHELTER_PATH, OPERATOR_HOME } from "../routes";
 import { operatorStatusLabel } from "../verification-label";
+import { DeletedNotice } from "./DeletedNotice";
 import { isFiltered, LIST_PARAMS, listHrefOf, type ShelterListFilters } from "./list-params";
 import type { ShelterListPage } from "./pages";
 import { ShelterRows } from "./ShelterRows";
@@ -57,6 +58,7 @@ export function ShelterListScreen({
           </Heading>
           {total !== null ? <Text>{fillTemplate(t.total, { count: String(total) })}</Text> : null}
           <Text look="hint">{t.orderNote}</Text>
+          <DeletedNotice />
         </div>
         <LinkButton href={NEW_SHELTER_PATH}>{t.create}</LinkButton>
       </div>

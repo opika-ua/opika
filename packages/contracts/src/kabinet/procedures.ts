@@ -76,6 +76,8 @@ import {
   RegistryShelterRowViewSchema,
   RegistryShelterViewSchema,
   ReportGroupViewSchema,
+  ShelterDeletionCountsSchema,
+  ShelterDeletionResultSchema,
   ShelterHistoryItemViewSchema,
 } from "./views";
 
@@ -866,6 +868,28 @@ export const registrySheltersContract = {
         ),
     )
     .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
+  /** «Видалити притулок»: the dialog's live counts when it opens (owner, 2026-11-20). */
+  deletionCounts: kabinet
+    .$meta(registry)
+    .input(shelterRef)
+    .output(ShelterDeletionCountsSchema)
+    .errors(registryErrors),
+  /**
+   * Deletes the shelter and everything of it, for good (owner, 2026-11-20: any shelter). Carries
+   * the name as typed (trimmed, then compared exactly) and the counts the dialog showed; the
+   * server re-checks both under its lock and answers `counts_changed` or `name_mismatch` instead.
+   */
+  delete: kabinet
+    .$meta(registry)
+    .input(
+      z.strictObject({
+        shelterId: ShelterIdSchema,
+        typedName: z.string().max(200),
+        counts: ShelterDeletionCountsSchema,
+      }),
+    )
+    .output(ShelterDeletionResultSchema)
+    .errors(registryErrors),
 };
 
 export const registryVerificationContract = {

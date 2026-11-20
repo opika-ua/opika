@@ -2008,6 +2008,25 @@ export const en = {
       support: {
         enter: "View as the shelter · read-only",
       },
+      deleteShelter: {
+        button: "Delete shelter",
+        title: "Delete the shelter for good?",
+        counts: "{animals}, {published} of them published; {admins}.",
+        countsAnimals: {
+          one: "{count} animal card",
+          few: "{count} animal cards",
+          many: "{count} animal cards",
+        },
+        countsAdmins: {
+          one: "{count} administrator",
+          few: "{count} administrators",
+          many: "{count} administrators",
+        },
+        body: "This deletes the shelter «{name}»: its dashboard, animal cards, photos, change history and the accounts of administrators who have no access to other shelters. It can't be undone.",
+        confirmLabel: "To confirm, type the shelter's name",
+        confirm: "Delete for good",
+        done: "The shelter «{name}» was deleted.",
+      },
     },
     /** R-UI 3, the shelter's side of a rejection or suspension; see the Ukrainian catalogue. */
     verificationDecision: {

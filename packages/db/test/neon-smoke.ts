@@ -90,6 +90,7 @@ import { runGeographySmoke } from "./neon-smoke-geography";
 import { runKabinetIdentitySmoke } from "./neon-smoke-kabinet-identity";
 import { runNotificationRecipientsSmoke } from "./neon-smoke-notification-recipients";
 import { runNotificationSendsSmoke } from "./neon-smoke-notification-sends";
+import { runOperatorDeleteSmoke } from "./neon-smoke-operator-delete";
 import { runPhotoSourcesSmoke } from "./neon-smoke-photo-sources";
 import { runRegistrationSmoke } from "./neon-smoke-registration";
 import { runRevealRetentionSmoke } from "./neon-smoke-reveal-retention";
@@ -2747,6 +2748,7 @@ async function main(): Promise<void> {
     ...(await runCityPagesSmoke(database)),
     ...(await runContactsSmoke(database)),
     ...(await runRevealRetentionSmoke(database)),
+    ...(await runOperatorDeleteSmoke(database)),
   ];
   for (const o of outcomes) console.log(`${o.ok ? "PASS" : "FAIL"}  ${o.name}: ${o.detail}`);
   const failed = outcomes.filter((o) => !o.ok).length;

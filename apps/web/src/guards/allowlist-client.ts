@@ -82,6 +82,10 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/operator/actions/DecisionPanel.tsx": "verification decision controls + dialogs",
   "features/kabinet/operator/actions/DonationDecision.tsx":
     "approve/reject/remove donation link buttons",
+  "features/kabinet/operator/actions/DeleteShelter.tsx":
+    "delete-shelter button and dialog: live counts, typed-name confirm, request state",
+  "features/kabinet/operator/DeletedNotice.tsx":
+    "reads the one-time deleted-shelter line from session storage",
   "features/kabinet/operator/actions/DonationRemoveDialog.tsx":
     "reason textarea inside the kit Modal",
   "features/kabinet/operator/actions/OperatorActionsRoot.tsx":

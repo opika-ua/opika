@@ -4,6 +4,8 @@ export { animalRepo } from "./animal-repo";
 export {
   type ApplicationDeletionOutcome,
   applicationDeletionRepo,
+  type OperatorShelterDeletionOutcome,
+  type ShelterDeletionCounts,
 } from "./application-deletion-repo";
 export {
   type ApplicationDecisionWrite,

@@ -392,6 +392,8 @@ export type ShelterScreenActions = {
   decision: ReactNode;
   donationDecision: ReactNode;
   admins: ReactNode;
+  /** «Видалити притулок» (owner, 2026-11-20), last on the page, away from everyday controls. */
+  deleteShelter: ReactNode;
 };
 
 /**
@@ -472,6 +474,7 @@ export function ShelterScreen({
           />
         </div>
       </div>
+      {actions.deleteShelter}
     </>
   );
 }

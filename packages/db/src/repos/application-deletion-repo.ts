@@ -2,25 +2,31 @@ import { randomUUID } from "node:crypto";
 import {
   type ApplicationDeletionReason,
   abandonedApplicationCutoff,
+  DISCOVERABLE_LISTING_KINDS,
   rejectedApplicationCutoff,
   type ShelterId,
 } from "@opika/domain";
 import { and, asc, eq, inArray, or, type SQL, sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { type Database, inOneTransaction } from "../client";
+import { rawBatchItem, rowsOfRawResult } from "../raw-rows";
 import { animals } from "../schema/animals";
 import { applicationDeletions } from "../schema/application-deletions";
 import {
   authAccount,
+  authInvitation,
   authMember,
   authOrganization,
   authSession,
   authUser,
   authVerification,
+  superAdmins,
 } from "../schema/auth";
 import { registrationEmailTokens } from "../schema/registration-email-tokens";
+import { reveals } from "../schema/reveals";
 import { shelterHistory } from "../schema/shelter-history";
 import { shelters } from "../schema/shelters";
+import { erasableAmong, erasureCountsOf, erasureStatement } from "./admin-erasure-repo";
 
 /**
  * Deletes one application completely (D8, plan Agent 4): its user, organization, membership,
@@ -125,6 +131,86 @@ function rehearsalGuard(expectedName: string): SQL {
       AND (${animals.everServedAt} IS NOT NULL OR ${inArray(animals.listingKind, [...REHEARSAL_LISTED_KINDS])}))`;
 }
 
+/** The three numbers the operator's dialog shows and the deletion re-checks (owner, 2026-11-20). */
+export type ShelterDeletionCounts = { animals: number; published: number; admins: number };
+
+/** «з них опубліковано»: the cards the gallery shows now (published or reserved). */
+export const PUBLISHED_FOR_DELETION = DISCOVERABLE_LISTING_KINDS;
+
+export type OperatorShelterDeletion = {
+  shelterId: ShelterId;
+  /** As typed: trimmed here, then compared exactly with the stored name (stored names are trimmed). */
+  typedName: string;
+  /** What the dialog showed: any difference under the lock refuses. */
+  counts: ShelterDeletionCounts;
+  /** The operator's account: the audit line's, and re-checked as an active grant under the lock. */
+  operatorUserId: string;
+};
+
+export type OperatorShelterDeletionOutcome =
+  | {
+      kind: "deleted";
+      deletionId: string;
+      photoKeys: number;
+      /** Admin and invitee accounts erased, and those the erasure invariant kept. */
+      erasedAccounts: number;
+      keptAccounts: number;
+    }
+  | { kind: "not_found" }
+  | { kind: "name_mismatch" }
+  /** Something changed since the dialog read its counts: these are the fresh ones. */
+  | { kind: "counts_changed"; counts: ShelterDeletionCounts }
+  | { kind: "not_operator" };
+
+/**
+ * The counts as SQL over the `shelters` row in scope: one definition for the read and the guard.
+ * Spelled out, not `${column}`: in a select list Drizzle drops the table, and an unqualified
+ * `"id"` inside the subquery would name the animal's own id.
+ */
+const COUNTS_SQL = {
+  animals: sql<number>`(SELECT count(*)::int FROM "animals" a WHERE a."shelter_id" = "shelters"."id")`,
+  published: sql<number>`(SELECT count(*)::int FROM "animals" a WHERE a."shelter_id" = "shelters"."id" AND a."listing_kind" IN (${sql.join(
+    PUBLISHED_FOR_DELETION.map((kind) => sql`${kind}`),
+    sql`, `,
+  )}))`,
+  admins: sql<number>`(SELECT count(*)::int FROM "auth_member" m WHERE m."organization_id" = "shelters"."organization_id")`,
+} as const;
+
+/** A magic-link row's address, lower-cased; NULL for any other kind of verification row. */
+const magicLinkEmail = sql`CASE WHEN starts_with(${authVerification.value}, ${MAGIC_LINK_VALUE_PREFIX}) THEN lower(${authVerification.value}::jsonb ->> 'email') END`;
+
+/**
+ * Whose accounts an operator removal considers: the organization's members, the registrant, and
+ * every address an invitation of this organization went to (an invitee's account would otherwise
+ * outlive the invitation that names it). `erasableAmong` then keeps any the invariant protects.
+ */
+function candidateAccounts(organizationId: string | null, registrantUserId: string | null): SQL {
+  const parts: SQL[] = [];
+  if (organizationId !== null) {
+    parts.push(
+      sql`${authUser.id} IN (SELECT ${authMember.userId} FROM ${authMember} WHERE ${authMember.organizationId} = ${organizationId})`,
+      sql`lower(${authUser.email}) IN (SELECT lower(${authInvitation.email}) FROM ${authInvitation} WHERE ${authInvitation.organizationId} = ${organizationId})`,
+    );
+  }
+  if (registrantUserId !== null) parts.push(sql`${authUser.id} = ${registrantUserId}`);
+  return parts.length === 0 ? sql`false` : (or(...parts) ?? sql`false`);
+}
+
+const textArray = (values: readonly string[]): SQL =>
+  values.length === 0
+    ? sql`ARRAY[]::text[]`
+    : sql`ARRAY[${sql.join(
+        values.map((value) => sql`${value}`),
+        sql`, `,
+      )}]::text[]`;
+
+const photoKeysOf = (
+  deletedAnimals: readonly { photos: readonly unknown[] }[],
+  deletedShelters: readonly { logo: unknown }[],
+): number =>
+  deletedAnimals.reduce((sum, row) => sum + row.photos.length, 0) +
+  deletedShelters.filter((row) => row.logo !== null).length;
+
 export function applicationDeletionRepo(db: Database) {
   const repo = {
     /** The daily job's selection, by id so a run is reproducible. */
@@ -210,6 +296,174 @@ export function applicationDeletionRepo(db: Database) {
         ).length,
       };
     },
+
+    /** What the operator's «Видалити притулок» dialog shows when it opens; null for no such shelter. */
+    async deletionCounts(shelterId: ShelterId): Promise<ShelterDeletionCounts | null> {
+      const [row] = await db
+        .select({
+          animals: COUNTS_SQL.animals.mapWith(Number),
+          published: COUNTS_SQL.published.mapWith(Number),
+          admins: COUNTS_SQL.admins.mapWith(Number),
+        })
+        .from(shelters)
+        .where(eq(shelters.id, shelterId))
+        .limit(1);
+      return row ?? null;
+    },
+
+    /**
+     * The operator's «Видалити притулок» (owner, 2026-11-20): any shelter, one batch. The shelter,
+     * its organization and its animals are locked first, so no animal, admin or invitation can be
+     * added and no card published until it commits; the marker line is then written only if the
+     * name, the dialog's counts, the candidate accounts and the operator's grant all still hold,
+     * and every later statement acts only if that line exists. Accounts go through the erasure
+     * mechanism and its invariant (`erasableAmong`), so one with a role elsewhere stays. Photos
+     * leave R2 through the clean-up job only.
+     */
+    async deleteShelterByOperator(
+      request: OperatorShelterDeletion,
+      now: Date,
+    ): Promise<OperatorShelterDeletionOutcome> {
+      const { shelterId, counts, operatorUserId } = request;
+      const name = request.typedName.trim();
+      const [found] = await db
+        .select({
+          organizationId: shelters.organizationId,
+          registrantUserId: shelters.registrantUserId,
+          displayName: shelters.displayName,
+        })
+        .from(shelters)
+        .where(eq(shelters.id, shelterId))
+        .limit(1);
+      if (found === undefined) return { kind: "not_found" };
+      if (found.displayName !== name) return { kind: "name_mismatch" };
+      const { organizationId, registrantUserId } = found;
+      const candidates = candidateAccounts(organizationId, registrantUserId);
+      const accounts = await db
+        .select({ id: authUser.id, email: authUser.email })
+        .from(authUser)
+        .where(candidates)
+        .orderBy(asc(authUser.id));
+      const userIds = accounts.map((account) => account.id);
+      const emails = accounts.map((account) => account.email.toLowerCase());
+
+      const markerId = randomUUID();
+      const marked = sql`EXISTS (SELECT 1 FROM ${applicationDeletions} WHERE ${applicationDeletions.id} = ${markerId})`;
+      const ofOrganization = (column: AnyPgColumn): SQL =>
+        organizationId === null
+          ? sql`false`
+          : (and(eq(column, organizationId), marked) ?? sql`false`);
+      const guard = sql`${shelters.displayName} = ${name}
+        AND ${COUNTS_SQL.animals} = ${counts.animals}
+        AND ${COUNTS_SQL.published} = ${counts.published}
+        AND ${COUNTS_SQL.admins} = ${counts.admins}
+        AND (SELECT coalesce(array_agg(${authUser.id} ORDER BY ${authUser.id}), ARRAY[]::text[]) FROM ${authUser} WHERE ${candidates}) = ${textArray(userIds)}
+        AND EXISTS (SELECT 1 FROM ${superAdmins} WHERE ${superAdmins.userId} = ${operatorUserId} AND ${superAdmins.revokedAt} IS NULL)`;
+      // Sign-in links of the accounts the erasure removed only: a kept account's stay its own.
+      const goneLinks =
+        userIds.length === 0
+          ? sql`false`
+          : (and(
+              marked,
+              or(
+                and(
+                  inArray(authVerification.value, userIds),
+                  sql`NOT EXISTS (SELECT 1 FROM ${authUser} WHERE ${authUser.id} = ${authVerification.value})`,
+                ),
+                and(
+                  sql`${magicLinkEmail} IN (${sql.join(
+                    emails.map((email) => sql`${email}`),
+                    sql`, `,
+                  )})`,
+                  sql`NOT EXISTS (SELECT 1 FROM ${authUser} WHERE lower(${authUser.email}) = ${magicLinkEmail})`,
+                ),
+              ),
+            ) ?? sql`false`);
+      const ownAnimalIds = db
+        .select({ id: animals.id })
+        .from(animals)
+        .where(eq(animals.shelterId, shelterId));
+
+      const results = await inOneTransaction(
+        db,
+        (tx) =>
+          [
+            tx
+              .select({ id: shelters.id })
+              .from(shelters)
+              .where(eq(shelters.id, shelterId))
+              .for("update"),
+            tx
+              .select({ id: authOrganization.id })
+              .from(authOrganization)
+              .where(organizationId === null ? sql`false` : eq(authOrganization.id, organizationId))
+              .for("update"),
+            tx
+              .select({ id: animals.id })
+              .from(animals)
+              .where(eq(animals.shelterId, shelterId))
+              .for("update"),
+            // Each statement reads afresh (READ COMMITTED): this one sees what the locks waited for.
+            tx
+              .insert(applicationDeletions)
+              .select(
+                sql`SELECT ${markerId}, ${shelters.id}, 'operator_removed', ${at(now)}, ${operatorUserId} FROM ${shelters} WHERE ${shelters.id} = ${shelterId} AND ${shelters.organizationId} IS NOT DISTINCT FROM ${organizationId} AND ${shelters.registrantUserId} IS NOT DISTINCT FROM ${registrantUserId} AND ${guard} FOR UPDATE OF ${shelters}`,
+              )
+              .returning({ id: applicationDeletions.id }),
+            tx
+              .delete(reveals)
+              .where(
+                and(
+                  or(inArray(reveals.animalId, ownAnimalIds), eq(reveals.shelterId, shelterId)),
+                  marked,
+                ),
+              ),
+            // Their `invitation_created_users` rows cascade.
+            tx.delete(authInvitation).where(ofOrganization(authInvitation.organizationId)),
+            tx.delete(authMember).where(ofOrganization(authMember.organizationId)),
+            rawBatchItem(tx, erasureStatement(and(erasableAmong(userIds, now), marked) as SQL)),
+            tx.delete(authVerification).where(goneLinks),
+            // Photo source rows cascade with their animal.
+            tx
+              .delete(animals)
+              .where(and(eq(animals.shelterId, shelterId), marked))
+              .returning({ photos: animals.photos }),
+            tx.delete(shelterHistory).where(and(eq(shelterHistory.shelterId, shelterId), marked)),
+            // Support sessions, funnel events and notification sends keep their rows, shelter nulled.
+            tx
+              .delete(shelters)
+              .where(and(eq(shelters.id, shelterId), marked))
+              .returning({ logo: shelters.logo }),
+            tx.delete(authOrganization).where(ofOrganization(authOrganization.id)),
+          ] as const,
+      );
+      const [, , , mark, , , , erased, , deletedAnimals, , deletedShelters] = results;
+      if (mark.length > 0) {
+        const { erasedCount } = erasureCountsOf(rowsOfRawResult(erased));
+        return {
+          kind: "deleted",
+          deletionId: markerId,
+          photoKeys: photoKeysOf(deletedAnimals, deletedShelters),
+          erasedAccounts: erasedCount,
+          keptAccounts: userIds.length - erasedCount,
+        };
+      }
+      // Refused under the lock: say why, from a fresh read.
+      const [again] = await db
+        .select({ displayName: shelters.displayName })
+        .from(shelters)
+        .where(eq(shelters.id, shelterId));
+      if (again === undefined) return { kind: "not_found" };
+      if (again.displayName !== name) return { kind: "name_mismatch" };
+      const [grant] = await db
+        .select({ id: superAdmins.id })
+        .from(superAdmins)
+        .where(and(eq(superAdmins.userId, operatorUserId), sql`${superAdmins.revokedAt} IS NULL`));
+      if (grant === undefined) return { kind: "not_operator" };
+      // The counts changed, or (with the same counts) whose accounts they are.
+      const fresh = await repo.deletionCounts(shelterId);
+      return fresh === null ? { kind: "not_found" } : { kind: "counts_changed", counts: fresh };
+    },
   };
   return repo;
 
@@ -271,7 +525,7 @@ export function applicationDeletionRepo(db: Database) {
           tx
             .insert(applicationDeletions)
             .select(
-              sql`SELECT ${markerId}, ${shelters.id}, ${reason}, ${at(now)} FROM ${shelters} ${registrantJoin} WHERE ${shelters.id} = ${shelterId} AND ${shelters.organizationId} IS NOT DISTINCT FROM ${organizationId} AND ${shelters.registrantUserId} IS NOT DISTINCT FROM ${userId} AND ${guard} ${lockedRows}`,
+              sql`SELECT ${markerId}, ${shelters.id}, ${reason}, ${at(now)}, NULL FROM ${shelters} ${registrantJoin} WHERE ${shelters.id} = ${shelterId} AND ${shelters.organizationId} IS NOT DISTINCT FROM ${organizationId} AND ${shelters.registrantUserId} IS NOT DISTINCT FROM ${userId} AND ${guard} ${lockedRows}`,
             )
             .returning({ id: applicationDeletions.id }),
           tx.delete(registrationEmailTokens).where(ofUser(eq(registrationEmailTokens.userId, uid))),
@@ -294,9 +548,7 @@ export function applicationDeletionRepo(db: Database) {
         ] as const,
     );
     if (mark.length === 0) return null;
-    const photoKeys =
-      deletedAnimals.reduce((sum, row) => sum + row.photos.length, 0) +
-      deletedShelters.filter((row) => row.logo !== null).length;
+    const photoKeys = photoKeysOf(deletedAnimals, deletedShelters);
     return { outcome: { kind: "deleted", shelterId, photoKeys }, deletionId: markerId };
   }
 }

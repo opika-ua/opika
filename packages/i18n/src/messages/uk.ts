@@ -2292,6 +2292,26 @@ export const uk = {
       support: {
         enter: "Переглянути як притулок · лише читання",
       },
+      /** «Видалити притулок» (owner, 2026-11-20: the approved copy table). */
+      deleteShelter: {
+        button: "Видалити притулок",
+        title: "Видалити притулок назавжди?",
+        /**
+         * Above the body, from the live counts. The owner's ICU forms, one per
+         * `Intl.PluralRules("uk")` category; his `other` form only arises for a fraction.
+         */
+        counts: "{animals} тварин, з них опубліковано {published}; {admins}.",
+        countsAnimals: { one: "{count} картка", few: "{count} картки", many: "{count} карток" },
+        countsAdmins: {
+          one: "{count} адміністратор",
+          few: "{count} адміністратори",
+          many: "{count} адміністраторів",
+        },
+        body: "Буде видалено притулок «{name}»: кабінет, картки тварин, фото, історію змін і облікові записи адміністраторів, які не мають доступу до інших притулків. Скасувати це неможливо.",
+        confirmLabel: "Щоб підтвердити, введіть назву притулку",
+        confirm: "Видалити назавжди",
+        done: "Притулок «{name}» видалено.",
+      },
     },
     /**
      * R-UI 3 · the shelter's side of a rejection or suspension (RU-Q7, his

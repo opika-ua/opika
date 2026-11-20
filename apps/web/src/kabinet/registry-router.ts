@@ -13,6 +13,7 @@ import type { AccessDecision } from "./access";
 import type { KabinetContext } from "./context";
 import { applicationsAccept, applicationsList, applicationsReject } from "./handlers/applications";
 import { registryCitiesSearch } from "./handlers/registry-cities";
+import { registryDeleteShelter, registryDeletionCounts } from "./handlers/registry-delete";
 import { registryAdminsBlockedAddresses } from "./handlers/registry-email-status";
 import {
   registryAdminsInvite,
@@ -122,6 +123,15 @@ export const registryRouter = guarded.router({
       ),
       updateProfile: guarded.registry.shelters.updateProfile.handler(({ context, input, errors }) =>
         registryUpdateProfile(context, operator(context.access), input, errors),
+      ),
+      deletionCounts: guarded.registry.shelters.deletionCounts.handler(
+        ({ context, input, errors }) => {
+          operator(context.access);
+          return registryDeletionCounts(context, input, errors);
+        },
+      ),
+      delete: guarded.registry.shelters.delete.handler(({ context, input, errors }) =>
+        registryDeleteShelter(context, operator(context.access), input, errors),
       ),
     },
     verification: {
