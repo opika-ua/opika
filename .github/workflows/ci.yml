@@ -21,36 +21,25 @@ env:
   # manager explicitly before it's ever invoked lazily.
   COREPACK_ENABLE_DOWNLOAD_PROMPT: 0
 
-# Least privilege (audit F13): the one job only reads the repository. The cache and the
+# Least privilege (audit F13): every job only reads the repository. The cache and the
 # failure artefacts use the runner's own token, not GITHUB_TOKEN.
 permissions:
   contents: read
 
+# The vitest suite runs as three shards beside `build` (typecheck, lint, build, harness), and
+# `check`, the ruleset's required check, gates them all. Wall clock, median of 5 runs: 22.9 min
+# serial (2026-11-19) -> 7.5 min sharded (2026-11-20, #553); `build` (the harness) is the longest.
 jobs:
-  check:
+  # Documentation only? Then `build` and `test` are skipped and `check` still passes (Oleksii,
+  # 2026-10-19: "A required check skipped this way must still report success"). `--no-renames`
+  # lists a rename's source too, so moving code into docs/ isn't documentation only. An empty
+  # classifier output runs everything; a failed `git diff` fails `classify` and so `check`. The
+  # rule is .github/scripts/needs-check.mjs, tested by apps/web/src/ci-needs-check.test.ts.
+  classify:
     runs-on: ubuntu-latest
-    # A hung process (a compiler held open over IPC, a stuck server) would otherwise
-    # hold the run until GitHub's 6-hour default. Recent runs (the last 30 completed,
-    # 2026-10-21): median 9.8 min, slowest 14.6; 30 leaves about twice the slowest.
-    timeout-minutes: 30
-
-    services:
-      postgres:
-        image: postgis/postgis:18-3.6
-        env:
-          POSTGRES_USER: opika
-          POSTGRES_PASSWORD: opika
-          # Only the health check's target: the tests derive their own database names
-          # per checkout and create them (packages/db/src/test-utils/test-database.ts).
-          POSTGRES_DB: opika_test
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd "pg_isready -U opika -d opika_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
-
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
     steps:
       # Every action is pinned to a full commit SHA (a tag can be moved; a SHA can't), with its
       # release as the trailing comment. v7: GitHub deprecated the Node 20 Actions runner in Sep 2025.
@@ -59,14 +48,6 @@ jobs:
           # The whole history, so the next step can diff the pull request against its base.
           fetch-depth: 0
 
-      # Documentation only? Then every step below is skipped and `check` still passes, so the
-      # required check doesn't block a docs PR (Oleksii, 2026-10-19: "A required check skipped this
-      # way must still report success"). Decided here, inside `check`, not in a job before it: a job
-      # skipped because the job it needs was cancelled reports success too, and a cancelled run must
-      # not pass. `--no-renames` lists a rename's source as well, so moving code into docs/ isn't
-      # documentation only. If the classifier fails its output is empty, and everything runs; if
-      # `git diff` fails (an unknown base, say), the step fails and the job goes red. The
-      # rule is .github/scripts/needs-check.mjs, tested by apps/web/src/ci-needs-check.test.ts.
       - name: Classify the change
         id: classify
         env:
@@ -82,36 +63,53 @@ jobs:
           cat "$RUNNER_TEMP/changed.txt"
           echo "code=$(node .github/scripts/needs-check.mjs < "$RUNNER_TEMP/changed.txt")" >> "$GITHUB_OUTPUT"
 
+  build:
+    needs: classify
+    if: needs.classify.outputs.code != 'false'
+    runs-on: ubuntu-latest
+    # A hung process (a compiler held open over IPC, a stuck server) would otherwise
+    # hold the run until GitHub's 6-hour default.
+    timeout-minutes: 30
+
+    # The harness creates and seeds its own database on it (opika_harness_<hash>).
+    services:
+      postgres:
+        image: postgis/postgis:18-3.6
+        env:
+          POSTGRES_USER: opika
+          POSTGRES_PASSWORD: opika
+          POSTGRES_DB: opika_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U opika -d opika_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - name: Enable Corepack
-        if: steps.classify.outputs.code != 'false'
         run: corepack enable
 
       - name: Activate pinned package manager
-        if: steps.classify.outputs.code != 'false'
         run: corepack install
 
       # v6: the same Node 20 runner deprecation; v6 targets the node24 runtime.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        if: steps.classify.outputs.code != 'false'
         with:
           node-version: 24
           cache: pnpm
 
       - name: Install dependencies
-        if: steps.classify.outputs.code != 'false'
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck
-        if: steps.classify.outputs.code != 'false'
         run: pnpm run typecheck
 
       - name: Lint
-        if: steps.classify.outputs.code != 'false'
         run: pnpm run lint
-
-      - name: Test
-        if: steps.classify.outputs.code != 'false'
-        run: pnpm run test
 
       # DO NOT REMOVE. `tsc` resolves `./x.js` to `./x.ts` under every
       # moduleResolution mode, so a relative import carrying a `.js` extension
@@ -124,23 +122,19 @@ jobs:
       # redundant. It is not: this one fails in seconds with a compiler error,
       # and it keeps working if the harness is ever quarantined or broken.
       - name: Build web
-        if: steps.classify.outputs.code != 'false'
         run: pnpm run build:web
 
       # No zod in the first load of a public route (src/client-bundle-guard.test.ts is the source half).
       - name: Check route bundles
-        if: steps.classify.outputs.code != 'false'
         run: pnpm --filter @opika/web run check:route-bundles
 
       # The exact installed version, not a lockfile hash: any lockfile change used to miss
       # the ~170MB browser cache although the browsers had not changed.
       - name: Resolve Playwright version
         id: playwright
-        if: steps.classify.outputs.code != 'false'
         run: echo "version=$(pnpm --filter @opika/web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
 
       - name: Cache Playwright browsers
-        if: steps.classify.outputs.code != 'false'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
@@ -152,7 +146,6 @@ jobs:
       # 20 min, not fail it) and runs as root so the cap can kill apt, and the step retries
       # 3 times (10s, 30s).
       - name: Install Playwright Chromium
-        if: steps.classify.outputs.code != 'false'
         run: |
           set -euo pipefail
           echo 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/80-retries
@@ -178,7 +171,6 @@ jobs:
       # size read left is the 48px floor on the shared controls (CLAUDE.md,
       # "Test logic, not looks").
       - name: Rendering harness
-        if: steps.classify.outputs.code != 'false'
         run: pnpm run test:harness
 
       # Failure screenshots and traces. Without these a red harness run in CI
@@ -190,3 +182,92 @@ jobs:
           name: harness-failures
           path: apps/web/test-results/
           retention-days: 7
+
+  test:
+    needs: classify
+    if: needs.classify.outputs.code != 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      # A red shard must not cancel the others: their failures belong in the same report.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+
+    services:
+      postgres:
+        image: postgis/postgis:18-3.6
+        env:
+          POSTGRES_USER: opika
+          POSTGRES_PASSWORD: opika
+          # Only the health check's target: the tests derive their own database names
+          # per checkout and create them (packages/db/src/test-utils/test-database.ts).
+          POSTGRES_DB: opika_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U opika -d opika_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Activate pinned package manager
+        run: corepack install
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Every package's files are split by vitest's path hash, so the shards are disjoint and
+      # together run every file. packages/ui has one file: two shards find none there. Each
+      # package's JSON report feeds the file-count floor in `check` (.github/scripts/test-file-floors.mjs).
+      - name: Test (shard ${{ matrix.shard }}/3)
+        run: >-
+          pnpm run test --shard=${{ matrix.shard }}/3 --passWithNoTests
+          --reporter=default --reporter=github-actions --reporter=json --outputFile.json=.vitest-shard.json
+
+      - name: Count the test files this shard ran
+        run: node .github/scripts/shard-summary.mjs "$RUNNER_TEMP/shard-${{ matrix.shard }}.json"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-files-shard-${{ matrix.shard }}
+          path: ${{ runner.temp }}/shard-${{ matrix.shard }}.json
+          if-no-files-found: error
+          retention-days: 7
+
+  # The ruleset's required status check. `always()`, because a skipped required check counts as
+  # passing: the gate turns a cancelled, failed or skipped job into a failure (docs-only aside).
+  check:
+    needs: [classify, build, test]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+
+      # Only when the shards passed; missing counts then fail the gate, never pass it.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.test.result == 'success'
+        with:
+          pattern: test-files-shard-*
+          path: ${{ runner.temp }}/test-files
+          merge-multiple: true
+
+      - name: Every gated job succeeded, or the change is documentation only
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+          TEST_FILES_DIR: ${{ runner.temp }}/test-files
+        run: node .github/scripts/check-gate.mjs
