@@ -586,6 +586,7 @@ export const en = {
       passwordMismatch: "The passwords don't match.",
       summary: "Check these fields:",
       rateLimited: "Too many attempts. Try again in a few minutes.",
+      unavailable: "The shelter could not be registered just now. Try again in a few minutes.",
       emailTaken: "This email is already registered. Sign in or reset the password.",
       generic: "Registration failed. Try again or write to me.",
       dailyCap:
@@ -797,6 +798,8 @@ export const en = {
       throttled: "Too many sign-in attempts. Try again in {minutes} min.",
       failed: "Could not reach the site. Check your connection and try again.",
       sendFailed: "The link could not be sent. Check your connection and try again.",
+      notSent: "The email could not be sent just now. Try again in a few minutes.",
+      unavailable: "Could not sign in just now. Try again in a few minutes.",
       sentTitle: "Check your email",
       sentBody:
         "If this address is on the list, a sign-in link will arrive at {email}. It works for 15 minutes and opens on any device.",
@@ -826,6 +829,7 @@ export const en = {
       personal:
         "The password can't contain your email address (even the part before the @), the shelter's name or the site's name.",
       mismatch: "The passwords don't match.",
+      changeUnavailable: "The password could not be changed just now. Try again in a few minutes.",
     },
     forgot: {
       title: "Forgot your password?",

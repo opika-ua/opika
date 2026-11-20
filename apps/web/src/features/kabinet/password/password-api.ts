@@ -1,5 +1,6 @@
 import {
   AUTH_ERROR_CODES,
+  LIMITER_UNAVAILABLE_CODE,
   type PasswordRefusal,
   passwordRefusalOf,
   SIGN_IN_DELAYED_CODE,
@@ -18,6 +19,8 @@ export type SignInOutcome =
   | { kind: "wrong" }
   /** The per-address delay or the per-IP budget (a minute, the budget's window). */
   | { kind: "throttled"; minutes: number }
+  /** The limiter store could not be asked (owner, 2026-11-20): refused, no wait time to name. */
+  | { kind: "unavailable" }
   /**
    * The request got no answer at all (the fetch threw): the connection, not the
    * credentials, and not the site's fault. G4 (audit 2026-10-22) gives it a sentence
@@ -27,13 +30,20 @@ export type SignInOutcome =
   /** A server error: an answer, but not one about the credentials. */
   | { kind: "failed" };
 
-export type ForgotOutcome = { kind: "sent" } | { kind: "throttled" } | { kind: "failed" };
+export type ForgotOutcome =
+  | { kind: "sent" }
+  | { kind: "throttled" }
+  /** The limiter's store could not be asked (owner, 2026-11-20). */
+  | { kind: "unavailable" }
+  | { kind: "failed" };
 
 export type ResetOutcome =
   | { kind: "done" }
   | { kind: "refused"; refusal: PasswordRefusal }
   | { kind: "invalid_link" }
   | { kind: "throttled" }
+  /** The limiter's store could not be asked (owner, 2026-11-20). */
+  | { kind: "unavailable" }
   /** G4: the request got no answer at all. */
   | { kind: "no_answer" }
   | { kind: "failed" };
@@ -59,6 +69,7 @@ export function signInOutcomeOf(answer: Answer): SignInOutcome {
   if (answer.status >= 500) return { kind: "failed" };
   if (answer.status === 200) return { kind: "signed_in" };
   if (answer.status === 429) {
+    if (codeOf(answer) === LIMITER_UNAVAILABLE_CODE) return { kind: "unavailable" };
     const minutes = field(answer.body, "retryAfterMinutes");
     // The per-IP budget answers without minutes: its window is 60 s, so one minute is true.
     return {
@@ -72,9 +83,15 @@ export function signInOutcomeOf(answer: Answer): SignInOutcome {
   return { kind: "wrong" };
 }
 
+/** A 429 is a limit reached unless it names the store as unavailable (owner, 2026-11-20). */
+const throttledOrUnavailable = (answer: Answer) =>
+  codeOf(answer) === LIMITER_UNAVAILABLE_CODE
+    ? ({ kind: "unavailable" } as const)
+    : ({ kind: "throttled" } as const);
+
 export function forgotOutcomeOf(answer: Answer): ForgotOutcome {
   if (answer === null || answer.status >= 500) return { kind: "failed" };
-  if (answer.status === 429) return { kind: "throttled" };
+  if (answer.status === 429) return throttledOrUnavailable(answer);
   // A malformed address is refused by the browser's own field first; any other answer says
   // nothing about the address, so it reads as sent, as every address does (§6.3).
   return answer.status === 200 ? { kind: "sent" } : { kind: "failed" };
@@ -84,7 +101,7 @@ export function resetOutcomeOf(answer: Answer): ResetOutcome {
   if (answer === null) return { kind: "no_answer" };
   if (answer.status >= 500) return { kind: "failed" };
   if (answer.status === 200) return { kind: "done" };
-  if (answer.status === 429) return { kind: "throttled" };
+  if (answer.status === 429) return throttledOrUnavailable(answer);
   const refusal = passwordRefusalOf(codeOf(answer));
   if (refusal !== null) return { kind: "refused", refusal };
   if (codeOf(answer) === AUTH_ERROR_CODES.invalidToken) return { kind: "invalid_link" };

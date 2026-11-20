@@ -18,6 +18,10 @@ describe("the password answers, read by status and code only", () => {
       { kind: "throttled", minutes: 8 },
     );
     expect(signInOutcomeOf(answer(429))).toEqual({ kind: "throttled", minutes: 1 });
+    // Owner, 2026-11-20: the store down is its own outcome, never a wait.
+    expect(signInOutcomeOf(answer(429, { code: "RATE_LIMITER_UNAVAILABLE" }))).toEqual({
+      kind: "unavailable",
+    });
     expect(signInOutcomeOf(answer(503))).toEqual({ kind: "failed" });
     // G4 (audit 2026-10-22): no answer at all is its own outcome, with its own sentence.
     expect(signInOutcomeOf(null)).toEqual({ kind: "no_answer" });
@@ -26,6 +30,14 @@ describe("the password answers, read by status and code only", () => {
   it("forgot: sent, throttled, failed", () => {
     expect(forgotOutcomeOf(answer(200, { status: true }))).toEqual({ kind: "sent" });
     expect(forgotOutcomeOf(answer(429))).toEqual({ kind: "throttled" });
+    // Owner, 2026-11-20: the store down is its own outcome; a limit reached stays throttled.
+    expect(forgotOutcomeOf(answer(429, { code: "RATE_LIMITER_UNAVAILABLE" }))).toEqual({
+      kind: "unavailable",
+    });
+    expect(resetOutcomeOf(answer(429, { code: "RATE_LIMITER_UNAVAILABLE" }))).toEqual({
+      kind: "unavailable",
+    });
+    expect(resetOutcomeOf(answer(429))).toEqual({ kind: "throttled" });
     expect(forgotOutcomeOf(null)).toEqual({ kind: "failed" });
   });
 

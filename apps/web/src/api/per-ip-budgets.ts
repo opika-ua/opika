@@ -99,8 +99,8 @@ type LimiterFactory = (opts: {
 
 export function perIpBudgetsOf(make: LimiterFactory, sizes: PerIpBudgetSizes): PerIpBudgets {
   return {
-    // Minting fails open (an outage must not stop new visitors); the reveal budget guards
-    // shelter contact data, so it fails closed.
+    // Both fail open: an outage must not stop new visitors, nor a first contact with a shelter
+    // (owner, 2026-11-20). A healthy store's "spent" still refuses; the outage reaches Sentry.
     adopterMints: make({
       name: "adopter-mint",
       windowMs: DAY_MS,
@@ -111,7 +111,7 @@ export function perIpBudgetsOf(make: LimiterFactory, sizes: PerIpBudgetSizes): P
       name: "reveal-ip",
       windowMs: DAY_MS,
       maxRequests: sizes.newShelterReveals,
-      onUnavailable: "deny",
+      onUnavailable: "allow",
     }),
   };
 }

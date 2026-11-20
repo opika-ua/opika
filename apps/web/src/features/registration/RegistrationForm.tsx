@@ -314,6 +314,9 @@ export function RegistrationForm({
       {result?.kind === "rate_limited" ? (
         <InlineStatus tone="error">{copy.rateLimited}</InlineStatus>
       ) : null}
+      {result?.kind === "limiter_unavailable" ? (
+        <InlineStatus tone="error">{copy.unavailable}</InlineStatus>
+      ) : null}
       {result?.kind === "email_taken" ? (
         <InlineStatus tone="error">
           <span className="flex flex-col gap-2">

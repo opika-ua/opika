@@ -5,7 +5,11 @@ import { apiRateLimiter } from "./api/rate-limit";
 import { ipRateLimitKey } from "./api/rate-limit-key";
 import { retryAfterSecondsOf } from "./api/retry-after";
 import { kabinetLimiters } from "./kabinet/limiters";
-import { isChargedKabinetPageLoad, kabinetPageLoadAllowed } from "./kabinet/page-limit";
+import {
+  isChargedKabinetPageLoad,
+  isKabinetPagePath,
+  kabinetPageLoadVerdict,
+} from "./kabinet/page-limit";
 import { isTokenPage, TOKEN_PAGE_HEADERS } from "./kabinet/token-pages";
 
 /**
@@ -51,7 +55,7 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
   if (isDiscoveryPagePath(request.nextUrl.pathname)) {
     const ipKey = ipRateLimitKey(clientIp(request));
     if (!(await apiRateLimiter.check(ipKey, now))) {
-      return discoveryRateLimitedResponse(request, retryAfterSecondsOf(apiRateLimiter, ipKey, now));
+      return rateLimitedPage(request, retryAfterSecondsOf(apiRateLimiter, ipKey, now));
     }
   }
   // KH-Q8: `/kabinet` pages draw on the kabinet API's own budgets (never the
@@ -66,19 +70,32 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
   // included (review of the hardening, finding 3; measured in the inbox,
   // KH-T4). The limiters themselves come from `kabinet/limiters`, which is
   // as light as the adopter limiter above.
-  if (
-    isChargedKabinetPageLoad(request.method, request.nextUrl.pathname) &&
-    !(await kabinetPageLoadAllowed(
+  if (isChargedKabinetPageLoad(request.method, request.nextUrl.pathname)) {
+    const verdict = await kabinetPageLoadVerdict(
       kabinetLimiters,
       {
         ip: clientIp(request),
         userId: async () =>
           (await import("./kabinet/runtime")).kabinetPageUserId(request.headers, now),
+        page: {
+          method: request.method,
+          pathname: request.nextUrl.pathname,
+          searchParams: request.nextUrl.searchParams,
+        },
       },
       now,
-    ))
-  ) {
-    return new NextResponse("Too Many Requests", { status: 429 });
+    );
+    if (verdict.kind === "refused") {
+      const retryAfter = retryAfterSecondsOf(verdict.limiter, verdict.key, now);
+      // A page navigation gets the styled page (owner, 2026-11-20); a server action keeps its
+      // plain 429, the shape its caller reads.
+      return isPageNavigation(request)
+        ? rateLimitedPage(request, retryAfter)
+        : new NextResponse("Too Many Requests", {
+            status: 429,
+            headers: { "retry-after": String(retryAfter) },
+          });
+    }
   }
   const response = NextResponse.next();
   // A sign-in page whose URL carries a credential (a reset link's token, an invitation link's) is
@@ -91,8 +108,18 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
 }
 
 /**
+ * A request a person's browser makes to show a page: a GET or HEAD, or a form POST the browser
+ * navigates with (`Sec-Fetch-Mode: navigate`, a form without JavaScript). A server action's fetch
+ * is neither, and keeps the plain 429 its caller reads.
+ */
+export function isPageNavigation(request: Request): boolean {
+  if (request.method === "GET" || request.method === "HEAD") return true;
+  return request.headers.get("sec-fetch-mode") === "navigate";
+}
+
+/**
  * RL-F1: the per-IP refusal on `/tvaryny` pages (and, since S6, the shelter page under
- * `/prytulky`). Oleksii, 2026-10-20, verbatim: "gives the rate-limited case its own state on both
+ * `/prytulky`); since 2026-11-20 (owner) every page navigation's 429, `/kabinet` included. Oleksii, 2026-10-20, verbatim: "gives the rate-limited case its own state on both
  * the full page and the drawer, using the existing «Забагато запитів. Спробуйте ще раз пізніше.».
  * It never shows «Це не помилка…» for a rate limit."
  *
@@ -101,11 +128,10 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
  * that serves the branded `RateLimitedScreen` as a 429. `Retry-After` is set here from the limiter's
  * own state (QA 2026-10-29).
  */
-function discoveryRateLimitedResponse(
-  request: NextRequest,
-  retryAfterSeconds: number,
-): NextResponse {
+function rateLimitedPage(request: NextRequest, retryAfterSeconds: number): NextResponse {
   const target = request.nextUrl.clone();
+  // A kabinet page's query can be a credential (a reset or invitation token): it goes no further.
+  if (isKabinetPagePath(target.pathname)) target.search = "";
   target.pathname = RATE_LIMITED_PATH;
   return NextResponse.rewrite(target, {
     status: 429,

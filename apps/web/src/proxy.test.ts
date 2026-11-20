@@ -129,7 +129,88 @@ describe("proxy", () => {
       }
       const refused = await load("/kabinet/vkhid");
       expect(refused.status).toBe(429);
-      expect(await refused.text()).toBe("Too Many Requests");
+      // Owner, 2026-11-20: a page navigation gets the styled Ukrainian page, never a bare line.
+      expect(refused.headers.get("x-middleware-rewrite")).toBe(
+        "https://opika.example/rate-limited",
+      );
+      expect(refused.headers.get("x-robots-tag")).toBe("noindex");
+      const seconds = Number(refused.headers.get("retry-after"));
+      expect(seconds).toBeGreaterThanOrEqual(1);
+      expect(seconds).toBeLessThanOrEqual(60);
+    });
+
+    /**
+     * Owner, 2026-11-20: in an Upstash outage the sign-in, «Забули пароль?» and new-password pages
+     * load (their actions stay refused: `auth.test.ts`, "with the limiter store unreachable");
+     * any other anonymous kabinet page gets the styled 429. The served limiters, on a store whose
+     * every call fails.
+     */
+    it("in an outage, GET of the three sign-in pages loads; another anonymous kabinet page gets the 429 page", async () => {
+      vi.stubEnv("KV_REST_API_URL", "https://unreachable.invalid");
+      vi.stubEnv("KV_REST_API_TOKEN", "t");
+      vi.doMock("@upstash/ratelimit", () => ({
+        Ratelimit: Object.assign(
+          vi.fn(function RatelimitMock() {
+            return { limit: async () => Promise.reject(new Error("ECONNREFUSED")) };
+          }),
+          { slidingWindow: vi.fn() },
+        ),
+      }));
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        const { proxy } = await import("./proxy");
+        const ip = { "x-forwarded-for": "7.7.7.9" };
+        for (const path of [
+          "/kabinet/vkhid",
+          "/kabinet/vkhid/zabuly",
+          "/kabinet/vkhid/novyi-parol?token=t",
+        ]) {
+          const response = await proxy(request(`https://opika.example${path}`, ip));
+          expect(response.status, path).toBe(200);
+          expect(response.headers.get("x-middleware-rewrite"), path).toBeNull();
+        }
+        const other = await proxy(request("https://opika.example/kabinet", ip));
+        expect(other.status).toBe(429);
+        expect(other.headers.get("x-middleware-rewrite")).toBe(
+          "https://opika.example/rate-limited",
+        );
+      } finally {
+        vi.doUnmock("@upstash/ratelimit");
+        vi.restoreAllMocks();
+      }
+    });
+
+    it("over the kabinet limit: a token page's query never reaches the 429 page; a server action keeps its plain 429", async () => {
+      const { proxy } = await import("./proxy");
+      const { KABINET_RATE_LIMITS } = await import("./kabinet/rate-limits");
+      const ip = { "x-forwarded-for": "7.7.7.8" };
+      for (let i = 0; i < KABINET_RATE_LIMITS.perIp.maxRequests; i++) {
+        await proxy(request("https://opika.example/kabinet", ip));
+      }
+      const reset = await proxy(
+        request("https://opika.example/kabinet/vkhid/novyi-parol?token=SECRET-TOKEN", ip),
+      );
+      expect(reset.status).toBe(429);
+      expect(reset.headers.get("x-middleware-rewrite")).toBe("https://opika.example/rate-limited");
+      const action = await proxy(
+        new NextRequest("https://opika.example/kabinet/vkhid", {
+          method: "POST",
+          headers: { ...ip, "next-action": "abc" },
+        }),
+      );
+      expect(action.status).toBe(429);
+      expect(action.headers.get("x-middleware-rewrite")).toBeNull();
+      expect(await action.text()).toBe("Too Many Requests");
+      const formPost = await proxy(
+        new NextRequest("https://opika.example/kabinet/vkhid", {
+          method: "POST",
+          headers: { ...ip, "sec-fetch-mode": "navigate" },
+        }),
+      );
+      expect(formPost.headers.get("x-middleware-rewrite")).toBe(
+        "https://opika.example/rate-limited",
+      );
     });
 
     /**

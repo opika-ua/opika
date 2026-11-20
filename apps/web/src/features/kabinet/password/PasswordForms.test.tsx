@@ -1,6 +1,6 @@
 import { pluralizeUk } from "@opika/domain";
 import { uk } from "@opika/i18n";
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ChangePasswordSection } from "./ChangePasswordSection";
@@ -47,6 +47,15 @@ describe("«Забули пароль?»", () => {
       "Забагато запитів. Спробуйте ще раз пізніше.",
     );
   });
+
+  it("the limiter store down: the approved «не вдалося надіслати лист» (owner, 2026-11-20)", async () => {
+    const { user } = renderWith({ kind: "unavailable" });
+    await user.type(field("Електронна пошта"), "olena@example.org");
+    await user.click(screen.getByRole("button", { name: "Надіслати посилання" }));
+    expect(screen.getByRole("status").textContent).toBe(
+      "Зараз не вдалося надіслати лист. Спробуйте за кілька хвилин.",
+    );
+  });
 });
 
 describe("the reset page", () => {
@@ -78,6 +87,20 @@ describe("the reset page", () => {
     expect(window.location.href).not.toContain("token-from-the-link");
     await submit(user, "ялинка-під-вікном");
     expect(reset).toHaveBeenCalledWith("token-from-the-link", "ялинка-під-вікном");
+  });
+
+  it("over the limit «Забагато запитів…»; with the limiter store down «Зараз не вдалося змінити пароль…»", async () => {
+    const limited = renderWith({ kind: "throttled" });
+    await submit(limited.user, "ялинка-під-вікном");
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Забагато запитів. Спробуйте ще раз пізніше.",
+    );
+    cleanup();
+    const down = renderWith({ kind: "unavailable" });
+    await submit(down.user, "ялинка-під-вікном");
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Зараз не вдалося змінити пароль. Спробуйте за кілька хвилин.",
+    );
   });
 
   it("refuses two different passwords before sending anything", async () => {

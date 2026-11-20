@@ -379,7 +379,8 @@ neutral; never name a suspicion.
   allowance before their work (at most 60 an hour); an anonymous adopter may reveal contacts of
   at most 30 distinct shelters in 24 hours and at most 100 new shelters per IP a day (the IP figure is an
   environment variable with that default); the public API takes 100 a minute. When the shared store is
-  unreachable the limiters fail closed, so everything limited answers 429 until it returns
+  unreachable, signed-in kabinet use, public reads and a first-contact reveal go on unthrottled, and
+  every way in (sign-in, magic link, reset, invites, registration) answers 429 until it returns
   (`docs/runbook.md`, section 1).
 - **Photos after a suspension.** Suspending hides pages but does not delete or unlink any photo: the files
   stay referenced, stay in the bucket, and stay reachable to anyone who already has a file URL. The only

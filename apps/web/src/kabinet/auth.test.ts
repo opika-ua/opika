@@ -8,8 +8,9 @@ import {
 import { authSession, invitationCreatedUsers, superAdmins } from "@opika/db/schema";
 import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
 import type { ModeratorId } from "@opika/domain";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
+import { unreachableLimiter, unreachableRedis } from "../api/test-outage";
 import { SHELTER_WRITE_POLICY } from "./access";
 import {
   createKabinetAuth,
@@ -30,7 +31,8 @@ import { capturingInvitationSender, providerMagicLinkSender } from "./email-send
 import { forwardedClientHeaders } from "./forwarded-client-headers";
 import { type AcceptInvitation, invitationAccepter } from "./invitation-accept";
 import { capturingSender } from "./magic-link-sender";
-import { generousPasswordLimiters } from "./password-limits";
+import { LIMITER_UNAVAILABLE_CODE, SIGN_IN_LINK_NOT_SENT_CODE } from "./password-codes";
+import { generousPasswordLimiters, upstashDelayStore } from "./password-limits";
 import { capturingPasswordMail } from "./password-mail";
 import { kabinetIdentityOf, kabinetSessionPersonOf, kabinetSessionUserIdOf } from "./principal";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
@@ -62,6 +64,7 @@ const principalOf = async (
  */
 
 const BASE = "http://localhost:3000";
+const LINK_NOT_SENT = { status: false, code: SIGN_IN_LINK_NOT_SENT_CODE };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 let db: Awaited<ReturnType<typeof setupTestDatabase>>["db"];
@@ -863,8 +866,30 @@ describe("the sign-in limits (HS-Q5)", () => {
     }
     // One budget across all six spellings: five links, the sixth not sent…
     expect(sender.sent).toHaveLength(5);
-    // …and the sixth caller can't tell.
-    expect(new Set(answers).size).toBe(1);
+    // …and, since 2026-11-20 (owner), the sixth caller is told so: «not sent», not «sent».
+    expect(new Set(answers.slice(0, 5)).size).toBe(1);
+    expect(answers[5]).toBe(`429 ${JSON.stringify(LINK_NOT_SENT)}`);
+  });
+
+  it("refuses an address with an account and one without with the same answer, before any lookup", async () => {
+    await createUser("olena@example.org");
+    const lims = limiters(1, 1000);
+    const answers: string[] = [];
+    for (const email of ["olena@example.org", "nobody@example.org"]) {
+      // The first request spends the address's one link; the second is the refusal under test.
+      await route(post("/api/auth/sign-in/magic-link", { email }), lims);
+      const refused = await handleKabinetAuth(post("/api/auth/sign-in/magic-link", { email }), {
+        availability: available,
+        auth: () => {
+          throw new Error("refused before Better Auth or the database");
+        },
+        limiters: lims,
+        now: new Date(),
+      });
+      answers.push(`${refused.status} ${[...refused.headers].join()} ${await refused.text()}`);
+    }
+    expect(answers[0]).toBe(answers[1]);
+    expect(answers[0]).toContain(JSON.stringify(LINK_NOT_SENT));
   });
 
   it("charges the IP budget across different addresses", async () => {
@@ -1465,5 +1490,208 @@ describe("verify, get-session and sign-out on the kabinet limiters", () => {
       },
     );
     expect(rpc.status).toBe(429);
+  });
+});
+
+/**
+ * Owner, 2026-11-20: with Upstash unreachable, signed-in kabinet use goes on; sign-in, verify,
+ * forgot and reset stay refused with an honest answer, the same for every address. The real
+ * Upstash limiters in their served modes, on a store every command of which fails.
+ */
+describe("with the limiter store unreachable", () => {
+  const outageKabinet = (): KabinetLimiters => ({
+    perUser: unreachableLimiter("allow"),
+    perIp: unreachableLimiter("deny"),
+  });
+  const outageSignIn = () => ({
+    perAddress: unreachableLimiter("deny"),
+    perIp: unreachableLimiter("deny"),
+  });
+  const authWith = (limiters: KabinetLimiters, passwordLimiters = generousPasswordLimiters()) =>
+    createKabinetAuth({
+      db,
+      sender,
+      schedule: (work) => {
+        pending.push(work());
+      },
+      baseURL: BASE,
+      secret: "test-only-secret-that-is-long-enough-0123456789",
+      secureCookies: false,
+      passwordLimiters,
+      passwordMail: capturingPasswordMail(),
+      limiters,
+    });
+  const getSession = (cookie?: string) =>
+    new Request(`${BASE}/api/auth/get-session`, {
+      headers: { origin: BASE, "x-forwarded-for": "203.0.113.50", ...(cookie ? { cookie } : {}) },
+    });
+  const answerOf = async (response: Response) => `${response.status} ${await response.text()}`;
+  const passwordSignIn = (email: string, headers: Record<string, string> = {}) =>
+    post("/api/auth/sign-in/email", { email, password: "a-long-enough-password" }, headers);
+
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("magic link: «not sent», the same for an address with an account and one without, nothing sent", async () => {
+    await createUser("olena@example.org");
+    const answers: string[] = [];
+    for (const email of ["olena@example.org", "nobody@example.org"]) {
+      const response = await handleKabinetAuth(post("/api/auth/sign-in/magic-link", { email }), {
+        availability: available,
+        auth: () => {
+          throw new Error("refused before Better Auth or the database");
+        },
+        limiters: outageSignIn(),
+        now: new Date(),
+      });
+      answers.push(`${response.status} ${[...response.headers].join()} ${await response.text()}`);
+    }
+    expect(answers[0]).toBe(answers[1]);
+    expect(answers[0]).toContain(JSON.stringify(LINK_NOT_SENT));
+    expect(answers[0]?.startsWith("429 ")).toBe(true);
+    await Promise.all(pending);
+    expect(sender.sent).toHaveLength(0);
+  });
+
+  it("get-session and sign-out with a validated session go on", async () => {
+    await createUser("olena@example.org");
+    const cookie = await signIn("olena@example.org");
+    auth = authWith(outageKabinet());
+    const session = await route(getSession(cookie));
+    expect(session.status).toBe(200);
+    expect(await session.json()).not.toBeNull();
+    const signOut = await route(
+      post("/api/auth/sign-out", {}, { cookie, "x-forwarded-for": "203.0.113.50" }),
+    );
+    expect(signOut.status).toBe(200);
+    expect(await db.select().from(authSession)).toHaveLength(0);
+  });
+
+  it("a session Better Auth counts as expired, though inside our lapse limits, is no session in an outage", async () => {
+    await createUser("olena@example.org");
+    const cookie = await signIn("olena@example.org");
+    // `findSession` returns it anyway; the hook's own expiry check is what refuses it.
+    await db.update(authSession).set({ expiresAt: new Date(Date.now() - 1_000) });
+    auth = authWith(outageKabinet());
+    for (const request of [
+      getSession(cookie),
+      post("/api/auth/sign-out", {}, { cookie, "x-forwarded-for": "203.0.113.50" }),
+    ]) {
+      const response = await route(request);
+      expect(response.status).toBe(429);
+      expect(await response.json()).toMatchObject({ code: LIMITER_UNAVAILABLE_CODE });
+    }
+  });
+
+  it("get-session without a session, or with one that names no live session, is refused", async () => {
+    await createUser("olena@example.org");
+    const cookie = await signIn("olena@example.org");
+    await db.delete(authSession);
+    auth = authWith(outageKabinet());
+    for (const request of [getSession(), getSession(cookie)]) {
+      const response = await route(request);
+      expect(response.status).toBe(429);
+      expect(await response.json()).toMatchObject({ code: LIMITER_UNAVAILABLE_CODE });
+    }
+  });
+
+  it("the verify is refused (a way in), on the server-side path the confirm page takes", async () => {
+    auth = authWith(outageKabinet());
+    const verify = await auth.handler(
+      new Request(`${BASE}/api/auth/magic-link/verify?token=${"y".repeat(32)}`, {
+        headers: { origin: BASE, "x-forwarded-for": "203.0.113.51" },
+      }),
+    );
+    expect(verify.status).toBe(429);
+  });
+
+  it("password sign-in is refused as unavailable, the same for every address, even with a session", async () => {
+    await createUser("olena@example.org");
+    const cookie = await signIn("olena@example.org");
+    auth = authWith(outageKabinet());
+    const answers: string[] = [];
+    for (const email of ["olena@example.org", "nobody@example.org"]) {
+      const headers = { cookie, "x-forwarded-for": "203.0.113.52" };
+      answers.push(await answerOf(await route(passwordSignIn(email, headers))));
+    }
+    expect(answers[0]).toBe(answers[1]);
+    expect(answers[0]?.startsWith("429 ")).toBe(true);
+    expect(answers[0]).toContain(LIMITER_UNAVAILABLE_CODE);
+  });
+
+  it("the sign-in delay store down: refused as unavailable, never a wait, the same for every address", async () => {
+    await createUser("olena@example.org");
+    auth = authWith(unlimitedKabinet(), {
+      ...generousPasswordLimiters(),
+      signInDelay: upstashDelayStore(unreachableRedis(), "test-outage"),
+    });
+    const answers: string[] = [];
+    for (const email of ["olena@example.org", "nobody@example.org"]) {
+      answers.push(await answerOf(await route(passwordSignIn(email))));
+    }
+    expect(answers[0]).toBe(answers[1]);
+    expect(answers[0]?.startsWith("429 ")).toBe(true);
+    expect(answers[0]).toContain(LIMITER_UNAVAILABLE_CODE);
+    expect(answers[0]).not.toContain("retryAfterMinutes");
+  });
+
+  /** Owner, 2026-11-20: an outage names no limit; a limit reached keeps «Забагато…» (no code). */
+  const forgotFor = async (email: string) =>
+    answerOf(await route(post("/api/auth/request-password-reset", { email })));
+  const reset = async () =>
+    route(post("/api/auth/reset-password", { token: "t".repeat(24), newPassword: "x".repeat(12) }));
+
+  it("«Забули пароль?» and a reset link: the store down refuses as unavailable, the same for every address", async () => {
+    await createUser("olena@example.org");
+    auth = authWith(unlimitedKabinet(), {
+      ...generousPasswordLimiters(),
+      forgotPerIp: unreachableLimiter("deny"),
+      forgotPerAddress: unreachableLimiter("deny"),
+      resetPerIp: unreachableLimiter("deny"),
+    });
+    const answers = [await forgotFor("olena@example.org"), await forgotFor("nobody@example.org")];
+    expect(answers[0]).toBe(answers[1]);
+    expect(answers[0]?.startsWith("429 ")).toBe(true);
+    expect(answers[0]).toContain(LIMITER_UNAVAILABLE_CODE);
+    const refused = await reset();
+    expect(refused.status).toBe(429);
+    expect(await refused.text()).toContain(LIMITER_UNAVAILABLE_CODE);
+  });
+
+  it("«Забули пароль?» and a reset link over a real limit: a plain 429, no unavailable code, the same for every address", async () => {
+    await createUser("olena@example.org");
+    const spent = () => inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 0 });
+    auth = authWith(unlimitedKabinet(), {
+      ...generousPasswordLimiters(),
+      forgotPerAddress: spent(),
+      resetPerIp: spent(),
+    });
+    const answers = [await forgotFor("olena@example.org"), await forgotFor("nobody@example.org")];
+    expect(answers[0]).toBe(answers[1]);
+    expect(answers[0]?.startsWith("429 ")).toBe(true);
+    expect(answers[0]).not.toContain(LIMITER_UNAVAILABLE_CODE);
+    const refused = await reset();
+    expect(refused.status).toBe(429);
+    expect(await refused.text()).not.toContain(LIMITER_UNAVAILABLE_CODE);
+  });
+
+  it("password sign-in over a real limit keeps its wait, no unavailable code, the same for every address", async () => {
+    await createUser("olena@example.org");
+    auth = authWith({
+      perUser: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 100_000 }),
+      perIp: inMemoryRateLimiter({ windowMs: 60_000, maxRequests: 0 }),
+    });
+    const answers: string[] = [];
+    for (const email of ["olena@example.org", "nobody@example.org"]) {
+      answers.push(await answerOf(await route(passwordSignIn(email))));
+    }
+    expect(answers[0]).toBe(answers[1]);
+    expect(answers[0]?.startsWith("429 ")).toBe(true);
+    expect(answers[0]).not.toContain(LIMITER_UNAVAILABLE_CODE);
   });
 });

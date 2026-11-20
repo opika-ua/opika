@@ -102,6 +102,8 @@ export type RegistrationResult =
   | { kind: "registered"; next: "/kabinet" | "/kabinet/vkhid" }
   | { kind: "invalid"; fields: Partial<Record<RegistrationField, RegistrationFieldError>> }
   | { kind: "rate_limited"; retryAfterSeconds: number }
+  /** The limiter's store could not be asked: refused, with no limit reached (owner, 2026-11-20). */
+  | { kind: "limiter_unavailable" }
   /** The address already has an account (Q-B1, owner: shown, with sign-in and reset links). */
   | { kind: "email_taken" }
   | { kind: "failed" };
@@ -113,6 +115,7 @@ export const REGISTRATION_FAILURE_REASONS = [
   "too_fast",
   "stamp_invalid",
   "rate_limited",
+  "limiter_unavailable",
   "email_taken",
   "write_failed",
   "sign_in_failed",

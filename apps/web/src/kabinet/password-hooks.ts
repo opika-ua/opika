@@ -4,12 +4,19 @@ import type { PasswordVerdict } from "@opika/domain";
 import { APIError, isAPIError } from "better-auth/api";
 import { z } from "zod";
 import { clientIp } from "../api/client-ip";
+import { attemptOf, type LimitOutcome } from "../api/limit-outcome";
 import { addressRateLimitKey, ipRateLimitKey } from "../api/rate-limit-key";
 import { logRateLimited } from "../api/rate-limit-log";
+import { warnLimiterUnreachable } from "../api/rate-limit-unreachable";
 import { linkTo, RESET_LINK } from "./email-links";
 import { field, stringField } from "./fields";
 import { shelterPasswordVerdictOf } from "./password-checks";
-import { AUTH_ERROR_CODES, PASSWORD_REFUSAL_CODES, SIGN_IN_DELAYED_CODE } from "./password-codes";
+import {
+  AUTH_ERROR_CODES,
+  LIMITER_UNAVAILABLE_CODE,
+  PASSWORD_REFUSAL_CODES,
+  SIGN_IN_DELAYED_CODE,
+} from "./password-codes";
 import {
   chargeSignInAttempt,
   clearSignInAttempts,
@@ -129,6 +136,22 @@ const delayed = (minutes: number) =>
     { "Retry-After": String(minutes * 60) },
   );
 
+/** The store could not be asked: refused, with no wait time and no claim about attempts. */
+export const limiterUnavailable = () =>
+  new APIError("TOO_MANY_REQUESTS", {
+    message: "Rate limiter unavailable",
+    code: LIMITER_UNAVAILABLE_CODE,
+  });
+
+/**
+ * A limit reached refuses as before (429, no code: the forms' «Забагато запитів…»); a store that
+ * couldn't be asked refuses as unavailable, so the form names no limit (owner, 2026-11-20).
+ */
+function refuseUnlessAllowed(outcomes: readonly LimitOutcome[]): void {
+  if (outcomes.includes("refused")) throw new APIError("TOO_MANY_REQUESTS");
+  if (outcomes.includes("unavailable")) throw limiterUnavailable();
+}
+
 /** A SQLSTATE in parentheses for a log line, or nothing. */
 const sqlStateSuffix = (code: string | null) => (code === null ? "" : ` (${code})`);
 
@@ -158,9 +181,11 @@ const refusalLine = (check: Exclude<PasswordWriteCheck, { kind: "unchanged" }>) 
   }
 };
 
+const TIMED_OUT = "timed out";
+
 const withTimeout = <T>(work: Promise<T>, ms: number): Promise<T> =>
   new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("timed out")), ms);
+    const timer = setTimeout(() => reject(new Error(TIMED_OUT)), ms);
     work.then(
       (value) => {
         clearTimeout(timer);
@@ -235,16 +260,24 @@ export function passwordHooks(deps: PasswordHookDeps) {
   const actors = kabinetActorRepo(deps.db);
   const race = signInRaceCheck(deps.db);
 
-  /** The delay, failing closed: a store that errors or stalls refuses the attempt for a minute. */
-  async function chargeAttempt(email: string, now: Date): Promise<SignInAttempt> {
+  /**
+   * The delay, failing closed: a store that errors or stalls refuses the attempt, saying the store
+   * is unavailable rather than naming a wait (owner, 2026-11-20). Before any account is read.
+   */
+  async function chargeAttempt(
+    email: string,
+    now: Date,
+  ): Promise<SignInAttempt | { kind: "unavailable" }> {
     try {
       return await withTimeout(
         chargeSignInAttempt(deps.limiters.signInDelay, addressRateLimitKey(email), now),
         DELAY_STORE_TIMEOUT_MS,
       );
-    } catch {
+    } catch (error) {
       deps.log("[kabinet] sign-in delay store unavailable: attempt refused (fail closed)");
-      return { kind: "wait", minutes: 1 };
+      const timedOut = error instanceof Error && error.message === TIMED_OUT;
+      warnLimiterUnreachable("kabinet-sign-in-delay", timedOut ? "timeout" : "error");
+      return { kind: "unavailable" };
     }
   }
 
@@ -353,6 +386,7 @@ export function passwordHooks(deps: PasswordHookDeps) {
           const email = stringField(ctx.body, "email");
           if (!isEmail(email)) return undefined; // Better Auth's own 400
           const attempt = await chargeAttempt(email, now);
+          if (attempt.kind === "unavailable") throw limiterUnavailable();
           if (attempt.kind === "wait") {
             logRateLimited("kabinet-sign-in-delay");
             throw delayed(attempt.minutes);
@@ -379,16 +413,15 @@ export function passwordHooks(deps: PasswordHookDeps) {
             return (await actors.shelterAdminIdByEmail(email)) === null ? FORGOT_ANSWER : undefined;
           }
           // Both limits cost every address the same: one store call each, the
-          // address's key an HMAC whoever holds it.
-          const charges = [
-            deps.limiters.forgotPerIp.check(ipRateLimitKey(clientIp(ctx.request)), now),
+          // address's key an HMAC whoever holds it. A store that can't be asked
+          // refuses as unavailable (owner, 2026-11-20); a limit reached says so.
+          const outcomes = await Promise.all([
+            attemptOf(deps.limiters.forgotPerIp, ipRateLimitKey(clientIp(ctx.request)), now),
             ...(email === null
               ? []
-              : [deps.limiters.forgotPerAddress.check(addressRateLimitKey(email), now)]),
-          ];
-          if ((await Promise.all(charges)).includes(false)) {
-            throw new APIError("TOO_MANY_REQUESTS");
-          }
+              : [attemptOf(deps.limiters.forgotPerAddress, addressRateLimitKey(email), now)]),
+          ]);
+          refuseUnlessAllowed(outcomes);
           if (!isEmail(email)) return undefined; // Better Auth's own 400
           // No lookup and no write before the answer: the role, the token and
           // the email all wait for the response, as the magic link's do (N1).
@@ -397,11 +430,9 @@ export function passwordHooks(deps: PasswordHookDeps) {
         }
 
         case PASSWORD_PATHS.reset: {
-          if (
-            ctx.request !== undefined &&
-            !(await deps.limiters.resetPerIp.check(ipRateLimitKey(clientIp(ctx.request)), now))
-          ) {
-            throw new APIError("TOO_MANY_REQUESTS");
+          if (ctx.request !== undefined) {
+            const ipKey = ipRateLimitKey(clientIp(ctx.request));
+            refuseUnlessAllowed([await attemptOf(deps.limiters.resetPerIp, ipKey, now)]);
           }
           const token = stringField(ctx.body, "token") ?? stringField(ctx.query, "token");
           if (token === null) return undefined; // Better Auth's own INVALID_TOKEN

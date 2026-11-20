@@ -35,12 +35,18 @@ export const signInLimiters = {
   }),
 };
 
-/** HS-Q10: never the adopter `apiRateLimiter`. */
+/**
+ * HS-Q10: never the adopter `apiRateLimiter`. With the store unreachable (owner, 2026-11-20),
+ * signed-in use goes on and anonymous use is refused: `perUser` is only ever charged once a session
+ * is validated, so it fails open; `perIp` is charged before any session is read, so it fails closed
+ * and the callers that can validate a session ask it through `attemptOf` (`page-limit.ts`,
+ * `rpc-route.ts`, `auth.ts`).
+ */
 export const kabinetLimiters = {
   perUser: sharedRateLimiter({
     name: "kabinet-user",
     ...KABINET_RATE_LIMITS.perUser,
-    onUnavailable: "deny",
+    onUnavailable: "allow",
   }),
   perIp: sharedRateLimiter({
     name: "kabinet-ip",
@@ -49,47 +55,50 @@ export const kabinetLimiters = {
   }),
 };
 
-/** `shelter.cities.search`, per person; an unreachable store refuses, like every kabinet limit. */
+/** `shelter.cities.search`, per signed-in person; an unreachable store lets it through (2026-11-20). */
 export const citySearchLimiter = sharedRateLimiter({
   name: "kabinet-city-search-user",
   ...CITY_SEARCH_RATE_LIMITS.perUser,
-  onUnavailable: "deny",
+  onUnavailable: "allow",
 });
 
-/** P-Q12: per shelter, an hour and a day; and the upload and crop attempts beside them. */
+/**
+ * P-Q12: per shelter, an hour and a day; and the upload and crop attempts beside them. Charged only
+ * inside a signed-in admin's procedure, so an unreachable store lets them through (2026-11-20).
+ */
 export const photoUploadLimiters = {
   perHour: sharedRateLimiter({
     name: "kabinet-photo-hour",
     ...PHOTO_UPLOAD_RATE_LIMITS.perHour,
-    onUnavailable: "deny",
+    onUnavailable: "allow",
   }),
   perDay: sharedRateLimiter({
     name: "kabinet-photo-day",
     ...PHOTO_UPLOAD_RATE_LIMITS.perDay,
-    onUnavailable: "deny",
+    onUnavailable: "allow",
   }),
   uploadAttempts: {
     perHour: sharedRateLimiter({
       name: "kabinet-upload-attempt-hour",
       ...PHOTO_UPLOAD_ATTEMPT_LIMITS.perHour,
-      onUnavailable: "deny",
+      onUnavailable: "allow",
     }),
     perDay: sharedRateLimiter({
       name: "kabinet-upload-attempt-day",
       ...PHOTO_UPLOAD_ATTEMPT_LIMITS.perDay,
-      onUnavailable: "deny",
+      onUnavailable: "allow",
     }),
   },
   cropAttempts: {
     perHour: sharedRateLimiter({
       name: "kabinet-crop-attempt-hour",
       ...PHOTO_CROP_ATTEMPT_LIMITS.perHour,
-      onUnavailable: "deny",
+      onUnavailable: "allow",
     }),
     perDay: sharedRateLimiter({
       name: "kabinet-crop-attempt-day",
       ...PHOTO_CROP_ATTEMPT_LIMITS.perDay,
-      onUnavailable: "deny",
+      onUnavailable: "allow",
     }),
   },
 };

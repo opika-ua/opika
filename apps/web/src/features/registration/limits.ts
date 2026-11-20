@@ -1,3 +1,4 @@
+import { attemptOf } from "../../api/limit-outcome";
 import { type RateLimiter, sharedRateLimiter } from "../../api/rate-limit";
 
 const MINUTE_MS = 60_000;
@@ -26,7 +27,10 @@ export const REGISTRATION_MAIL_DAILY_CAP = 300;
 const limiter = (name: string, limits: { windowMs: number; maxRequests: number }) =>
   sharedRateLimiter({ name, ...limits, onUnavailable: "deny" });
 
-/** Shared store in production; an unreachable store refuses, as every kabinet budget does. */
+/**
+ * Shared store in production. An unreachable store refuses: registration is anonymous use
+ * (owner, 2026-11-20), so an outage can't open it to floods.
+ */
 export const registrationLimiters = {
   perIpHour: limiter("registration-ip-hour", REGISTRATION_LIMITS.perIpHour),
   perIpDay: limiter("registration-ip-day", REGISTRATION_LIMITS.perIpDay),
@@ -50,6 +54,23 @@ export const registrationLimiters = {
  */
 export const mailCapKeyOf = (now: Date): string =>
   `registration-mail:${now.toISOString().slice(0, 10)}`;
+
+/**
+ * Charges each limiter in order and answers the first that refuses or can't be asked (later ones
+ * aren't charged): a limit reached and a store that's down are told apart (owner, 2026-11-20).
+ */
+export async function firstLimit(
+  limiters: readonly RateLimiter[],
+  key: string,
+  now: Date,
+): Promise<{ kind: "ok" } | { kind: "refused"; by: RateLimiter } | { kind: "unavailable" }> {
+  for (const candidate of limiters) {
+    const outcome = await attemptOf(candidate, key, now);
+    if (outcome === "refused") return { kind: "refused", by: candidate };
+    if (outcome === "unavailable") return { kind: "unavailable" };
+  }
+  return { kind: "ok" };
+}
 
 /** Charges each limiter in order and answers the first that refuses (later ones aren't charged). */
 export async function firstRefusal(

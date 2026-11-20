@@ -1,9 +1,12 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { attemptOf, type LimitOutcome } from "./limit-outcome";
 import { logRateLimited, type RateLimitedLog } from "./rate-limit-log";
 import { warnLimiterUnreachable } from "./rate-limit-unreachable";
 import { redisCredentialsOf } from "./redis-credentials";
 import { retryAfterSecondsOf } from "./retry-after";
+
+export type { LimitOutcome } from "./limit-outcome";
 
 // ---------------------------------------------------------------------------
 // Generic per-IP rate limiter
@@ -50,6 +53,12 @@ export interface RateLimiter {
    * header. Optional so a stub limiter needs only `check`; read it through `retryAfterSecondsOf`.
    */
   retryAfterSeconds?(key: string, now: Date): number;
+  /**
+   * `check`, but a store that can't be asked answers `unavailable` instead of the limiter's mode,
+   * for a caller whose fail mode depends on the request (a signed-in kabinet session, owner
+   * 2026-11-20). Optional like `retryAfterSeconds`; read it through `attemptOf`.
+   */
+  attempt?(key: string, now: Date): Promise<LimitOutcome>;
 }
 
 /** A limiter that can also be asked without spending: the crop checks its allowance this way. */
@@ -182,7 +191,8 @@ function sweep(store: Map<string, SlidingWindowEntry>, cutoff: number): void {
  *
  * **Per-limiter fail mode (`onUnavailable`, owner 2026-11-06).** The text below describes
  * RL-1's original fail-closed behaviour, now the `deny` mode; `allow` returns true on the same
- * two paths and logs the same warning.
+ * two paths and logs the same warning. Since 2026-11-20 `attempt` answers `unavailable` on those
+ * paths instead, for a caller that decides by the request (a validated kabinet session).
  *
  * **Fails closed on a store error or a slow store, with a bounded
  * timeout - RL-1, resolved (Oleksii accepted the recommendation).** Two
@@ -256,31 +266,38 @@ export function upstashRateLimiter(opts: {
   const resets = new Map<string, number>();
   const MAX_TRACKED_REFUSALS = 10_000;
 
+  // `outcome` names the limiter's own mode; a caller of `attempt` may decide otherwise.
+  const attempt = async (key: string): Promise<LimitOutcome> => {
+    try {
+      const result = await ratelimit.limit(key);
+      if (!result.success) {
+        if (resets.size >= MAX_TRACKED_REFUSALS) resets.clear();
+        resets.set(key, result.reset);
+      } else {
+        resets.delete(key);
+      }
+      if (result.reason === "timeout") {
+        console.error(`apiRateLimiter: Upstash check timed out - ${outcome} (RL-1)`);
+        warnLimiterUnreachable(opts.prefix, "timeout");
+        return "unavailable";
+      }
+      return result.success ? "allowed" : "refused";
+    } catch (err) {
+      console.error(`apiRateLimiter: Upstash check failed - ${outcome} (RL-1)`, err);
+      warnLimiterUnreachable(opts.prefix, "error");
+      return "unavailable";
+    }
+  };
+
   return {
     retryAfterSeconds(key: string, now: Date): number {
       const reset = resets.get(key);
       return reset === undefined ? windowSeconds : (reset - now.getTime()) / 1000;
     },
+    attempt: (key: string, _now: Date) => attempt(key),
     async check(key: string, _now: Date): Promise<boolean> {
-      try {
-        const result = await ratelimit.limit(key);
-        if (!result.success) {
-          if (resets.size >= MAX_TRACKED_REFUSALS) resets.clear();
-          resets.set(key, result.reset);
-        } else {
-          resets.delete(key);
-        }
-        if (result.reason === "timeout") {
-          console.error(`apiRateLimiter: Upstash check timed out - ${outcome} (RL-1)`);
-          warnLimiterUnreachable(opts.prefix, "timeout");
-          return unavailable;
-        }
-        return result.success;
-      } catch (err) {
-        console.error(`apiRateLimiter: Upstash check failed - ${outcome} (RL-1)`, err);
-        warnLimiterUnreachable(opts.prefix, "error");
-        return unavailable;
-      }
+      const result = await attempt(key);
+      return result === "unavailable" ? unavailable : result === "allowed";
     },
     // `getRemaining` runs `limit`'s window arithmetic and writes nothing. It has no timeout of its
     // own, so it gets the check's; unreachable or slow, the limiter's mode answers.
@@ -432,6 +449,12 @@ export function loggingRefusals(
       return allowed;
     },
     retryAfterSeconds: (key: string, now: Date) => retryAfterSecondsOf(inner, key, now),
+    // Only a real refusal is logged as one; an unreachable store has its own warning.
+    async attempt(key: string, now: Date): Promise<LimitOutcome> {
+      const result = await attemptOf(inner, key, now);
+      if (result === "refused") logRateLimited(name, log);
+      return result;
+    },
     // A "no" here refuses a request too, so it is logged like one.
     async wouldAllow(key: string, now: Date): Promise<boolean> {
       const allowed = await inner.wouldAllow(key, now);

@@ -1109,6 +1109,7 @@ export const kabinetInvitationContract = {
       INVITE_UNUSABLE: apiErrors.INVITE_UNUSABLE,
       PASSWORD_REJECTED: apiErrors.PASSWORD_REJECTED,
       RATE_LIMITED: apiErrors.RATE_LIMITED,
+      RATE_LIMITER_UNAVAILABLE: apiErrors.RATE_LIMITER_UNAVAILABLE,
       FORBIDDEN: apiErrors.FORBIDDEN,
     }),
 };

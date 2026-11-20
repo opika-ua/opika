@@ -16,12 +16,13 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { organization } from "better-auth/plugins/organization";
 import { clientIp } from "../api/client-ip";
+import { attemptOf } from "../api/limit-outcome";
 import { ipRateLimitKey } from "../api/rate-limit-key";
 import { inLoggerContext, maskedAuthHandler, maskedAuthLogging } from "./auth-log";
 import { withQueryErrorsCleaned } from "./clean-query-errors";
 import { kabinetCookieName } from "./cookie-names";
 import { MAGIC_LINK_TTL_SECONDS, type MagicLinkSender } from "./magic-link-sender";
-import { PASSWORD_PATHS, passwordHooks } from "./password-hooks";
+import { limiterUnavailable, PASSWORD_PATHS, passwordHooks } from "./password-hooks";
 import type { PasswordLimiters } from "./password-limits";
 import { type PasswordMailSender, RESET_PASSWORD_TTL_SECONDS } from "./password-mail";
 import { type KabinetLimiters, kabinetUserKey } from "./rate-limits";
@@ -127,8 +128,8 @@ export type KabinetAuthDeps = {
  * at all once the 503 lifts.
  *
  * `sign-in/magic-link` is not here: the route charges it against
- * `signInLimiters` (HS-Q5) and, over the limit, answers exactly as a success
- * does, so a 429 from here would undo that.
+ * `signInLimiters` (HS-Q5) and, refused, answers its own «not sent», the same
+ * for every address (owner, 2026-11-20); a 429 from here would undo that.
  *
  * **Why the kabinet limiters, for all three, and not `signInLimiters`.**
  * Those budget link *sends* (5 an hour per address, 20 per IP). Charging a
@@ -171,6 +172,16 @@ export const LIMITED_AUTH_PATHS: readonly string[] = [
   PASSWORD_PATHS.signIn,
   PASSWORD_PATHS.forgot,
   PASSWORD_PATHS.reset,
+  PASSWORD_PATHS.change,
+];
+
+/**
+ * The limited paths that are signed-in use (owner, 2026-11-20): with the store unreachable they go
+ * on for a session the hook validates. Every other limited path is a way in and stays refused.
+ */
+export const SIGNED_IN_AUTH_PATHS: readonly string[] = [
+  "/get-session",
+  "/sign-out",
   PASSWORD_PATHS.change,
 ];
 
@@ -339,28 +350,39 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       before: createAuthMiddleware(async (ctx) => {
         const now = clock();
         const limited = ctx.request !== undefined && LIMITED_AUTH_PATHS.includes(ctx.path);
-        if (
-          limited &&
-          ctx.request !== undefined &&
-          !(await deps.limiters.perIp.check(ipRateLimitKey(clientIp(ctx.request)), now))
-        ) {
-          throw new APIError("TOO_MANY_REQUESTS");
-        }
+        const ipOutcome =
+          limited && ctx.request !== undefined
+            ? await attemptOf(deps.limiters.perIp, ipRateLimitKey(clientIp(ctx.request)), now)
+            : "allowed";
+        // Store unreachable (owner, 2026-11-20): a signed-in path waits for its session below;
+        // the sign-in, verify, forgot and reset paths stay refused, so an outage can't open them.
+        const ipUnchecked = ipOutcome === "unavailable";
+        if (ipOutcome === "refused") throw new APIError("TOO_MANY_REQUESTS");
+        if (ipUnchecked && !SIGNED_IN_AUTH_PATHS.includes(ctx.path)) throw limiterUnavailable();
+        const refuseUnchecked = () => {
+          if (ipUnchecked) throw limiterUnavailable();
+          return undefined;
+        };
         const answered = await passwords.beforeSession(ctx, now);
         if (answered !== undefined) return answered;
         const token = await ctx.getSignedCookie(
           ctx.context.authCookies.sessionToken.name,
           ctx.context.secret,
         );
-        if (!token) return undefined;
+        if (!token) return refuseUnchecked();
         const found = await ctx.context.internalAdapter.findSession(token);
-        if (found === null) return undefined;
+        if (found === null) return refuseUnchecked();
+        // `findSession` doesn't check `expiresAt` (Better Auth 1.7.26, `internal-adapter.mjs`), so
+        // the outage pass-through does: an expired session is no session (review of #567).
+        if (ipUnchecked && new Date(found.session.expiresAt).getTime() <= now.getTime()) {
+          return refuseUnchecked();
+        }
         const userId = found.session.userId;
         if (
           await sessionHasLapsed(found.session, now, () => actors.hasActiveOperatorGrant(userId))
         ) {
           await ctx.context.internalAdapter.deleteSession(token);
-          return undefined;
+          return refuseUnchecked();
         }
         if (limited && !(await deps.limiters.perUser.check(kabinetUserKey(userId), now))) {
           throw new APIError("TOO_MANY_REQUESTS");

@@ -49,7 +49,10 @@ export function ForgotPasswordCard({
         ? fillTemplate(uk.kabinet.forgot.sent, { minutes: String(minutes) })
         : outcome.kind === "throttled"
           ? uk.kabinet.forgot.throttled
-          : uk.kabinet.signIn.sendFailed;
+          : outcome.kind === "unavailable"
+            ? // Owner, 2026-11-20: the limiter's store down; the magic link's approved sentence.
+              uk.kabinet.signIn.notSent
+            : uk.kabinet.signIn.sendFailed;
 
   return (
     <CardFrame titleId={`${id}-title`}>

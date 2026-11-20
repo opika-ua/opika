@@ -34,3 +34,6 @@ export async function GET(request: Request): Promise<Response> {
     { status: 429, headers },
   );
 }
+
+/** A form POST the proxy refused as a page navigation (`isPageNavigation`) gets the same page. */
+export const POST = GET;

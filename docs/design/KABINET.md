@@ -383,7 +383,7 @@ the server, not only in the UI.
 ## New patterns (N1-N23) - exact values
 | ID | Pattern | Values |
 |---|---|---|
-| N1 | Magic-link sign-in | 2 states; 60s resend lockout with countdown; identical response for any address; card 480 / padding 32 / radius 24 |
+| N1 | Magic-link sign-in | 2 states; 60s resend lockout with countdown; identical response for any address; card 480 / padding 32 / radius 24. **Superseded in part (owner, 2026-11-20, #567)**, verbatim: "#567: confirmed. The honest refusal «Зараз не вдалося надіслати лист…» applies both during an outage and over the per-address limit. This supersedes N1. Keep the refusal before any account lookup, identical for existing and non-existing addresses." A refused request now shows «not sent», not «sent»; it is still identical for every address |
 | N2 | Kabinet shell | header 72/64; nav 220, items 48 r16; text-only bottom tabs 56; content max 1080 |
 | N3 | Listing status chip | 32 tall, padding `0 12`, r999, 13/18·500. Чернетка: dashed 2px `#63676B`, ink-2 · Опубліковано: ink fill, white · Домовляються: 2px ink outline · Удома: `#DCDCD9`, ink · Знято: `#F2F2F0`, ink-2 |
 | N4 | «Ще шукає» | secondary 48; sets lastConfirmedAt; 8s undo; per animal only; «Ще домовляються» for reserved |

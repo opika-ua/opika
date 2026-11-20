@@ -173,6 +173,19 @@ describe("registerWith: abuse controls", () => {
     expect(h.writes).toEqual([]);
   });
 
+  it("the limiter store down (per IP, then per address): limiter_unavailable, nothing written (owner, 2026-11-20)", async () => {
+    const byIp = harness({ allowIp: async () => ({ kind: "unavailable" }) });
+    expect((await registerWith(formOf(), byIp.deps)).result).toEqual({
+      kind: "limiter_unavailable",
+    });
+    expect(byIp.writes).toEqual([]);
+    const byAddress = harness({ allowAddress: async () => ({ kind: "unavailable" }) });
+    expect((await registerWith(formOf(), byAddress.deps)).result).toEqual({
+      kind: "limiter_unavailable",
+    });
+    expect(byAddress.writes).toEqual([]);
+  });
+
   it("an invalid submit never charges the per-address budget", async () => {
     const h = harness();
     await registerWith(formOf({ link: "" }), h.deps);

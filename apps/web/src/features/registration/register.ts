@@ -45,17 +45,21 @@ export type RegisteredApplication = {
   notMeToken: string;
 };
 
+/** A budget's answer: `unavailable` is a store that couldn't be asked (owner, 2026-11-20). */
+export type Allowance =
+  | { kind: "ok" }
+  | { kind: "limited"; retryAfterSeconds: number }
+  | { kind: "unavailable" };
+
 export type RegisterDeps = {
   now: Date;
   /** The stamp's key (`derivedSecretKey(FORM_STAMP_KEY_LABEL)`). */
   stampKey: string;
   issueStamp: (issuedAt: Date) => string;
   /** Per IP (an hour and a day), charged on every submit past the honeypot and the stamp. */
-  allowIp: () => Promise<{ kind: "ok" } | { kind: "limited"; retryAfterSeconds: number }>;
+  allowIp: () => Promise<Allowance>;
   /** Per address, charged once the input is valid. */
-  allowAddress: (
-    email: string,
-  ) => Promise<{ kind: "ok" } | { kind: "limited"; retryAfterSeconds: number }>;
+  allowAddress: (email: string) => Promise<Allowance>;
   /** A current settlement by id, or (no JS) by its exact name; null when there's no such one. */
   resolveCity: (
     by: { kind: "id"; id: string } | { kind: "name"; name: string },
@@ -174,6 +178,10 @@ export async function registerWith(
   }
 
   const perIp = await deps.allowIp();
+  if (perIp.kind === "unavailable") {
+    deps.log("limiter_unavailable");
+    return state({ kind: "limiter_unavailable" }, valuesOf(raw, null), issuedAt);
+  }
   if (perIp.kind === "limited") {
     deps.log("rate_limited");
     return state(
@@ -236,6 +244,10 @@ export async function registerWith(
   const input = parsed.data;
 
   const perAddress = await deps.allowAddress(input.email);
+  if (perAddress.kind === "unavailable") {
+    deps.log("limiter_unavailable");
+    return state({ kind: "limiter_unavailable" }, values, issuedAt);
+  }
   if (perAddress.kind === "limited") {
     deps.log("rate_limited");
     return state(

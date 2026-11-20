@@ -4,6 +4,7 @@ import { funnelRepo, selfRegistrationRepo } from "@opika/db/repos";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { clientIp } from "../../api/client-ip";
+import type { RateLimiter } from "../../api/rate-limit";
 import { addressRateLimitKey, derivedSecretKey, ipRateLimitKey } from "../../api/rate-limit-key";
 import { retryAfterSecondsOf } from "../../api/retry-after";
 import { kabinetAuthAvailability } from "../../kabinet/auth-route";
@@ -25,8 +26,8 @@ import { resolveRegistrationCity, searchRegistrationCitiesIn } from "./cities";
 import { isSelfRegistrationEnabled } from "./flag";
 import { FORM_STAMP_KEY_LABEL, issueFormStamp } from "./form-stamp";
 import type { CitySearchAnswer, RegistrationFormState } from "./form-state";
-import { firstRefusal, registrationLimiters } from "./limits";
-import { nativePostRedirectOf, registerWith, typedValuesOf } from "./register";
+import { firstLimit, registrationLimiters } from "./limits";
+import { type Allowance, nativePostRedirectOf, registerWith, typedValuesOf } from "./register";
 import { parseSetCookie } from "./set-cookie";
 
 const log = (line: string): void => {
@@ -70,22 +71,10 @@ export async function registerShelter(
     now,
     stampKey,
     issueStamp: (issuedAt) => issueFormStamp(issuedAt, stampKey),
-    allowIp: async () => {
-      const key = ipRateLimitKey(ip);
-      const refusedBy = await firstRefusal([limiters.perIpHour, limiters.perIpDay], key, now);
-      return refusedBy === null
-        ? { kind: "ok" }
-        : { kind: "limited", retryAfterSeconds: retryAfterSecondsOf(refusedBy, key, now) };
-    },
-    allowAddress: async (email) => {
-      const key = addressRateLimitKey(email);
-      return (await limiters.perAddress.check(key, now))
-        ? { kind: "ok" }
-        : {
-            kind: "limited",
-            retryAfterSeconds: retryAfterSecondsOf(limiters.perAddress, key, now),
-          };
-    },
+    allowIp: async () =>
+      allowanceOf([limiters.perIpHour, limiters.perIpDay], ipRateLimitKey(ip), now),
+    allowAddress: async (email) =>
+      allowanceOf([limiters.perAddress], addressRateLimitKey(email), now),
     resolveCity: (by) => resolveRegistrationCity(db, by),
     passwordVerdict: shelterPasswordVerdictOf,
     hasAccount: (email) => selfRegistrationRepo(db).hasAccount(email),
@@ -141,4 +130,15 @@ export async function searchRegistrationCities(query: string): Promise<CitySearc
     return { kind: "failed" };
   }
   return searchRegistrationCitiesIn(kabinetDb(), query);
+}
+
+/** The budgets' answer for the form: a limit reached with its wait, or a store that's down. */
+async function allowanceOf(
+  limiters: readonly RateLimiter[],
+  key: string,
+  now: Date,
+): Promise<Allowance> {
+  const limit = await firstLimit(limiters, key, now);
+  if (limit.kind === "ok" || limit.kind === "unavailable") return limit;
+  return { kind: "limited", retryAfterSeconds: retryAfterSecondsOf(limit.by, key, now) };
 }

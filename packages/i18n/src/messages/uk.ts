@@ -259,6 +259,8 @@ export const uk = {
       passwordMismatch: "Паролі не збігаються.",
       summary: "Перевірте кілька полів:",
       rateLimited: "Забагато спроб. Спробуйте за кілька хвилин.",
+      /** The limiter's store down, not a limit reached (owner, approved 2026-11-20). */
+      unavailable: "Зараз не вдалося зареєструвати притулок. Спробуйте за кілька хвилин.",
       emailTaken: "Цей email уже зареєстровано. Увійдіть або відновіть пароль.",
       generic: "Не вдалося зареєструвати. Спробуйте ще раз або напишіть мені.",
       /** The day's confirmation emails are used up (owner, 2026-11-18); `{email}` from app config. */
@@ -547,6 +549,13 @@ export const uk = {
        */
       failed: "Не вдалося звʼязатися із сайтом. Перевірте зʼєднання і спробуйте ще раз.",
       sendFailed: "Не вдалося надіслати посилання. Перевірте зʼєднання і спробуйте ще раз.",
+      /**
+       * The link request refused by the limiter, over the limit or with its store down (owner,
+       * approved 2026-11-20). The same for every address, so it says nothing about who exists.
+       */
+      notSent: "Зараз не вдалося надіслати лист. Спробуйте за кілька хвилин.",
+      /** The password sign-in refused with the limiter's store down (owner, approved 2026-11-20). */
+      unavailable: "Зараз не вдалося увійти. Спробуйте за кілька хвилин.",
       sentTitle: "Перевірте пошту",
       /** `{email}` is the address, shown in 500 weight. */
       sentBody:
@@ -595,6 +604,11 @@ export const uk = {
       personal:
         "Пароль не може містити вашу адресу пошти (навіть частину до @), назву притулку чи назву сайту.",
       mismatch: "Паролі не збігаються.",
+      /**
+       * A new password (reset link or invitation) refused with the limiter's store down, not a
+       * limit reached (owner, approved 2026-11-20).
+       */
+      changeUnavailable: "Зараз не вдалося змінити пароль. Спробуйте за кілька хвилин.",
     },
     /**
      * «Забули пароль?» (`/kabinet/vkhid/zabuly`, §C, his Ukrainian, verbatim). `sent` is the one

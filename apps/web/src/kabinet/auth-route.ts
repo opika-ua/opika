@@ -3,6 +3,7 @@ import { clientIp } from "../api/client-ip";
 import { FORWARDED_AUTH_PATHS, type KabinetAuth } from "./auth";
 import { consoleInvitationSender, type InvitationSender } from "./email-senders";
 import { consoleSender, type MagicLinkSender } from "./magic-link-sender";
+import { SIGN_IN_LINK_NOT_SENT_CODE } from "./password-codes";
 import { consolePasswordMail, type PasswordMailSender } from "./password-mail";
 import { type ProductionMail, productionMailFor } from "./production-mail";
 import { type ProductionSignIn, productionSignInOf } from "./production-sign-in";
@@ -170,14 +171,23 @@ function withBody(response: Response, body: unknown): Response {
  * 1. Unavailable → 503.
  * 2. Not an allowlisted path → 404, before Better Auth sees it.
  *    A body over `AUTH_MAX_BODY_BYTES` → 413, read no further, before any parse.
- * 3. A magic-link request: charge both sign-in budgets; over either, answer
- *    exactly as a success does and send nothing. Otherwise forward it with
+ * 3. A magic-link request: charge both sign-in budgets; refused by either
+ *    (over the limit, or the store down), answer «not sent» (`linkNotSent`),
+ *    the same for every address, and send nothing. Otherwise forward it with
  *    the email normalised, so the stored address and the limiter key agree.
  * 4. The password endpoints: their successes answered `{ status: true }`
  *    (`PASSWORD_ANSWERS`).
  * 5. `get-session`: Better Auth's answer without the session's token
  *    (`sessionAnswerOf`).
  */
+/**
+ * A refused link request (owner, 2026-11-20): not «sent», so the card can say so. One constant
+ * answer, built before Better Auth or the database is touched, so it is the same for an address
+ * with an account and one without, in body, status and time.
+ */
+const linkNotSent = (): Response =>
+  Response.json({ status: false, code: SIGN_IN_LINK_NOT_SENT_CODE }, { status: 429 });
+
 export async function handleKabinetAuth(
   incoming: Request,
   deps: {
@@ -217,7 +227,7 @@ export async function handleKabinetAuth(
     if (typeof email !== "string") return new Response("Bad Request", { status: 400 });
 
     if (!(await signInAllowed(deps.limiters, { email, ip: clientIp(request) }, deps.now))) {
-      return Response.json({ status: true });
+      return linkNotSent();
     }
     const forwarded = new Request(request.url, {
       method: "POST",

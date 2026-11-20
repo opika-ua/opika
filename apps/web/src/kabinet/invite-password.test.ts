@@ -1,6 +1,7 @@
 import { type InviteTokenRow, inviteTokenRowOf } from "@opika/db/repos";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
+import { unreachableLimiter } from "../api/test-outage";
 import {
   type AcceptWithPasswordDeps,
   acceptInvitationWithPassword,
@@ -161,6 +162,17 @@ describe("acceptInvitationWithPassword: the order of the steps", () => {
       kind: "rate_limited",
     });
     expect(calls).toEqual([]);
+  });
+
+  it("with the limiter store unreachable: its own answer, before anything is read (owner, 2026-11-20)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { calls, deps } = recording({ perIp: unreachableLimiter("deny") });
+    expect(await acceptInvitationWithPassword({ token, password: GOOD }, deps)).toEqual({
+      kind: "limiter_unavailable",
+    });
+    expect(calls).toEqual([]);
+    vi.restoreAllMocks();
   });
 
   it("a refused password uses nothing up and writes nothing", async () => {

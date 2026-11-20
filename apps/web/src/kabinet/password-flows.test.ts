@@ -1944,7 +1944,7 @@ describe("the limits (§4.3, §9 answers 5 and 7)", () => {
     expect(statuses.filter((s) => s === 429).length).toBeGreaterThanOrEqual(7);
   });
 
-  it("fails closed: a delay store that errors refuses the attempt for a minute, and says so in the log", async () => {
+  it("fails closed: a delay store that errors refuses the attempt as unavailable (no wait), and says so in the log", async () => {
     await adminWithPassword();
     const broken: DelayStore = {
       remainingMs: async () => {
@@ -1957,7 +1957,9 @@ describe("the limits (§4.3, §9 answers 5 and 7)", () => {
     build({ password: { signInDelay: broken } });
     const answer = await signInWithPassword(ADMIN, GOOD);
     expect(answer.status).toBe(429);
-    expect(JSON.parse(answer.text)).toMatchObject({ retryAfterMinutes: 1 });
+    // Owner, 2026-11-20: an honest refusal, never «через 1 хв.».
+    expect(JSON.parse(answer.text)).toMatchObject({ code: "RATE_LIMITER_UNAVAILABLE" });
+    expect(answer.text).not.toContain("retryAfterMinutes");
     expect(logged.join("\n")).toContain("fail closed");
   });
 

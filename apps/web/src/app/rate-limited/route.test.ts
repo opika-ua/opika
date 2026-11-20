@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { GET } from "./route";
+import { GET, POST } from "./route";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -55,4 +55,13 @@ it("in production with no configured origin, makes no fetch and still answers 42
   const response = await GET(new Request("https://attacker.example/rate-limited"));
   expect(response.status).toBe(429);
   expect(fetchStub).not.toHaveBeenCalled();
+});
+
+it("answers a refused form POST navigation with the same page", async () => {
+  vi.stubGlobal("fetch", async () => new Response("<h1>screen</h1>", { status: 200 }));
+  const response = await POST(
+    new Request("https://opika.example/rate-limited", { method: "POST" }),
+  );
+  expect(response.status).toBe(429);
+  expect(await response.text()).toBe("<h1>screen</h1>");
 });

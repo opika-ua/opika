@@ -215,13 +215,13 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   shell: 5,
 
-  signIn: 20,
+  signIn: 22,
 
   signInPage: 3,
 
   setPassword: 10,
 
-  password: 5,
+  password: 6,
 
   forgot: 5,
 

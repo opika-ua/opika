@@ -273,7 +273,8 @@ type KabinetActor =
 - **Implementation obligations** (checked in the auth PR, not assertable here): Better Auth must
   issue **UUID** user ids, or `ModeratorId`/`ShelterAdminId` (`z.uuid()` brands) won't parse.
   The magic-link endpoint must answer identically for known and unknown emails (K1, N1), and
-  a test proves it. The support scope has a 30-minute idle expiry.
+  a test proves it. (Owner, 2026-11-20, #567, verbatim: "#567: confirmed. The honest refusal «Зараз не вдалося надіслати лист…» applies both during an outage and over the per-address limit. This supersedes N1. Keep the refusal before any account lookup, identical for existing and non-existing addresses." A limiter's refusal answers «not sent»,
+  the same for every address, before any account lookup.) The support scope has a 30-minute idle expiry.
 
 ---
 
