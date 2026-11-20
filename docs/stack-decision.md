@@ -34,7 +34,7 @@
 | **DB** | **Postgres 18 on Neon (`aws-eu-central-1`; Free plan today, auto-suspends after 5 min; upgrade to Launch and disable suspend before onboarding)** - PostGIS available, not enabled at MVP | Plain Postgres, `pg_dump` out at any time; scale-to-zero; PostGIS present so the Poland phase is not a migration |
 | **ORM** | **Drizzle 0.45.x** (→ 1.0 when it ships) | Prisma closed geometry/geography support as *not planned*; your primary query is proximity search |
 | **Images** | **Cloudflare R2** + variants pre-generated with `sharp` at upload, served through Cloudflare CDN | Zero egress cost. ~$6/mo at 300k MAU vs ~$530/mo for Supabase transforms, ~$700/mo for Cloudinary |
-| **Auth** | **Better Auth 1.7.x** (catalog pin 1.7.18), self-hosted, `organization` plugin for shelters | $0 at any scale. Clerk at 300k MAU = **$4,625/mo** - more than a year of every other line item combined |
+| **Auth** | **Better Auth 1.7.x** (catalog pin 1.7.26), self-hosted, `organization` plugin for shelters | $0 at any scale. Clerk at 300k MAU = **$4,625/mo** - more than a year of every other line item combined |
 | **i18n** | **next-intl 4.13.x** (**not adopted (as of 2026-11-13)**: the code uses the `packages/i18n` catalogues + `fillTemplate`) + native `Intl` for all dates/numbers/plurals | Paraglide's own docs tell you to use next-intl on Next.js; `Intl` handles Ukrainian's 4 plural forms and month declension correctly for free |
 | **Hosting** | **Vercel Pro ($20/mo)** at MVP, images off-platform, spend cap on day one. Exit ramp: OpenNext → Cloudflare Workers. *2026-10-18: the project is on Vercel Pro, with a spend limit set, as recommended here. It ran on Hobby before that (P-Q7, recorded 2026-10-17); the ads/partners phase is no longer blocked on the plan. Skew protection is on, with a 12 h maximum age: a client keeps talking to the deployment it loaded for up to 12 hours, so a changed response shape only meets clients older than that (H4 re-checks this for an installed app).* | Ops time is your scarcest resource; the $30/mo you'd save self-hosting is noise against a $25-50k grant |
 | **Repo** | **pnpm 11 workspaces + catalogs**. Add Turborepo the day CI exceeds ~3 min | Turborepo has nothing to cache until you have real build steps between packages |
@@ -242,7 +242,7 @@ On the Vercel bill-shock stories: the canonical case ([Metacast](https://metacas
 
 ## 4. Authentication
 
-**Recommendation: Better Auth 1.7.x (catalog pin 1.7.18; written as 1.6.x on 2026-08-05), self-hosted, with the `organization` plugin.**
+**Recommendation: Better Auth 1.7.x (catalog pin 1.7.26; written as 1.6.x on 2026-08-05), self-hosted, with the `organization` plugin.**
 
 This is the single highest-stakes cost decision in the document.
 
