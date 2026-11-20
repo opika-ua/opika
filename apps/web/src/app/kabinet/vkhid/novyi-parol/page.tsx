@@ -1,5 +1,6 @@
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
+import { kabinetSessionCookiePresent } from "../../../../features/chrome/kabinet-signed-in";
 import { AuthPage } from "../../../../features/kabinet/AuthPage";
 import { ResetPasswordCard } from "../../../../features/kabinet/password/ResetPasswordCard";
 import { RESET_LINK } from "../../../../kabinet/email-links";
@@ -27,7 +28,7 @@ export default async function ResetPasswordPage({
   const value = (await searchParams)[RESET_LINK.param];
   const token = typeof value === "string" ? value : "";
   return (
-    <AuthPage>
+    <AuthPage kabinetSignedIn={await kabinetSessionCookiePresent()}>
       <ResetPasswordCard token={token} />
     </AuthPage>
   );

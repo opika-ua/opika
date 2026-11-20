@@ -45,7 +45,7 @@ export function kabinetSignedInFrom(store: CookiePresence): boolean {
  * swallows Next's own prerender-bailout signal for a future caller that
  * isn't `force-dynamic` - without it, that signal would be caught here and
  * the page would be served statically as "not signed in" for everyone,
- * silently. Today's six callers are all `force-dynamic`, so nothing bails
+ * silently. Today's callers are all `force-dynamic`, so nothing bails
  * out this way yet; this is what keeps that true if one ever isn't.
  */
 export async function kabinetSessionCookiePresent(): Promise<boolean> {

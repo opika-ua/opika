@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { OPERATOR_CONTACT } from "../../../brand";
+import { kabinetSessionCookiePresent } from "../../../features/chrome/kabinet-signed-in";
 import { AuthPage } from "../../../features/kabinet/AuthPage";
 import { leavesSignIn } from "../../../features/kabinet/home";
 import { InviteUnusableCard } from "../../../features/kabinet/password/InviteUnusableCard";
@@ -41,10 +42,7 @@ export async function generateMetadata({
 }
 
 /**
- * K1 page (mock «K1 Вхід» 1440 / 360). Desktop: the brand sits on the page
- * background at padding 32, the card centred below it, bottom padding 96.
- * Phone: a white 64px header holds the brand, the card follows at padding
- * `20 16 24`.
+ * K1 page, in the pre-sign-in frame (`AuthPage`: the public header, the card centred).
  *
  * With `?zaproshennia=<token>` it is the invitation link's «Створіть пароль» instead (PW-2,
  * `kabinet/invite-password.ts`): one read of the invitation the token names, by its hash, and
@@ -107,5 +105,5 @@ export default async function SignInPage({
         <InviteUnusableCard />
       );
   }
-  return <AuthPage>{card}</AuthPage>;
+  return <AuthPage kabinetSignedIn={await kabinetSessionCookiePresent()}>{card}</AuthPage>;
 }

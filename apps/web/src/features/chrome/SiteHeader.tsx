@@ -19,8 +19,11 @@ import { MobileNavMenu } from "./MobileNavMenu";
 /** The product's name (`brand.ts`, the one constant), re-exported for the wordmark's readers. */
 export { WORDMARK };
 
-/** Which nav entry is the current page (orange underline, `aria-current`); the saved page fills the bookmark instead. */
-export type NavCurrent = "animals" | "forShelters" | "about" | "saved";
+/**
+ * Which nav entry is the current page (orange underline, `aria-current`); the saved page fills the
+ * bookmark, and the pages before sign-in fill «Кабінет притулку».
+ */
+export type NavCurrent = "animals" | "forShelters" | "about" | "saved" | "kabinet";
 
 export interface SiteHeaderProps {
   /**
@@ -54,6 +57,8 @@ const CURRENT_INLINE = "underline decoration-accent decoration-2 underline-offse
 /** In the drawer a row is full width with a hairline under it; the current one takes the accent text colour. */
 const MENU_ROW_CLASS = `${NAV_LINK_CLASS} w-full border-line border-b`;
 const CURRENT_ROW = "text-accent-text!";
+/** The kabinet entry is a button, so its current look is the saved button's: filled ink. */
+const CURRENT_KABINET = "bg-ink! text-on-ink!";
 
 /** `sr-only`: the logo image is decorative and already draws the word, this keeps the accessible name. */
 function WordmarkText() {
@@ -111,18 +116,29 @@ function NavLinks({
   );
 }
 
-/** Signed in → the kabinet, otherwise its sign-in page; a plain <a>, a full document load (#509). */
+/**
+ * Signed in → the kabinet, otherwise its sign-in page; a plain <a>, a full document load (#509).
+ * Current is `aria-current="true"`, not "page": it marks the section, and on most of its pages
+ * (forgot, new password, the email links) the link leads somewhere else.
+ */
 function KabinetEntry({
   to,
   testId,
   className,
+  current,
 }: {
   to: "home" | "signIn";
   testId: string;
   className: string;
+  current: boolean;
 }) {
   return (
-    <KabinetEntryLink to={to} data-testid={testId} className={className}>
+    <KabinetEntryLink
+      to={to}
+      data-testid={testId}
+      aria-current={current ? "true" : undefined}
+      className={current ? `${className} ${CURRENT_KABINET}` : className}
+    >
       <Icon name="user" size="md" />
       {uk.nav.kabinetEntry}
     </KabinetEntryLink>
@@ -135,6 +151,7 @@ export function SiteHeader({
   current,
 }: SiteHeaderProps) {
   const entry = audienceOf(kabinetSignedIn) === "shelter" ? "home" : "signIn";
+  const inKabinet = current === "kabinet";
   return (
     // The element carries the sticky fill (the overlay rule in globals.css turns it transparent);
     // `Container` inside carries the width. Sticky because the header must follow the scroll.
@@ -167,10 +184,17 @@ export function SiteHeader({
 
         {/* Outline, not filled (owner, 2026-11-19): most visitors want animals, not a sign-in.
             Here from desktop; below it, the last item in the menu. */}
-        <KabinetEntry to={entry} testId="nav-kabinet" className="nav-kabinet" />
+        <KabinetEntry to={entry} testId="nav-kabinet" className="nav-kabinet" current={inKabinet} />
 
         <MobileNavMenu
-          footer={<KabinetEntry to={entry} testId="nav-kabinet-menu" className="nav-kabinet-row" />}
+          footer={
+            <KabinetEntry
+              to={entry}
+              testId="nav-kabinet-menu"
+              className="nav-kabinet-row"
+              current={inKabinet}
+            />
+          }
         >
           <NavLinks current={current} layout="menu" />
         </MobileNavMenu>
