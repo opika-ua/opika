@@ -75,7 +75,7 @@ one way or the other:
 |---|---|---|---|---|
 | Name, email (`auth_user`) | Postgres | Sending invites, sign-in links, reset links, password-change notices, and notices of verification decisions and donation links and the weekly «непідтверджені картки» reminder (shelter admins), or of a shelter's request (the operator) | **Not deleted on its own** - only when the whole shelter record is removed (`demo:remove --shelter`). **A narrower case is a real gap, not covered by that:** an admin *removed from* a shelter that keeps operating (`registry.admins.remove`) keeps their `auth_user`/`auth_account` rows - the only cleanup path, `cleanUpInvitedUsers`, only ever deletes a user who was invited and **never signed in even once** (`isNull(invitationCreatedUsers.firstSessionAt)` in `kabinet-invited-users-repo.ts`), which by construction excludes anyone who actually used the account. See G4 | Contract/legitimate interest while the membership exists; unclear once it's ended, see G4 |
 | Password hash (scrypt, `auth_account`) | Postgres | Sign-in | Same as above | Contract |
-| `user_agent` (verbatim, `auth_session`) | Postgres | Not stated in `/pro`'s own text, but the decision to keep it **is** on record: KH-Q6 (`docs/decisions-inbox.md`), Oleksii's verbatim answer - "User agent: (a), keep it" - and Better Auth 1.6.33 has no option to omit it (`createSession` writes it unconditionally; blanking it would mean the app rewriting Better Auth's own session row, which he declined). So the narrower, real gap is that `/pro` states the fact with no stated purpose, not that no purpose was ever decided - see G5 | Lives for the session's own 30-day idle / 90-day absolute window (role-dependent, `KABINET_SESSION_LIMITS`), then is deleted within two cron intervals of that expiry - ~12 hours, accounting for one possible skipped run (Vercel doesn't retry a missed cron), the same worst-case reasoning `auth-cleanup.ts`'s own comment applies to the link figure below, just without that figure's extra 15-minute window | Unclear in `/pro`'s own copy - see G5 |
+| `user_agent` (`auth_session`) | Postgres | No longer stored (D6, closed by PR #558): a `databaseHooks.session.create.before` hook writes null for every new session - see G5 | Rows created before the deploy keep theirs until the session lapses (at most 90 days), then are deleted with it by the 6-hourly clean-up | Not stored, so nothing to state - see G5 |
 | IP address | **Not stored in Postgres** (`disableIpTracking: true`, `ip_address = ''`) | - | n/a in the DB | An IP never reaches Upstash in raw form either - only as an HMAC-SHA256 output under `RATE_LIMIT_KEY_SECRET` - and it does reach Vercel's own edge logs (outside this app's control, per his own EM-L1 scoping) |
 | Typed sign-in addresses with no matching account | `auth_verification` | Rate-limiting / sign-in flow | 15-minute TTL, swept by the same 6-hourly cron, 12h15m worst case (same figure as above) | Legitimate interest |
 | Shelter history (`shelter_history`) | Postgres | Audit trail of the shelter's own kabinet writes | **Deleted only with the shelter record.** Carries no *adopter* data by design (`history-no-engagement.test.ts`) - but it does carry an admin's email at the moment they joined or were removed (`admin_joined`/`admin_removed` entries, `packages/domain/src/shelters/history.ts`), **stored at that moment and never updated or removed afterward**, even if that same admin is later removed from the shelter. See G4 | Legitimate interest/contract |
@@ -199,12 +199,13 @@ tooling can't close at all.**
   entry is a legitimate-interest audit record that outlives the membership - currently
   neither has been decided.
 
-**G5 - `auth_session.user_agent`'s purpose is decided (KH-Q6) but not stated in `/pro`'s own
-copy.** Oleksii's own verbatim answer in KH-Q6 is "User agent: (a), keep it," and Better Auth 1.6.33
-gives no option to omit it without the app rewriting Better Auth's own session row, which he
-declined to do. So the real, narrower gap is only that `/pro`'s sentence lists the fact with
-no stated *why* - not that no purpose exists, and not something "trivial to drop," since
-dropping it would need new code Better Auth doesn't otherwise require.
+**G5 - `auth_session.user_agent`: closed by PR #558 (the user agent is no longer stored).** KH-Q6
+had kept it; Oleksii reversed that on 2026-11-20: "D6: drop privacy.kabinet.userAgent. Separate
+small PR: stop storing the session user agent if Better Auth allows it without patching;
+otherwise report." Better Auth 1.7.26 allows it through the documented
+`databaseHooks.session.create.before`, which now writes null, and `/pro`'s browser-record
+sentence is gone. Rows created before the deploy keep their user agent until the session lapses,
+within 90 days, and are then deleted with it.
 
 **G6 - Vercel Analytics' "cookieless" claim should be reconfirmed against the current package
 version before it's relied on in a formal policy**, rather than carried forward from the
@@ -487,8 +488,8 @@ decisions (`docs/standing-constraints.md`'s Ukrainian-copy and public-claim gate
    `>` and confirming it turns *both* that test and the accept flow's own pre-existing boundary
    test ("accepts an invitation at its exact expiry instant") red from the single change -
    direct proof the comparison is now actually shared, not two copies that happen to agree today.
-5. **State `auth_session.user_agent`'s purpose in `/pro`'s own copy** (closes G5) - a copy
-   change, not a code change; the decision to keep the field is already made.
+5. ~~State `auth_session.user_agent`'s purpose in `/pro`'s own copy~~ - superseded: G5 closed
+   by PR #558 (the user agent is no longer stored, D6).
 6. **Decide G7** - a consent mechanism for the one adopter cookie, or a recorded "strictly
    necessary" position covering both the deck and reveal purposes. Either is defensible;
    what isn't is leaving it undecided once a formal policy exists to make the omission
