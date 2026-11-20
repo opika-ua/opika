@@ -794,6 +794,7 @@ export const en = {
       throttled: "Too many sign-in attempts. Try again in {minutes} min.",
       failed: "Could not reach the site. Check your connection and try again.",
       sendFailed: "The link could not be sent. Check your connection and try again.",
+      notSent: "The email could not be sent just now. Try again in a few minutes.",
       sentTitle: "Check your email",
       sentBody:
         "If this address is on the list, a sign-in link will arrive at {email}. It works for 15 minutes and opens on any device.",

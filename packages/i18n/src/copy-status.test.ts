@@ -147,6 +147,8 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
         "forgot",
         "hidePassword",
         "intro",
+        // The magic link's refusal (owner, approved 2026-11-20).
+        "notSent",
         "otherAddress",
         "pageTitle",
         "passwordLabel",

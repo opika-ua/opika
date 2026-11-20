@@ -4,16 +4,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * With the shared store unreachable, each limiter answers by its own explicit `onUnavailable`
- * (owner, 2026-11-06). The tables below are the policy; a limiter missing from them, or in the
- * wrong mode, fails here.
+ * (owner, 2026-11-06; revised 2026-11-20). The tables below are the policy; a limiter missing from
+ * them, or in the wrong mode, fails here.
+ *
+ * 2026-11-20: a first-contact reveal and signed-in kabinet use fail open. The kabinet limiters
+ * charged only after a session is validated (per user, photos, city search) are `allow`; `kabinet-ip`
+ * is charged before any session is read, so it stays `deny` and its callers ask it through
+ * `attemptOf`, letting a validated session through (`page-limit`, `rpc-route`, `auth` tests).
+ * Sign-in, reset, invite and registration stay `deny`.
  */
 // `health` is in memory since 2026-11-20 (owner): it has no store to lose.
-const ALLOW = ["api", "adopter-mint", "monitoring", "monitoring-test"];
-const DENY = [
-  "kabinet-sign-in-address",
-  "kabinet-sign-in-ip",
+const ALLOW = [
+  "api",
+  "adopter-mint",
+  "monitoring",
+  "monitoring-test",
+  "reveal-ip",
   "kabinet-user",
-  "kabinet-ip",
   "kabinet-photo-hour",
   "kabinet-photo-day",
   "kabinet-upload-attempt-hour",
@@ -21,11 +28,15 @@ const DENY = [
   "kabinet-crop-attempt-hour",
   "kabinet-crop-attempt-day",
   "kabinet-city-search-user",
+];
+const DENY = [
+  "kabinet-sign-in-address",
+  "kabinet-sign-in-ip",
+  "kabinet-ip",
   "kabinet-invite-ip",
   "kabinet-forgot-ip",
   "kabinet-forgot-address",
   "kabinet-reset-ip",
-  "reveal-ip",
   "registration-ip-hour",
   "registration-ip-day",
   "registration-address",
@@ -110,6 +121,8 @@ describe("limiter fail modes with the store unreachable", () => {
     expect(callers.sort()).toEqual([
       "api/per-ip-budgets.ts",
       "api/rate-limit.ts",
+      // Tests only: an unreachable store for the outage suites, never served.
+      "api/test-outage.ts",
       "app/api/monitoring/route.ts",
       "app/api/monitoring/test/route.ts",
       "features/registration/limits.ts",
@@ -149,5 +162,37 @@ describe("limiter fail modes with the store unreachable", () => {
       fail();
       expect(await registered.get(name)?.limiter.check("k", new Date())).toBe(false);
     });
+
+    it.each([...ALLOW, ...DENY])(
+      "%s tells an unreachable store apart from a refusal when asked through attemptOf",
+      async (name) => {
+        const registered = await loadAllLimiters();
+        const { attemptOf } = await import("./limit-outcome");
+        const limiter = registered.get(name)?.limiter;
+        if (limiter === undefined) throw new Error(name);
+        fail();
+        expect(await attemptOf(limiter, "k", new Date())).toBe("unavailable");
+      },
+    );
+  });
+
+  it.each(DENY)("%s still refuses over the limit, and lets through under it", async (name) => {
+    const registered = await loadAllLimiters();
+    const limiter = registered.get(name)?.limiter;
+    limitMock.mockResolvedValue({ success: false, reset: Date.now() + 1_000 });
+    expect(await limiter?.check("k", new Date())).toBe(false);
+    limitMock.mockResolvedValue({ success: true, reset: Date.now() + 1_000 });
+    expect(await limiter?.check("k", new Date())).toBe(true);
+  });
+
+  it("an over-limit refusal through attemptOf is «refused», never «unavailable»", async () => {
+    const registered = await loadAllLimiters();
+    const { attemptOf } = await import("./limit-outcome");
+    limitMock.mockResolvedValue({ success: false, reset: Date.now() + 1_000 });
+    for (const name of [...ALLOW, ...DENY]) {
+      const limiter = registered.get(name)?.limiter;
+      if (limiter === undefined) throw new Error(name);
+      expect(await attemptOf(limiter, "k", new Date()), name).toBe("refused");
+    }
   });
 });

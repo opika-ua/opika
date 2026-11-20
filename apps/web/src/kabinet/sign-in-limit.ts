@@ -25,9 +25,9 @@ export type SignInLimiters = { perAddress: RateLimiter; perIp: RateLimiter };
  * Whether a magic-link request may go through. Both budgets are always
  * charged, so alternating addresses from one IP still runs down the IP's.
  *
- * Over either limit, the route answers exactly as it does on success and
- * simply doesn't send: a different answer would tell a caller which
- * addresses are being asked about (no enumeration, N1).
+ * Over either limit, or with the store unreachable (both fail closed), the
+ * route answers «not sent» (owner, 2026-11-20). It decides before any account
+ * is read, so the answer is the same whether the address has one (N1).
  */
 export async function signInAllowed(
   limiters: SignInLimiters,

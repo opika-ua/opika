@@ -26,7 +26,10 @@ export const REGISTRATION_MAIL_DAILY_CAP = 300;
 const limiter = (name: string, limits: { windowMs: number; maxRequests: number }) =>
   sharedRateLimiter({ name, ...limits, onUnavailable: "deny" });
 
-/** Shared store in production; an unreachable store refuses, as every kabinet budget does. */
+/**
+ * Shared store in production. An unreachable store refuses: registration is anonymous use
+ * (owner, 2026-11-20), so an outage can't open it to floods.
+ */
 export const registrationLimiters = {
   perIpHour: limiter("registration-ip-hour", REGISTRATION_LIMITS.perIpHour),
   perIpDay: limiter("registration-ip-day", REGISTRATION_LIMITS.perIpDay),

@@ -3,6 +3,7 @@ import type { Database } from "@opika/db";
 import type { LocationPrivacyPolicy } from "@opika/domain";
 import { BodyLimitPlugin, RPCHandler } from "@orpc/server/fetch";
 import { boundedBody, readBodyHead } from "../api/bounded-body";
+import { attemptOf } from "../api/limit-outcome";
 import type { RateLimiter } from "../api/rate-limit";
 import { ipRateLimitKey } from "../api/rate-limit-key";
 import { retryAfterSecondsOf } from "../api/retry-after";
@@ -162,9 +163,14 @@ export async function handleKabinetRpc(
   },
 ): Promise<Response> {
   const ipKey = ipRateLimitKey(deps.ip);
-  if (!(await deps.limiters.perIp.check(ipKey, deps.now))) {
+  const ipOutcome = await attemptOf(deps.limiters.perIp, ipKey, deps.now);
+  if (ipOutcome === "refused") {
     return tooMany(retryAfterSecondsOf(deps.limiters.perIp, ipKey, deps.now));
   }
+  // Store unreachable (owner, 2026-11-20): only a call whose session is validated below goes on;
+  // the invitation link and anything without a live session are refused, as before.
+  const ipUnchecked = ipOutcome === "unavailable";
+  const refusedUnchecked = () => tooMany(retryAfterSecondsOf(deps.limiters.perIp, ipKey, deps.now));
   if (deps.availability.kind === "unavailable") {
     return new Response("Kabinet is not available", { status: 503 });
   }
@@ -184,6 +190,7 @@ export async function handleKabinetRpc(
   // except on the invitation link.
   const path = new URL(request.url).pathname;
   const invitationLink = KABINET_ANONYMOUS_PATHS.has(path);
+  if (ipUnchecked && invitationLink) return refusedUnchecked();
   if (!invitationLink && !hasSessionCookie(request.headers.get("cookie"))) {
     return unauthorized();
   }
@@ -217,6 +224,7 @@ export async function handleKabinetRpc(
     return new Response("Registry is not available", { status: 503 });
   }
   const { principal, userId, db, cursorSecret } = identity ?? (await deps.resolve());
+  if (ipUnchecked && userId === null) return refusedUnchecked();
   if (userId !== null) {
     const userKey = kabinetUserKey(userId);
     if (!(await deps.limiters.perUser.check(userKey, deps.now))) {

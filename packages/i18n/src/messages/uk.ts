@@ -547,6 +547,11 @@ export const uk = {
        */
       failed: "Не вдалося звʼязатися із сайтом. Перевірте зʼєднання і спробуйте ще раз.",
       sendFailed: "Не вдалося надіслати посилання. Перевірте зʼєднання і спробуйте ще раз.",
+      /**
+       * The link request refused by the limiter, over the limit or with its store down (owner,
+       * approved 2026-11-20). The same for every address, so it says nothing about who exists.
+       */
+      notSent: "Зараз не вдалося надіслати лист. Спробуйте за кілька хвилин.",
       sentTitle: "Перевірте пошту",
       /** `{email}` is the address, shown in 500 weight. */
       sentBody:

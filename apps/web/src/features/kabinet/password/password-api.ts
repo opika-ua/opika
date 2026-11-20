@@ -1,5 +1,6 @@
 import {
   AUTH_ERROR_CODES,
+  LIMITER_UNAVAILABLE_CODE,
   type PasswordRefusal,
   passwordRefusalOf,
   SIGN_IN_DELAYED_CODE,
@@ -18,6 +19,8 @@ export type SignInOutcome =
   | { kind: "wrong" }
   /** The per-address delay or the per-IP budget (a minute, the budget's window). */
   | { kind: "throttled"; minutes: number }
+  /** The limiter store could not be asked (owner, 2026-11-20): refused, no wait time to name. */
+  | { kind: "unavailable" }
   /**
    * The request got no answer at all (the fetch threw): the connection, not the
    * credentials, and not the site's fault. G4 (audit 2026-10-22) gives it a sentence
@@ -59,6 +62,7 @@ export function signInOutcomeOf(answer: Answer): SignInOutcome {
   if (answer.status >= 500) return { kind: "failed" };
   if (answer.status === 200) return { kind: "signed_in" };
   if (answer.status === 429) {
+    if (codeOf(answer) === LIMITER_UNAVAILABLE_CODE) return { kind: "unavailable" };
     const minutes = field(answer.body, "retryAfterMinutes");
     // The per-IP budget answers without minutes: its window is 60 s, so one minute is true.
     return {

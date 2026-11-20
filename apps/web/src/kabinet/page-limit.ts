@@ -1,3 +1,4 @@
+import { attemptOf } from "../api/limit-outcome";
 import { ipRateLimitKey } from "../api/rate-limit-key";
 import { SIGN_IN_LINK } from "./email-links";
 import { type KabinetLimiters, kabinetUserKey } from "./rate-limits";
@@ -46,14 +47,19 @@ export const isChargedKabinetPageLoad = (method: string, pathname: string): bool
  *
  * `userId` is resolved only once the IP is within its budget, so a caller
  * over it costs no session read.
+ *
+ * With the store unreachable (owner, 2026-11-20) the load goes through only
+ * for a session `userId` validates: signed-in use fails open, an anonymous
+ * load (the sign-in pages included) is refused. `perUser` fails open itself.
  */
 export async function kabinetPageLoadAllowed(
   limiters: KabinetLimiters,
   request: { ip: string; userId: () => Promise<string | null> },
   now: Date,
 ): Promise<boolean> {
-  if (!(await limiters.perIp.check(ipRateLimitKey(request.ip), now))) return false;
+  const ip = await attemptOf(limiters.perIp, ipRateLimitKey(request.ip), now);
+  if (ip === "refused") return false;
   const userId = await request.userId();
-  if (userId === null) return true;
+  if (userId === null) return ip === "allowed";
   return limiters.perUser.check(kabinetUserKey(userId), now);
 }

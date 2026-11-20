@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { SIGN_IN_LINK_NOT_SENT_CODE } from "../../kabinet/password-codes";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { TextField } from "../../ui/form";
@@ -41,13 +42,16 @@ import { FORGOT_PATH, SHELTER_HOME } from "./routes";
  *   the cabinet's home.
  * - **The link** gets the same answer for a known and an unknown address: the
  *   route answers success either way (`handleKabinetAuth`), so this card
- *   can't tell them apart and never tries to.
+ *   can't tell them apart and never tries to. A request the limiter refuses
+ *   (over the limit, or its store down) is «not sent», for any address alike
+ *   (owner, 2026-11-20): the card says so instead of «check your email».
  * - Resend is locked for 60s, the countdown in the label. The disabled button
  *   stays focusable (`aria-disabled`, never `disabled`) and the reason is
  *   written next to it, not in a tooltip (KABINET "Buttons").
  * - «check your email» ends with a person to write to (IN-E7, IN-T9): the
- *   card can't say a send failed or was blocked without telling a stranger
- *   which addresses exist, so the fallback is a human, not an error. The
+ *   card can't say a send failed for one address and not another without
+ *   telling a stranger which addresses exist, so the fallback is a human, not
+ *   an error (the limiter's «not sent», above, comes before any lookup). The
  *   address is config (`EMAIL_REPLY_TO`, the same inbox every email's
  *   Reply-To names), passed in by the page, never typed into the copy.
  *
@@ -65,7 +69,14 @@ const countdown = (seconds: number): string =>
 type State =
   /** `error`: the one sentence the form shows after a try, or null. */
   | { kind: "entering"; error: string | null }
-  | { kind: "sent"; email: string; lockedFor: number; resendFailed: boolean };
+  | { kind: "sent"; email: string; lockedFor: number; resendFailed: string | null };
+
+/** A link request's result: `not_sent` is the limiter's refusal, `failed` no answer or an error. */
+export type LinkRequestOutcome = "sent" | "not_sent" | "failed";
+
+/** The sentence for a link request that didn't go out. */
+const linkFailureMessage = (outcome: Exclude<LinkRequestOutcome, "sent">): string =>
+  outcome === "not_sent" ? uk.kabinet.signIn.notSent : uk.kabinet.signIn.sendFailed;
 
 export function SignInCard({
   send = defaultSend,
@@ -80,7 +91,7 @@ export function SignInCard({
   /** The help line under the card. */
   assistance?: ReactNode;
   /** The magic link; injected so tests drive the real component without a network. */
-  send?: (email: string) => Promise<boolean>;
+  send?: (email: string) => Promise<LinkRequestOutcome>;
   /** The password sign-in; injected so tests drive the real component without a network. */
   signIn?: (email: string, password: string) => Promise<SignInOutcome>;
   /** After a password sign-in: the cabinet's home. Injected so tests can see it called. */
@@ -132,7 +143,7 @@ export function SignInCard({
     return () => clearInterval(timer);
   }, [locked]);
 
-  async function request(address: string): Promise<boolean> {
+  async function request(address: string): Promise<LinkRequestOutcome> {
     setBusy(true);
     try {
       return await send(address);
@@ -162,6 +173,10 @@ export function SignInCard({
       case "throttled":
         setState({ kind: "entering", error: throttledMessage(outcome.minutes) });
         return;
+      case "unavailable":
+        // No wait to name: the approved «Забагато запитів. Спробуйте ще раз пізніше.».
+        setState({ kind: "entering", error: uk.kabinet.forgot.throttled });
+        return;
       case "no_answer":
         setState({ kind: "entering", error: uk.kabinet.signIn.failed });
         return;
@@ -183,16 +198,17 @@ export function SignInCard({
     // it, as it would for the form's own submit.
     if (emailRef.current !== null && !emailRef.current.reportValidity()) return;
     const address = email.trim();
-    if (await request(address)) {
+    const outcome = await request(address);
+    if (outcome === "sent") {
       pendingFocus.current = "title";
       setState({
         kind: "sent",
         email: address,
         lockedFor: RESEND_LOCKOUT_SECONDS,
-        resendFailed: false,
+        resendFailed: null,
       });
     } else {
-      setState({ kind: "entering", error: uk.kabinet.signIn.sendFailed });
+      setState({ kind: "entering", error: linkFailureMessage(outcome) });
     }
   }
 
@@ -200,10 +216,11 @@ export function SignInCard({
     if (state.kind !== "sent" || state.lockedFor > 0 || busy) return;
     // A failed resend says so here, on this state: tapping «send again» and
     // seeing nothing change would read as sent (review of #93, finding 4).
-    if (await request(state.email)) {
-      setState({ ...state, lockedFor: RESEND_LOCKOUT_SECONDS, resendFailed: false });
+    const outcome = await request(state.email);
+    if (outcome === "sent") {
+      setState({ ...state, lockedFor: RESEND_LOCKOUT_SECONDS, resendFailed: null });
     } else {
-      setState({ ...state, resendFailed: true });
+      setState({ ...state, resendFailed: linkFailureMessage(outcome) });
     }
   }
 
@@ -325,9 +342,9 @@ export function SignInCard({
               {uk.kabinet.signIn.otherAddress}
             </Button>
           </div>
-          {state.resendFailed ? (
+          {state.resendFailed !== null ? (
             <p role="alert" className="text-label text-ink">
-              {uk.kabinet.signIn.sendFailed}
+              {state.resendFailed}
             </p>
           ) : null}
         </div>
@@ -336,18 +353,26 @@ export function SignInCard({
   );
 }
 
-/** The magic link: the kabinet's own auth route, which answers 200 for any address. */
-async function defaultSend(email: string): Promise<boolean> {
+/** The magic link: the kabinet's own auth route, which answers 200 for any address it sends to. */
+async function defaultSend(email: string): Promise<LinkRequestOutcome> {
   try {
     const response = await fetch(SIGN_IN_PATH, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ email, callbackURL: SIGN_IN_CALLBACK }),
     });
-    return response.ok;
+    return linkRequestOutcomeOf(response.status, await response.json().catch(() => null));
   } catch {
-    return false;
+    return "failed";
   }
+}
+
+/** Read from the status and the code only: the limiter's refusal has its own code. */
+export function linkRequestOutcomeOf(status: number, body: unknown): LinkRequestOutcome {
+  if (status >= 200 && status < 300) return "sent";
+  const code =
+    typeof body === "object" && body !== null ? (body as Record<string, unknown>).code : undefined;
+  return status === 429 && code === SIGN_IN_LINK_NOT_SENT_CODE ? "not_sent" : "failed";
 }
 
 /** The password sign-in through the kabinet's auth route (`/api/auth/sign-in/email`). */

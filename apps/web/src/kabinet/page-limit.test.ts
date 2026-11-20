@@ -1,11 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { inMemoryRateLimiter } from "../api/rate-limit";
+import { unreachableLimiter } from "../api/test-outage";
 import { SHELTER_WRITE_POLICY } from "./access";
 import { capturingInvitationSender } from "./email-senders";
 import { isChargedKabinetPageLoad, isKabinetPagePath, kabinetPageLoadAllowed } from "./page-limit";
 import { capturingPasswordMail } from "./password-mail";
 import { KABINET_RATE_LIMITS, type KabinetLimiters } from "./rate-limits";
-import { handleKabinetRpc } from "./rpc-route";
+import { handleKabinetRpc, KABINET_ANONYMOUS_PATHS } from "./rpc-route";
 import { roomyCitySearch } from "./test-city-search";
 import { TEST_SESSION_COOKIE } from "./test-session-cookie";
 
@@ -106,9 +107,14 @@ describe("a page load and an API call share one allowance", () => {
    * API call is refused at the access middleware (a no_role caller), which
    * charges both budgets first and never touches the database.
    */
-  async function apiCall(limiters: KabinetLimiters, ip: string, userId: string) {
+  async function apiCall(
+    limiters: KabinetLimiters,
+    ip: string,
+    userId: string | null,
+    path = "/api/kabinet/shelter/profile/get",
+  ) {
     const response = await handleKabinetRpc(
-      new Request("http://localhost/api/kabinet/shelter/profile/get", {
+      new Request(`http://localhost${path}`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -160,5 +166,62 @@ describe("a page load and an API call share one allowance", () => {
     const limiters = realLimiters();
     await load(limiters, 300, { ip: "198.51.100.30", userId: null });
     expect(await apiCall(limiters, "198.51.100.30", "user-4")).toBe(429);
+  });
+
+  /**
+   * Owner, 2026-11-20: with Upstash unreachable, signed-in kabinet use goes on and anonymous use is
+   * refused. The real Upstash limiters in their served modes (`kabinet/limiters.ts`: per IP deny,
+   * per user allow), on a store every command of which fails.
+   */
+  describe("with the limiter store unreachable", () => {
+    const outage = (): KabinetLimiters => ({
+      perUser: unreachableLimiter("allow"),
+      perIp: unreachableLimiter("deny"),
+    });
+
+    beforeEach(() => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+    });
+    afterEach(() => vi.restoreAllMocks());
+
+    it("a page load with a validated session goes through", async () => {
+      expect(await load(outage(), 1, { ip: "198.51.100.40", userId: "user-5" })).toBe(true);
+    });
+
+    it("an anonymous page load (the sign-in pages included) is refused", async () => {
+      expect(await load(outage(), 1, { ip: "198.51.100.41", userId: null })).toBe(false);
+    });
+
+    it("an API call with a validated session goes through to its procedure", async () => {
+      // 403 is the procedure's own answer to a no_role caller: past both limiters.
+      expect(await apiCall(outage(), "198.51.100.42", "user-6")).toBe(403);
+    });
+
+    it("an API call whose cookie names no live session is refused, before any procedure", async () => {
+      expect(await apiCall(outage(), "198.51.100.43", null)).toBe(429);
+    });
+
+    it("the invitation link (anonymous use) is refused, even from someone signed in", async () => {
+      const [path] = [...KABINET_ANONYMOUS_PATHS];
+      if (path === undefined) throw new Error("no anonymous path");
+      expect(await apiCall(outage(), "198.51.100.44", null, path)).toBe(429);
+      expect(await apiCall(outage(), "198.51.100.44", "user-9", path)).toBe(429);
+    });
+
+    it("a real over-limit refusal is still refused, signed in or not", async () => {
+      const spent: KabinetLimiters = {
+        perUser: unreachableLimiter("allow"),
+        perIp: { check: async () => false, attempt: async () => "refused" },
+      };
+      expect(await load(spent, 1, { ip: "198.51.100.45", userId: "user-7" })).toBe(false);
+      expect(await apiCall(spent, "198.51.100.45", "user-7")).toBe(429);
+      const userSpent: KabinetLimiters = {
+        perUser: { check: async () => false, attempt: async () => "refused" },
+        perIp: unreachableLimiter("deny"),
+      };
+      expect(await load(userSpent, 1, { ip: "198.51.100.46", userId: "user-8" })).toBe(false);
+      expect(await apiCall(userSpent, "198.51.100.46", "user-8")).toBe(429);
+    });
   });
 });

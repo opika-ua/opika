@@ -40,7 +40,7 @@ describe("the budget sizes", () => {
     }, sizes);
     expect(made).toEqual([
       { name: "adopter-mint", windowMs: 86_400_000, maxRequests: 50, onUnavailable: "allow" },
-      { name: "reveal-ip", windowMs: 86_400_000, maxRequests: 100, onUnavailable: "deny" },
+      { name: "reveal-ip", windowMs: 86_400_000, maxRequests: 100, onUnavailable: "allow" },
     ]);
     expect(warnings).toEqual([]);
   });

@@ -3,7 +3,12 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SignInOutcome } from "./password/password-api";
-import { RESEND_LOCKOUT_SECONDS, SignInCard } from "./SignInCard";
+import {
+  type LinkRequestOutcome,
+  linkRequestOutcomeOf,
+  RESEND_LOCKOUT_SECONDS,
+  SignInCard,
+} from "./SignInCard";
 
 /**
  * K1 (KABINET N1). Elements are found by the catalogue keys, and what's
@@ -21,7 +26,7 @@ afterEach(() => {
 });
 
 const setup = (
-  send: (email: string) => Promise<boolean> = async () => true,
+  send: (email: string) => Promise<LinkRequestOutcome> = async () => "sent",
   contact: string | null = "hello@example.org",
 ) => {
   const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
@@ -84,10 +89,20 @@ describe("K1 · enter email", () => {
   });
 
   it("says when the link request itself failed, in an alert, and stays on the form", async () => {
-    const { user } = setup(async () => false);
+    const { user } = setup(async () => "failed");
     await signIn(user);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(uk.kabinet.signIn.title);
     expect(screen.getByRole("alert").textContent).toBe(uk.kabinet.signIn.sendFailed);
+  });
+
+  it("says «not sent» when the limiter refused the request, never «check your email» (owner, 2026-11-20)", async () => {
+    const { user } = setup(async () => "not_sent");
+    await signIn(user);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(uk.kabinet.signIn.title);
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Зараз не вдалося надіслати лист. Спробуйте за кілька хвилин.",
+    );
+    expect(screen.queryByText(uk.kabinet.signIn.sentTitle)).toBeNull();
   });
 
   it("asks for no link while the address field is empty", async () => {
@@ -135,20 +150,34 @@ describe("K1 · check your email", () => {
   });
 
   it("says when a resend failed, on this state, and leaves resend unlocked to try again", async () => {
-    let ok = true;
+    let ok: LinkRequestOutcome = "sent";
     const { user, send } = setup(async () => ok);
     await signIn(user);
     await act(async () => {}); // the countdown starts in «sent»'s effects (above)
     await act(async () => {
       vi.advanceTimersByTime(RESEND_LOCKOUT_SECONDS * 1000);
     });
-    ok = false;
+    ok = "failed";
     await user.click(resendButton());
     await act(async () => {}); // the resend's answer renders in a later task
     expect(send).toHaveBeenCalledTimes(2);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(uk.kabinet.signIn.sentTitle);
     expect(screen.getByRole("alert").textContent).toBe(uk.kabinet.signIn.sendFailed);
     expect(resendButton().getAttribute("aria-disabled")).toBeNull();
+  });
+
+  it("says «not sent» when a resend is refused by the limiter", async () => {
+    let ok: LinkRequestOutcome = "sent";
+    const { user } = setup(async () => ok);
+    await signIn(user);
+    await act(async () => {});
+    await act(async () => {
+      vi.advanceTimersByTime(RESEND_LOCKOUT_SECONDS * 1000);
+    });
+    ok = "not_sent";
+    await user.click(resendButton());
+    await act(async () => {});
+    expect(screen.getByRole("alert").textContent).toBe(uk.kabinet.signIn.notSent);
   });
 
   it("«a different address» goes back to the form, the address kept and focused", async () => {
@@ -196,7 +225,7 @@ describe("K1 · «check your email» names a person to write to (IN-T9)", () => 
   const notArrived = () => screen.queryByText((text) => text.startsWith(lead));
 
   it("shows the fallback line with the configured address filled in, never the placeholder", async () => {
-    const { user } = setup(async () => true, "help@example.net");
+    const { user } = setup(async () => "sent", "help@example.net");
     expect(notArrived()).toBeNull();
     await signIn(user);
     const line = notArrived();
@@ -207,7 +236,7 @@ describe("K1 · «check your email» names a person to write to (IN-T9)", () => 
   });
 
   it("prints a contact carrying $& and $1 literally (review finding 2)", async () => {
-    const { user } = setup(async () => true, "a$&$1@example.net");
+    const { user } = setup(async () => "sent", "a$&$1@example.net");
     await signIn(user);
     expect(notArrived()?.textContent).toBe(
       "Якщо лист не прийшов за кілька хвилин, напишіть мені на a$&$1@example.net.",
@@ -224,7 +253,7 @@ describe("K1 · «check your email» names a person to write to (IN-T9)", () => 
   });
 
   it("is left out, not shown with a hole, where no contact is configured", async () => {
-    const { user } = setup(async () => true, null);
+    const { user } = setup(async () => "sent", null);
     await signIn(user);
     expect(notArrived()).toBeNull();
     expect(screen.queryByText(/\{contact\}/)).toBeNull();
@@ -249,7 +278,7 @@ describe("K1 · the password, first (PW-1)", () => {
         contact="hello@example.org"
         signIn={signInSpy}
         onSignedIn={onSignedIn}
-        send={async () => true}
+        send={async () => "sent"}
       />,
     );
     return { user, signIn: signInSpy, onSignedIn };
@@ -295,6 +324,15 @@ describe("K1 · the password, first (PW-1)", () => {
     expect(screen.getByRole("alert").textContent).toBe(
       "Забагато спроб входу. Спробуйте ще раз через 4 хв.",
     );
+  });
+
+  it("the limiter store down: the approved «спробуйте пізніше», no minutes and no claim of attempts", async () => {
+    const { user, onSignedIn } = renderWith({ kind: "unavailable" });
+    await fill(user);
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Забагато запитів. Спробуйте ще раз пізніше.",
+    );
+    expect(onSignedIn).not.toHaveBeenCalled();
   });
 
   /**
@@ -346,5 +384,16 @@ describe("K1 · the links around the card (Update 3)", () => {
     expect(card.contains(screen.getByRole("link", { name: "footer-link" }))).toBe(true);
     expect(card.contains(screen.getByRole("link", { name: "help-link" }))).toBe(false);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Вхід у кабінет");
+  });
+});
+
+describe("the link request's answer", () => {
+  it("reads 2xx as sent, the limiter's 429 code as not sent, anything else as failed", () => {
+    expect(linkRequestOutcomeOf(200, { status: true })).toBe("sent");
+    expect(linkRequestOutcomeOf(429, { status: false, code: "SIGN_IN_LINK_NOT_SENT" })).toBe(
+      "not_sent",
+    );
+    expect(linkRequestOutcomeOf(429, null)).toBe("failed");
+    expect(linkRequestOutcomeOf(500, { code: "SIGN_IN_LINK_NOT_SENT" })).toBe("failed");
   });
 });

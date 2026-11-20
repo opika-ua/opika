@@ -19,14 +19,22 @@ rules (a Neon child branch for anything experimental; `--prod --expect ep-...` f
 
 ### When Upstash is down
 
-Each limiter has an explicit fail mode (`onUnavailable`). Fail open (allowed, unthrottled, each
-logged as `rate_limiter_unreachable`): public reads (`api`), adopter minting, and the `monitoring`
-and `monitoring-test` probes, because an outage of the limiter store must not take the site down
-with it. `/api/health` has no store to lose: its limit is in memory, per instance (2026-11-20). The
-warning also reaches Sentry as «rate limiter unreachable» (tags: limiter prefix, `timeout` or
-`error`), at most once a minute per instance. Fail closed (refused with 429): sign-in, forgot and reset
-password, invites, the sign-in delay store, the kabinet per-user and per-IP limits, photo uploads and
-the per-IP reveal budget, because each guards a credential, a mail, a write or shelter contact data.
+Each limiter has an explicit fail mode (`onUnavailable`); the policy is the tables in
+`apps/web/src/api/limiter-fail-modes.test.ts` (owner, 2026-11-06, revised 2026-11-20). Every outage
+is logged as `rate_limiter_unreachable` and reaches Sentry as «rate limiter unreachable» (tags:
+limiter prefix, `timeout` or `error`), at most once a minute per instance.
+
+- Fail open (allowed, unthrottled): public reads (`api`), adopter minting, the per-IP reveal budget
+  (a first contact with a shelter), the `monitoring` probes, and signed-in kabinet use: page loads
+  and `/api/kabinet` calls with a validated session, get-session, sign-out, «Змінити пароль»,
+  photos and the city search. `/api/health` has no store to lose: its limit is in memory, per
+  instance.
+- Fail closed (refused with 429): anything anonymous in the kabinet (its pages without a session,
+  the invitation link), the password sign-in («Забагато запитів. Спробуйте ще раз пізніше.», never a
+  wait), the magic link («Зараз не вдалося надіслати лист. Спробуйте за кілька хвилин.», never
+  «sent»), the link's verify, forgot and reset password, invites and registration, because each is
+  a way in, a mail or an anonymous write.
+
 `/api/health` therefore keeps answering 200 while the store is down; the warning is the signal.
 
 ## 2. A cron stopped
