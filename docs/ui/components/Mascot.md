@@ -27,7 +27,10 @@ display face means re-measuring `--cap-offset`; the harness (`mascots.harness.ts
 **Where (owner-approved, 2026-10-31).** Gallery hero title (cards present), no-match block, shelter page with
 no animals, the not-found and error pages (inline above the heading), the contact reveal dialog (cat and dog on
 its top edge, through `Modal`'s `perched`), the closing line of the last gallery page (only when paginated),
-Про проєкт (once, on a divider).
+Про проєкт (once, on a divider). The site footer's sitting cat and dog (owner 2026-11-20, concept A2; they
+replaced the animal page's dotted mascot divider) are the same shapes as one static file,
+`app/footer-art/mascots.svg`, drawn as a CSS background to keep them out of every page's HTML; a change
+to `mascot-shapes.ts` must be copied there.
 
 **Rules.** At most one mascot moment per screen. Never on cards, controls, inputs, filters, the save bar or
 over photos. No motion, no recolouring on dark surfaces. Never carries meaning: no text, no alt.

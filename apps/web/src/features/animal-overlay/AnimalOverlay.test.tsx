@@ -122,6 +122,8 @@ describe("the gallery's animal overlay", () => {
   it("no site header inside it - that stays on the full page only (batch A, review of 6825ffd, finding 3)", async () => {
     const { dialog } = await openOverlay();
     expect(within(dialog).queryByTestId("site-header")).toBeNull();
+    // Nor the site footer (A2, owner 2026-11-20).
+    expect(within(dialog).queryByRole("contentinfo")).toBeNull();
   });
 
   it("has no «Відкрити повну сторінку»: the overlay is the page (his Q2)", async () => {

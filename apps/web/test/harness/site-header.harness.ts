@@ -74,7 +74,7 @@ async function seedASavedAnimal(page: import("@playwright/test").Page): Promise<
   }, animalId);
 }
 
-/** MK-7: the independence line sits in the content of «Про проєкт» and «Для притулків». */
+/** MK-7: the independence line: «Про проєкт»'s intro, and the site footer on «Для притулків». */
 test.describe("the independence line is visible and does not widen the page", () => {
   const wide = { name: "1440x900 wide", width: 1440, height: 900 };
   for (const route of [ABOUT, FOR_SHELTERS]) {

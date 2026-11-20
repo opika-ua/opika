@@ -1,7 +1,7 @@
 /**
  * Every page before sign-in wears the public header (owner, 2026-11-20, option A): the site nav
  * with working links out, «Кабінет притулку» marked as the current section, the header where
- * /prytulkam has it, and the card centred. Found by role, test id and text; the two boxes compared
+ * /prytulkam has it, the card centred, and the site footer once. Found by role, test id and text; the two boxes compared
  * are the header (as `header-audiences` does) and the card's centre.
  *
  * On the sign-in server (`sign-in-server.ts`), with self-registration on so the email-link pages
@@ -58,12 +58,12 @@ test.describe("pre-sign-in pages wear the public header", () => {
     page,
   }) => {
     test.setTimeout(120_000);
-    // The public site has no footer yet (2026-11-20); whatever /prytulkam ends with, these match.
+    // The site footer, exactly once, as on /prytulkam (owner, 2026-11-20).
     await open(page, origin(), "/prytulkam", 1440);
-    const footers = await page.getByRole("contentinfo").count();
+    await expect(page.getByRole("contentinfo")).toHaveCount(1);
     for (const path of PAGES) {
       await open(page, origin(), path, 1440);
-      await expect(page.getByRole("contentinfo"), path).toHaveCount(footers);
+      await expect(page.getByRole("contentinfo"), path).toHaveCount(1);
       const nav = page.locator(HEADER).getByRole("navigation", { name: "Opika" });
       await expect(nav.getByRole("link", { name: "Тварини" }), path).toHaveAttribute(
         "href",

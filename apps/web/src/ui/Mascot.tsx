@@ -131,11 +131,12 @@ export function Mascot({ size, perch, offset = 0, className, ...pose }: MascotPr
         className,
       )}
     >
-      {shape.paths.map(([token, d, evenOdd]) => (
+      {shape.paths.map(([token, d, evenOdd], index) => (
         <path
-          key={d}
+          // A fixed shape's position is its identity; a `d` key would put each path in the flight data twice.
+          key={index}
           fill={`var(--color-${token})`}
-          fillRule={evenOdd ? "evenodd" : undefined}
+          {...(evenOdd ? { fillRule: "evenodd" } : {})}
           d={d}
         />
       ))}

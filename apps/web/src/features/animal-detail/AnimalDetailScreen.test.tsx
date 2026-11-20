@@ -79,6 +79,22 @@ function makeShelter(overrides: Partial<PublicShelterView> = {}): PublicShelterV
  * this PR actually deletes elsewhere), since restoring the badge, if ever
  * wanted, would need its exact words back.
  */
+describe("AnimalDetailScreen – the page's end (footer A2, owner 2026-11-20)", () => {
+  it("ends with the site footer, with no dotted mascot divider before it", async () => {
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    const { container } = render(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter()}
+        cityName="Бровари"
+        cityPlace="м. Бровари"
+      />,
+    );
+    expect(screen.getAllByRole("contentinfo")).toHaveLength(1);
+    expect(container.querySelector("img[src*='divider']")).toBeNull();
+  });
+});
+
 describe("AnimalDetailScreen – shelterVerifiedYears badge (retired, pet card PR 5)", () => {
   it("renders nowhere, demo mode or not", async () => {
     const { AnimalDetailScreen } = await import("./AnimalDetailScreen");

@@ -69,7 +69,9 @@ The mascots (`Mascot`, `docs/ui/components/Mascot.md`) reuse `accent` (orange), 
 | `mascot-cat-stripe` | #A04300 | the cat's stripes and collar |
 | `mascot-tag` | #F1D692 | the collar tag and paws |
 
-Decorative only: never text or a fill that carries meaning.
+Decorative only: never text or a fill that carries meaning. One exception (owner, 2026-11-20, footer A2):
+`mascot-dog-light` is the site footer's lavender text on `ink` (11.4:1), the nearest token to the
+design's colour; nowhere else.
 
 ## Status chip tints
 
