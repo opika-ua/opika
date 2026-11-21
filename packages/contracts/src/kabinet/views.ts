@@ -538,3 +538,26 @@ export const ApplicationDecisionResultSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("email_unconfirmed") }),
 ]);
 export type ApplicationDecisionResult = z.infer<typeof ApplicationDecisionResultSchema>;
+
+/**
+ * What the operator's «Видалити притулок» dialog shows when it opens (owner, 2026-11-20): every
+ * card (drafts included), those the gallery shows now, and the admins. The deletion sends them
+ * back and is refused if any differs under its lock.
+ */
+export const ShelterDeletionCountsSchema = z.object({
+  animals: z.int().nonnegative(),
+  published: z.int().nonnegative(),
+  admins: z.int().nonnegative(),
+});
+export type ShelterDeletionCounts = z.infer<typeof ShelterDeletionCountsSchema>;
+
+/**
+ * The deletion's outcome. `counts_changed` carries the fresh counts, so the dialog opens again
+ * with them; `name_mismatch` means the typed name is not the stored one (renamed meanwhile).
+ */
+export const ShelterDeletionResultSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("deleted"), name: z.string() }),
+  z.object({ kind: z.literal("counts_changed"), counts: ShelterDeletionCountsSchema }),
+  z.object({ kind: z.literal("name_mismatch") }),
+]);
+export type ShelterDeletionResult = z.infer<typeof ShelterDeletionResultSchema>;

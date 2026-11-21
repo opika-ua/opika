@@ -116,6 +116,8 @@ const EXPECTED_ACCESS: Record<string, KabinetAccess> = {
   "registry.shelters.create": REGISTRY,
   "registry.shelters.updateVerifiedData": REGISTRY,
   "registry.shelters.updateProfile": REGISTRY,
+  "registry.shelters.deletionCounts": REGISTRY,
+  "registry.shelters.delete": REGISTRY,
   "registry.verification.startReview": REGISTRY,
   "registry.verification.approve": REGISTRY,
   "registry.verification.reinstate": REGISTRY,

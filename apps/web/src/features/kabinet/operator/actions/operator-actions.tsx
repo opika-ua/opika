@@ -74,6 +74,8 @@ type OperatorActions = {
   run: <T>(request: ActionRequest<T>) => Promise<Settled<T>>;
   /** A full navigation (support mode needs the server to read its new cookie). */
   navigate: (to: string) => void;
+  /** Reads the page again outside an action: a refusal answered as a value, not an error. */
+  reread: () => Promise<RegistryShelterView | null>;
 };
 
 const OperatorActionsContext = createContext<OperatorActions | null>(null);
@@ -184,7 +186,10 @@ export function OperatorActionsProvider({
     [client, readAgain, adopt],
   );
 
-  const actions = useMemo(() => ({ view, phase, run, navigate }), [view, phase, run, navigate]);
+  const actions = useMemo(
+    () => ({ view, phase, run, navigate, reread: readAgain }),
+    [view, phase, run, navigate, readAgain],
+  );
   return (
     <OperatorActionsContext.Provider value={actions}>{children}</OperatorActionsContext.Provider>
   );

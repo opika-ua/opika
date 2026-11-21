@@ -230,13 +230,15 @@ const createInput = () => {
 describe("without LOCATION_HMAC_SECRET", () => {
   it("answers 503 to every registry call, and leaves the shelter surface alone", async () => {
     const s = await shelter();
-    // Every one of the twenty-four, by path: the route refuses before the input is read.
+    // Every one of the twenty-six, by path: the route refuses before the input is read.
     const paths = [
       "registry.shelters.list",
       "registry.shelters.byId",
       "registry.shelters.create",
       "registry.shelters.updateVerifiedData",
       "registry.shelters.updateProfile",
+      "registry.shelters.deletionCounts",
+      "registry.shelters.delete",
       "registry.verification.startReview",
       "registry.verification.approve",
       "registry.verification.reinstate",
@@ -3521,5 +3523,96 @@ describe("registry.shelters.updateProfile: the weekly reminder switch", () => {
       },
     );
     expect(own.body.items.map((item) => item.kind)).not.toContain("freshness_reminder_changed");
+  });
+});
+
+// ─── «Видалити притулок» (owner, 2026-11-20) ───────────────────────────────
+
+describe("registry.shelters.deletionCounts / delete", () => {
+  const grant = () =>
+    db.insert(superAdmins).values({ id: crypto.randomUUID(), userId: OPERATOR, grantedAt: NOW });
+  const counts = (shelterId: string, principal?: KabinetPrincipal) =>
+    call<{ animals: number; published: number; admins: number }>(
+      "registry.shelters.deletionCounts",
+      { shelterId },
+      principal === undefined ? {} : { principal },
+    );
+  const remove = (
+    shelterId: string,
+    typedName: string,
+    shown: { animals: number; published: number; admins: number },
+    principal?: KabinetPrincipal,
+  ) =>
+    call<{ kind: string; name?: string; counts?: unknown }>(
+      "registry.shelters.delete",
+      { shelterId, typedName, counts: shown },
+      principal === undefined ? {} : { principal },
+    );
+
+  it("counts the cards, the published ones and the admins, then deletes with the name typed", async () => {
+    await grant();
+    const s = await shelter({ displayName: "Лапа допомоги" });
+    await animalRepo(db).insert(makeAnimal({ shelterId: s.id }), cityId as never);
+    const shown = await counts(s.id);
+    expect(shown.body).toEqual({ animals: 1, published: 1, admins: 0 });
+
+    const done = await remove(s.id, " Лапа допомоги ", shown.body);
+
+    expect(done.body).toEqual({ kind: "deleted", name: "Лапа допомоги" });
+    expect(await shelterRepo(db).findById(s.id)).toBeNull();
+    expect((await counts(s.id)).status).toBe(404);
+  });
+
+  it("answers counts_changed with fresh numbers when an animal arrived after the dialog counted", async () => {
+    await grant();
+    const s = await shelter({ displayName: "Лапа допомоги" });
+    const shown = await counts(s.id);
+    await animalRepo(db).insert(makeAnimal({ shelterId: s.id }), cityId as never);
+
+    const refused = await remove(s.id, "Лапа допомоги", shown.body);
+
+    expect(refused.body).toEqual({
+      kind: "counts_changed",
+      counts: { animals: 1, published: 1, admins: 0 },
+    });
+    expect(await shelterRepo(db).findById(s.id)).not.toBeNull();
+  });
+
+  it("answers name_mismatch for any other name, and deletes nothing", async () => {
+    await grant();
+    const s = await shelter({ displayName: "Лапа допомоги" });
+    const shown = await counts(s.id);
+    expect((await remove(s.id, "лапа допомоги", shown.body)).body).toEqual({
+      kind: "name_mismatch",
+    });
+    expect(await shelterRepo(db).findById(s.id)).not.toBeNull();
+  });
+
+  it("refuses a shelter admin and a support view at the handler, before anything is read", async () => {
+    await grant();
+    const s = await shelter({ displayName: "Лапа допомоги" });
+    const shown = { animals: 0, published: 0, admins: 0 };
+    const principals: KabinetPrincipal[] = [
+      {
+        kind: "shelter_admin",
+        shelterAdminId: "33333333-3333-4333-8333-333333333333" as ShelterAdminId,
+        shelterId: s.id,
+      },
+      { kind: "support_view", moderatorId: OPERATOR as ModeratorId, shelterId: s.id },
+    ];
+    for (const principal of principals) {
+      expect((await counts(s.id, principal)).status, principal.kind).toBe(403);
+      expect((await remove(s.id, "Лапа допомоги", shown, principal)).status, principal.kind).toBe(
+        403,
+      );
+    }
+    expect(await shelterRepo(db).findById(s.id)).not.toBeNull();
+  });
+
+  it("answers 404 for a shelter that isn't there", async () => {
+    await grant();
+    const gone = crypto.randomUUID();
+    expect((await counts(gone)).status).toBe(404);
+    expect((await remove(gone, "Лапа", { animals: 0, published: 0, admins: 0 })).status).toBe(404);
   });
 });

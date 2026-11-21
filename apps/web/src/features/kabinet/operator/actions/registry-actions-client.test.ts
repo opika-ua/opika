@@ -37,6 +37,9 @@ const picked = leaves(registryActionsBrowserContract);
 const EXPECTED_PATHS = [
   "registry.shelters.updateProfile",
   "registry.shelters.updateVerifiedData",
+  // «Видалити притулок» (owner, 2026-11-20): its live counts and the deletion.
+  "registry.shelters.deletionCounts",
+  "registry.shelters.delete",
   "registry.verification.startReview",
   "registry.verification.approve",
   "registry.verification.reject",

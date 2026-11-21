@@ -225,6 +225,13 @@
       "when": 1795180494913,
       "tag": "0031_reveals_revealed_at_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1795192479908,
+      "tag": "0032_application_deletions_operator",
+      "breakpoints": true
     }
   ]
 }

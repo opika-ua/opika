@@ -23,7 +23,16 @@ export async function executeRows<Row extends Record<string, unknown>>(
   return rowsOfRawResult<Row>(await db.execute(query));
 }
 
-/** Exported for its test: both drivers' raw result shapes, as one row list. */
+/**
+ * A raw statement as one item of `inOneTransaction`'s batch, for SQL the builder can't express.
+ * Its result arrives in the driver's raw shape (neon-http's batch maps a raw query to the full
+ * `{ rows }` result), so read it with `rowsOfRawResult`, never as an array.
+ */
+export function rawBatchItem(db: Database, query: SQL) {
+  return db.execute(query);
+}
+
+/** Both drivers' raw result shapes, as one row list: `executeRows` and a batch's raw item. */
 export function rowsOfRawResult<Row>(result: unknown): Row[] {
   if (Array.isArray(result)) return [...result] as Row[];
   if (

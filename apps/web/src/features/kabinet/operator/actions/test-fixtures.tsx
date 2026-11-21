@@ -111,6 +111,8 @@ export function fakeClient(overrides: FakeOverrides = {}) {
     shelters: {
       updateProfile: unexpected("shelters.updateProfile"),
       updateVerifiedData: unexpected("shelters.updateVerifiedData"),
+      deletionCounts: unexpected("shelters.deletionCounts"),
+      delete: unexpected("shelters.delete"),
       ...overrides.shelters,
     },
     verification: {

@@ -1130,6 +1130,26 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.create.errors.pagesInvalid": "Кожен рядок – посилання, що починається з https://.",
     "operator.create.errors.pagesTooMany": "Щонайбільше 10 сторінок.",
   };
+  /**
+   * «Видалити притулок»: the owner's approved table (2026-11-20). His counts line was ICU; each
+   * plural form is his, one per `Intl.PluralRules("uk")` category.
+   */
+  const DELETE_SHELTER_OPERATOR_COPY: Record<string, string> = {
+    "operator.deleteShelter.button": "Видалити притулок",
+    "operator.deleteShelter.title": "Видалити притулок назавжди?",
+    "operator.deleteShelter.counts": "{animals} тварин, з них опубліковано {published}; {admins}.",
+    "operator.deleteShelter.countsAnimals.one": "{count} картка",
+    "operator.deleteShelter.countsAnimals.few": "{count} картки",
+    "operator.deleteShelter.countsAnimals.many": "{count} карток",
+    "operator.deleteShelter.countsAdmins.one": "{count} адміністратор",
+    "operator.deleteShelter.countsAdmins.few": "{count} адміністратори",
+    "operator.deleteShelter.countsAdmins.many": "{count} адміністраторів",
+    "operator.deleteShelter.body":
+      "Буде видалено притулок «{name}»: кабінет, картки тварин, фото, історію змін і облікові записи адміністраторів, які не мають доступу до інших притулків. Скасувати це неможливо.",
+    "operator.deleteShelter.confirmLabel": "Щоб підтвердити, введіть назву притулку",
+    "operator.deleteShelter.confirm": "Видалити назавжди",
+    "operator.deleteShelter.done": "Притулок «{name}» видалено.",
+  };
   /** Pet card PR 3b. His final text (2026-10-27): the builder's draft, approved as written. */
   const PET_CARD_PR3B_LOGO_CHANGED: Record<string, string> = {
     "operator.history.logo_changed": "Змінено логотип притулку",
@@ -1171,6 +1191,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(WEEKLY_REMINDER_OPERATOR_COPY),
         ...Object.keys(DATE_FIELD_OPERATOR_COPY),
         ...Object.keys(OPEN_SOURCES_OPERATOR_COPY),
+        ...Object.keys(DELETE_SHELTER_OPERATOR_COPY),
       ].sort(),
     );
   });
@@ -1223,6 +1244,13 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   );
 
   it.each(Object.entries(OPEN_SOURCES_OPERATOR_COPY))(
+    "%s is the owner-approved text",
+    (path, text) => {
+      expect(valueAt(path)).toBe(text);
+    },
+  );
+
+  it.each(Object.entries(DELETE_SHELTER_OPERATOR_COPY))(
     "%s is the owner-approved text",
     (path, text) => {
       expect(valueAt(path)).toBe(text);

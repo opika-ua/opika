@@ -258,3 +258,29 @@ binding limit; neither is sized to the provider. The log's `deferred` (budget or
 
 The weekly email can be switched off for one shelter on its operator page («Лист про непідтверджені
 картки»), usually because the shelter replied to ask; the page records who and when in the history.
+
+## 11. Deleting a shelter
+
+The operator's «Видалити притулок», last on the shelter's page (`/kabinet/prytulky/<id>`; owner,
+2026-11-20: any shelter). The dialog shows live counts (cards, drafts included; those published;
+admins) and enables «Видалити назавжди» only once the shelter's name is typed exactly (the input is
+trimmed, the stored name is compared as it is). The server re-checks the operator, the name and the
+counts under a lock and refuses if anything changed since the dialog opened; the dialog then shows the
+fresh counts.
+
+One transaction removes the shelter, all its animals (drafts too) with their photo-source rows, the
+reveals of its animals and to it, its history, its organization with invitations and memberships, and
+the accounts of its admins and invitees that the erasure invariant allows (no other membership or
+operator grant, no live invitation elsewhere: such an account stays, without access to this shelter).
+Support sessions, funnel events and notification sends stay with the shelter link set to null. One
+`application_deletions` line records it: reason `operator_removed`, the shelter id, the operator's
+account id and the time. Photos and the logo leave R2 only through the clean-up job, 7 days after
+they become unreferenced (section 8).
+
+**A wrong deletion is recoverable only through a Neon point-in-time restore**, within the 7-day
+history window, **onto a new branch, never over the production branch**: follow section 4 from step 1,
+with a time just before the deletion (the `application_deletions` line's `at`). Copying the shelter's
+rows back is the "copy back" case of step 3; it touches many tables, so plan it with the restore
+branch open. Act within the window: after 7 days the history is gone, and the clean-up job deletes the
+unreferenced photos once their own 7 days have passed (restored rows that name them again stop that,
+as the job re-checks references before each delete).

@@ -270,7 +270,8 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
   history: 2,
 
   // +13: open sources (2026-11-19).
-  operator: 299,
+  // +13: «Видалити притулок» (2026-11-20).
+  operator: 312,
 
   verificationDecision: 8,
 

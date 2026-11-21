@@ -1,5 +1,5 @@
 import { ADMIN_EMAIL_HISTORY_KINDS, ERASED_ADMIN_EMAIL } from "@opika/domain";
-import { and, type SQL, sql } from "drizzle-orm";
+import { and, inArray, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { executeRows } from "../raw-rows";
 import { authInvitation, authMember, authUser, superAdmins, supportSessions } from "../schema/auth";
@@ -143,16 +143,31 @@ export function noLiveInvitationElsewhere(now: Date): SQL {
 export async function eraseUsersAndScrubHistory(
   db: Database,
   condition: SQL,
-): Promise<{ erasedCount: number; historyEntriesScrubbed: number; invitationsScrubbed: number }> {
+): Promise<ErasureCounts> {
+  return erasureCountsOf(await executeRows<ErasureRow>(db, erasureStatement(condition)));
+}
+
+export type ErasureCounts = {
+  erasedCount: number;
+  historyEntriesScrubbed: number;
+  invitationsScrubbed: number;
+};
+
+type ErasureRow = {
+  erased_count: number;
+  scrubbed_count: number;
+  invitations_scrubbed_count: number;
+};
+
+/**
+ * The mechanism's one statement, for a caller that runs it inside a batch
+ * (`applicationDeletionRepo.deleteShelterByOperator`, `rawBatchItem`) and
+ * reads the result with `erasureCountsOf`. Same SQL as the awaited form.
+ */
+export function erasureStatement(condition: SQL): SQL {
   const kinds = ADMIN_EMAIL_HISTORY_KINDS;
   const kindList = sql.raw(`(${kinds.map((kind) => `'${kind}'`).join(", ")})`);
-  const rows = await executeRows<{
-    erased_count: number;
-    scrubbed_count: number;
-    invitations_scrubbed_count: number;
-  }>(
-    db,
-    sql`
+  return sql`
       WITH erased AS (
         DELETE FROM "auth_user"
         WHERE ${condition}
@@ -185,8 +200,11 @@ export async function eraseUsersAndScrubHistory(
         (SELECT count(*)::int FROM erased) AS erased_count,
         (SELECT count(*)::int FROM scrubbed) AS scrubbed_count,
         (SELECT count(*)::int FROM invitations_scrubbed) AS invitations_scrubbed_count
-    `,
-  );
+    `;
+}
+
+/** The statement's one row of counts, from `executeRows` or a batch's `rowsOfRawResult`. */
+export function erasureCountsOf(rows: readonly ErasureRow[]): ErasureCounts {
   const row = rows[0];
   return {
     erasedCount: Number(row?.erased_count ?? 0),
@@ -208,8 +226,17 @@ export async function eraseUsersAndScrubHistory(
  * regardless of which path is deleting it.
  */
 export function erasableIf(userId: string, now: Date): SQL {
+  return erasableAmong([userId], now);
+}
+
+/**
+ * `erasableIf` for several named users at once (an operator-removed shelter's admins and
+ * invitees): the same invariant, applied to each. An empty list names nobody.
+ */
+export function erasableAmong(userIds: readonly string[], now: Date): SQL {
+  if (userIds.length === 0) return sql`false`;
   return and(
-    sql`${authUser.id} = ${userId}`,
+    inArray(authUser.id, [...userIds]),
     NOT_ELSEWHERE_IN_USE,
     noLiveInvitationElsewhere(now),
   ) as SQL;
