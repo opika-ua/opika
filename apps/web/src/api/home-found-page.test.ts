@@ -36,7 +36,7 @@ async function seed(animalOverrides: AnimalFixtureOverrides, verification?: Shel
   await cityRepo(h.db).insert(city);
   const base = makeShelter();
   const shelter = makeShelter({
-    exactAddress: { ...base.exactAddress, cityId: city.id },
+    premises: { kind: "address", address: { ...base.premises.address, cityId: city.id } },
     ...(verification && { verification }),
   });
   await shelterRepo(h.db).insert(shelter);
@@ -139,7 +139,10 @@ describe("animals.byId: each listing kind", () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
     const shelter = makeShelter({
-      exactAddress: { ...makeShelter().exactAddress, cityId: city.id },
+      premises: {
+        kind: "address",
+        address: { ...makeShelter().premises.address, cityId: city.id },
+      },
     });
     await shelterRepo(h.db).insert(shelter);
     const draft = makeDraftAnimal({ shelterId: shelter.id });
