@@ -955,6 +955,10 @@ export const ukPublic = {
   noMatch: {
     heading: "Під ці фільтри зараз нікого немає.",
     reassurance: "Це не помилка пошуку.",
+    /** «Зачекались» with no filter set, empty because every card is stale (owner, 2026-11-24). */
+    freshOnlyHeading: "Зараз немає карток, оновлених за останні 30 днів.",
+    /** «Нові» is `filters.sortFreshestShort`, the toggle beside it. */
+    freshOnlyLine: "Перемкніть на «Нові», щоб побачити всіх.",
     /** Template: "Прибрати «{dimension}» ({animalWord})" - one button per
      * `GalleryRelaxation` the caller returns, `{dimension}` already
      * resolved to a group label, `{animalWord}` pre-composed with

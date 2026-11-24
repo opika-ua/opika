@@ -428,6 +428,8 @@ export const en = {
   noMatch: {
     heading: "Nobody matches these filters right now.",
     reassurance: "This isn't a search error.",
+    freshOnlyHeading: "There are no cards updated in the last 30 days right now.",
+    freshOnlyLine: "Switch to “New” to see everyone.",
     removeDimension: "Remove “{dimension}” ({animalWord})",
     showAllCities: "Show every city ({animalWord})",
     showAllRegions: "Show every region ({animalWord})",
@@ -1409,7 +1411,7 @@ export const en = {
         pending: "Your animals appear in the gallery as soon as the shelter passes verification.",
       },
       orderNote:
-        "In the gallery, cards are ordered by date: the visitor chooses between the freshest first and those who have waited longest. The order can't be changed and a card can't be moved up here.",
+        "In the gallery, cards are ordered by date: the visitor chooses between the freshest first and those who have waited longest (among cards updated in the last 30 days). The order can't be changed and a card can't be moved up here.",
       empty: {
         title: "No animals here yet.",
         body: "Add the first one. People looking for an animal see the card once it is published.",

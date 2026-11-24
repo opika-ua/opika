@@ -326,6 +326,26 @@ describe("the shelter page under «Зачекались» (it leaves stale cards
     expect(screen.getByTestId("gallery-no-match")).toBeTruthy();
     expect(screen.queryByTestId("shelter-no-animals")).toBeNull();
     expect(screen.queryByTestId("no-match-reset")).toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "Зараз немає карток, оновлених за останні 30 днів." }),
+    ).toBeTruthy();
+    expect(screen.getByText("Перемкніть на «Нові», щоб побачити всіх.")).toBeTruthy();
+  });
+
+  it("with its only card stale: the sort stays, so «Нові» leads back to the card", () => {
+    renderScreen({ animals: makeListOutput([]), listedTotal: 1, query: WAITING });
+    const sort = screen.getByRole("navigation", { name: "Сортування" });
+    const back = within(sort).getByRole("link", { name: /^Нові/ });
+    expect(back.getAttribute("href")).toBe(PAGE);
+  });
+
+  it("a one-card shelter under the default sort still shows no sort", () => {
+    renderScreen({
+      animals: makeListOutput([makeCardView(1)]),
+      listedTotal: 1,
+      query: { ...WAITING, sort: "freshest" },
+    });
+    expect(screen.queryByRole("navigation", { name: "Сортування" })).toBeNull();
   });
 
   it("with one card not stale out of five: the heading is still the shelter's five, and the sort stays", () => {
