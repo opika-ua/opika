@@ -3308,3 +3308,23 @@ describe("self-registration email-link copy (owner-approved, 2026-11-19)", () =>
     }
   });
 });
+
+/** Item 1, the suggested first message: owner-approved 2026-11-24, rows 1–5 verbatim. */
+describe("reveal first-message copy (owner-approved 2026-11-24)", () => {
+  const FIRST_MESSAGE = {
+    heading: "Можна почати з такого повідомлення:",
+    male: "Добрий день. Пишу щодо картки «{name}» на {site}: {url}. Він ще шукає дім?",
+    female: "Добрий день. Пишу щодо картки «{name}» на {site}: {url}. Вона ще шукає дім?",
+    unknown: "Добрий день. Пишу щодо картки «{name}» на {site}: {url}. Ця тварина ще шукає дім?",
+    copy: "Копіювати повідомлення",
+  } as const;
+
+  it("is his text, key for key", () => {
+    expect(uk.reveal.firstMessage).toEqual(FIRST_MESSAGE);
+  });
+
+  it("has no placeholder, in either language", () => {
+    expect(pendingCopyKeys(uk.reveal.firstMessage)).toEqual([]);
+    expect(pendingCopyKeys(en.reveal.firstMessage)).toEqual([]);
+  });
+});

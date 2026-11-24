@@ -1,16 +1,18 @@
 "use client";
 
 import type { ContactRevealView } from "@opika/contracts";
-import type { ContactChannel } from "@opika/domain";
+import type { AnimalId, AnimalSex, ContactChannel } from "@opika/domain";
 import { isCanonicalFacebookUrl, revealChannels } from "@opika/domain/core";
 import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
-import { useEffect, useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
 import { Icon, type IconName } from "../../ui/Icon";
 import { Mascot } from "../../ui/Mascot";
 import { Modal } from "../../ui/Modal";
 import { Photo } from "../../ui/Photo";
+import { useCopiedKey } from "../controls/useCopiedKey";
+import { animalPageUrl, firstMessageOf } from "./first-message";
 import { THROTTLED_COPY } from "./throttled-copy";
 import type { RevealErrorReason, RevealState } from "./useReveal";
 
@@ -20,9 +22,13 @@ import type { RevealErrorReason, RevealState } from "./useReveal";
  * `tel:`, `mailto:` and `viber:` hand off to
  * the phone's own app. The row's visible value is `contactChannelText`; `copyLabel` names the copy
  * button for a screen reader (it starts with the visible «Копіювати», WCAG 2.5.3) and is null where
- * a copy makes no sense (a website is opened, not pasted).
+ * a copy makes no sense (a website is opened, not pasted). Email and WhatsApp open with `message`
+ * prefilled; Telegram, Viber and Instagram links can't carry a text, so the person copies it.
  */
-function channelAction(channel: ContactChannel): {
+function channelAction(
+  channel: ContactChannel,
+  message: string,
+): {
   label: string;
   href: string;
   external: boolean;
@@ -61,7 +67,7 @@ function channelAction(channel: ContactChannel): {
     case "email":
       return {
         label: uk.reveal.writeEmail,
-        href: `mailto:${channel.address}`,
+        href: `mailto:${channel.address}?body=${encodeURIComponent(message)}`,
         external: false,
         icon: "mail",
         copyLabel: uk.reveal.copyEmailLabel,
@@ -98,7 +104,7 @@ function channelAction(channel: ContactChannel): {
       return {
         label: uk.reveal.writeWhatsapp,
         // wa.me takes the international number as digits only, without the +.
-        href: `https://wa.me/${channel.e164.replace(/\D/g, "")}`,
+        href: `https://wa.me/${channel.e164.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`,
         external: true,
         icon: "chat",
         copyLabel: uk.reveal.copyWhatsappLabel,
@@ -239,7 +245,9 @@ export function ContactRevealDialog({
   }
   return (
     <RevealContent
+      animalId={state.animalId}
       animalName={state.animalName}
+      sex={state.sex}
       cityLabel={state.cityLabel ?? state.cityName}
       cityName={state.cityName}
       reveal={state.reveal}
@@ -290,15 +298,21 @@ function RevealError({
 
 const DESKTOP_QUERY = "(min-width: 1024px)";
 
+const FIRST_MESSAGE_KEY = "first-message";
+
 function RevealContent({
+  animalId,
   animalName,
+  sex,
   cityLabel,
   cityName,
   reveal,
   onClose,
   secondaryAction,
 }: {
+  animalId: AnimalId;
   animalName: string;
+  sex: AnimalSex;
   cityLabel: string | null;
   cityName: string | null;
   reveal: ContactRevealView;
@@ -311,28 +325,14 @@ function RevealContent({
   const { displayName, contact } = reveal.shelterContact;
   const footnote = contactsFootnoteOf(reveal);
   const channels = revealChannels(contact).filter(isLinkable);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const { copiedKey, copy } = useCopiedKey();
+  // Built here from the page's own data; nothing is sent until the person sends it themselves.
+  const message = firstMessageOf({ animalName, sex, animalUrl: animalPageUrl(animalId) });
+  const messageHeadingId = useId();
   // Mounted only after a click, so `window` is there; the section starts open on a desktop only.
   const [reflectionOpen, setReflectionOpen] = useState(
     () => typeof window !== "undefined" && window.matchMedia(DESKTOP_QUERY).matches,
   );
-
-  // The confirmation clears itself; it is never kept for the next open.
-  useEffect(() => {
-    if (copiedKey === null) return;
-    const timer = setTimeout(() => setCopiedKey(null), 2000);
-    return () => clearTimeout(timer);
-  }, [copiedKey]);
-
-  const copy = async (key: string, value: string) => {
-    if (typeof navigator.clipboard?.writeText !== "function") return;
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopiedKey(key);
-    } catch {
-      // No clipboard permission or an insecure context: the value is on screen to copy by hand.
-    }
-  };
 
   const photo = reveal.animalSnapshot.primaryPhoto;
 
@@ -377,7 +377,7 @@ function RevealContent({
       )}
       <ul className="flex flex-col gap-3">
         {channels.map((channel, index) => {
-          const action = channelAction(channel);
+          const action = channelAction(channel, message);
           const key = `${channel.kind}:${contactChannelText(channel)}`;
           const filled = index === 0;
           return (
@@ -424,6 +424,30 @@ function RevealContent({
           );
         })}
       </ul>
+      {/* Below the rows on every screen (owner, 2026-11-24), so a 360×640 phone still sees every contact. */}
+      <section
+        aria-labelledby={messageHeadingId}
+        data-testid="reveal-first-message"
+        className="flex flex-col gap-2"
+      >
+        <p id={messageHeadingId} className="text-label text-ink">
+          {uk.reveal.firstMessage.heading}
+        </p>
+        <p
+          data-testid="reveal-first-message-text"
+          className="select-text break-words rounded-field border-2 border-line bg-surface p-4 text-body text-ink"
+        >
+          {message}
+        </p>
+        <Button
+          variant="secondary"
+          onClick={() => void copy(FIRST_MESSAGE_KEY, message)}
+          data-testid="reveal-first-message-copy"
+          className="self-start"
+        >
+          {copiedKey === FIRST_MESSAGE_KEY ? uk.reveal.copied : uk.reveal.firstMessage.copy}
+        </Button>
+      </section>
       <span role="status" aria-live="polite" className="sr-only">
         {copiedKey === null ? "" : uk.reveal.copied}
       </span>

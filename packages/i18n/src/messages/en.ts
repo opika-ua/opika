@@ -251,6 +251,15 @@ export const en = {
     copyInstagramLabel: "Copy the Instagram username",
     copyWhatsappLabel: "Copy WhatsApp number",
     backToFeed: "Back to the gallery",
+    firstMessage: {
+      heading: "You could start with this message:",
+      male: "Hello. I'm writing about the card “{name}” on {site}: {url}. Is he still looking for a home?",
+      female:
+        "Hello. I'm writing about the card “{name}” on {site}: {url}. Is she still looking for a home?",
+      unknown:
+        "Hello. I'm writing about the card “{name}” on {site}: {url}. Is this animal still looking for a home?",
+      copy: "Copy the message",
+    },
   },
 
   // --- My reveals (06) ---

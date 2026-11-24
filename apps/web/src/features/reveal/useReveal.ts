@@ -1,7 +1,7 @@
 "use client";
 
 import type { ContactRevealView } from "@opika/contracts";
-import type { AnimalId } from "@opika/domain";
+import type { AnimalId, AnimalSex } from "@opika/domain";
 import { isDefinedError, safe } from "@orpc/client";
 import { useCallback, useRef, useState } from "react";
 import { revealBrowserClient } from "../../api/browser-client";
@@ -16,6 +16,8 @@ import { isTooManyRequests } from "../../api/too-many-requests";
 export interface RevealSnapshot {
   animalId: AnimalId;
   animalName: string;
+  /** From the page's own animal view; picks the suggested first message's pronoun. */
+  sex: AnimalSex;
   cityName: string | null;
   /** The bare city for the dialog's header line; absent where `cityName` already is bare. */
   cityLabel?: string | null | undefined;
