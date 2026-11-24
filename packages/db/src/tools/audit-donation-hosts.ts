@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { type LinkAddressProblem, linkAddressProblemOf } from "@opika/domain";
 import { isNotNull, or } from "drizzle-orm";
 import { createDatabase, type Database } from "../client";
+import { migrateTargetCheck, parseMigrateArgs } from "../migrate-args";
 import { assertProductionWriteAllowed, databaseTargetLine } from "../prod-guard";
 import { shelters } from "../schema/shelters";
 
@@ -10,7 +11,8 @@ import { shelters } from "../schema/shelters";
  * `pnpm --filter @opika/db donation-links:audit-hosts`: read-only pre-check (owner, 2026-11-24).
  * Counts the stored donation links, live and proposed, that the new rule would refuse: an IP host
  * or an explicit port. It deletes and rewrites nothing; stored links keep rendering.
- * Prints counts and shelter ids only, never a URL.
+ * Prints counts and shelter ids only, never a URL. Takes `--prod` and `--expect ep-…` only: a
+ * non-local target must be exactly the `--expect` compute, as for `db:migrate` (owner, 2026-11-24).
  */
 
 export type StoredDonationRow = {
@@ -86,8 +88,19 @@ async function main(): Promise<void> {
     console.error("ERROR: DATABASE_URL is not set.");
     process.exit(1);
   }
+  const args = parseMigrateArgs(process.argv.slice(2));
+  if (args.kind === "refused") {
+    console.error(`ERROR: ${args.reason}.`);
+    process.exit(1);
+  }
   // It writes nothing, but it reads every shelter's links, so production takes --prod (as location:verify).
   assertProductionWriteAllowed(databaseUrl, process.argv, process.env, "read");
+  // Before anything is printed or read: a non-local target must be exactly `--expect`'s compute.
+  const expected = migrateTargetCheck(databaseUrl, args.expect);
+  if (expected.kind === "refused") {
+    console.error(`ERROR: ${expected.reason}. Refusing (not printing the URL).`);
+    process.exit(1);
+  }
   console.log(databaseTargetLine(databaseUrl));
   const audit = auditDonationHosts(await readStoredDonationLinks(createDatabase(databaseUrl)));
   for (const line of formatAudit(audit)) console.log(line);
