@@ -1,6 +1,6 @@
-import { createHash, timingSafeEqual } from "node:crypto";
 import type { Database } from "@opika/db";
 import type { R2CleanupReport } from "@opika/db/image-pipeline/server";
+import { bearerMatches } from "../api/bearer";
 import { pingHealthcheck } from "./cron-healthcheck";
 import type { R2CleanupState } from "./r2-cleanup-env";
 
@@ -129,11 +129,4 @@ export async function handleR2CleanupCron(
     failed: report.failed.length,
     snapshotsNulled: report.snapshotsNulled,
   });
-}
-
-const digest = (value: string) => createHash("sha256").update(value, "utf8").digest();
-
-function bearerMatches(header: string | null, secret: string): boolean {
-  if (header === null) return false;
-  return timingSafeEqual(digest(header), digest(`Bearer ${secret}`));
 }

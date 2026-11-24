@@ -41,6 +41,22 @@ describe("linkParts", () => {
     ]);
   });
 
+  // Review of #578: trimming re-counted the brackets on every step, quadratic on a long «)» run.
+  // 100,000 of them takes longer than the test timeout that way, and milliseconds when linear.
+  it("trims a very long run of closing brackets and dots, keeping the one the URL opened", () => {
+    const tail = ").".repeat(50_000);
+    const url = "https://a.org/x(y)";
+    expect(linkParts(`${url}${tail}`)).toEqual([
+      link(0, url, "a.org/x(y)"),
+      text(url.length, tail),
+    ]);
+  });
+
+  it("links nothing in a run of brackets and dots after a host with no dot", () => {
+    const value = `https://localhost/${")".repeat(10_000)}`;
+    expect(linkParts(value)).toEqual([text(0, value)]);
+  });
+
   it("ends the link where Cyrillic is glued on, on either side", () => {
     expect(linkParts(`сайт${FIV}Дякуємо`)).toEqual([text(0, "сайт"), link(4), text(37, "Дякуємо")]);
   });
@@ -67,6 +83,7 @@ describe("linkParts", () => {
       "https://0x7f.1/pay",
       "https://2130706433/pay",
       "https://[2001:db8::1]/pay",
+      "https://localhost/pay",
       "https://monobank.ua@other.example/pay",
       "https://user:pass@monobank.ua/jar",
     ]) {

@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { isRealPhotoKey, r2PublicUrl } from "@opika/db/image-pipeline";
+import { PHOTO_MAX_EDGE_PX } from "@opika/domain";
 import { animalFactsParts } from "@opika/i18n";
 import { ukPublic as uk } from "@opika/i18n/public";
 import { ImageResponse } from "next/og";
@@ -21,6 +22,8 @@ const SPECIES_TEXT = { dog: "#794eba", cat: "#c2410c" } as const;
 // A preview crawler gives up after a few seconds; a missing photo must not cost the card.
 const PHOTO_TIMEOUT_MS = 2500;
 const PHOTO_WIDTH = 504;
+// The upload ceiling (audit I5): the source is our own 640 px variant, but no decode opens a bomb.
+const PHOTO_PIXEL_LIMIT = PHOTO_MAX_EDGE_PX * PHOTO_MAX_EDGE_PX;
 // 1200 - photo - 2 x 64 padding; Climate Crisis is wide, about 0.8 em per Cyrillic capital.
 const TEXT_COLUMN_WIDTH = OG_SIZE.width - PHOTO_WIDTH - 128;
 const DISPLAY_EM_PER_CHAR = 0.8;
@@ -76,7 +79,7 @@ async function photoDataUri(storageKey: string): Promise<string | null> {
   try {
     const source = await photoBytes(storageKey);
     if (!source) return null;
-    const jpeg = await sharp(source)
+    const jpeg = await sharp(source, { limitInputPixels: PHOTO_PIXEL_LIMIT })
       .resize(PHOTO_WIDTH, OG_SIZE.height, { fit: "cover" })
       .jpeg({ quality: 85 })
       .toBuffer();

@@ -80,8 +80,9 @@ const MAX_IN_MEMORY_KEYS = 10_000;
  * (limit × number_of_instances). Used for local dev, CI, and the harness -
  * `apiRateLimiter` below only ever falls back to this when no Upstash
  * credentials are configured, which is true everywhere except a real
- * Vercel deployment. The one production use is `/api/health` (owner,
- * 2026-11-20), where a per-instance limit is enough.
+ * Vercel deployment. In production it backs `/api/health` (owner,
+ * 2026-11-20), where a per-instance limit is enough, and it is the Sentry
+ * tunnel's fallback during an Upstash outage (`onUnavailable: "in-memory"`).
  */
 export function inMemoryRateLimiter(opts: {
   windowMs: number;
@@ -292,7 +293,9 @@ export function upstashRateLimiter(opts: {
       }
       return result.success ? "allowed" : "refused";
     } catch (err) {
-      console.error(`apiRateLimiter: Upstash check failed - ${outcome} (RL-1)`, err);
+      // The name only: Upstash's message can carry the command, its key or the store's URL.
+      const name = err instanceof Error ? err.name : typeof err;
+      console.error(`apiRateLimiter: Upstash check failed - ${outcome} (RL-1): ${name}`);
       warnLimiterUnreachable(opts.prefix, "error");
       return "unavailable";
     }

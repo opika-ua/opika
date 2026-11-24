@@ -53,6 +53,37 @@ test.describe("security headers (audit F5)", () => {
     expectSecurityHeaders(api.headers(), "POST /api/rpc/animals/cardsByIds");
   });
 
+  // Audit part B §4: the one next.config rule covers these too; until now nothing asserted it.
+  // Sign-in is off on this server, so the kabinet and auth APIs answer with their refusals.
+  test("the kabinet and auth APIs, both OG images and an email asset carry them", async ({
+    request,
+  }) => {
+    const checks: [string, () => Promise<APIResponse>, number][] = [
+      [
+        "POST /api/kabinet/shelter/get",
+        () =>
+          request.post("/api/kabinet/shelter/get", {
+            headers: { ...IP_HEADERS, origin: ORIGIN },
+            data: { json: {} },
+          }),
+        503,
+      ],
+      ["GET /api/auth/get-session", () => request.get("/api/auth/get-session"), 503],
+      ["GET /opengraph-image", () => request.get("/opengraph-image"), 200],
+      [
+        "GET /tvaryny/<id>/opengraph-image",
+        () => request.get("/tvaryny/00000000-0000-4000-8000-000000000000/opengraph-image"),
+        200,
+      ],
+      ["GET /email/logo@2x-v1.png", () => request.get("/email/logo@2x-v1.png"), 200],
+    ];
+    for (const [what, send, status] of checks) {
+      const response = await send();
+      expect(response.status(), what).toBe(status);
+      expectSecurityHeaders(response.headers(), what);
+    }
+  });
+
   test("a 404 page, a build asset and a public file carry them", async ({ request }) => {
     const notFound = await request.get("/tvaryny/not-a-real-id", { headers: IP_HEADERS });
     expect(notFound.status()).toBe(404);

@@ -34,8 +34,9 @@ export const linkHostProblemOf = (raw: string): LinkHostProblem | null => {
 const IPV4_HOST = /^\d{1,3}(?:\.\d{1,3}){3}$/;
 
 /**
- * Whether a URL in shelter-written text may be a live link: https, a named host (an IP address
- * names no one), and no `LinkHostProblem`. Anything else is shown as the text it is.
+ * Whether a URL in shelter-written text may be a live link: https, a named public host (an IP
+ * address names no one, and a single label such as `localhost` is no public site, so it needs a
+ * dot), and no `LinkHostProblem`. Anything else is shown as the text it is.
  */
 export const isLiveLinkUrl = (raw: string): boolean => {
   let url: URL;
@@ -46,5 +47,6 @@ export const isLiveLinkUrl = (raw: string): boolean => {
   }
   if (url.protocol !== "https:" || url.hostname === "") return false;
   if (IPV4_HOST.test(url.hostname) || url.hostname.startsWith("[")) return false;
+  if (!url.hostname.replace(/\.$/, "").includes(".")) return false;
   return linkHostProblemOf(raw) === null;
 };

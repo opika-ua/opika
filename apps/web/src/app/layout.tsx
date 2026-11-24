@@ -96,7 +96,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           and real Core Web Vitals from actual devices (Speed Insights),
           which the harness cannot simulate. «Про проєкт» discloses this to
           shelters and adopters. Their one `beforeSend` strips the query string from
-          every kabinet sign-in page, so no token reaches either (`SiteAnalytics`).
+          every kabinet page, so no token reaches either (`SiteAnalytics`).
         */}
         <SiteAnalytics />
       </body>

@@ -87,7 +87,8 @@ export function isPastGracePeriod(
  * the file's own bytes, never by its name or the type the browser declared:
  * - `unsupported_type`: its magic bytes are not JPEG, PNG or WebP (GIF, SVG,
  *   HEIC, PDF, text…). HEIC is converted on the device where the browser can
- *   decode it (P-Q6), so one arriving here is a client that skipped that step;
+ *   decode it (P-Q6), so one arriving here is a client that skipped that step.
+ *   An animated or multi-page file (more than one frame) is refused the same way;
  * - `format_mismatch`: the decoder reads a different format than the bytes
  *   claim, which only a crafted file does;
  * - `dimensions_exceeded`: a side longer than `PHOTO_MAX_EDGE_PX`, refused from

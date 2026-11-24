@@ -156,9 +156,9 @@ describe("the envelope must name exactly our DSN", () => {
 });
 
 describe("size", () => {
-  // The cap's headroom: the SDK sends one error per envelope with no breadcrumbs, replay or
-  // tracing, so even a 100-frame stack (Sentry keeps at most 50 per exception) is far below it.
-  it("forwards a large real-shaped error, under half the cap", async () => {
+  // The cap must let a real error through, not only refuse a big one: a deep minified stack
+  // (100 frames, twice what Sentry keeps) and a long message, about 30 KB as the SDK sends it.
+  it("forwards a large real-shaped error envelope", async () => {
     const { all, forward } = deps();
     const frames = Array.from({ length: 100 }, (_, i) => ({
       filename: `https://opika.example/_next/static/chunks/app/tvaryny/page-0123456789abcdef${i}.js`,
@@ -178,7 +178,6 @@ describe("size", () => {
         }),
       },
     ]);
-    expect(Buffer.byteLength(body)).toBeLessThan(MONITORING_MAX_BODY_BYTES / 2);
     const response = await handleMonitoringTunnel(post(body), all);
     expect(response.status).toBe(204);
     expect(forward).toHaveBeenCalledTimes(1);
