@@ -16,6 +16,7 @@ import {
   CSP_HEADER_OF,
   type CspMode,
   isCspReportingPath,
+  NONCE_REQUEST_HEADER,
   newCspNonce,
   nonceContentSecurityPolicy,
 } from "./security-headers";
@@ -121,8 +122,8 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
 
 /**
  * Audit B1: a /kabinet page enforces a CSP with a fresh nonce; a public page reports against the same
- * policy (the trial, owner 2026-11-24, D3). Next takes the nonce from the request's CSP header, either
- * mode, and stamps its scripts with it; the browser applies the response's.
+ * policy (the trial, owner 2026-11-24, D3). Next stamps its scripts with the request's nonce; only the
+ * response's header reaches the browser.
  */
 function withNoncePolicy(request: NextRequest, mode: CspMode): NextResponse {
   const reportTo =
@@ -139,7 +140,8 @@ function withNoncePolicy(request: NextRequest, mode: CspMode): NextResponse {
   const headers = new Headers(request.headers);
   // Next prefers an enforced request header to a report-only one: a client's own must not pick the nonce.
   for (const name of Object.values(CSP_HEADER_OF)) headers.delete(name);
-  headers.set(CSP_HEADER_OF[mode], policy);
+  // The enforced name in both modes: on Vercel, Next ignored a report-only one (#589).
+  headers.set(NONCE_REQUEST_HEADER, policy);
   const response = NextResponse.next({ request: { headers } });
   response.headers.set(CSP_HEADER_OF[mode], policy);
   return response;
