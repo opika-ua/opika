@@ -1723,16 +1723,16 @@ describe("/pro's data summary (owner-approved 2026-11-20)", () => {
  */
 describe("listing before verification (owner's copy table, 2026-11-04, N1–N3 and the operator lines N4–N6)", () => {
   it.each([
-    ["underReview.shelter (N1)", uk.underReview.shelter, "Притулок на перевірці"],
+    ["underReview.shelter (N1)", uk.underReview.shelter.shelter, "Притулок на перевірці"],
     ["underReview.card (N2)", uk.underReview.card, "На перевірці"],
     [
       "underReview.revealNotice (N3)",
-      uk.underReview.revealNotice,
+      uk.underReview.revealNotice.shelter,
       "Цей притулок ще проходить перевірку. Не переказуйте гроші наперед.",
     ],
     [
       "underReview.sharePreview (N14)",
-      uk.underReview.sharePreview,
+      uk.underReview.sharePreview.shelter,
       "Тварина з притулку, який ще проходить перевірку.",
     ],
     [
@@ -1777,20 +1777,20 @@ describe("listing before verification (owner's copy table, 2026-11-04, N1–N3 a
 
 describe("designer round 1, S6 (his DR1-Q1 and shelter-page copy)", () => {
   it.each([
-    ["medical.shelterDeclared", uk.medical.shelterDeclared, "Дані притулку"],
+    ["medical.shelterDeclared", uk.medical.shelterDeclared.shelter, "Дані притулку"],
     // The copy audit of 2026-10-22 (Oleksii: "#14 and every key S6 rewrites: apply them on
     // `feat/dr1-s6-shelter-page` as a separate commit"): #16 and #14, transcribed from the audit.
     // Pet card chips + health PR (his table, 2026-10-31): the status rows' words.
     ["medical.statusDone", uk.medical.statusDone, "Зроблено"],
     ["medical.statusUnknown", uk.medical.statusUnknown, "Невідомо"],
-    ["medical.sourceShelter", uk.medical.sourceShelter, "За даними притулку"],
+    ["medical.sourceShelter", uk.medical.sourceShelter.shelter, "За даними притулку"],
     ["shelterPage.animalsHeading", uk.shelterPage.animalsHeading, "Шукають дім: {count}"],
     ["shelterPage.noAnimals", uk.shelterPage.noAnimals, "Зараз тут немає тварин, які шукають дім."],
     ["shelterPage.sinceYear", uk.shelterPage.sinceYear, "на сайті з {year} року"],
     ["shelterPage.countLine", uk.shelterPage.countLine, "Знайдено {count} {animalWord}"],
-    ["detail.shelterRowLink", uk.detail.shelterRowLink, "Сторінка притулку «{name}»"],
+    ["detail.shelterRowLink", uk.detail.shelterRowLink.shelter, "Сторінка притулку «{name}»"],
     // Owner-approved 2026-11 (shelter description): the public heading, the kabinet field and the operator's title.
-    ["shelterPage.aboutHeading", uk.shelterPage.aboutHeading, "Про притулок"],
+    ["shelterPage.aboutHeading", uk.shelterPage.aboutHeading.shelter, "Про притулок"],
     [
       "kabinet.operator.shelter.descriptionTitle (the same words)",
       uk.kabinet.operator.shelter.descriptionTitle,
@@ -1803,8 +1803,110 @@ describe("designer round 1, S6 (his DR1-Q1 and shelter-page copy)", () => {
   });
 
   it("«Про притулок» is not the medical rows' source label", () => {
-    expect(uk.medical.shelterDeclared).not.toBe(uk.shelterPage.aboutHeading);
+    expect(uk.medical.shelterDeclared.shelter).not.toBe(uk.shelterPage.aboutHeading.shelter);
   });
+});
+
+/**
+ * «Ініціатива без реєстрації» (owner, 2026-11-24, rows 1–15 approved, row 9 edited): each
+ * organisation-specific public string keeps its shelter text byte for byte and gains the
+ * initiative one, transcribed from the approved table.
+ */
+describe("the initiative wording (owner-approved 2026-11-24)", () => {
+  it.each([
+    [
+      "1 underReview.shelter",
+      uk.underReview.shelter,
+      "Притулок на перевірці",
+      "Ініціатива на перевірці",
+    ],
+    [
+      "2 detail.shelterVerifiedYears",
+      uk.detail.shelterVerifiedYears,
+      "Перевірений вручну · на {site} з {year} р.",
+      "Перевірена вручну · на {site} з {year} р.",
+    ],
+    [
+      "3 underReview.revealNotice",
+      uk.underReview.revealNotice,
+      "Цей притулок ще проходить перевірку. Не переказуйте гроші наперед.",
+      "Ця ініціатива ще проходить перевірку. Не переказуйте гроші наперед.",
+    ],
+    [
+      "4 underReview.sharePreview",
+      uk.underReview.sharePreview,
+      "Тварина з притулку, який ще проходить перевірку.",
+      "Тварина від ініціативи, яка ще проходить перевірку.",
+    ],
+    ["5 reveal.title", uk.reveal.title, "Як звʼязатися з притулком", "Як звʼязатися з ініціативою"],
+    [
+      "6 reveal.subtitle",
+      uk.reveal.subtitle,
+      "Притулок не знає про це звернення, поки ви не напишете самі. Нічого не надсилається автоматично.",
+      "Ініціатива не знає про це звернення, поки ви не напишете самі. Нічого не надсилається автоматично.",
+    ],
+    [
+      "7 errors.shelterPaused.title",
+      uk.errors.shelterPaused.title,
+      "Притулок тимчасово не приймає нових звернень",
+      "Ініціатива тимчасово не приймає нових звернень",
+    ],
+    [
+      "7 pause.notice",
+      uk.pause.notice,
+      "Притулок тимчасово не приймає нових звернень",
+      "Ініціатива тимчасово не приймає нових звернень",
+    ],
+    [
+      "8 errors.loadFailed.body",
+      uk.errors.loadFailed.body,
+      "Це не ваша помилка і не помилка притулку.",
+      "Це не ваша помилка і не помилка ініціативи.",
+    ],
+    [
+      "9 pause.shelterNotListed (his edit)",
+      uk.pause.shelterNotListed,
+      "Тварини з цього притулку зараз не показуються в галереї.",
+      "Тварини цієї ініціативи зараз не показуються в галереї.",
+    ],
+    ["10 shelterPage.aboutHeading", uk.shelterPage.aboutHeading, "Про притулок", "Про ініціативу"],
+    [
+      "11 detail.donateShelter",
+      uk.detail.donateShelter,
+      "Підтримати притулок",
+      "Підтримати ініціативу",
+    ],
+    [
+      "12 detail.shelterRowLink",
+      uk.detail.shelterRowLink,
+      "Сторінка притулку «{name}»",
+      "Сторінка ініціативи «{name}»",
+    ],
+    ["13 medical.shelterDeclared", uk.medical.shelterDeclared, "Дані притулку", "Дані ініціативи"],
+    [
+      "13 medical.sourceShelter",
+      uk.medical.sourceShelter,
+      "За даними притулку",
+      "За даними ініціативи",
+    ],
+    [
+      "14 errors.photoMissing.placeholder",
+      uk.errors.photoMissing.placeholder,
+      "Фото немає – притулок ще не надіслав",
+      "Фото немає – ініціатива ще не надіслала",
+    ],
+    [
+      "15 likes.paused",
+      uk.likes.paused,
+      "{name} зараз не показується в галереї: притулок тимчасово не приймає звернень.",
+      "{name} зараз не показується в галереї: ініціатива тимчасово не приймає звернень.",
+    ],
+  ])(
+    "%s: the shelter text unchanged, the initiative text approved",
+    (_row, texts, shelter, initiative) => {
+      expect(texts).toEqual({ shelter, initiative });
+    },
+  );
 });
 
 /**
@@ -3101,11 +3203,17 @@ describe("the copy audit of 2026-10-22", () => {
       "Добрий день. Відкриваю для цієї адреси доступ до кабінету притулку «{shelter}» на сайті {site}.",
     );
     // MK-6 (owner, 2026-11-02): the year of the record as a number, never a years count.
-    expect(uk.detail.shelterVerifiedYears).toBe("Перевірений вручну · на {site} з {year} р.");
+    expect(uk.detail.shelterVerifiedYears.shelter).toBe(
+      "Перевірений вручну · на {site} з {year} р.",
+    );
+    expect(uk.detail.shelterVerifiedYears.initiative).toBe(
+      "Перевірена вручну · на {site} з {year} р.",
+    );
     for (const text of [
       uk.about.intro,
       uk.kabinet.email.invite.intro,
-      uk.detail.shelterVerifiedYears,
+      uk.detail.shelterVerifiedYears.shelter,
+      uk.detail.shelterVerifiedYears.initiative,
     ]) {
       expect(text).not.toMatch(/opika/iu);
     }

@@ -55,6 +55,7 @@ const shelterSummary = {
     approximate: { center: { lat: 49.99, lng: 36.23 }, precisionMetres: 1000 },
   },
   verification: "verified",
+  organisationWord: "shelter",
 };
 
 const derived = {
@@ -339,6 +340,7 @@ describe("shelter views expose exactly their intended fields", () => {
       "donation",
       "id",
       "logo",
+      "organisationWord",
       "publicLocation",
       "verification",
     ]);
@@ -349,6 +351,7 @@ describe("shelter views expose exactly their intended fields", () => {
       "displayName",
       "id",
       "logo",
+      "organisationWord",
       "publicLocation",
       "verification",
     ]);

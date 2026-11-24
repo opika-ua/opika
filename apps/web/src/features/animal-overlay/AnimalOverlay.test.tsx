@@ -45,6 +45,7 @@ const REVEAL: ContactRevealView = {
   animalId: ANIMAL_ID as ContactRevealView["animalId"],
   revealedAt: new Date("2026-10-01T10:00:00Z"),
   shelterListing: "verified",
+  organisationWord: "shelter",
   shelterContact: {
     source: "current",
     displayName: "Тестовий притулок «Домівка»",

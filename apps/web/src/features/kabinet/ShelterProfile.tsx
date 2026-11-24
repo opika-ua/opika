@@ -149,7 +149,7 @@ export function ShelterProfile({
               )}
             </FormSection>
 
-            <FormSection id="about" title={uk.shelterPage.aboutHeading}>
+            <FormSection id="about" title={uk.shelterPage.aboutHeading.shelter}>
               <Text className="whitespace-pre-line break-words">
                 {view.description?.uk ?? notRecorded}
               </Text>

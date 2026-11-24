@@ -45,6 +45,7 @@ export function makeCardView(index: number, overrides: Partial<FeedCardView> = {
       logo: null,
       publicLocation: { cityId: CITY_ID as never },
       verification: "verified",
+      organisationWord: "shelter",
     },
     ...overrides,
   };

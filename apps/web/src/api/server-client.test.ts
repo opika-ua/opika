@@ -86,6 +86,7 @@ describe("anonymousRouterClient", () => {
       "displayName",
       "id",
       "logo",
+      "organisationWord",
       "publicLocation",
       "verification",
     ]);
@@ -204,6 +205,7 @@ describe("anonymousRouterClient", () => {
       "donation",
       "id",
       "logo",
+      "organisationWord",
       "publicLocation",
       "verification",
     ]);
@@ -211,6 +213,7 @@ describe("anonymousRouterClient", () => {
       "displayName",
       "id",
       "logo",
+      "organisationWord",
       "publicLocation",
       "verification",
     ]);

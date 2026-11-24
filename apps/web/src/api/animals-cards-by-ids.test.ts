@@ -108,6 +108,7 @@ describe("animals.cardsByIds", () => {
       "displayName",
       "id",
       "logo",
+      "organisationWord",
       "publicLocation",
       "verification",
     ]);

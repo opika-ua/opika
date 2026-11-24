@@ -4,6 +4,7 @@ import type {
   RevealsListMineOutputSchema,
 } from "@opika/contracts";
 import { revealRepo, shelterRepo } from "@opika/db/repos";
+import { organisationWordOf } from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
@@ -69,6 +70,7 @@ export async function revealsListMine(
         item,
         shelterContactOf(item, shelter, context.now),
         shelter ? listingOf(shelter, context.now) : null,
+        organisationWordOf(shelter?.legalEntity?.kind ?? null),
       );
     }),
     nextCursor,

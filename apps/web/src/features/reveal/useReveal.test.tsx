@@ -27,6 +27,7 @@ function revealFor(animalId: typeof ANIMAL_A, name: string): ContactRevealView {
     animalId,
     revealedAt: new Date("2026-08-08T10:00:00Z"),
     shelterListing: "verified",
+    organisationWord: "shelter",
     shelterContact: {
       source: "current",
       displayName: "Притулок «Домівка»",

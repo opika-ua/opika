@@ -55,6 +55,7 @@ function revealFor(contact: ShelterContact): ContactRevealView {
     animalId: ANIMAL_ID,
     revealedAt: new Date("2026-08-08T10:00:00Z"),
     shelterListing: "verified",
+    organisationWord: "shelter",
     shelterContact: { source: "current", displayName: "Притулок «Домівка»", contact },
     shelterAtFirstReveal: {
       shelterId: SHELTER_ID,
@@ -69,7 +70,13 @@ function revealFor(contact: ShelterContact): ContactRevealView {
 
 function renderFlow() {
   return render(
-    <RevealFlow animalId={ANIMAL_ID} animalName="Ластівка" sex="female" cityName="м. Бровари" />,
+    <RevealFlow
+      animalId={ANIMAL_ID}
+      animalName="Ластівка"
+      sex="female"
+      cityName="м. Бровари"
+      organisationWord="shelter"
+    />,
   );
 }
 

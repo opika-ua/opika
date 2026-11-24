@@ -71,16 +71,19 @@ const shelter: Shelter = {
   lastUpdatedAt: AT,
 };
 
+/** What a handler hands a public view: the domain shelter plus the word derived from its form. */
+const served = { ...shelter, organisationWord: "shelter" as const };
+
 describe("public shelter projections withhold the private fields", () => {
   const projected = PublicShelterViewSchema.parse({
-    ...shelter,
+    ...served,
     verification: "verified",
     availability: { kind: "open" },
   });
 
   it("a paused shelter's availability carries the reason code only, never a note, actor or date", () => {
     const paused = PublicShelterViewSchema.parse({
-      ...shelter,
+      ...served,
       verification: "verified",
       availability: {
         kind: "paused",
@@ -106,6 +109,47 @@ describe("public shelter projections withhold the private fields", () => {
     expect(projected).not.toHaveProperty("legalEntity");
   });
 
+  /** Owner, 2026-11-24: the word derived from the form is the only legal fact that leaves the server. */
+  it("carries the organisation word and nothing else of the legal form, in either view", () => {
+    const initiative = {
+      ...served,
+      legalEntity: {
+        kind: "unregistered_initiative" as const,
+        contactPersonName: "Вигадана Особа",
+      },
+      organisationWord: "initiative" as const,
+      verification: "verified" as const,
+      availability: { kind: "open" as const },
+    };
+    for (const view of [
+      PublicShelterViewSchema.parse(initiative),
+      ShelterSummaryViewSchema.parse(initiative),
+    ]) {
+      expect(view.organisationWord).toBe("initiative");
+      expect(view).not.toHaveProperty("legalEntity");
+      const json = JSON.stringify(view);
+      expect(json).not.toContain("Вигадана Особа");
+      expect(json).not.toContain("unregistered_initiative");
+    }
+    const ngo = ShelterSummaryViewSchema.parse({ ...served, verification: "verified" });
+    expect(ngo.organisationWord).toBe("shelter");
+    expect(JSON.stringify(ngo)).not.toContain("12345678");
+  });
+
+  it("refuses a view without the word", () => {
+    const { organisationWord: _word, ...withoutWord } = served;
+    expect(
+      PublicShelterViewSchema.safeParse({
+        ...withoutWord,
+        verification: "verified",
+        availability: { kind: "open" },
+      }).success,
+    ).toBe(false);
+    expect(
+      ShelterSummaryViewSchema.safeParse({ ...withoutWord, verification: "verified" }).success,
+    ).toBe(false);
+  });
+
   it("reduces verification to a badge, dropping moderators and evidence", () => {
     expect(projected.verification).toBe("verified");
   });
@@ -120,7 +164,7 @@ describe("public shelter projections withhold the private fields", () => {
 
   it("withholds the same fields from the card summary", () => {
     const summary = ShelterSummaryViewSchema.parse({
-      ...shelter,
+      ...served,
       verification: "verified",
       availability: { kind: "open" },
     });
@@ -133,7 +177,7 @@ describe("public shelter projections withhold the private fields", () => {
    * ones withheld above. */
   it("carries the logo, both on the shelter page's view and on the card summary", () => {
     const withLogo = {
-      ...shelter,
+      ...served,
       logo: { storageKey: "shelters/x/logo/y", width: 160, height: 160 },
     };
     expect(
@@ -158,7 +202,7 @@ describe("public shelter projections withhold the private fields", () => {
    */
   it("carries the shelter's text on the shelter page's view only, never on a card", () => {
     const withText = {
-      ...shelter,
+      ...served,
       description: { uk: "Оновлюємо щосуботи.", en: null },
       verification: "verified" as const,
       availability: { kind: "open" as const },
@@ -180,7 +224,7 @@ describe("public shelter projections withhold the private fields", () => {
    */
   it("never carries a pending (unapproved) donation link, in either view", () => {
     const withPending = {
-      ...shelter,
+      ...served,
       pendingDonation: {
         link: { url: "https://send.monobank.ua/jar/swapped", provider: "monobank_jar" as const },
         proposedAt: AT,
@@ -205,7 +249,7 @@ describe("public shelter projections withhold the private fields", () => {
   it("carries the under-review label and never the permission's dates, in either view", () => {
     const SINCE = new Date("2026-10-01T08:30:00.000Z");
     const early = {
-      ...shelter,
+      ...served,
       earlyListingSince: SINCE,
       verification: "listed_before_verification" as const,
       availability: { kind: "open" as const },
@@ -238,6 +282,7 @@ describe("the reveal is the one sanctioned path to the contact details, and neve
     revealedAt: AT,
     shelterContact: { source: "current", displayName: shelter.displayName, contact },
     shelterListing: "verified",
+    organisationWord: "shelter",
     shelterAtFirstReveal: record,
     animalSnapshot: { name: "Мурчик", primaryPhoto: null },
     ...extra,
@@ -348,6 +393,7 @@ describe("the reveal view's exact field set (K4-B4, K4-B5)", () => {
       pauseNote: "internal",
     },
     shelterListing: null,
+    organisationWord: "initiative",
     animalSnapshot: { name: "Мурчик", primaryPhoto: null },
   };
 
@@ -372,6 +418,7 @@ describe("the reveal view's exact field set (K4-B4, K4-B5)", () => {
         "animalId",
         "animalSnapshot",
         "id",
+        "organisationWord",
         "revealedAt",
         "shelterAtFirstReveal",
         "shelterContact",
@@ -444,7 +491,7 @@ describe("the reveal view's exact field set (K4-B4, K4-B5)", () => {
  */
 describe("the pause note reaches no public view (K4-B4)", () => {
   const paused = {
-    ...shelter,
+    ...served,
     verification: {
       status: "paused",
       verifiedAt: AT,
@@ -474,6 +521,7 @@ describe("the pause note reaches no public view (K4-B4)", () => {
       "donation",
       "id",
       "logo",
+      "organisationWord",
       "publicLocation",
       "verification",
     ]);
@@ -482,6 +530,7 @@ describe("the pause note reaches no public view (K4-B4)", () => {
       "displayName",
       "id",
       "logo",
+      "organisationWord",
       "publicLocation",
       "verification",
     ]);

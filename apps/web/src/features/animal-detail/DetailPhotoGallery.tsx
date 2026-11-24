@@ -1,5 +1,5 @@
-import type { AnimalPhoto } from "@opika/domain";
-import { uk } from "@opika/i18n";
+import type { AnimalPhoto, OrganisationWord } from "@opika/domain";
+import { forOrganisation, uk } from "@opika/i18n";
 import { PhotoSlider } from "../../ui/PhotoSlider";
 
 /**
@@ -13,12 +13,14 @@ export function DetailPhotoGallery({
   photos,
   altFallback,
   slot,
+  organisationWord,
 }: {
   photos: readonly AnimalPhoto[];
   /** `animal.name` - used when a photo's own `alt` is unset. */
   altFallback: string;
   /** Its place on the sheet's desktop grid: the columns it spans («1-4») and their classes. */
   slot?: { columns: string; className: string } | null;
+  organisationWord: OrganisationWord;
 }) {
   // The overlay watches this marker leave the top of its scroll to swap its floating controls for
   // the compact bar; it sits on the photo's bottom edge.
@@ -31,7 +33,9 @@ export function DetailPhotoGallery({
         data-testid="photo-placeholder"
         className={`${BLEED} relative flex h-75 items-center justify-center bg-line px-4 text-center desktop:hidden`}
       >
-        <span className="text-body text-ink-2">{uk.errors.photoMissing.placeholder}</span>
+        <span className="text-body text-ink-2">
+          {forOrganisation(uk.errors.photoMissing.placeholder, organisationWord)}
+        </span>
         {photoEnd}
       </div>
     );

@@ -8,6 +8,7 @@ import {
   type GalleryScope,
   type GallerySort,
   NO_FILTERS,
+  organisationWordOf,
   type Shelter,
   type ShelterId,
 } from "@opika/domain";
@@ -82,6 +83,7 @@ const shelterView = (s: Shelter) => ({
       : s.verification.status === "paused"
         ? "paused"
         : "unreachable",
+  organisationWord: organisationWordOf(s.legalEntity?.kind ?? null),
 });
 const cityView = (c: City) => ({
   id: c.id,
@@ -206,7 +208,15 @@ describe("galleryRepo.listCards equals list + shelters + cities", () => {
     });
     const first = page.items[0];
     expect(Object.keys(first?.shelter ?? {}).sort()).toEqual(
-      ["availability", "displayName", "id", "logo", "publicLocation", "verification"].sort(),
+      [
+        "availability",
+        "displayName",
+        "id",
+        "logo",
+        "organisationWord",
+        "publicLocation",
+        "verification",
+      ].sort(),
     );
     expect(Object.keys(first?.city ?? {}).sort()).toEqual(
       ["district", "id", "kind", "name", "nameScope", "regionId", "slug"].sort(),

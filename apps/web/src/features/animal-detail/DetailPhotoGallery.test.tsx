@@ -63,7 +63,9 @@ describe("DetailPhotoGallery", () => {
 
   it("loads only the first photo until the others come into range, falling back to the animal's name for alt", () => {
     stubObserver();
-    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
+    render(
+      <DetailPhotoGallery organisationWord="shelter" photos={THREE_PHOTOS} altFallback="Мурчик" />,
+    );
     const region = screen.getByRole("region", REGION);
 
     expect(imagesIn(region)).toHaveLength(1);
@@ -77,7 +79,13 @@ describe("DetailPhotoGallery", () => {
   });
 
   it("uses a photo's own alt text when it has one", () => {
-    render(<DetailPhotoGallery photos={[photo("/a.jpg", "Мурчик спить")]} altFallback="Мурчик" />);
+    render(
+      <DetailPhotoGallery
+        organisationWord="shelter"
+        photos={[photo("/a.jpg", "Мурчик спить")]}
+        altFallback="Мурчик"
+      />,
+    );
 
     expect(screen.getByRole("img", { name: "Мурчик спить" })).toBeTruthy();
   });
@@ -85,7 +93,7 @@ describe("DetailPhotoGallery", () => {
   it.each([1, 5, MAX_ANIMAL_PHOTOS])("shows all %i photos, in order, once armed", (count) => {
     stubObserver();
     const photos = Array.from({ length: count }, (_, i) => photo(`/p${i}.jpg`));
-    render(<DetailPhotoGallery photos={photos} altFallback="Мурчик" />);
+    render(<DetailPhotoGallery organisationWord="shelter" photos={photos} altFallback="Мурчик" />);
     for (let i = 1; i < count; i++) reveal(i);
 
     const imgs = imagesIn(screen.getByRole("region", REGION));
@@ -97,19 +105,23 @@ describe("DetailPhotoGallery", () => {
 
   it("an armed slide stays loaded, and without IntersectionObserver every photo loads", () => {
     stubObserver();
-    const { unmount } = render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
+    const { unmount } = render(
+      <DetailPhotoGallery organisationWord="shelter" photos={THREE_PHOTOS} altFallback="Мурчик" />,
+    );
     reveal(1);
     reveal(1);
     expect(imagesIn(screen.getByRole("region", REGION))).toHaveLength(2);
     unmount();
 
     vi.stubGlobal("IntersectionObserver", undefined);
-    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
+    render(
+      <DetailPhotoGallery organisationWord="shelter" photos={THREE_PHOTOS} altFallback="Мурчик" />,
+    );
     expect(imagesIn(screen.getByRole("region", REGION))).toHaveLength(3);
   });
 
   it("an animal with no photos gets the phone's placeholder text and no slider", () => {
-    render(<DetailPhotoGallery photos={[]} altFallback="Мурчик" />);
+    render(<DetailPhotoGallery organisationWord="shelter" photos={[]} altFallback="Мурчик" />);
 
     expect(screen.getByText("Фото немає – притулок ще не надіслав")).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Фотогалерея" })).toBeNull();
@@ -117,7 +129,13 @@ describe("DetailPhotoGallery", () => {
 
   it("two photos get a counter whose accessible name says which one is showing", () => {
     stubWidths(400, 800);
-    render(<DetailPhotoGallery photos={[photo("/a.jpg"), photo("/b.jpg")]} altFallback="Мурчик" />);
+    render(
+      <DetailPhotoGallery
+        organisationWord="shelter"
+        photos={[photo("/a.jpg"), photo("/b.jpg")]}
+        altFallback="Мурчик"
+      />,
+    );
 
     expect(screen.getByRole("status").textContent).toBe("Фото 1 з 2");
     expect(screen.getByText("1/2")).toBeTruthy();
@@ -125,7 +143,13 @@ describe("DetailPhotoGallery", () => {
 
   it("one photo has no counter", () => {
     stubWidths(400, 400);
-    render(<DetailPhotoGallery photos={[photo("/only.jpg")]} altFallback="Мурчик" />);
+    render(
+      <DetailPhotoGallery
+        organisationWord="shelter"
+        photos={[photo("/only.jpg")]}
+        altFallback="Мурчик"
+      />,
+    );
 
     expect(screen.queryByRole("status")).toBeNull();
     expect(screen.queryByText("1/1")).toBeNull();
@@ -133,7 +157,13 @@ describe("DetailPhotoGallery", () => {
 
   it("no slider buttons for a single photo", () => {
     stubWidths(1000, 1000);
-    render(<DetailPhotoGallery photos={[photo("/only.jpg")]} altFallback="Мурчик" />);
+    render(
+      <DetailPhotoGallery
+        organisationWord="shelter"
+        photos={[photo("/only.jpg")]}
+        altFallback="Мурчик"
+      />,
+    );
 
     expect(screen.queryByRole("button", { name: "Наступне фото" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Попереднє фото" })).toBeNull();
@@ -141,7 +171,13 @@ describe("DetailPhotoGallery", () => {
 
   it("no slider buttons when the photos already fit", () => {
     stubWidths(1000, 1000);
-    render(<DetailPhotoGallery photos={[photo("/a.jpg"), photo("/b.jpg")]} altFallback="Мурчик" />);
+    render(
+      <DetailPhotoGallery
+        organisationWord="shelter"
+        photos={[photo("/a.jpg"), photo("/b.jpg")]}
+        altFallback="Мурчик"
+      />,
+    );
 
     expect(screen.queryByRole("button", { name: "Наступне фото" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Попереднє фото" })).toBeNull();
@@ -149,7 +185,9 @@ describe("DetailPhotoGallery", () => {
 
   it("when the photos overflow: next shows and scrolls forward one photo, prev appears once scrolled", () => {
     stubWidths(376, 1128);
-    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
+    render(
+      <DetailPhotoGallery organisationWord="shelter" photos={THREE_PHOTOS} altFallback="Мурчик" />,
+    );
     const scroller = screen.getByRole("region", REGION);
     const scrollTo = vi.fn();
     Object.defineProperty(scroller, "scrollTo", { value: scrollTo, configurable: true });
@@ -167,7 +205,9 @@ describe("DetailPhotoGallery", () => {
 
   it("next disappears once scrolled to the end - no wrap-around", () => {
     stubWidths(360, 1128);
-    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
+    render(
+      <DetailPhotoGallery organisationWord="shelter" photos={THREE_PHOTOS} altFallback="Мурчик" />,
+    );
     const scroller = screen.getByRole("region", REGION);
 
     Object.defineProperty(scroller, "scrollLeft", { value: 768, configurable: true });
@@ -181,7 +221,9 @@ describe("DetailPhotoGallery", () => {
     vi.spyOn(window, "matchMedia").mockImplementation(
       (query) => ({ matches: query.includes("reduce"), media: query }) as MediaQueryList,
     );
-    render(<DetailPhotoGallery photos={THREE_PHOTOS} altFallback="Мурчик" />);
+    render(
+      <DetailPhotoGallery organisationWord="shelter" photos={THREE_PHOTOS} altFallback="Мурчик" />,
+    );
     const scroller = screen.getByRole("region", REGION);
     const scrollTo = vi.fn();
     Object.defineProperty(scroller, "scrollTo", { value: scrollTo, configurable: true });

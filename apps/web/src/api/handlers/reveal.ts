@@ -12,6 +12,8 @@ import {
   earlyListingOf,
   exactAddressOf,
   isDiscoverable,
+  type OrganisationWord,
+  organisationWordOf,
   type PublicListingLabel,
   primaryPhoto,
   publicListingBasisOf,
@@ -91,6 +93,7 @@ export async function animalsReveal(
     throw errors.SHELTER_NOT_VISIBLE();
   }
 
+  const word = organisationWordOf(shelter.legalEntity?.kind ?? null);
   // The shelter is visible (checked above), so both answers below carry its
   // current name and contacts (K4-B4, RUI4-F1), never the first-reveal record's.
   const current = currentShelterContactOf(shelter);
@@ -101,14 +104,19 @@ export async function animalsReveal(
     if (!(await spendPerIpBudget(context.caller, "newShelterReveals", context.now))) {
       throw perIpBudgetSpent();
     }
-    return toView(revealOf(context.adopterId, animal, shelter, context.now), current, listing);
+    return toView(
+      revealOf(context.adopterId, animal, shelter, context.now),
+      current,
+      listing,
+      word,
+    );
   }
 
   // Idempotent: return existing reveal if one exists
   const reveals = revealRepo(context.db);
   const existing = await reveals.findByAdopterAndAnimal(context.adopterId, animal.id);
   if (existing) {
-    return toView(existing, current, listing);
+    return toView(existing, current, listing, word);
   }
 
   // Rate limit check - persisted in Postgres, survives across instances.
@@ -132,7 +140,12 @@ export async function animalsReveal(
   const reveal = revealOf(context.adopterId, animal, shelter, context.now);
 
   // The check above can be passed by two reveals at once; this write holds the budget (audit F8).
-  return toView(await writeRevealWithinRateLimit(context.db, reveal, errors), current, listing);
+  return toView(
+    await writeRevealWithinRateLimit(context.db, reveal, errors),
+    current,
+    listing,
+    word,
+  );
 }
 
 /** How a shelter is publicly listed at `now`, or `null` when it is not (hidden, paused, lapsed). */
@@ -246,6 +259,7 @@ export function toView(
   reveal: ContactReveal,
   shelterContact: RevealShelterContactView,
   shelterListing: PublicListingLabel | null,
+  organisationWord: OrganisationWord,
 ): ContactRevealView {
   const record = reveal.shelterSnapshot;
   return {
@@ -254,6 +268,7 @@ export function toView(
     revealedAt: reveal.revealedAt,
     shelterContact,
     shelterListing,
+    organisationWord,
     shelterAtFirstReveal: {
       shelterId: record.shelterId,
       verificationStatusAtReveal: publicListingLabelAtReveal(record.verificationStatusAtReveal),

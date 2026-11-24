@@ -181,7 +181,12 @@ describe("animals.cardsByIds paused arm", () => {
       animalIds: [served.animal.id, unserved.animal.id],
     });
     expect((res.body as { items: unknown[] }).items).toEqual([
-      { kind: "paused", animalId: served.animal.id, name: served.animal.name },
+      {
+        kind: "paused",
+        animalId: served.animal.id,
+        name: served.animal.name,
+        organisationWord: "shelter",
+      },
       { kind: "unavailable", animalId: unserved.animal.id, name: null },
     ]);
   });

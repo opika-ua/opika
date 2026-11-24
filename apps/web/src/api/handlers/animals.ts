@@ -112,6 +112,7 @@ export async function animalsById(
         // paused one is `verified` in the trust sense.
         verification:
           shelter.verification === "listed_before_verification" ? shelter.verification : "verified",
+        organisationWord: shelter.organisationWord,
       },
       availability: { kind: shelter.availability === "paused" ? "paused" : "open" },
     },
@@ -165,7 +166,12 @@ export async function animalsCardsByIds(
       shelter?.availability === "paused" &&
       everServedAt !== null
     ) {
-      return { kind: "paused" as const, animalId, name: animal.name };
+      return {
+        kind: "paused" as const,
+        animalId,
+        name: animal.name,
+        organisationWord: shelter.organisationWord,
+      };
     }
 
     if (
@@ -217,6 +223,7 @@ export async function animalsCardsByIds(
           logo: shelter.logo,
           publicLocation: cityOnlyLocationOf(shelter.publicLocation),
           verification: shelter.verification,
+          organisationWord: shelter.organisationWord,
         },
       },
     };

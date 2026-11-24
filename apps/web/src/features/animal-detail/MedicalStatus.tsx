@@ -1,3 +1,4 @@
+import type { OrganisationWord } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { Heading } from "../../ui/Heading";
 import { LinkedText } from "../../ui/LinkedText";
@@ -21,11 +22,13 @@ const VALUE_DOT: Record<MedicalValue, string> = {
 export function MedicalStatus({
   rows,
   notes,
+  organisationWord,
 }: {
   rows: readonly MedicalRow[];
   notes: string | null;
+  organisationWord: OrganisationWord;
 }) {
-  const shared = sharedSource(rows);
+  const shared = sharedSource(rows, organisationWord);
   const shownNotes = notes !== null && notes.trim() !== "" ? notes : null;
   return (
     <div className="flex flex-1 flex-col gap-3">
@@ -39,7 +42,9 @@ export function MedicalStatus({
             className={`grid min-h-target grid-flow-col items-center justify-between gap-x-4 border-line px-4 py-3 not-first:border-t-2 ${shared === null ? "grid-rows-2" : ""}`}
           >
             <dt className="text-body text-ink">{row.label}</dt>
-            {shared === null && <dd className="m-0 text-caption text-ink-2">{rowSource(row)}</dd>}
+            {shared === null && (
+              <dd className="m-0 text-caption text-ink-2">{rowSource(row, organisationWord)}</dd>
+            )}
             <dd
               className={`m-0 flex shrink-0 items-center gap-2 text-label text-ink ${shared === null ? "row-span-2" : ""}`}
             >

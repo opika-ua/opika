@@ -88,7 +88,7 @@ describe("message catalogue apostrophes", () => {
   it("confirms the convention it is defending actually exists", () => {
     // If the catalogue ever stopped containing U+02BC entirely, the tests
     // above would still pass while defending nothing.
-    expect(uk.reveal.title).toContain(`зв${MODIFIER_LETTER_APOSTROPHE}язатися`);
+    expect(uk.reveal.title.shelter).toContain(`зв${MODIFIER_LETTER_APOSTROPHE}язатися`);
     expect(
       ukValues.filter(([, text]) => text.includes(MODIFIER_LETTER_APOSTROPHE)).length,
     ).toBeGreaterThan(30);

@@ -1,5 +1,5 @@
-import type { SpayNeuterStatus, VaccinationStatus } from "@opika/domain";
-import { uk } from "@opika/i18n";
+import type { OrganisationWord, SpayNeuterStatus, VaccinationStatus } from "@opika/domain";
+import { forOrganisation, uk } from "@opika/i18n";
 
 /** The three words a status row can show; there is no fourth. */
 export type MedicalValue = "done" | "in_progress" | "unknown";
@@ -48,10 +48,14 @@ export const MEDICAL_VALUE_TEXT: Record<MedicalValue, string> = {
 };
 
 /** Every row shelter-declared: one line under the rows. Any registry row: each row says its own. */
-export function sharedSource(rows: readonly MedicalRow[]): string | null {
-  return rows.every((row) => row.source === "shelter") ? uk.medical.sourceShelter : null;
+export function sharedSource(rows: readonly MedicalRow[], word: OrganisationWord): string | null {
+  return rows.every((row) => row.source === "shelter")
+    ? forOrganisation(uk.medical.sourceShelter, word)
+    : null;
 }
 
-export function rowSource(row: MedicalRow): string {
-  return row.source === "registry" ? uk.medical.registry : uk.medical.sourceShelter;
+export function rowSource(row: MedicalRow, word: OrganisationWord): string {
+  return row.source === "registry"
+    ? uk.medical.registry
+    : forOrganisation(uk.medical.sourceShelter, word);
 }

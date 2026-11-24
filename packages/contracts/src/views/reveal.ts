@@ -1,5 +1,6 @@
 import {
   ContactRevealSchema,
+  OrganisationWordSchema,
   PUBLIC_LISTING_LABELS,
   ShelterContactSnapshotSchema,
 } from "@opika/domain";
@@ -100,6 +101,8 @@ export const ContactRevealViewSchema = ContactRevealSchema.pick({
    * (a «Мої запити» item for a hidden shelter, which carries the first-reveal record instead).
    */
   shelterListing: z.enum(PUBLIC_LISTING_LABELS).nullable(),
+  /** «притулок» or «ініціатива» in the dialog's copy; the shelter's current legal form, nothing more of it. */
+  organisationWord: OrganisationWordSchema,
   shelterAtFirstReveal: ShelterAtFirstRevealViewSchema,
 });
 export type ContactRevealView = z.infer<typeof ContactRevealViewSchema>;

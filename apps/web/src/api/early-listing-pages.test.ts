@@ -288,6 +288,7 @@ describe("toView: the first-reveal status is a public label for every stored sta
         reveal,
         { source: "first_reveal", displayName: "x", contact: reveal.shelterSnapshot.contact },
         null,
+        "shelter",
       );
       expect(["verified", "listed_before_verification"], status).toContain(
         view.shelterAtFirstReveal.verificationStatusAtReveal,

@@ -348,7 +348,11 @@ export const ukPublic = {
      */
     unavailable: "{name} більше не показується на сайті.",
     /** A paused shelter's animal: out of the gallery, page still open. `{name}` is the animal's name. */
-    paused: "{name} зараз не показується в галереї: притулок тимчасово не приймає звернень.",
+    paused: {
+      shelter: "{name} зараз не показується в галереї: притулок тимчасово не приймає звернень.",
+      initiative:
+        "{name} зараз не показується в галереї: ініціатива тимчасово не приймає звернень.",
+    },
     openPausedPage: "Відкрити сторінку",
     /** The remove control on each saved-page card: its accessible name and tooltip (owner-approved, 2026-11-01). */
     removeFromSaved: "Прибрати зі збережених",
@@ -389,12 +393,12 @@ export const ukPublic = {
      * own words on the shelter page only, so the medical rows' source label
      * is a word of its own.
      */
-    shelterDeclared: "Дані притулку",
+    shelterDeclared: { shelter: "Дані притулку", initiative: "Дані ініціативи" },
     /** The pet card's status rows: the value beside each label, and the source said under them. */
     statusDone: "Зроблено",
     statusUnknown: "Невідомо",
     /** One line under the rows when every row is the shelter's word; a row's own line otherwise. */
-    sourceShelter: "За даними притулку",
+    sourceShelter: { shelter: "За даними притулку", initiative: "За даними ініціативи" },
     rabies: "Щеплення від сказу",
     vaccination: "Комплексне щеплення",
     spayNeuter: "Стерилізація",
@@ -423,7 +427,10 @@ export const ukPublic = {
 
   // --- A paused shelter's pages (owner-approved 2026-11-04) ---
   pause: {
-    notice: "Притулок тимчасово не приймає нових звернень",
+    notice: {
+      shelter: "Притулок тимчасово не приймає нових звернень",
+      initiative: "Ініціатива тимчасово не приймає нових звернень",
+    },
     /** `{reason}` is one of `reason` below; the line is omitted for the code `other`. */
     reasonLine: "Причина: {reason}",
     /** Public labels; `other` has none on purpose. */
@@ -434,7 +441,10 @@ export const ukPublic = {
       staff_shortage: "Бракує волонтерів",
     },
     /** The shelter page, in place of the animals list. */
-    shelterNotListed: "Тварини з цього притулку зараз не показуються в галереї.",
+    shelterNotListed: {
+      shelter: "Тварини з цього притулку зараз не показуються в галереї.",
+      initiative: "Тварини цієї ініціативи зараз не показуються в галереї.",
+    },
   },
 
   // --- Shelter page (designer round 1, S6) ---
@@ -448,7 +458,7 @@ export const ukPublic = {
      * Owner-approved 2026-11 (shelter description). The heading of the shelter's own text on its
      * page, and the label of that field in the kabinet and in the operator's editor.
      */
-    aboutHeading: "Про притулок",
+    aboutHeading: { shelter: "Про притулок", initiative: "Про ініціативу" },
     /** `{count}` is the number of the shelter's animals adopters can see. */
     animalsHeading: "Шукають дім: {count}",
     noAnimals: "Зараз тут немає тварин, які шукають дім.",
@@ -461,14 +471,20 @@ export const ukPublic = {
   // --- Detail screen (04) ---
   detail: {
     /** Template: `{site}` is the wordmark, `{year}` the year (a number) the shelter's record was created. */
-    shelterVerifiedYears: "Перевірений вручну · на {site} з {year} р.",
-    donateShelter: "Підтримати притулок",
+    shelterVerifiedYears: {
+      shelter: "Перевірений вручну · на {site} з {year} р.",
+      initiative: "Перевірена вручну · на {site} з {year} р.",
+    },
+    donateShelter: { shelter: "Підтримати притулок", initiative: "Підтримати ініціативу" },
     /**
      * Designer round 1 (S6), his text: the animal page's shelter row is a
      * link to the shelter page, and this is its accessible name. `{name}` is
      * the shelter's display name.
      */
-    shelterRowLink: "Сторінка притулку «{name}»",
+    shelterRowLink: {
+      shelter: "Сторінка притулку «{name}»",
+      initiative: "Сторінка ініціативи «{name}»",
+    },
     /**
      * The subtitle line's species word - "Метис · 2 роки · середня" in the
      * mock, but "Метис" (mixed breed) has no domain field at all (`Animal`
@@ -595,9 +611,13 @@ export const ukPublic = {
 
   // --- Contact reveal (05) ---
   reveal: {
-    title: "Як звʼязатися з притулком",
-    subtitle:
-      "Притулок не знає про це звернення, поки ви не напишете самі. Нічого не надсилається автоматично.",
+    title: { shelter: "Як звʼязатися з притулком", initiative: "Як звʼязатися з ініціативою" },
+    subtitle: {
+      shelter:
+        "Притулок не знає про це звернення, поки ви не напишете самі. Нічого не надсилається автоматично.",
+      initiative:
+        "Ініціатива не знає про це звернення, поки ви не напишете самі. Нічого не надсилається автоматично.",
+    },
     /**
      * Template: "Контакти такі, якими були {date}, коли ви їх відкрили."
      * ({date} is the first reveal's; «є сьогодні» next to a past date said
@@ -671,7 +691,10 @@ export const ukPublic = {
   errors: {
     /** The contact reveal refused because the shelter is paused (same words as `pause.notice`); no retry. */
     shelterPaused: {
-      title: "Притулок тимчасово не приймає нових звернень",
+      title: {
+        shelter: "Притулок тимчасово не приймає нових звернень",
+        initiative: "Ініціатива тимчасово не приймає нових звернень",
+      },
     },
     offline: {
       eyebrow: "БЕЗ ЗВʼЯЗКУ",
@@ -681,7 +704,10 @@ export const ukPublic = {
     loadFailed: {
       eyebrow: "НЕ ЗАВАНТАЖИЛОСЯ",
       title: "Збій на боці сайту.",
-      body: "Це не ваша помилка і не помилка притулку.",
+      body: {
+        shelter: "Це не ваша помилка і не помилка притулку.",
+        initiative: "Це не ваша помилка і не помилка ініціативи.",
+      },
       action: "Оновити",
     },
     /**
@@ -705,7 +731,10 @@ export const ukPublic = {
       body: "Притулки, чиї контакти ви вже відкривали, можна відкрити знову. Наступні стануть доступні протягом доби.",
     },
     photoMissing: {
-      placeholder: "Фото немає – притулок ще не надіслав",
+      placeholder: {
+        shelter: "Фото немає – притулок ще не надіслав",
+        initiative: "Фото немає – ініціатива ще не надіслала",
+      },
     },
   },
 
@@ -717,10 +746,16 @@ export const ukPublic = {
    */
   underReview: {
     card: "На перевірці",
-    shelter: "Притулок на перевірці",
-    revealNotice: "Цей притулок ще проходить перевірку. Не переказуйте гроші наперед.",
+    shelter: { shelter: "Притулок на перевірці", initiative: "Ініціатива на перевірці" },
+    revealNotice: {
+      shelter: "Цей притулок ще проходить перевірку. Не переказуйте гроші наперед.",
+      initiative: "Ця ініціатива ще проходить перевірку. Не переказуйте гроші наперед.",
+    },
     /** The link-preview description of an animal at such a shelter (N14). */
-    sharePreview: "Тварина з притулку, який ще проходить перевірку.",
+    sharePreview: {
+      shelter: "Тварина з притулку, який ще проходить перевірку.",
+      initiative: "Тварина від ініціативи, яка ще проходить перевірку.",
+    },
   },
 
   reserved: {

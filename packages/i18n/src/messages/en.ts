@@ -118,8 +118,12 @@ export const en = {
     empty: "Nothing here yet. Save animals from the gallery to come back to them later.",
     emptyLink: "To the gallery",
     unavailable: "{name} is no longer shown on the site.",
-    paused:
-      "{name} is not shown in the gallery right now: the shelter is temporarily not taking requests.",
+    paused: {
+      shelter:
+        "{name} is not shown in the gallery right now: the shelter is temporarily not taking requests.",
+      initiative:
+        "{name} is not shown in the gallery right now: the initiative is temporarily not taking requests.",
+    },
     openPausedPage: "Open the page",
     removeFromSaved: "Remove from saved",
     removedToast: "Removed from saved",
@@ -140,10 +144,13 @@ export const en = {
     unknown: "Not recorded",
     inProgress: "In progress",
     registryConfirmed: "Confirmed by the national pet registry",
-    shelterDeclared: "The shelter's data",
+    shelterDeclared: { shelter: "The shelter's data", initiative: "The initiative's data" },
     statusDone: "Done",
     statusUnknown: "Unknown",
-    sourceShelter: "According to the shelter",
+    sourceShelter: {
+      shelter: "According to the shelter",
+      initiative: "According to the initiative",
+    },
     rabies: "Rabies",
     vaccination: "Core vaccination",
     spayNeuter: "Spay/neuter",
@@ -158,7 +165,10 @@ export const en = {
 
   // --- A paused shelter's pages ---
   pause: {
-    notice: "The shelter is temporarily not taking new requests",
+    notice: {
+      shelter: "The shelter is temporarily not taking new requests",
+      initiative: "The initiative is temporarily not taking new requests",
+    },
     reasonLine: "Reason: {reason}",
     reason: {
       seasonal_closure: "Seasonal break",
@@ -166,12 +176,15 @@ export const en = {
       capacity_reached: "No free places",
       staff_shortage: "Short of volunteers",
     },
-    shelterNotListed: "This shelter's animals are not shown in the gallery right now.",
+    shelterNotListed: {
+      shelter: "This shelter's animals are not shown in the gallery right now.",
+      initiative: "This initiative's animals are not shown in the gallery right now.",
+    },
   },
 
   // --- Shelter page (designer round 1, S6) ---
   shelterPage: {
-    aboutHeading: "About the shelter",
+    aboutHeading: { shelter: "About the shelter", initiative: "About the initiative" },
     animalsHeading: "Looking for a home: {count}",
     noAnimals: "No animals here are looking for a home right now.",
     sinceYear: "on the site since {year}",
@@ -181,9 +194,15 @@ export const en = {
   // --- Detail screen (04) ---
   detail: {
     /** Template: "Manually verified · on the site since {year}" - `{year}` is the year the shelter's record was created. */
-    shelterVerifiedYears: "Manually verified · on {site} since {year}",
-    donateShelter: "Support the shelter",
-    shelterRowLink: "The shelter's page: «{name}»",
+    shelterVerifiedYears: {
+      shelter: "Manually verified · on {site} since {year}",
+      initiative: "Manually verified · on {site} since {year}",
+    },
+    donateShelter: { shelter: "Support the shelter", initiative: "Support the initiative" },
+    shelterRowLink: {
+      shelter: "The shelter's page: «{name}»",
+      initiative: "The initiative's page: «{name}»",
+    },
     speciesDog: "Dog",
     speciesCat: "Cat",
     /** English has no sex-specific noun the way `speciesWordFor` needs for Ukrainian - both reuse the plain word. */
@@ -227,9 +246,13 @@ export const en = {
 
   // --- Contact reveal (05) ---
   reveal: {
-    title: "How to reach the shelter",
-    subtitle:
-      "They won't know you asked until you write to them yourself. Nothing is sent automatically.",
+    title: { shelter: "How to reach the shelter", initiative: "How to reach the initiative" },
+    subtitle: {
+      shelter:
+        "They won't know you asked until you write to them yourself. Nothing is sent automatically.",
+      initiative:
+        "They won't know you asked until you write to them yourself. Nothing is sent automatically.",
+    },
     /** Template: "Contact details saved as they are today · {date}" */
     contactsFootnote: "Contact details saved as they are today · {date}",
     meetingPlace: "you'll agree on a place when you message",
@@ -277,7 +300,10 @@ export const en = {
   // --- Error states (08) ---
   errors: {
     shelterPaused: {
-      title: "The shelter is temporarily not taking new requests",
+      title: {
+        shelter: "The shelter is temporarily not taking new requests",
+        initiative: "The initiative is temporarily not taking new requests",
+      },
     },
     offline: {
       eyebrow: "OFFLINE",
@@ -287,7 +313,10 @@ export const en = {
     loadFailed: {
       eyebrow: "DIDN'T LOAD",
       title: "Something went wrong on our end.",
-      body: "This isn't your fault, and it isn't the shelter's.",
+      body: {
+        shelter: "This isn't your fault, and it isn't the shelter's.",
+        initiative: "This isn't your fault, and it isn't the initiative's.",
+      },
       action: "Refresh",
     },
     /** Mirrors uk.ts's rateLimited key-for-key - machine-translated like the rest of this file, not a native pass; see this file's own top comment. */
@@ -296,16 +325,25 @@ export const en = {
       body: "The next ones will become available within a day.",
     },
     photoMissing: {
-      placeholder: "No photo yet – the shelter hasn't sent one",
+      placeholder: {
+        shelter: "No photo yet – the shelter hasn't sent one",
+        initiative: "No photo yet – the initiative hasn't sent one",
+      },
     },
   },
 
   // --- Reserved badge ---
   underReview: {
     card: "Under review",
-    shelter: "Shelter under review",
-    revealNotice: "This shelter is still being reviewed. Don't send money in advance.",
-    sharePreview: "An animal from a shelter that is still being reviewed.",
+    shelter: { shelter: "Shelter under review", initiative: "Initiative under review" },
+    revealNotice: {
+      shelter: "This shelter is still being reviewed. Don't send money in advance.",
+      initiative: "This initiative is still being reviewed. Don't send money in advance.",
+    },
+    sharePreview: {
+      shelter: "An animal from a shelter that is still being reviewed.",
+      initiative: "An animal from an initiative that is still being reviewed.",
+    },
   },
 
   reserved: {

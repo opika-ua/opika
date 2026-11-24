@@ -2,6 +2,7 @@ import type { apiErrors, PublicShelterView, SheltersByIdInputSchema } from "@opi
 import { shelterRepo } from "@opika/db/repos";
 import {
   earlyListingOf,
+  organisationWordOf,
   publicDonationOf,
   publicListingBasisOf,
   shelterAvailabilityOf,
@@ -59,5 +60,6 @@ export async function sheltersById(
     createdAt: shelter.createdAt,
     verification: listedEarly ? "listed_before_verification" : "verified",
     availability,
+    organisationWord: organisationWordOf(shelter.legalEntity?.kind ?? null),
   };
 }

@@ -631,7 +631,7 @@ export function HealthFields({
         <div className="flex flex-col gap-1">
           <Text look="label">{registry.label}</Text>
           <Text look="hint">{MEDICAL_VALUE_TEXT[registry.value]}</Text>
-          <Text look="hint">{rowSource(registry)}</Text>
+          <Text look="hint">{rowSource(registry, "shelter")}</Text>
           <Text look="hint">{t.health.registryReadOnly}</Text>
         </div>
       ) : (
