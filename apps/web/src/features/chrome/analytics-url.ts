@@ -1,25 +1,21 @@
 /**
- * Every kabinet sign-in page lives under this path, and some carry a credential in their query
- * string: a reset link's `?token=` (PW-1), the magic link's confirm page's `?token=`, and from
- * PW-2 the invitation's `?zaproshennia=`.
+ * Every kabinet page lives under this path. Sign-in pages carry credentials in their query (a
+ * reset or magic-link `?token=`, the invitation's `?zaproshennia=`, the registration `?token=`),
+ * and the operator's shelter search carries free text that can be a name, email or phone.
  */
-export const SIGN_IN_PAGES_PATH = "/kabinet/vkhid";
+export const KABINET_PATH = "/kabinet";
 
-/** The confirmation email's link pages, whose `?token=` is a registration token (R3). */
-export const EMAIL_LINK_PAGES_PATH = "/kabinet/zaiavka";
-
-const isUnder = (pathname: string, root: string) =>
-  pathname === root || pathname.startsWith(`${root}/`);
-const isSignInPage = (pathname: string) =>
-  isUnder(pathname, SIGN_IN_PAGES_PATH) || isUnder(pathname, EMAIL_LINK_PAGES_PATH);
+const isKabinetPage = (pathname: string) =>
+  pathname === KABINET_PATH || pathname.startsWith(`${KABINET_PATH}/`);
 
 /**
- * The URL an analytics event reports, with the query string removed when it is a sign-in page.
+ * The URL an analytics event reports, with the query string removed on every kabinet page.
  * Oleksii, 2026-10-20, verbatim: "Analytics: in Vercel Analytics' and Speed Insights'
- * beforeSend, strip the query string from /kabinet/vkhid* URLs, with a test." Every other URL is
- * left exactly as it came, and so is one that can't be parsed (nothing to strip from).
+ * beforeSend, strip the query string from /kabinet/vkhid* URLs, with a test." Widened by his
+ * 2026-11-24 audit answer, verbatim: "4. Analytics: strip the query on every /kabinet page."
+ * Public URLs keep their query (gallery filters), and an unparseable one is left as it came.
  */
-export function withoutSignInQuery(url: string): string {
+export function withoutKabinetQuery(url: string): string {
   const relative = url.startsWith("/");
   let parsed: URL;
   try {
@@ -27,15 +23,15 @@ export function withoutSignInQuery(url: string): string {
   } catch {
     return url;
   }
-  if (!isSignInPage(parsed.pathname) || parsed.search === "") return url;
+  if (!isKabinetPage(parsed.pathname) || parsed.search === "") return url;
   parsed.search = "";
   return relative ? `${parsed.pathname}${parsed.hash}` : parsed.toString();
 }
 
 /**
  * The one `beforeSend` both Vercel Analytics and Speed Insights are given (`SiteAnalytics`):
- * the event as it is, its URL through `withoutSignInQuery`.
+ * the event as it is, its URL through `withoutKabinetQuery`.
  */
-export function stripSignInQuery<Event extends { url: string }>(event: Event): Event {
-  return { ...event, url: withoutSignInQuery(event.url) };
+export function stripKabinetQuery<Event extends { url: string }>(event: Event): Event {
+  return { ...event, url: withoutKabinetQuery(event.url) };
 }
