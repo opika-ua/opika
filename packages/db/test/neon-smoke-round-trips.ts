@@ -1,10 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { type CityId, EVERYONE_SCOPE, MAX_GALLERY_NAVIGABLE_ROWS, NO_FILTERS } from "@opika/domain";
+import { and, count } from "drizzle-orm";
 import type { Database } from "../src/client";
 import { animalRepo } from "../src/repos/animal-repo";
 import { cityRepo } from "../src/repos/city-repo";
+import { buildFeedPredicate } from "../src/repos/feed-predicate";
 import { galleryRepo } from "../src/repos/gallery-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
+import { animals } from "../src/schema/animals";
 import { makeAnimal, makeCity, makeShelter } from "../src/test-utils/index";
 
 type Outcome = { name: string; ok: boolean; detail: string };
@@ -117,29 +120,27 @@ export async function runRoundTripsSmoke(db: Database): Promise<Outcome[]> {
     `${cards.length} rows`,
   );
 
-  // The expectation is the capped one: the gallery's total, never above the bound. A branch with
-  // more public animals than the bound (or newer ones than the fixtures) lists only the freshest
-  // 2,000, so the fixtures are required in the list only when everything fits.
+  // The expectation is the capped one: the sitemap's own basis (verified shelters only: an
+  // early-listed one is noindex and out of it), never above the bound. A branch with more such
+  // animals than the bound (or newer ones than the fixtures) lists only the freshest 2,000, so the
+  // fixtures (a verified shelter's) are required in the list only when everything fits.
   const sitemap = await galleryRepo(db).sitemapRows({ now: NOW });
   const few = await galleryRepo(db).sitemapRows({ now: NOW, limit: 3 });
-  const everything = await galleryRepo(db).listCards({
-    filters: NO_FILTERS,
-    scope: EVERYONE_SCOPE,
-    sort: "freshest",
-    page: 1,
-    pageSize: 1,
-    now: NOW,
-  });
+  const [verifiedPublic] = await db
+    .select({ n: count() })
+    .from(animals)
+    .where(and(...buildFeedPredicate(NO_FILTERS, NOW, "verified_only")));
+  const indexable = verifiedPublic?.n ?? 0;
   const ids = new Set(sitemap.map((r) => r.id as string));
-  const expectedLength = Math.min(everything.totalMatching, MAX_GALLERY_NAVIGABLE_ROWS);
-  const fits = everything.totalMatching <= MAX_GALLERY_NAVIGABLE_ROWS;
+  const expectedLength = Math.min(indexable, MAX_GALLERY_NAVIGABLE_ROWS);
+  const fits = indexable <= MAX_GALLERY_NAVIGABLE_ROWS;
   check(
-    "sitemapRows: one statement, the gallery's total capped at the navigable bound, no draft; both fixtures when all fit",
+    "sitemapRows: one statement, the verified shelters' public animals capped at the navigable bound, no draft; both fixtures when all fit",
     sitemap.length === expectedLength &&
       few.length === Math.min(3, expectedLength) &&
       !ids.has(draft.id) &&
       (!fits || (ids.has(atHome.id) && ids.has(fostered.id))),
-    `${sitemap.length} rows of ${everything.totalMatching} public`,
+    `${sitemap.length} rows of ${indexable} public at verified shelters`,
   );
   return out;
 }

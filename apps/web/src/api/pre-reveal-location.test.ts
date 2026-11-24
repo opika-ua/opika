@@ -29,7 +29,7 @@ const DECISION =
   "before or after a reveal, needs an explicit decision (inbox EM-Q10; EM-B6 / EM-D1)";
 
 const FORBIDDEN_KEY =
-  /"(district|coordinates|lat|lng|latitude|longitude|approximate|center|centroid|precisionMetres|exactAddress|line1|line2|postalCode|street)"\s*:/g;
+  /"(district|coordinates|lat|lng|latitude|longitude|approximate|center|centroid|precisionMetres|exactAddress|premises|line1|line2|postalCode|street)"\s*:/g;
 
 const STREET = "вул. Тестова 1";
 const POSTCODE = "01001";
@@ -54,13 +54,16 @@ async function seed() {
   const city = makeCity();
   await cityRepo(h.db).insert(city);
   const shelter = makeShelter({
-    exactAddress: {
-      line1: STREET,
-      line2: null,
-      postalCode: POSTCODE,
-      cityId: city.id,
-      district: { uk: SHELTER_DISTRICT, en: null },
-      coordinates: EXACT,
+    premises: {
+      kind: "address",
+      address: {
+        line1: STREET,
+        line2: null,
+        postalCode: POSTCODE,
+        cityId: city.id,
+        district: { uk: SHELTER_DISTRICT, en: null },
+        coordinates: EXACT,
+      },
     },
   });
   await shelterRepo(h.db).insert(shelter);
@@ -137,7 +140,7 @@ describe("served pre-reveal responses carry the city only (EM-Q10)", () => {
     const stored = JSON.stringify(shelter);
     const keys = [...stored.matchAll(FORBIDDEN_KEY)].map((m) => m[1]);
     expect(keys).toEqual(
-      expect.arrayContaining(["exactAddress", "line1", "postalCode", "district", "coordinates"]),
+      expect.arrayContaining(["premises", "line1", "postalCode", "district", "coordinates"]),
     );
     for (const value of [STREET, POSTCODE, SHELTER_DISTRICT]) expect(stored).toContain(value);
   });

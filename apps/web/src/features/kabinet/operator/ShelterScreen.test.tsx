@@ -39,13 +39,16 @@ const view = (overrides: Partial<RegistryShelterView> = {}): RegistryShelterView
     district: null,
     approximate: { lat: 50.5, lng: 30.8 } as never,
   },
-  exactAddress: {
-    line1: "вул. Київська, 300",
-    line2: null,
-    postalCode: "07400",
-    cityId: "c1" as never,
-    district: null,
-    coordinates: { lat: 50.5, lng: 30.8 },
+  premises: {
+    kind: "address",
+    address: {
+      line1: "вул. Київська, 300",
+      line2: null,
+      postalCode: "07400",
+      cityId: "c1" as never,
+      district: null,
+      coordinates: { lat: 50.5, lng: 30.8 },
+    },
   },
   contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
   donation: null,
@@ -225,12 +228,31 @@ describe("S4 evidence", () => {
     expect(within(evidence).queryByText(/Для схвалення бракує/)).toBeNull();
   });
 
-  it("names the missing legal data and address before any evidence, and no evidence without a legal form", () => {
-    renderScreen({ legalEntity: null, exactAddress: null });
+  it("with no form, names the form alone, and no evidence without it (owner, 2026-11-24)", () => {
+    renderScreen({ legalEntity: null, premises: { kind: "not_recorded" } });
     const evidence = section("Докази для перевірки");
-    expect(within(evidence).getByText("Для схвалення бракує юридичних даних.")).toBeTruthy();
-    expect(within(evidence).getByText("Для схвалення бракує адреси приміщення.")).toBeTruthy();
+    expect(
+      within(evidence).getByText("Для схвалення оберіть форму: організація чи ініціатива."),
+    ).toBeTruthy();
+    expect(within(evidence).queryByText("Для схвалення бракує адреси приміщення.")).toBeNull();
     expect(within(evidence).queryByText(/Для схвалення бракує: /)).toBeNull();
+  });
+
+  it("names an organisation's missing address, and an initiative's missing premises", () => {
+    const { unmount } = renderScreen({ premises: { kind: "not_recorded" } });
+    expect(
+      within(section("Докази для перевірки")).getByText("Для схвалення бракує адреси приміщення."),
+    ).toBeTruthy();
+    unmount();
+    renderScreen({
+      legalEntity: { kind: "unregistered_initiative", contactPersonName: "Ірина" },
+      premises: { kind: "not_recorded" },
+    });
+    expect(
+      within(section("Докази для перевірки")).getByText(
+        "Для схвалення вкажіть адресу приміщення або позначте, що тварини на перетримках.",
+      ),
+    ).toBeTruthy();
   });
 
   it("names no gap once approval is not the next decision", () => {
@@ -278,9 +300,19 @@ describe("S4 legal data, address, contacts, description", () => {
   });
 
   it("reads «Ще не заповнено» where the legal data, the address or its point is missing", () => {
-    renderScreen({ legalEntity: null, exactAddress: null });
+    renderScreen({ legalEntity: null, premises: { kind: "not_recorded" } });
     expect(within(section("Юридичні дані")).getByText("Ще не заповнено")).toBeTruthy();
     expect(within(section("Адреса приміщення")).getByText("Ще не заповнено")).toBeTruthy();
+  });
+
+  it("shows an initiative in foster homes as having no premises, and no address", () => {
+    renderScreen({
+      legalEntity: { kind: "unregistered_initiative", contactPersonName: "Ірина" },
+      premises: { kind: "foster_homes" },
+    });
+    const address = section("Адреса приміщення");
+    expect(within(address).getByText("Немає: тварини на перетримках")).toBeTruthy();
+    expect(within(address).queryByText("Ще не заповнено")).toBeNull();
   });
 
   it("shows no coordinates (P0-6), only the address line", () => {

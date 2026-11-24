@@ -85,7 +85,7 @@ export function makeShelter(
   overrides: Partial<ShelterWithVerifiedData> = {},
 ): ShelterWithVerifiedData {
   const id = overrides.id ?? uuid();
-  const exactAddress = overrides.exactAddress ?? {
+  const exactAddress = overrides.premises?.address ?? {
     ...defaultExactAddress,
     cityId: overrides.publicLocation?.cityId ?? defaultExactAddress.cityId,
   };
@@ -101,7 +101,7 @@ export function makeShelter(
       registeredAt: now,
     },
     publicLocation: overrides.publicLocation ?? publicLocationOf(id, exactAddress, policy),
-    exactAddress,
+    premises: { kind: "address", address: exactAddress },
     contact: defaultContact,
     donation: null,
     logo: null,

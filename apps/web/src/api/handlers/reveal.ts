@@ -10,6 +10,7 @@ import {
   type Animal,
   type ContactReveal,
   earlyListingOf,
+  exactAddressOf,
   isDiscoverable,
   type PublicListingLabel,
   primaryPhoto,
@@ -169,7 +170,8 @@ function revealOf(
       shelterId: shelter.id,
       displayName: shelter.displayName,
       contact: shelter.contact,
-      exactAddress: shelter.exactAddress,
+      // Foster homes have no address: null, never a carer's (owner, 2026-11-24).
+      exactAddress: exactAddressOf(shelter.premises),
       publicLocation: shelter.publicLocation,
       verificationStatusAtReveal: shelter.verification.status,
       donation: shelter.donation,

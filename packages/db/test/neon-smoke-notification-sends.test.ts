@@ -58,7 +58,7 @@ describe("runNotificationSendsSmoke against the local database", () => {
     const shelter = makeShelter({ freshnessReminderOffAt: now });
     await shelterRepo(db).insert({
       ...shelter,
-      exactAddress: { ...shelter.exactAddress, cityId: city.id },
+      premises: { kind: "address", address: { ...shelter.premises.address, cityId: city.id } },
       publicLocation: { ...shelter.publicLocation, cityId: city.id },
     });
     const outcomes = await runNotificationSendsSmoke(db);

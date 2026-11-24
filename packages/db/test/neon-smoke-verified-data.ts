@@ -70,6 +70,7 @@ export async function runVerifiedDataSmoke(db: Database): Promise<Outcome[]> {
     await db.insert(shelters).values({
       ...shelterToRow(bare),
       legalEntity: null,
+      premises: null,
       exactAddress: null,
       exactLat: null,
       exactLng: null,

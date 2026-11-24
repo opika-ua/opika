@@ -2,7 +2,7 @@ import { cityRepo, kabinetShelterRepo, shelterRepo } from "@opika/db/repos";
 import { authInvitation, authUser, supportSessions } from "@opika/db/schema";
 import { makeCity, makeShelter, setupTestDatabase, truncateAll } from "@opika/db/test";
 import type { ModeratorId, Shelter, ShelterAdminId } from "@opika/domain";
-import { testOnlyLocationPolicy } from "@opika/domain";
+import { exactAddressOf, testOnlyLocationPolicy } from "@opika/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SHELTER_WRITE_POLICY } from "../kabinet/access";
 import type { KabinetPrincipal } from "../kabinet/actor";
@@ -102,7 +102,7 @@ const REGISTRY_CALLS = (shelter: Shelter): [string, unknown][] => {
         cityId: shelter.publicLocation.cityId,
         description: shelter.description,
         legalEntity: shelter.legalEntity,
-        exactAddress: shelter.exactAddress,
+        exactAddress: exactAddressOf(shelter.premises),
         contact: shelter.contact,
         evidence: [],
         firstAdmin: { name: "Олена", email: "olena@example.org" },

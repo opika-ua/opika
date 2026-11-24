@@ -279,7 +279,7 @@ export async function registerWith(
     description: null,
     legalEntity: null,
     publicLocation: cityPublicLocationOf(input.cityId as CityId, null),
-    exactAddress: null,
+    premises: { kind: "not_recorded" },
     contact: contact.data,
     donation: null,
     logo: null,

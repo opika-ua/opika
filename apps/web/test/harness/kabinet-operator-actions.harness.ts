@@ -130,7 +130,7 @@ test.describe("S4 actions, rehearsal step 5 (R-UI 3)", () => {
         exactAddress,
         productionLocationPolicy(HARNESS_LOCATION_HMAC_SECRET),
       ),
-      exactAddress,
+      premises: { kind: "address", address: exactAddress },
       contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
       donation: null,
       logo: null,

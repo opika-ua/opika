@@ -144,13 +144,16 @@ describe("adopterRepo.deleteOrphaned", () => {
     const city = makeCity();
     await cityRepo(db).insert(city);
     const shelter = makeShelter({
-      exactAddress: {
-        line1: "вул. Тестова 1",
-        line2: null,
-        postalCode: "01001",
-        cityId: city.id as CityId,
-        district: null,
-        coordinates: { lat: 50.45, lng: 30.52 },
+      premises: {
+        kind: "address",
+        address: {
+          line1: "вул. Тестова 1",
+          line2: null,
+          postalCode: "01001",
+          cityId: city.id as CityId,
+          district: null,
+          coordinates: { lat: 50.45, lng: 30.52 },
+        },
       },
     });
     await shelterRepo(db).insert(shelter);
@@ -220,7 +223,10 @@ describe("revealRepo.deleteExpired", () => {
     const city = makeCity();
     await cityRepo(db).insert(city);
     const shelter = makeShelter({
-      exactAddress: { ...makeShelter().exactAddress, cityId: city.id },
+      premises: {
+        kind: "address",
+        address: { ...makeShelter().premises.address, cityId: city.id },
+      },
     });
     await shelterRepo(db).insert(shelter);
     const animals: AnimalId[] = [];

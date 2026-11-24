@@ -17,8 +17,10 @@ import { refusedForNameLength } from "../display-name";
  * - `evidence_insufficient`: approve refused on the evidence on file, which
  *   changed since the page was read (the button is gated on the same rule);
  *   the re-read panel shows the gaps.
- * - `verified_data_missing`: approve refused while the legal entity or address
- *   is missing (checked before the evidence); the same re-read path.
+ * - `verified_data_missing`: approve refused while the form, or the premises the
+ *   form needs, is missing (checked before the evidence); the same re-read path.
+ * - `premises_needs_address`: a registered form refused while the premises are
+ *   foster homes (D5); the legal form's editor says to add the address first.
  * - `not_found`: the admin is already gone (removed, or accepted meanwhile
  *   for a resend); S4 re-reads (`admins.gone`).
  * - `address_has_a_role`: invite or resend refused for an address that has a
@@ -38,6 +40,7 @@ export type ActionFailure =
   | { kind: "conflict" }
   | { kind: "evidence_insufficient" }
   | { kind: "verified_data_missing" }
+  | { kind: "premises_needs_address" }
   | { kind: "evidence_not_editable" }
   | { kind: "evidence_limit_reached" }
   | { kind: "early_listing_refused"; reason: EarlyListingRefusal }
@@ -83,6 +86,8 @@ export function actionFailureOf(error: unknown): ActionFailure {
       return { kind: "evidence_insufficient" };
     case "VERIFIED_DATA_MISSING":
       return { kind: "verified_data_missing" };
+    case "PREMISES_NEEDS_ADDRESS":
+      return { kind: "premises_needs_address" };
     case "EVIDENCE_NOT_EDITABLE":
       return { kind: "evidence_not_editable" };
     case "EVIDENCE_LIMIT_REACHED":

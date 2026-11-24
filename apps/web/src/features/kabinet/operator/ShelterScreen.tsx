@@ -9,7 +9,9 @@ import {
   donationHost,
   type EvidenceItem,
   enteredAt,
+  exactAddressOf,
   type ModeratorId,
+  type VerifiedDataGap,
 } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import type { ReactNode } from "react";
@@ -61,6 +63,13 @@ export const blockReasonOf = (reason: (typeof EMAIL_BLOCK_REASONS)[number]): str
   return sentence.slice(sentence.indexOf(": ") + 2);
 };
 
+/** The sentence per gap; the form's keeps its older key (`legal_entity`), its text is the new one. */
+const MISSING_DATA_KEY = {
+  legal_form: "legal_entity",
+  exact_address: "exact_address",
+  premises: "premises",
+} as const satisfies Record<VerifiedDataGap, keyof typeof t.evidence.missingData>;
+
 function EvidenceCard({ view }: { view: RegistryShelterView }) {
   const { evidence } = view.verification;
   const e = t.evidence;
@@ -97,7 +106,7 @@ function EvidenceCard({ view }: { view: RegistryShelterView }) {
       {gaps.map((gap) =>
         gap.on === "verified_data" ? (
           <Text key={gap.field} look="label">
-            {e.missingData[gap.field]}
+            {e.missingData[MISSING_DATA_KEY[gap.field]]}
           </Text>
         ) : (
           <Text key={evidenceGapKey(gap)} look="label">
@@ -246,7 +255,7 @@ function AddressCard({
   cityName: string | null;
   edit: ReactNode;
 }) {
-  const address = view.exactAddress;
+  const address = exactAddressOf(view.premises);
   const line =
     address === null
       ? ""
@@ -255,7 +264,9 @@ function AddressCard({
           .join(", ");
   return (
     <Section id="operator-address" title={uk.kabinet.profile.address}>
-      {address === null ? (
+      {view.premises.kind === "foster_homes" ? (
+        <Text>{uk.kabinet.profile.premisesFosterHomes}</Text>
+      ) : address === null ? (
         <Text>{notFilledYet}</Text>
       ) : (
         <dl className="flex flex-col gap-3">

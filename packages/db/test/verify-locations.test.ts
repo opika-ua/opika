@@ -46,7 +46,10 @@ const insertWith = async (policy: Parameters<typeof publicLocationOf>[2], id?: S
     ...(id === undefined ? {} : { id }),
     publicLocation: { ...makeShelter().publicLocation, cityId } as never,
   });
-  const shelter = { ...base, publicLocation: publicLocationOf(base.id, base.exactAddress, policy) };
+  const shelter = {
+    ...base,
+    publicLocation: publicLocationOf(base.id, base.premises.address, policy),
+  };
   await shelterRepo(db).insert(shelter);
   return shelter;
 };
@@ -75,7 +78,7 @@ describe("location:verify", () => {
     await shelterRepo(db).insert({
       ...base,
       legalEntity: null,
-      exactAddress: null,
+      premises: { kind: "not_recorded" },
       publicLocation: { precision: "city", cityId: base.publicLocation.cityId, district: null },
       verification: {
         status: "pending",

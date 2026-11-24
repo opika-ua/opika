@@ -402,7 +402,7 @@ describe("kabinet views carry exactly their listed keys", () => {
         "description",
         "cityId",
         "legalEntity",
-        "exactAddress",
+        "premises",
         "contact",
         "donation",
         "pendingDonation",
@@ -454,7 +454,7 @@ describe("kabinet views carry exactly their listed keys", () => {
         "description",
         "legalEntity",
         "publicLocation",
-        "exactAddress",
+        "premises",
         "contact",
         "donation",
         "pendingDonation",
@@ -666,6 +666,7 @@ describe("every shelter-facing history variant carries exactly its listed keys (
     donation_removed: ["kind", "at", "actor", "previousLive", "clearedPending", "reason"],
     donation_suspended: ["kind", "at", "actor", "previousLive", "outcome"],
     verified_data_changed: ["kind", "at", "actor", "change"],
+    premises_changed: ["kind", "at", "actor", "previous", "next"],
     display_name_changed: ["kind", "at", "actor", "from", "to"],
     city_changed: ["kind", "at", "actor", "from", "to"],
     early_listing_allowed: ["kind", "at", "actor"],
@@ -1110,13 +1111,50 @@ describe("registry.shelters.create: the minimal shelter", () => {
 });
 
 describe("registry.verification.approve: missing verified data", () => {
-  it("declares VERIFIED_DATA_MISSING, which lists the missing fields", () => {
+  it("declares VERIFIED_DATA_MISSING, which names the form or the premises the form needs", () => {
     expect(Object.keys(internals("registry.verification.approve").errorMap)).toContain(
       "VERIFIED_DATA_MISSING",
     );
     const data = apiErrors.VERIFIED_DATA_MISSING.data;
-    expect(data.safeParse({ missing: ["legal_entity", "exact_address"] }).success).toBe(true);
+    for (const gap of ["legal_form", "exact_address", "premises"]) {
+      expect(data.safeParse({ missing: [gap] }).success).toBe(true);
+    }
     expect(data.safeParse({ missing: [] }).success).toBe(false);
+    // The pre-2026-11-24 name of the form gap is gone.
+    expect(data.safeParse({ missing: ["legal_entity"] }).success).toBe(false);
     expect(data.safeParse({ missing: ["contact"] }).success).toBe(false);
+  });
+});
+
+describe("registry.shelters.updateVerifiedData: premises", () => {
+  const input = () => internals("registry.shelters.updateVerifiedData").inputSchema;
+  const base = { shelterId: "11111111-1111-4111-8111-111111111111", expectedVersion: 0 };
+  const address = {
+    line1: "вул. Тестова, 1",
+    line2: null,
+    postalCode: null,
+    cityId: "22222222-2222-4222-8222-222222222222",
+    district: null,
+  };
+
+  it("takes an address or foster homes, and declares PREMISES_NEEDS_ADDRESS (D5)", () => {
+    for (const next of [{ kind: "address", address }, { kind: "foster_homes" }]) {
+      expect(input()?.safeParse({ ...base, change: { field: "premises", next } }).success).toBe(
+        true,
+      );
+    }
+    expect(Object.keys(internals("registry.shelters.updateVerifiedData").errorMap)).toContain(
+      "PREMISES_NEEDS_ADDRESS",
+    );
+  });
+
+  it("never takes a foster carer's address, a way back to not recorded, or the old address field", () => {
+    for (const change of [
+      { field: "premises", next: { kind: "foster_homes", address } },
+      { field: "premises", next: { kind: "not_recorded" } },
+      { field: "exact_address", next: address },
+    ]) {
+      expect(input()?.safeParse({ ...base, change }).success).toBe(false);
+    }
   });
 });

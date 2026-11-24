@@ -15,6 +15,7 @@ import { DonationLinkSchema, DonationRemovalCodeSchema } from "./donation";
 import { ShelterLegalEntitySchema } from "./legal-entity";
 import { ExactAddressSchema } from "./location";
 import { ShelterLogoSchema } from "./logo";
+import { RecordedPremisesSchema, ShelterPremisesSchema } from "./premises";
 import { VerificationEventSchema } from "./verification/events";
 import { EvidenceKindSchema } from "./verification/evidence";
 import { VerificationStatusSchema } from "./verification/state";
@@ -234,6 +235,18 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     ]),
   }),
   /**
+   * The operator recorded where the animals live (owner, 2026-11-24): an address, or foster homes
+   * for an initiative. Foster homes carry no address, so none is ever kept here for them. Earlier
+   * address edits stay `verified_data_changed` with `exact_address`.
+   */
+  z.object({
+    kind: z.literal("premises_changed"),
+    at: z.date(),
+    moderatorId: ModeratorIdSchema,
+    previous: ShelterPremisesSchema,
+    next: RecordedPremisesSchema,
+  }),
+  /**
    * The operator added evidence while the shelter was pending or under review.
    * Operator-only history: the shelter-facing projection omits it entirely
    * (owner, 2026-11-04). Kinds only, never contents: a reference holds a third
@@ -445,6 +458,7 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
     case "donation_removed":
     case "donation_suspended":
     case "verified_data_changed":
+    case "premises_changed":
     case "evidence_added":
     case "early_listing_allowed":
     case "early_listing_revoked":

@@ -26,13 +26,16 @@ const view = (overrides: Partial<KabinetShelterView> = {}): KabinetShelterView =
     registeredAt: new Date("2020-01-01T00:00:00Z"),
   },
   cityId: "c1000000-0000-4000-8000-000000000001" as never,
-  exactAddress: {
-    line1: "вул. Київська, 300",
-    line2: null,
-    postalCode: "07400",
-    cityId: "c1000000-0000-4000-8000-000000000001" as never,
-    district: null,
-    coordinates: { lat: 50.5, lng: 30.8 },
+  premises: {
+    kind: "address",
+    address: {
+      line1: "вул. Київська, 300",
+      line2: null,
+      postalCode: "07400",
+      cityId: "c1000000-0000-4000-8000-000000000001" as never,
+      district: null,
+      coordinates: { lat: 50.5, lng: 30.8 },
+    },
   },
   contact: {
     primary: { kind: "phone", e164: "+380671234567" },
@@ -221,6 +224,14 @@ describe("ShelterProfile (K4, read-only)", () => {
     });
     expect(rowValue(t.contactPerson)).toBe("Олена Коваль");
     expect(screen.queryByText(t.edrpou, { selector: "dt" })).toBeNull();
+  });
+
+  it("shows an initiative in foster homes as «Немає: тварини на перетримках» next to the address", () => {
+    renderProfile({
+      legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена Коваль" },
+      premises: { kind: "foster_homes" },
+    });
+    expect(rowValue(t.address)).toBe("Немає: тварини на перетримках");
   });
 
   it.each([

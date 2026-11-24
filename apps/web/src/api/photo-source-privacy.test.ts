@@ -21,13 +21,16 @@ async function animalWithKeptSources() {
   const city = makeCity();
   await cityRepo(h.db).insert(city);
   const shelter = makeShelter({
-    exactAddress: {
-      line1: "вул. Тестова 1",
-      line2: null,
-      postalCode: "01001",
-      cityId: city.id,
-      district: null,
-      coordinates: { lat: 50.45, lng: 30.52 },
+    premises: {
+      kind: "address",
+      address: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
     },
   });
   await shelterRepo(h.db).insert(shelter);

@@ -76,7 +76,7 @@ const MOD = "11111111-1111-4111-8111-111111111111" as ModeratorId;
 async function shelterAt(
   stage: Stage,
   /** A self-registered shelter has no address on file unless the operator adds one. */
-  address: "none" | "verified" = stage === "operator" ? "verified" : "none",
+  address: "none" | "verified" | "foster_homes" = stage === "operator" ? "verified" : "none",
   /** A self-registered shelter may have registered without one (owner, 2026-11-19). */
   contact: "given" | "none" = "given",
 ): Promise<Shelter> {
@@ -94,7 +94,13 @@ async function shelterAt(
       ? fixture
       : {
           ...fixture,
-          exactAddress: null,
+          // Foster homes are an initiative's only (D3, a CHECK too).
+          ...(address === "foster_homes"
+            ? {
+                legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена" },
+                premises: { kind: "foster_homes" },
+              }
+            : { premises: { kind: "not_recorded" } }),
           publicLocation: { precision: "city", cityId: cityId as never, district: null },
         };
   await shelterRepo(db).insert(shelter);
@@ -445,6 +451,30 @@ describe("shelter.profile.updateIdentity (§4, D4)", () => {
       expect(result.body.displayName).toBe("Хвостики");
       const kinds = (await kabinetShelterRepo(db).historyOf(shelter.id)).map((e) => e.kind);
       expect(kinds).toContain("display_name_changed");
+    });
+
+    /** D4 (owner, 2026-11-24): recorded premises of either kind fix the city. */
+    it("foster homes lock the city too: CITY_LOCKED, nothing written", async () => {
+      const shelter = await shelterAt("accepted", "foster_homes");
+      const before = await kabinetShelterRepo(db).historyOf(shelter.id);
+      const result = await call<{ code?: string }>(shelter, "shelter.profile.updateIdentity", {
+        cityId: otherCityId,
+        expectedVersion: shelter.version,
+      });
+      expect(result.status).toBe(409);
+      expect(result.body.code).toBe("CITY_LOCKED");
+      expect(await shelterRepo(db).findById(shelter.id)).toEqual(shelter);
+      expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual(before);
+    });
+
+    it("premises not recorded leave the city the shelter's own: the change lands", async () => {
+      const shelter = await shelterAt("accepted", "none");
+      const result = await call(shelter, "shelter.profile.updateIdentity", {
+        cityId: otherCityId,
+        expectedVersion: shelter.version,
+      });
+      expect(result.status).toBe(200);
+      expect((await shelterRepo(db).findById(shelter.id))?.publicLocation.cityId).toBe(otherCityId);
     });
 
     it("sending the city it already has is no change, not a refusal", async () => {

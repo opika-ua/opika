@@ -284,6 +284,17 @@ function lineOf(
         ],
         actor: operatorActor(entry.moderatorId, people),
       };
+    case "premises_changed":
+      return {
+        // Foster homes name no address; an address is «Змінено» over an address, else «Додано».
+        text:
+          entry.next.kind === "foster_homes"
+            ? uk.kabinet.history.premisesFosterHomes
+            : entry.previous.kind === "address"
+              ? t.verified_data_changed.exact_address
+              : t.verified_data_added.exact_address,
+        actor: operatorActor(entry.moderatorId, people),
+      };
     case "display_name_changed":
       return {
         text: renameLine(entry.from, entry.to),

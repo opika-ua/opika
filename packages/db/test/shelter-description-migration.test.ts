@@ -83,6 +83,8 @@ describe("0026 shelter description nullable: the migration", () => {
     await client.unsafe(
       "ALTER TABLE shelters ADD COLUMN IF NOT EXISTS registration_source text DEFAULT 'operator', ADD COLUMN IF NOT EXISTS registrant_user_id text, ADD COLUMN IF NOT EXISTS applied_at timestamptz, ADD COLUMN IF NOT EXISTS application_rejected_at timestamptz",
     );
+    // And 0033's premises.
+    await client.unsafe("ALTER TABLE shelters ADD COLUMN IF NOT EXISTS premises text");
     const shelter = await seedShelter();
     await applyMigration(TAG);
 

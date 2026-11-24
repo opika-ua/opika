@@ -2,7 +2,7 @@
 
 import "../../../../zod-client-config";
 import type { RegistryShelterView } from "@opika/contracts";
-import type { ApprovalGap, InterruptedState } from "@opika/domain";
+import type { ApprovalGap, InterruptedState, VerifiedDataGap } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { useId, useRef, useState } from "react";
 import { Button } from "../../../../ui/Button";
@@ -32,12 +32,27 @@ const reasonText = (label: string, reason: Reason): string =>
         note: reason.note,
       });
 
-/** Missing verified data reads as its block's title, an evidence gap as kind and count. */
+/** What verified data approval still needs, as the blocked list names it (owner, 2026-11-24). */
+const verifiedDataGapText = (field: VerifiedDataGap): string => {
+  switch (field) {
+    case "legal_form":
+      return uk.kabinet.operator.verification.gap.legalForm;
+    case "exact_address":
+      return uk.kabinet.profile.address;
+    case "premises":
+      return uk.kabinet.operator.verification.gap.premises;
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled gap; unreachable at runtime */
+    default: {
+      const unreachable: never = field;
+      return unreachable;
+    }
+  }
+};
+
+/** Missing verified data reads as its gap's label, an evidence gap as kind and count. */
 const gapText = (gap: ApprovalGap): string =>
   gap.on === "verified_data"
-    ? gap.field === "legal_entity"
-      ? uk.kabinet.operator.create.legalTitle
-      : uk.kabinet.profile.address
+    ? verifiedDataGapText(gap.field)
     : fillTemplate(uk.kabinet.operator.evidence.gapItem, {
         kind: evidenceGapKinds(gap),
         provided: String(gap.provided),

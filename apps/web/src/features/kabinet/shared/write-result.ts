@@ -28,7 +28,7 @@ export type WriteResult =
   | { kind: "too_many_channels" }
   | { kind: "description_too_long" }
   | { kind: "name_too_long" }
-  /** CITY_LOCKED: the address is verified, so the operator moves the city (`cityLockedMessage`). */
+  /** CITY_LOCKED: recorded premises fix the city, so the operator moves it (`cityLockedMessage`). */
   | { kind: "city_locked" }
   | { kind: "illegal_transition" }
   | { kind: "no_answer" }

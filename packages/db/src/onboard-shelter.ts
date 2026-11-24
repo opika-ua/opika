@@ -341,16 +341,9 @@ export const OnboardInputSchema = z.object({
       })
       .optional(),
     /**
-     * What you actually have, not a name this script used to turn into a
-     * fabricated `reference_contact` pointing at the shelter's own phone
-     * number as if it were independent corroboration - caught on review,
-     * not by construction the first time: an `unregistered_initiative`
-     * needs a site visit plus two real references; a registered entity
-     * needs its EDRPOU and bank-holder records. `buildShelter` below
-     * refuses to produce a `verified` shelter (dry run or `--commit`) if
-     * what's here doesn't clear `DEFAULT_VERIFICATION_POLICY` for the
-     * `legalEntity.kind` given - see docs/onboarding-a-shelter.md for a
-     * worked example per legal shape.
+     * What you have, never a reference made from the shelter's own number. `buildShelter` refuses
+     * a shelter short of `DEFAULT_VERIFICATION_POLICY` for its form (docs/onboarding-a-shelter.md).
+     * Always at an address: an initiative in foster homes is recorded on S4, not here.
      */
     evidence: z.array(EvidenceItemInputSchema).min(1),
   }),
@@ -527,7 +520,7 @@ export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: 
     description: { uk: input.descriptionUk, en: null },
     legalEntity: input.legalEntity,
     publicLocation: publicLocationOf(id, exactAddress, policy),
-    exactAddress,
+    premises: { kind: "address", address: exactAddress },
     contact: input.contact,
     donation: input.donation,
     logo: null,

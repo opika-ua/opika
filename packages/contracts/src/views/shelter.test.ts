@@ -53,7 +53,7 @@ const shelter: Shelter = {
     registeredAt: AT,
   },
   publicLocation,
-  exactAddress,
+  premises: { kind: "address", address: exactAddress },
   contact,
   donation: null,
   logo: null,

@@ -99,6 +99,8 @@ describe("0024 optional verified data: the migration", () => {
     await client.unsafe(
       "ALTER TABLE shelters ADD COLUMN IF NOT EXISTS registration_source text DEFAULT 'operator', ADD COLUMN IF NOT EXISTS registrant_user_id text, ADD COLUMN IF NOT EXISTS applied_at timestamptz, ADD COLUMN IF NOT EXISTS application_rejected_at timestamptz",
     );
+    // And 0033's premises.
+    await client.unsafe("ALTER TABLE shelters ADD COLUMN IF NOT EXISTS premises text");
     const shelter = await seedShelter("verified");
     await applyMigration(TAG);
 
@@ -136,6 +138,7 @@ describe("0024 optional verified data: what the database accepts", () => {
     await db.insert(shelters).values({
       ...shelterToRow(shelter),
       legalEntity: null,
+      premises: null,
       exactAddress: null,
       exactLat: null,
       exactLng: null,
@@ -151,7 +154,10 @@ describe("0024 optional verified data: what the database accepts", () => {
 
   it.each([
     ["legal entity alone", "legal_entity = NULL"],
-    ["address with its point", "exact_address = NULL, exact_lat = NULL, exact_lng = NULL"],
+    [
+      "address with its point (and its premises)",
+      "premises = NULL, exact_address = NULL, exact_lat = NULL, exact_lng = NULL",
+    ],
     ["the point alone (address kept)", "exact_lat = NULL, exact_lng = NULL"],
   ])("accepts null for the %s on a pending shelter", async (_name, assignments) => {
     const shelter = await seedShelter("pending");
@@ -189,7 +195,7 @@ describe("0024 optional verified data: what the database accepts", () => {
       ).toBe("shelters_verified_has_verified_data");
       expect(
         await outcomeOf(
-          client`UPDATE shelters SET exact_address = NULL, exact_lat = NULL, exact_lng = NULL WHERE id = ${shelter.id}`,
+          client`UPDATE shelters SET premises = NULL, exact_address = NULL, exact_lat = NULL, exact_lng = NULL WHERE id = ${shelter.id}`,
         ),
       ).toBe("shelters_verified_has_verified_data");
     },
@@ -201,7 +207,7 @@ describe("0024 optional verified data: what the database accepts", () => {
       const shelter = await seedShelter(status);
       expect(
         await outcomeOf(
-          client`UPDATE shelters SET legal_entity = NULL, exact_address = NULL, exact_lat = NULL, exact_lng = NULL WHERE id = ${shelter.id}`,
+          client`UPDATE shelters SET legal_entity = NULL, premises = NULL, exact_address = NULL, exact_lat = NULL, exact_lng = NULL WHERE id = ${shelter.id}`,
         ),
       ).toBe("accepted");
       expect(
@@ -214,9 +220,9 @@ describe("0024 optional verified data: what the database accepts", () => {
 
   it("a read of a null row maps both fields to null", async () => {
     const shelter = await seedShelter();
-    await client`UPDATE shelters SET legal_entity = NULL, exact_address = NULL, exact_lat = NULL, exact_lng = NULL WHERE id = ${shelter.id}`;
+    await client`UPDATE shelters SET legal_entity = NULL, premises = NULL, exact_address = NULL, exact_lat = NULL, exact_lng = NULL WHERE id = ${shelter.id}`;
     const read = await shelterRepo(db).findById(shelter.id);
-    expect([read?.legalEntity, read?.exactAddress]).toEqual([null, null]);
+    expect([read?.legalEntity, read?.premises]).toEqual([null, { kind: "not_recorded" }]);
   });
 
   it("writes no point for an address without coordinates", async () => {
@@ -225,7 +231,10 @@ describe("0024 optional verified data: what the database accepts", () => {
     const base = makeShelter({ verification: PENDING });
     const shelter = {
       ...base,
-      exactAddress: { ...base.exactAddress, cityId: city.id, coordinates: null },
+      premises: {
+        kind: "address" as const,
+        address: { ...base.premises.address, cityId: city.id, coordinates: null },
+      },
       publicLocation: { precision: "city" as const, cityId: city.id, district: null },
     };
     await db.insert(shelters).values(shelterToRow(shelter));

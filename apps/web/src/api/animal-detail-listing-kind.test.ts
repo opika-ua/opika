@@ -15,7 +15,9 @@ async function seed(animals: ReturnType<typeof makeAnimal>[]) {
   const city = makeCity();
   await cityRepo(h.db).insert(city);
   const base = makeShelter();
-  const shelter = makeShelter({ exactAddress: { ...base.exactAddress, cityId: city.id } });
+  const shelter = makeShelter({
+    premises: { kind: "address", address: { ...base.premises.address, cityId: city.id } },
+  });
   await shelterRepo(h.db).insert(shelter);
   for (const animal of animals) {
     await animalRepo(h.db).insert({ ...animal, shelterId: shelter.id }, city.id);

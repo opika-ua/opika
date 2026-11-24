@@ -100,7 +100,7 @@ async function insertShelter(
     publicLocation: at(cityId) as never,
   });
   const shelter = opts.onTestKey
-    ? { ...base, publicLocation: publicLocationOf(base.id, base.exactAddress, testKey) }
+    ? { ...base, publicLocation: publicLocationOf(base.id, base.premises.address, testKey) }
     : base;
   await shelterRepo(db).insert(shelter);
   return shelter;
@@ -115,7 +115,9 @@ async function insertSelfRegistered(withAddressNoPoint = false): Promise<void> {
   await shelterRepo(db).insert({
     ...base,
     legalEntity: null,
-    exactAddress: withAddressNoPoint ? { ...base.exactAddress, cityId, coordinates: null } : null,
+    premises: withAddressNoPoint
+      ? { kind: "address", address: { ...base.premises.address, cityId, coordinates: null } }
+      : { kind: "not_recorded" },
     publicLocation: { precision: "city", cityId, district: null },
     verification: {
       status: "application",
@@ -527,7 +529,7 @@ describe("demo:remove's test-only-key guard counts only shelters that carry a ke
       ...base,
       publicLocation: publicLocationOf(
         base.id,
-        base.exactAddress,
+        base.premises.address,
         productionLocationPolicy("k".repeat(32)),
       ),
     });

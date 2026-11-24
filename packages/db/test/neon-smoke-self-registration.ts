@@ -85,7 +85,7 @@ export async function runSelfRegistrationSmoke(db: Database): Promise<Outcome[]>
       },
     });
     // As the form leaves it: no legal entity, no address (and so no point).
-    const shelter: Shelter = { ...fixture, legalEntity: null, exactAddress: null };
+    const shelter: Shelter = { ...fixture, legalEntity: null, premises: { kind: "not_recorded" } };
     await shelterRepo(db).insert(shelter);
     if (registrantUserId !== null) {
       await db.update(shelters).set({ registrantUserId }).where(eq(shelters.id, shelter.id));

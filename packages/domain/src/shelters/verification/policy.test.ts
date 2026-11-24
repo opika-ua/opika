@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CityIdSchema, EdrpouSchema, ModeratorIdSchema } from "../../primitives/ids";
 import type { ShelterLegalEntity } from "../legal-entity";
 import type { ExactAddress } from "../location";
+import type { ShelterPremises } from "../premises";
 import type { EvidenceItem, VerificationEvidence } from "./evidence";
 import {
   approvalGaps,
@@ -11,6 +12,7 @@ import {
   evidenceGaps,
   meetsEvidenceRequirements,
   type VerificationPolicy,
+  verifiedDataGapOf,
 } from "./policy";
 
 const AT = new Date("2026-01-01T00:00:00.000Z");
@@ -298,80 +300,122 @@ const ADDRESS: ExactAddress = {
   coordinates: null,
 };
 
-describe("approval gaps", () => {
-  it("lists the missing verified data first, legal details before the address", () => {
-    const gaps = approvalGaps(
-      { legalEntity: null, exactAddress: null },
-      evidence([]),
-      DEFAULT_VERIFICATION_POLICY,
-    );
-    expect(gaps).toEqual([
-      { on: "verified_data", field: "legal_entity" },
-      { on: "verified_data", field: "exact_address" },
-    ]);
+const AT_ADDRESS: ShelterPremises = { kind: "address", address: ADDRESS };
+const FOSTER_HOMES: ShelterPremises = { kind: "foster_homes" };
+const NOT_RECORDED: ShelterPremises = { kind: "not_recorded" };
+
+/**
+ * The gate per form (owner, 2026-11-24, D1-D3): no form is `legal_form`; a registered form needs an
+ * address (`exact_address`); an initiative needs an address or foster homes (`premises`).
+ */
+describe("approval gaps: the verified data per form", () => {
+  it("asks for the form alone while none is picked, whatever the premises", () => {
+    for (const premises of [NOT_RECORDED, AT_ADDRESS, FOSTER_HOMES]) {
+      expect(
+        approvalGaps(
+          { legalEntity: null, premises },
+          evidence([OPEN_SOURCES_REGISTRY, EDRPOU_ITEM, VIDEO_CALL, reference("Ветклініка")]),
+          DEFAULT_VERIFICATION_POLICY,
+        ),
+      ).toEqual([{ on: "verified_data", field: "legal_form" }]);
+    }
   });
 
-  it("measures no evidence while the legal form is unknown", () => {
-    const gaps = approvalGaps(
-      { legalEntity: null, exactAddress: ADDRESS },
-      evidence([]),
-      DEFAULT_VERIFICATION_POLICY,
-    );
-    expect(gaps).toEqual([{ on: "verified_data", field: "legal_entity" }]);
+  it("blocks an organisation without an address with exact_address, foster homes included", () => {
+    for (const entity of [NGO, FOP]) {
+      for (const premises of [NOT_RECORDED, FOSTER_HOMES]) {
+        expect(
+          approvalGaps(
+            { legalEntity: entity, premises },
+            evidence([OPEN_SOURCES_REGISTRY]),
+            DEFAULT_VERIFICATION_POLICY,
+          ),
+        ).toEqual([{ on: "verified_data", field: "exact_address" }]);
+      }
+    }
+  });
+
+  it("approves an organisation with an address, its registry entry and open sources or a call", () => {
+    for (const entity of [NGO, FOP]) {
+      for (const items of [[OPEN_SOURCES_REGISTRY], [EDRPOU_ITEM, VIDEO_CALL]]) {
+        expect(
+          approvalGaps(
+            { legalEntity: entity, premises: AT_ADDRESS },
+            evidence(items),
+            DEFAULT_VERIFICATION_POLICY,
+          ),
+        ).toEqual([]);
+      }
+    }
+  });
+
+  it("blocks an initiative whose premises are not recorded with premises", () => {
+    expect(
+      approvalGaps(
+        { legalEntity: INITIATIVE, premises: NOT_RECORDED },
+        evidence([OPEN_SOURCES, reference("Ветклініка")]),
+        DEFAULT_VERIFICATION_POLICY,
+      ),
+    ).toEqual([{ on: "verified_data", field: "premises" }]);
+  });
+
+  it("approves an initiative in foster homes or at an address on (a′): open sources or a call, and a reference", () => {
+    for (const premises of [FOSTER_HOMES, AT_ADDRESS]) {
+      for (const seen of [OPEN_SOURCES, VIDEO_CALL]) {
+        expect(
+          approvalGaps(
+            { legalEntity: INITIATIVE, premises },
+            evidence([seen, reference("Ветклініка")]),
+            DEFAULT_VERIFICATION_POLICY,
+          ),
+        ).toEqual([]);
+      }
+    }
+  });
+
+  it("blocks an initiative in foster homes without a reference on the evidence", () => {
+    expect(
+      approvalGaps(
+        { legalEntity: INITIATIVE, premises: FOSTER_HOMES },
+        evidence([OPEN_SOURCES]),
+        DEFAULT_VERIFICATION_POLICY,
+      ),
+    ).toEqual([{ on: "evidence", ...NO_REFERENCE }]);
   });
 
   it("follows a missing address with the evidence gaps of the known legal form", () => {
-    const gaps = approvalGaps(
-      { legalEntity: NGO, exactAddress: null },
-      evidence([VIDEO_CALL]),
-      DEFAULT_VERIFICATION_POLICY,
-    );
-    expect(gaps).toEqual([
+    expect(
+      approvalGaps(
+        { legalEntity: NGO, premises: NOT_RECORDED },
+        evidence([VIDEO_CALL]),
+        DEFAULT_VERIFICATION_POLICY,
+      ),
+    ).toEqual([
       { on: "verified_data", field: "exact_address" },
       { on: "evidence", ...REGISTRY_ENTRY_GAP },
     ]);
   });
 
-  it("is empty once the data is on file and the evidence suffices, even without a point", () => {
-    const gaps = approvalGaps(
-      { legalEntity: INITIATIVE, exactAddress: ADDRESS },
-      evidence([VIDEO_CALL, reference("Ветклініка")]),
-      DEFAULT_VERIFICATION_POLICY,
+  it("names one gap per form and premises, the whole table", () => {
+    const rows = [NGO, FOP, INITIATIVE, null].flatMap((entity) =>
+      [NOT_RECORDED, AT_ADDRESS, FOSTER_HOMES].map(
+        (premises) =>
+          `${entity?.kind ?? "none"} ${premises.kind}: ${verifiedDataGapOf(entity, premises) ?? "-"}`,
+      ),
     );
-    expect(gaps).toEqual([]);
-  });
-  /**
-   * The 0024 rule holds for the new basis too: open sources prove the registry entry, but
-   * «перевірений» still needs the legal entity and the exact address on the shelter itself.
-   */
-  it("never approves on open sources while the legal entity is missing", () => {
-    const gaps = approvalGaps(
-      { legalEntity: null, exactAddress: ADDRESS },
-      evidence([OPEN_SOURCES_REGISTRY, EDRPOU_ITEM, VIDEO_CALL]),
-      DEFAULT_VERIFICATION_POLICY,
-    );
-    expect(gaps).toEqual([{ on: "verified_data", field: "legal_entity" }]);
-  });
-
-  it("never approves on open sources while the exact address is missing", () => {
-    for (const entity of [NGO, FOP]) {
-      const gaps = approvalGaps(
-        { legalEntity: entity, exactAddress: null },
-        evidence([OPEN_SOURCES_REGISTRY]),
-        DEFAULT_VERIFICATION_POLICY,
-      );
-      expect(gaps).toEqual([{ on: "verified_data", field: "exact_address" }]);
-    }
-  });
-
-  it("is empty for a registered form with its data on file and open sources checked", () => {
-    for (const entity of [NGO, FOP]) {
-      const gaps = approvalGaps(
-        { legalEntity: entity, exactAddress: ADDRESS },
-        evidence([OPEN_SOURCES_REGISTRY]),
-        DEFAULT_VERIFICATION_POLICY,
-      );
-      expect(gaps).toEqual([]);
-    }
+    expect(rows).toEqual([
+      "registered_ngo not_recorded: exact_address",
+      "registered_ngo address: -",
+      "registered_ngo foster_homes: exact_address",
+      "sole_proprietor not_recorded: exact_address",
+      "sole_proprietor address: -",
+      "sole_proprietor foster_homes: exact_address",
+      "unregistered_initiative not_recorded: premises",
+      "unregistered_initiative address: -",
+      "unregistered_initiative foster_homes: -",
+      "none not_recorded: legal_form",
+      "none address: legal_form",
+      "none foster_homes: legal_form",
+    ]);
   });
 });

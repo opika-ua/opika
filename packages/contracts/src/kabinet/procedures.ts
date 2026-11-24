@@ -817,7 +817,11 @@ export const registrySheltersContract = {
       // Its first admin may already have a role: a shelter, an operator grant, or a live invitation elsewhere (RG-T10).
       ADDRESS_HAS_A_ROLE: apiErrors.ADDRESS_HAS_A_ROLE,
     }),
-  /** The locked fields: legal entity or premises address, one per call, each audited. */
+  /**
+   * The locked fields: legal entity or premises, one per call, each audited. Premises are an
+   * address or, for an initiative only, foster homes (owner, 2026-11-24); a form other than an
+   * initiative while in foster homes is `PREMISES_NEEDS_ADDRESS` (D5).
+   */
   updateVerifiedData: registryShelter
     .input(
       z.strictObject({
@@ -825,15 +829,25 @@ export const registrySheltersContract = {
         expectedVersion,
         change: z.discriminatedUnion("field", [
           z.strictObject({ field: z.literal("legal_entity"), next: ShelterLegalEntitySchema }),
-          // No point (P0-6): the handler stores null, so a stored one goes on the next save.
           z.strictObject({
-            field: z.literal("exact_address"),
-            next: ExactAddressSchema.omit({ coordinates: true }),
+            field: z.literal("premises"),
+            next: z.discriminatedUnion("kind", [
+              // No point (P0-6): the handler stores null, so a stored one goes on the next save.
+              z.strictObject({
+                kind: z.literal("address"),
+                address: ExactAddressSchema.omit({ coordinates: true }),
+              }),
+              z.strictObject({ kind: z.literal("foster_homes") }),
+            ]),
           }),
         ]),
       }),
     )
-    .errors({ ...registryErrors, CONFLICT: apiErrors.CONFLICT }),
+    .errors({
+      ...registryErrors,
+      CONFLICT: apiErrors.CONFLICT,
+      PREMISES_NEEDS_ADDRESS: apiErrors.PREMISES_NEEDS_ADDRESS,
+    }),
   /**
    * The public profile fields, each optional, each changed one its own
    * history line. `displayName` is the rename (R-UI 4; RU-Q8's option A,

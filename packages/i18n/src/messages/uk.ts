@@ -721,6 +721,8 @@ export const uk = {
       /** `{status}` is the chip's label, `{date}` the date it took effect. */
       statusSince: "{status} · з {date}",
       address: "Адреса приміщення",
+      /** The value next to «Адреса приміщення» for an initiative in foster homes (owner-approved, 2026-11-24). */
+      premisesFosterHomes: "Немає: тварини на перетримках",
       /**
        * Row 57, Oleksii's replacement (2026-10-14), applied once adopters
        * receive the city only before a reveal (EM-Q10, answer (a)). True of
@@ -801,6 +803,9 @@ export const uk = {
       /** The shelter's name and city (§4). `{email}` is the operator's address (owner, 2026-11-18). */
       identity: {
         cityLocked: "Ваша адреса вже перевірена, тому місто змінюю я. Напишіть мені на {email}.",
+        /** The same refusal for an initiative in foster homes, which has no address (owner-approved, 2026-11-24). */
+        cityLockedFosterHomes:
+          "Місто вже перевірене, тому змінюю його я. Напишіть мені на {email}.",
       },
       saveBar: {
         unsaved: "Є незбережені зміни",
@@ -1812,6 +1817,8 @@ export const uk = {
       adminJoined: "{email} отримує доступ до кабінету",
       /** The address was erased (GDPR), so it cannot be the subject of the sentence. */
       adminJoinedErased: "Доступ до кабінету відкрито: адреса видалена",
+      /** `premises_changed` to foster homes, operator and shelter views (owner-approved, 2026-11-24). */
+      premisesFosterHomes: "Позначено: тварини на перетримках, без приміщення",
     },
     /**
      * R-UI · the operator's own screens (`docs/r-ui-copy-sheet.md`, keys and
@@ -1964,8 +1971,11 @@ export const uk = {
         gaps: "Для схвалення бракує: {kind} – {provided} з {minimum}.",
         gapItem: "{kind} – {provided} з {minimum}",
         missingData: {
-          legal_entity: "Для схвалення бракує юридичних даних.",
+          /** Owner-approved 2026-11-24: «Юридичні дані» meant "no form picked yet". */
+          legal_entity: "Для схвалення оберіть форму: організація чи ініціатива.",
           exact_address: "Для схвалення бракує адреси приміщення.",
+          premises:
+            "Для схвалення вкажіть адресу приміщення або позначте, що тварини на перетримках.",
         },
         add: "+ Додати доказ",
         remove: "Прибрати",
@@ -2194,6 +2204,15 @@ export const uk = {
           copy_pending: "Запрошення не надіслано: текст листа ще не готовий.",
         },
       },
+      /** S4's premises choice (owner-approved, 2026-11-24; option 3 is his wording). */
+      premises: {
+        title: "Де живуть тварини",
+        address: "Є приміщення",
+        fosterHomes: "Тварини на перетримках, без приміщення",
+        /** D5: leaving the initiative form while in foster homes. */
+        needsAddress:
+          "Спершу додайте адресу приміщення: у зареєстрованої організації вона обовʼязкова.",
+      },
       verification: {
         decisionTitle: "Рішення",
         /** His note: true once Q7's shelter-side view (`verificationDecision`) ships, in R-UI 3. */
@@ -2204,6 +2223,11 @@ export const uk = {
         approveNote:
           "Після схвалення тварини притулку одразу зʼявляються в галереї. Для відхилення потрібне пояснення.",
         approveBlocked: "Схвалити поки не можна – бракує:",
+        /** What the blocked list names (owner-approved, 2026-11-24); an organisation's address reuses `profile.address`. */
+        gap: {
+          legalForm: "Форма: організація чи ініціатива",
+          premises: "Приміщення або перетримки",
+        },
         reject: "Відхилити…",
         suspend: "Призупинити…",
         reinstate: "Відновити → «{status}»",

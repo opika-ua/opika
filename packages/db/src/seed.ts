@@ -839,7 +839,7 @@ export function buildShelters(cities: City[]): ShelterWithVerifiedData[] {
       description,
       legalEntity,
       publicLocation: publicLocationOf(id, exactAddress, policy),
-      exactAddress,
+      premises: { kind: "address", address: exactAddress },
       contact,
       donation:
         def.donationUrl && def.donationProvider
@@ -909,7 +909,7 @@ const DEMO_SHELTER_DEF_INDICES = [2, 5] as const;
  * real jar, which commitment #5 and the "platform never touches money"
  * standing rule both forbid regardless of whose jar it actually is.
  *
- * **Exact address.** The reused identities' `exactAddress` and
+ * **Exact address.** The reused identities' premises address and
  * `publicLocation` are both real Kyiv-oblast street names and coordinates
  * (fictional shelters, but genuine, physically real streets) - also
  * flagged in round-1 review: a rehearsal viewer who reveals a demo
@@ -920,9 +920,9 @@ const DEMO_SHELTER_DEF_INDICES = [2, 5] as const;
  * `docs/standing-constraints.md`'s location-privacy note) as the
  * coordinates, so even the reveal-gated "exact" address exposes nothing
  * more precise than city level. `publicLocation` is recomputed from the
- * new `exactAddress` via the same `publicLocationOf` call `buildShelters`
+ * new address via the same `publicLocationOf` call `buildShelters`
  * itself uses, rather than left stale and now describing a location that
- * disagrees with the demo `exactAddress` underneath it.
+ * disagrees with the demo address underneath it.
  */
 const DEMO_EMAIL_LOCAL_PARTS: Readonly<Record<number, string>> = {
   2: "demo-viddanyi-drug",
@@ -943,7 +943,7 @@ export function buildDemoShelters(cities: City[]): ShelterWithVerifiedData[] {
     };
 
     const demoExactAddress: ExactAddress = {
-      ...shelter.exactAddress,
+      ...shelter.premises.address,
       line1: "вул. Демонстраційна, 1",
       line2: null,
       coordinates: requireRecordedCentroid(city),
@@ -953,7 +953,7 @@ export function buildDemoShelters(cities: City[]): ShelterWithVerifiedData[] {
       ...shelter,
       contact: demoContact,
       donation: null,
-      exactAddress: demoExactAddress,
+      premises: { kind: "address", address: demoExactAddress },
       publicLocation: publicLocationOf(shelter.id, demoExactAddress, policy),
     };
   });

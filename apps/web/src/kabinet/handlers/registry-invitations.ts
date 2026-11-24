@@ -28,6 +28,7 @@ import {
   type LocationPrivacyPolicy,
   MAX_EVIDENCE_ITEMS,
   type ModeratorId,
+  premisesOfAddress,
   publicLocationOf,
   type Shelter,
   type ShelterAdminId,
@@ -253,7 +254,7 @@ export async function registrySheltersCreate(
       exactAddress === null
         ? cityPublicLocationOf(input.cityId, null)
         : publicLocationOf(id, exactAddress, policy),
-    exactAddress,
+    premises: premisesOfAddress(exactAddress),
     contact: input.contact,
     donation: null,
     logo: null,
