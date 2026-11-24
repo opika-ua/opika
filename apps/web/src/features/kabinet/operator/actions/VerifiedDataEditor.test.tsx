@@ -179,7 +179,10 @@ describe("adding verified data a minimal create left out", () => {
  * додайте адресу приміщення: у зареєстрованої організації вона обовʼязкова.».
  */
 describe("premises: an address or foster homes", () => {
-  const INITIATIVE = { kind: "unregistered_initiative", contactPersonName: "Олена Коваль" } as const;
+  const INITIATIVE = {
+    kind: "unregistered_initiative",
+    contactPersonName: "Олена Коваль",
+  } as const;
 
   it("offers an initiative the choice, and foster homes send no address", async () => {
     const view = registryView({
@@ -233,7 +236,9 @@ describe("premises: an address or foster homes", () => {
       client: { shelters: { updateVerifiedData: vi.fn() } },
     });
     await userEvent.click(screen.getByRole("button", { name: "Змінити" }));
-    expect(screen.queryByRole("radio", { name: "Тварини на перетримках, без приміщення" })).toBeNull();
+    expect(
+      screen.queryByRole("radio", { name: "Тварини на перетримках, без приміщення" }),
+    ).toBeNull();
     expect(screen.getByRole("textbox", { name: /Вулиця, будинок/ })).toBeTruthy();
   });
 
@@ -254,9 +259,9 @@ describe("premises: an address or foster homes", () => {
     await userEvent.type(screen.getByRole("textbox", { name: "Юридична особа" }), "ФОП Коваль");
     await userEvent.type(screen.getByRole("textbox", { name: "Код ЄДРПОУ" }), "12345678");
     await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
-    expect(
-      (await screen.findByRole("alert")).textContent,
-    ).toBe("Спершу додайте адресу приміщення: у зареєстрованої організації вона обовʼязкова.");
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Спершу додайте адресу приміщення: у зареєстрованої організації вона обовʼязкова.",
+    );
     expect(screen.getByRole("button", { name: "Зберегти" })).toBeTruthy();
   });
 });

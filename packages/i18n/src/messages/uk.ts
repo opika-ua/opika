@@ -2207,7 +2207,8 @@ export const uk = {
         address: "Є приміщення",
         fosterHomes: "Тварини на перетримках, без приміщення",
         /** D5: leaving the initiative form while in foster homes. */
-        needsAddress: "Спершу додайте адресу приміщення: у зареєстрованої організації вона обовʼязкова.",
+        needsAddress:
+          "Спершу додайте адресу приміщення: у зареєстрованої організації вона обовʼязкова.",
       },
       verification: {
         decisionTitle: "Рішення",

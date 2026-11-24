@@ -14,9 +14,9 @@ import { typedDateMessage } from "../../shared/kabinet-date";
 import {
   type AddressForm,
   addressFormOf,
+  addressFromForm,
   type CreateField,
   type CreateFieldError,
-  addressFromForm,
   type LegalForm,
   legalEntityOf,
   legalFormOf,

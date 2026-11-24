@@ -193,14 +193,17 @@ describe("animals.reveal: new shelters revealed per address, across adopters", (
 
   async function shelterWithAnimals(count = 1) {
     const shelter = makeShelter({
-      premises: { kind: "address", address: {
-        line1: "вул. Тестова 1",
-        line2: null,
-        postalCode: "01001",
-        cityId,
-        district: null,
-        coordinates: { lat: 50.45, lng: 30.52 },
-      } },
+      premises: {
+        kind: "address",
+        address: {
+          line1: "вул. Тестова 1",
+          line2: null,
+          postalCode: "01001",
+          cityId,
+          district: null,
+          coordinates: { lat: 50.45, lng: 30.52 },
+        },
+      },
     });
     await shelterRepo(h.db).insert(shelter);
     const animals = [];

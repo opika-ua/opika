@@ -1127,8 +1127,7 @@ describe("registry.verification.approve: missing verified data", () => {
 });
 
 describe("registry.shelters.updateVerifiedData: premises", () => {
-  const input = () =>
-    internals("registry.shelters.updateVerifiedData").inputSchema;
+  const input = () => internals("registry.shelters.updateVerifiedData").inputSchema;
   const base = { shelterId: "11111111-1111-4111-8111-111111111111", expectedVersion: 0 };
   const address = {
     line1: "вул. Тестова, 1",

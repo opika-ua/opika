@@ -64,14 +64,17 @@ async function makeShelterInCity(
       precision: "fuzzed_address",
       approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
     },
-    premises: { kind: "address", address: {
-      line1: "вул. Тестова 1",
-      line2: null,
-      postalCode: "01001",
-      cityId,
-      district: null,
-      coordinates: { lat: 50.45, lng: 30.52 },
-    } },
+    premises: {
+      kind: "address",
+      address: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    },
   });
   await shelterRepo(db).insert(shelter);
   return shelter;
@@ -385,14 +388,17 @@ describe("galleryRepo.list", () => {
         precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
-      premises: { kind: "address", address: {
-        line1: "вул. Тестова 2",
-        line2: null,
-        postalCode: "01001",
-        cityId: city.id,
-        district: null,
-        coordinates: { lat: 50.45, lng: 30.52 },
-      } },
+      premises: {
+        kind: "address",
+        address: {
+          line1: "вул. Тестова 2",
+          line2: null,
+          postalCode: "01001",
+          cityId: city.id,
+          district: null,
+          coordinates: { lat: 50.45, lng: 30.52 },
+        },
+      },
       verification: {
         status: "pending",
         submittedAt: NOW,
@@ -1085,14 +1091,17 @@ describe("galleryRepo.facetCounts", () => {
         precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
-      premises: { kind: "address", address: {
-        line1: "вул. Тестова 2",
-        line2: null,
-        postalCode: "01001",
-        cityId: kyiv.id,
-        district: null,
-        coordinates: { lat: 50.45, lng: 30.52 },
-      } },
+      premises: {
+        kind: "address",
+        address: {
+          line1: "вул. Тестова 2",
+          line2: null,
+          postalCode: "01001",
+          cityId: kyiv.id,
+          district: null,
+          coordinates: { lat: 50.45, lng: 30.52 },
+        },
+      },
       verification: {
         status: "pending",
         submittedAt: NOW,

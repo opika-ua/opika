@@ -100,8 +100,7 @@ describe("0024 optional verified data: the migration", () => {
       "ALTER TABLE shelters ADD COLUMN IF NOT EXISTS registration_source text DEFAULT 'operator', ADD COLUMN IF NOT EXISTS registrant_user_id text, ADD COLUMN IF NOT EXISTS applied_at timestamptz, ADD COLUMN IF NOT EXISTS application_rejected_at timestamptz",
     );
     // And 0033's premises.
-    await client.unsafe("ALTER TABLE shelters ADD COLUMN IF NOT EXISTS premises text",
-    );
+    await client.unsafe("ALTER TABLE shelters ADD COLUMN IF NOT EXISTS premises text");
     const shelter = await seedShelter("verified");
     await applyMigration(TAG);
 
@@ -232,7 +231,10 @@ describe("0024 optional verified data: what the database accepts", () => {
     const base = makeShelter({ verification: PENDING });
     const shelter = {
       ...base,
-      exactAddress: { ...base.premises.address, cityId: city.id, coordinates: null },
+      premises: {
+        kind: "address" as const,
+        address: { ...base.premises.address, cityId: city.id, coordinates: null },
+      },
       publicLocation: { precision: "city" as const, cityId: city.id, district: null },
     };
     await db.insert(shelters).values(shelterToRow(shelter));

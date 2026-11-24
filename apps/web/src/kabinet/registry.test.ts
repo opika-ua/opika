@@ -350,7 +350,7 @@ describe("registry.shelters.list / byId / history.list", () => {
     const s = await shelter();
     const view = await call<RegistryShelterView>("registry.shelters.byId", { shelterId: s.id });
     expect(view.status).toBe(200);
-    expect(view.body).toMatchObject({ id: s.id, exactAddress: s.premises.address, admins: [] });
+    expect(view.body).toMatchObject({ id: s.id, premises: s.premises, admins: [] });
     const missing = await call("registry.shelters.byId", { shelterId: crypto.randomUUID() });
     expect(missing.status).toBe(404);
   });
@@ -425,7 +425,7 @@ describe("registry.shelters.list / byId / history.list", () => {
           evidence: { items: [], submittedAt: NOW },
         },
       }),
-      exactAddress: null,
+      premises: { kind: "not_recorded" },
       publicLocation: { precision: "city", cityId: cityId as never, district: null },
     } as const;
     await shelterRepo(db).insert(s);
@@ -755,9 +755,9 @@ describe("the minimal shelter: created without legal data or address", () => {
       }
       expect((await call("registry.verification.startReview", { shelterId: id })).status).toBe(200);
       const version = (await reload(id)).version;
-      expect(
-        (await update(id, version, { field: "legal_entity", next: INITIATIVE })).status,
-      ).toBe(200);
+      expect((await update(id, version, { field: "legal_entity", next: INITIATIVE })).status).toBe(
+        200,
+      );
       return { id, version: version + 1 };
     };
     const approve = (id: string) =>
@@ -845,9 +845,9 @@ describe("the minimal shelter: created without legal data or address", () => {
 
     it("refuses foster homes while no form is picked", async () => {
       const { id } = await created();
-      expect((await update(id, 0, { field: "premises", next: { kind: "foster_homes" } })).status).toBe(
-        400,
-      );
+      expect(
+        (await update(id, 0, { field: "premises", next: { kind: "foster_homes" } })).status,
+      ).toBe(400);
     });
   });
 

@@ -264,7 +264,10 @@ export function rowToShelter(row: ShelterRow): Shelter {
     ),
     legalEntity: row.legalEntity ?? null,
     publicLocation: row.publicLocation,
-    premises: premisesOfRow({ premises: row.premises ?? null, exactAddress: row.exactAddress ?? null }),
+    premises: premisesOfRow({
+      premises: row.premises ?? null,
+      exactAddress: row.exactAddress ?? null,
+    }),
     contact: row.contact,
     donation: row.donation ?? null,
     logo: row.logo ?? null,

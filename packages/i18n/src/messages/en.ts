@@ -1917,8 +1917,7 @@ export const en = {
         title: "Where the animals live",
         address: "Has premises",
         fosterHomes: "Animals in foster homes, no premises",
-        needsAddress:
-          "Add the premises address first: a registered organisation must have one.",
+        needsAddress: "Add the premises address first: a registered organisation must have one.",
       },
       verification: {
         decisionTitle: "Decision",

@@ -330,7 +330,10 @@ describe("the auth clean-up cron's 90-day reveal retention", () => {
     const city = makeCity();
     await cityRepo(db).insert(city);
     const shelter = makeShelter({
-      premises: { kind: "address", address: { ...makeShelter().premises.address, cityId: city.id } },
+      premises: {
+        kind: "address",
+        address: { ...makeShelter().premises.address, cityId: city.id },
+      },
     });
     await shelterRepo(db).insert(shelter);
     const animals = [makeAnimal({ shelterId: shelter.id }), makeAnimal({ shelterId: shelter.id })];

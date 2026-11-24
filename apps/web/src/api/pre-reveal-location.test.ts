@@ -54,14 +54,17 @@ async function seed() {
   const city = makeCity();
   await cityRepo(h.db).insert(city);
   const shelter = makeShelter({
-    premises: { kind: "address", address: {
-      line1: STREET,
-      line2: null,
-      postalCode: POSTCODE,
-      cityId: city.id,
-      district: { uk: SHELTER_DISTRICT, en: null },
-      coordinates: EXACT,
-    } },
+    premises: {
+      kind: "address",
+      address: {
+        line1: STREET,
+        line2: null,
+        postalCode: POSTCODE,
+        cityId: city.id,
+        district: { uk: SHELTER_DISTRICT, en: null },
+        coordinates: EXACT,
+      },
+    },
   });
   await shelterRepo(h.db).insert(shelter);
   const atShelter = makeAnimal({ shelterId: shelter.id });

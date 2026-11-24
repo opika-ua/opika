@@ -57,14 +57,17 @@ describe("anonymousRouterClient", () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
     const shelter = makeShelter({
-      premises: { kind: "address", address: {
-        line1: "вул. Тестова 1",
-        line2: null,
-        postalCode: "01001",
-        cityId: city.id,
-        district: null,
-        coordinates: { lat: 50.45, lng: 30.52 },
-      } },
+      premises: {
+        kind: "address",
+        address: {
+          line1: "вул. Тестова 1",
+          line2: null,
+          postalCode: "01001",
+          cityId: city.id,
+          district: null,
+          coordinates: { lat: 50.45, lng: 30.52 },
+        },
+      },
     });
     await shelterRepo(h.db).insert(shelter);
     await animalRepo(h.db).insert(makeAnimal({ shelterId: shelter.id }), city.id);
@@ -98,14 +101,17 @@ describe("anonymousRouterClient", () => {
     const logo = { storageKey: "shelters/test/logo/abc123", width: 160, height: 160 };
     const shelter = makeShelter({
       logo,
-      premises: { kind: "address", address: {
-        line1: "вул. Тестова 1",
-        line2: null,
-        postalCode: "01001",
-        cityId: city.id,
-        district: null,
-        coordinates: { lat: 50.45, lng: 30.52 },
-      } },
+      premises: {
+        kind: "address",
+        address: {
+          line1: "вул. Тестова 1",
+          line2: null,
+          postalCode: "01001",
+          cityId: city.id,
+          district: null,
+          coordinates: { lat: 50.45, lng: 30.52 },
+        },
+      },
     });
     await shelterRepo(h.db).insert(shelter);
     await animalRepo(h.db).insert(makeAnimal({ shelterId: shelter.id }), city.id);
@@ -160,14 +166,17 @@ describe("anonymousRouterClient", () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
     const shelter = makeShelter({
-      premises: { kind: "address", address: {
-        line1: "вул. Прихована 7",
-        line2: null,
-        postalCode: "01001",
-        cityId: city.id,
-        district: null,
-        coordinates: { lat: 50.45, lng: 30.52 },
-      } },
+      premises: {
+        kind: "address",
+        address: {
+          line1: "вул. Прихована 7",
+          line2: null,
+          postalCode: "01001",
+          cityId: city.id,
+          district: null,
+          coordinates: { lat: 50.45, lng: 30.52 },
+        },
+      },
       contact: {
         primary: { kind: "phone", e164: "+380670000001" },
         additional: [],

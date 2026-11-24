@@ -168,6 +168,8 @@ describe("0033 shelter premises: what the database accepts", () => {
 
     it("refuses any other value, not_recorded included (that is NULL)", async () => {
       const shelter = await seedShelter();
+      // No address, so only this CHECK can object.
+      await client`UPDATE shelters SET premises = NULL, exact_address = NULL, exact_lat = NULL, exact_lng = NULL WHERE id = ${shelter.id}`;
       for (const value of ["not_recorded", "Address", ""]) {
         expect(
           await outcomeOf(client`UPDATE shelters SET premises = ${value} WHERE id = ${shelter.id}`),

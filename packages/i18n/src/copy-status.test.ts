@@ -1026,7 +1026,8 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   const INITIATIVE_GATE_COPY: Record<string, string> = {
     "operator.verification.gap.legalForm": "Форма: організація чи ініціатива",
     "operator.verification.gap.premises": "Приміщення або перетримки",
-    "operator.evidence.missingData.legal_entity": "Для схвалення оберіть форму: організація чи ініціатива.",
+    "operator.evidence.missingData.legal_entity":
+      "Для схвалення оберіть форму: організація чи ініціатива.",
     "operator.evidence.missingData.premises":
       "Для схвалення вкажіть адресу приміщення або позначте, що тварини на перетримках.",
     "operator.premises.title": "Де живуть тварини",

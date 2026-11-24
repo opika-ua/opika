@@ -92,13 +92,13 @@ import { runNotificationRecipientsSmoke } from "./neon-smoke-notification-recipi
 import { runNotificationSendsSmoke } from "./neon-smoke-notification-sends";
 import { runOperatorDeleteSmoke } from "./neon-smoke-operator-delete";
 import { runPhotoSourcesSmoke } from "./neon-smoke-photo-sources";
+import { runPremisesSmoke } from "./neon-smoke-premises";
 import { runRegistrationSmoke } from "./neon-smoke-registration";
 import { runRevealRetentionSmoke } from "./neon-smoke-reveal-retention";
 import { runRoundTripsSmoke } from "./neon-smoke-round-trips";
 import { runSearchSmoke } from "./neon-smoke-search";
 import { runSelfRegistrationSmoke } from "./neon-smoke-self-registration";
 import { runShelterAboutSmoke } from "./neon-smoke-shelter-about";
-import { runPremisesSmoke } from "./neon-smoke-premises";
 import { runVerifiedDataSmoke } from "./neon-smoke-verified-data";
 
 /**
@@ -164,8 +164,12 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   const base = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} A` });
   const shelter = {
     ...base,
-    exactAddress: { ...base.premises.address, cityId: city.id },
-    publicLocation: publicLocationOf(base.id, { ...base.premises.address, cityId: city.id }, policy),
+    premises: { kind: "address" as const, address: { ...base.premises.address, cityId: city.id } },
+    publicLocation: publicLocationOf(
+      base.id,
+      { ...base.premises.address, cityId: city.id },
+      policy,
+    ),
   };
   const shelters = kabinetShelterRepo(db);
   const history = () => shelters.historyOf(shelter.id);
@@ -1561,7 +1565,10 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   const k2Base = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} K2` });
   const k2Shelter = {
     ...k2Base,
-    exactAddress: { ...k2Base.premises.address, cityId: city.id },
+    premises: {
+      kind: "address" as const,
+      address: { ...k2Base.premises.address, cityId: city.id },
+    },
     publicLocation: publicLocationOf(
       k2Base.id,
       { ...k2Base.premises.address, cityId: city.id },
@@ -2107,7 +2114,10 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   const r2LogoBase = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} R2` });
   const r2LogoShelter = {
     ...r2LogoBase,
-    exactAddress: { ...r2LogoBase.premises.address, cityId: city.id },
+    premises: {
+      kind: "address" as const,
+      address: { ...r2LogoBase.premises.address, cityId: city.id },
+    },
     publicLocation: publicLocationOf(
       r2LogoBase.id,
       { ...r2LogoBase.premises.address, cityId: city.id },
@@ -2475,7 +2485,10 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   const s47Shelter = makeShelter({
     id: randomUUID() as ShelterId,
     displayName: `Smoke ${tag} S3`,
-    premises: { kind: "address", address: { ...makeShelter().premises.address, cityId: s47City.id } },
+    premises: {
+      kind: "address",
+      address: { ...makeShelter().premises.address, cityId: s47City.id },
+    },
   });
   await shelterRepo(db).insert(s47Shelter);
   const s47Animal = makeAnimal({ id: randomUUID() as never, shelterId: s47Shelter.id });
@@ -2519,7 +2532,10 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   for (let i = 0; i < 31; i++) {
     const shelter = makeShelter({
       id: randomUUID() as ShelterId,
-      premises: { kind: "address", address: { ...makeShelter().premises.address, cityId: s48City.id } },
+      premises: {
+        kind: "address",
+        address: { ...makeShelter().premises.address, cityId: s48City.id },
+      },
     });
     await shelterRepo(db).insert(shelter);
     const animals: AnimalId[] = [];

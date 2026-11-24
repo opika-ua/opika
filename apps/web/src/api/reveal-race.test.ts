@@ -65,14 +65,17 @@ beforeEach(async () => {
 
 async function shelterWithAnimal() {
   const shelter = makeShelter({
-    premises: { kind: "address", address: {
-      line1: "вул. Тестова 1",
-      line2: null,
-      postalCode: "01001",
-      cityId: city,
-      district: null,
-      coordinates: { lat: 50.45, lng: 30.52 },
-    } },
+    premises: {
+      kind: "address",
+      address: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
+    },
   });
   await shelterRepo(h.db).insert(shelter);
   const animal = makeAnimal({ shelterId: shelter.id });

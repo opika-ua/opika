@@ -46,7 +46,10 @@ const insertWith = async (policy: Parameters<typeof publicLocationOf>[2], id?: S
     ...(id === undefined ? {} : { id }),
     publicLocation: { ...makeShelter().publicLocation, cityId } as never,
   });
-  const shelter = { ...base, publicLocation: publicLocationOf(base.id, base.premises.address, policy) };
+  const shelter = {
+    ...base,
+    publicLocation: publicLocationOf(base.id, base.premises.address, policy),
+  };
   await shelterRepo(db).insert(shelter);
   return shelter;
 };
