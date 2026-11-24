@@ -48,7 +48,7 @@ async function insertShelter(displayName: string, verification: ShelterVerificat
     displayName,
     verification,
     publicLocation: { ...makeShelter().publicLocation, cityId } as never,
-    exactAddress: { ...makeShelter().exactAddress, cityId } as never,
+    premises: { kind: "address", address: { ...makeShelter().premises.address, cityId } as never },
   });
   await shelterRepo(db).insert(s);
   return s;

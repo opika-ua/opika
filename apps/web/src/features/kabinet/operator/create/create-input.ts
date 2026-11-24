@@ -164,7 +164,7 @@ function streetAddressOf(
 }
 
 /** The address fields as the contract's `ExactAddress`; the district is never collected (RU-T6). */
-export function exactAddressOf(
+export function addressFromForm(
   form: AddressForm,
   errors: Partial<Record<CreateField, CreateFieldError>>,
 ): AddressResult {

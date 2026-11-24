@@ -32,6 +32,7 @@ import {
   type AdopterId,
   donationProviderOf,
   ERASED_ADMIN_EMAIL,
+  exactAddressOf,
   type ModeratorId,
   publicLocationOf,
   SHELTER_DESCRIPTION_TOO_LONG_MESSAGE,
@@ -39,6 +40,7 @@ import {
   type ShelterHistoryEntry,
   type ShelterVerification,
   type ShelterWithVerifiedData,
+  shelterFacingHistoryOf,
   testOnlyLocationPolicy,
 } from "@opika/domain";
 import { RPCHandler } from "@orpc/server/fetch";
@@ -202,7 +204,7 @@ const reload = async (id: string) => {
 
 const createInput = () => {
   const base = makeShelter();
-  const { cityId: _addressCity, coordinates: _point, ...street } = base.exactAddress;
+  const { cityId: _addressCity, coordinates: _point, ...street } = base.premises.address;
   return {
     displayName: "Лапа допомоги",
     cityId,
@@ -348,7 +350,7 @@ describe("registry.shelters.list / byId / history.list", () => {
     const s = await shelter();
     const view = await call<RegistryShelterView>("registry.shelters.byId", { shelterId: s.id });
     expect(view.status).toBe(200);
-    expect(view.body).toMatchObject({ id: s.id, exactAddress: s.exactAddress, admins: [] });
+    expect(view.body).toMatchObject({ id: s.id, exactAddress: s.premises.address, admins: [] });
     const missing = await call("registry.shelters.byId", { shelterId: crypto.randomUUID() });
     expect(missing.status).toBe(404);
   });
@@ -628,7 +630,7 @@ describe("the minimal shelter: created without legal data or address", () => {
   it("creates a pending shelter located by its city alone, with an invited admin", async () => {
     const view = await created();
     const s = await reload(view.id);
-    expect([s.legalEntity, s.exactAddress]).toEqual([null, null]);
+    expect([s.legalEntity, s.premises]).toEqual([null, { kind: "not_recorded" }]);
     expect(s.publicLocation).toEqual({ precision: "city", cityId, district: null });
     expect(s.verification.status).toBe("pending");
     expect(view.admins).toEqual([expect.objectContaining({ email: "olena@example.org" })]);
@@ -644,7 +646,7 @@ describe("the minimal shelter: created without legal data or address", () => {
     expect(missing.status).toBe(422);
     expect(missing.body).toMatchObject({
       code: "VERIFIED_DATA_MISSING",
-      data: { missing: ["legal_entity", "exact_address"] },
+      data: { missing: ["legal_form"] },
     });
 
     const version = (await reload(id)).version;
@@ -655,8 +657,8 @@ describe("the minimal shelter: created without legal data or address", () => {
     });
 
     const added = await update(id, version + 1, {
-      field: "exact_address",
-      next: { ...ADDRESS, cityId },
+      field: "premises",
+      next: { kind: "address", address: { ...ADDRESS, cityId } },
     });
     expect(added.status).toBe(200);
     // A street without a point: still the city alone, never a guessed point.
@@ -690,7 +692,7 @@ describe("the minimal shelter: created without legal data or address", () => {
 
     expect((await approve()).body).toMatchObject({
       code: "VERIFIED_DATA_MISSING",
-      data: { missing: ["legal_entity", "exact_address"] },
+      data: { missing: ["legal_form"] },
     });
     const version = (await reload(id)).version;
     expect((await update(id, version, { field: "legal_entity", next: LEGAL })).status).toBe(200);
@@ -698,25 +700,155 @@ describe("the minimal shelter: created without legal data or address", () => {
       code: "VERIFIED_DATA_MISSING",
       data: { missing: ["exact_address"] },
     });
-    await update(id, version + 1, { field: "exact_address", next: { ...ADDRESS, cityId } });
+    await update(id, version + 1, {
+      field: "premises",
+      next: { kind: "address", address: { ...ADDRESS, cityId } },
+    });
     expect((await approve()).status).toBe(200);
     expect((await reload(id)).verification.status).toBe("verified");
   });
 
-  it("records an added legal entity and address with a null previous", async () => {
+  it("records an added legal entity with a null previous, and premises over not recorded", async () => {
     const { id } = await created();
     await update(id, 0, { field: "legal_entity", next: LEGAL });
-    await update(id, 1, { field: "exact_address", next: { ...ADDRESS, cityId } });
-    const changes = (await history(id)).flatMap((entry) =>
-      entry.kind === "verified_data_changed" ? [entry.change] : [],
-    );
-    expect(changes).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ field: "legal_entity", previous: null }),
-        expect.objectContaining({ field: "exact_address", previous: null }),
-      ]),
-    );
-    expect(changes).toHaveLength(2);
+    await update(id, 1, {
+      field: "premises",
+      next: { kind: "address", address: { ...ADDRESS, cityId } },
+    });
+    const lines = await history(id);
+    expect(
+      lines.flatMap((entry) => (entry.kind === "verified_data_changed" ? [entry.change] : [])),
+    ).toEqual([expect.objectContaining({ field: "legal_entity", previous: null })]);
+    expect(lines.filter((entry) => entry.kind === "premises_changed")).toEqual([
+      expect.objectContaining({
+        previous: { kind: "not_recorded" },
+        next: { kind: "address", address: { ...ADDRESS, cityId, coordinates: null } },
+      }),
+    ]);
+  });
+
+  /**
+   * The gate per form (owner, 2026-11-24, D1-D5), through the served procedures: an initiative
+   * records an address or foster homes, an organisation an address; foster homes need an
+   * initiative, and leaving the initiative form while in foster homes waits for an address.
+   */
+  describe("an initiative: premises or foster homes", () => {
+    const INITIATIVE = { kind: "unregistered_initiative", contactPersonName: "Олена Коваль" };
+    const OPEN_SOURCES_ONLY = {
+      kind: "open_sources_review",
+      registry: null,
+      pages: ["https://lapa.example.org/"],
+      notes: "Сторінка ведеться з 2023 року.",
+      checkedOn: "2026-10-12",
+    };
+    const REFERENCE = {
+      kind: "reference_contact",
+      name: "Ветклініка «Айболить»",
+      channel: { kind: "phone", e164: "+380501234567" },
+      relationship: "veterinary_clinic",
+    };
+    const underReview = async (evidence: readonly unknown[]) => {
+      const { id } = await created();
+      if (evidence.length > 0) {
+        const added = await call("registry.verification.addEvidence", { shelterId: id, evidence });
+        expect(added.status).toBe(200);
+      }
+      expect((await call("registry.verification.startReview", { shelterId: id })).status).toBe(200);
+      const version = (await reload(id)).version;
+      expect(
+        (await update(id, version, { field: "legal_entity", next: INITIATIVE })).status,
+      ).toBe(200);
+      return { id, version: version + 1 };
+    };
+    const approve = (id: string) =>
+      call<{ code: string; data: unknown }>("registry.verification.approve", { shelterId: id });
+
+    it("is blocked with premises while they are not recorded", async () => {
+      const { id } = await underReview([OPEN_SOURCES_ONLY, REFERENCE]);
+      expect((await approve(id)).body).toMatchObject({
+        code: "VERIFIED_DATA_MISSING",
+        data: { missing: ["premises"] },
+      });
+    });
+
+    it("in foster homes on (a′), open sources and a reference: approved, located by the city alone", async () => {
+      const { id, version } = await underReview([OPEN_SOURCES_ONLY, REFERENCE]);
+      const fostered = await update(id, version, {
+        field: "premises",
+        next: { kind: "foster_homes" },
+      });
+      expect(fostered.status).toBe(200);
+      expect(fostered.body.premises).toEqual({ kind: "foster_homes" });
+      expect(fostered.body.publicLocation).toEqual({ precision: "city", cityId, district: null });
+      expect((await approve(id)).status).toBe(200);
+      const stored = await reload(id);
+      expect(stored.verification.status).toBe("verified");
+      expect(stored.premises).toEqual({ kind: "foster_homes" });
+    });
+
+    it("in foster homes without a reference: blocked on the evidence", async () => {
+      const { id, version } = await underReview([OPEN_SOURCES_ONLY]);
+      await update(id, version, { field: "premises", next: { kind: "foster_homes" } });
+      expect((await approve(id)).body).toMatchObject({
+        code: "EVIDENCE_INSUFFICIENT",
+        data: { gaps: [{ rule: "kind", kind: "reference_contact", minimum: 1, provided: 0 }] },
+      });
+    });
+
+    it("records premises_changed for foster homes, with no address, in both histories", async () => {
+      const { id, version } = await underReview([]);
+      await update(id, version, { field: "premises", next: { kind: "foster_homes" } });
+      const line = (await history(id)).find((entry) => entry.kind === "premises_changed");
+      expect(line).toEqual({
+        kind: "premises_changed",
+        at: NOW,
+        moderatorId: OPERATOR,
+        previous: { kind: "not_recorded" },
+        next: { kind: "foster_homes" },
+      });
+      const shelterFacing = line === undefined ? null : shelterFacingHistoryOf(line, "Оператор");
+      expect(shelterFacing).toEqual({
+        kind: "premises_changed",
+        at: NOW,
+        actor: { kind: "operator", displayName: "Оператор" },
+        previous: { kind: "not_recorded" },
+        next: { kind: "foster_homes" },
+      });
+    });
+
+    it("D5: a registered form while in foster homes is PREMISES_NEEDS_ADDRESS, and nothing changes", async () => {
+      const { id, version } = await underReview([]);
+      await update(id, version, { field: "premises", next: { kind: "foster_homes" } });
+      const before = await reload(id);
+      const refused = await update(id, version + 1, { field: "legal_entity", next: LEGAL });
+      expect(refused.status).toBe(409);
+      expect(refused.body).toMatchObject({ code: "PREMISES_NEEDS_ADDRESS" });
+      expect(await reload(id)).toEqual(before);
+      // With an address first, the form may change.
+      await update(id, version + 1, {
+        field: "premises",
+        next: { kind: "address", address: { ...ADDRESS, cityId } },
+      });
+      expect((await update(id, version + 2, { field: "legal_entity", next: LEGAL })).status).toBe(
+        200,
+      );
+    });
+
+    it("refuses foster homes for a registered organisation as a bad request, changing nothing", async () => {
+      const { id } = await created();
+      await update(id, 0, { field: "legal_entity", next: LEGAL });
+      const before = await reload(id);
+      const refused = await update(id, 1, { field: "premises", next: { kind: "foster_homes" } });
+      expect(refused.status).toBe(400);
+      expect(await reload(id)).toEqual(before);
+    });
+
+    it("refuses foster homes while no form is picked", async () => {
+      const { id } = await created();
+      expect((await update(id, 0, { field: "premises", next: { kind: "foster_homes" } })).status).toBe(
+        400,
+      );
+    });
   });
 
   it("allows listing before verification while the legal data and address are missing", async () => {
@@ -735,15 +867,18 @@ describe("the minimal shelter: created without legal data or address", () => {
 describe("registry.shelters.updateVerifiedData / updateProfile (S4)", () => {
   it("moves the address and the shelter's animals, nulling a stored point (P0-6), recording it", async () => {
     const s = await shelter();
-    expect(s.exactAddress.coordinates).not.toBeNull();
+    expect(s.premises.address.coordinates).not.toBeNull();
     const animal = makeAnimal({ shelterId: s.id });
     await animalRepo(db).insert(animal, cityId as never);
-    const { coordinates: _stored, ...street } = s.exactAddress;
+    const { coordinates: _stored, ...street } = s.premises.address;
     const next = { ...street, cityId: otherCityId, coordinates: null };
     const result = await call<RegistryShelterView>("registry.shelters.updateVerifiedData", {
       shelterId: s.id,
       expectedVersion: 0,
-      change: { field: "exact_address", next: { ...street, cityId: otherCityId } },
+      change: {
+        field: "premises",
+        next: { kind: "address", address: { ...street, cityId: otherCityId } },
+      },
     });
     expect(result.status).toBe(200);
     expect(result.body.publicLocation).toEqual({
@@ -751,16 +886,17 @@ describe("registry.shelters.updateVerifiedData / updateProfile (S4)", () => {
       cityId: otherCityId,
       district: street.district,
     });
-    expect((await reload(s.id)).exactAddress?.coordinates).toBeNull();
+    expect(exactAddressOf((await reload(s.id)).premises)?.coordinates).toBeNull();
     expect(result.body.version).toBe(1);
     // The animal at the shelter is now discoverable in the new city.
     const cards = await db.select().from(animals);
     expect(cards.find((row) => row.id === animal.id)?.cityId).toBe(otherCityId);
     expect(await history(s.id)).toEqual([
       expect.objectContaining({
-        kind: "verified_data_changed",
+        kind: "premises_changed",
         moderatorId: OPERATOR,
-        change: expect.objectContaining({ field: "exact_address", next }),
+        previous: s.premises,
+        next: { kind: "address", address: next },
       }),
     ]);
   });
@@ -770,10 +906,13 @@ describe("registry.shelters.updateVerifiedData / updateProfile (S4)", () => {
     const result = await call("registry.shelters.updateVerifiedData", {
       shelterId: s.id,
       expectedVersion: 0,
-      change: { field: "exact_address", next: { ...s.exactAddress, cityId: crypto.randomUUID() } },
+      change: {
+        field: "premises",
+        next: { kind: "address", address: { ...s.premises.address, cityId: crypto.randomUUID() } },
+      },
     });
     expect(result.status).toBe(400);
-    expect((await reload(s.id)).exactAddress).toEqual(s.exactAddress);
+    expect((await reload(s.id)).premises).toEqual(s.premises);
   });
 
   it("refuses an address in a retired settlement as a bad request, changing nothing", async () => {
@@ -783,10 +922,13 @@ describe("registry.shelters.updateVerifiedData / updateProfile (S4)", () => {
     const result = await call("registry.shelters.updateVerifiedData", {
       shelterId: s.id,
       expectedVersion: 0,
-      change: { field: "exact_address", next: { ...s.exactAddress, cityId: otherCityId } },
+      change: {
+        field: "premises",
+        next: { kind: "address", address: { ...s.premises.address, cityId: otherCityId } },
+      },
     });
     expect(result.status).toBe(400);
-    expect((await reload(s.id)).exactAddress).toEqual(s.exactAddress);
+    expect((await reload(s.id)).premises).toEqual(s.premises);
   });
 
   it("replaces the legal entity and records a verified_data_changed line, leaving the status", async () => {

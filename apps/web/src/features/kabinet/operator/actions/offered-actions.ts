@@ -2,9 +2,9 @@ import {
   type ApprovalGap,
   approvalGaps,
   DEFAULT_VERIFICATION_POLICY,
-  type ExactAddress,
   type InterruptedState,
   type ShelterLegalEntity,
+  type ShelterPremises,
   type ShelterVerification,
   type VerificationEventType,
   type VerificationPolicy,
@@ -42,7 +42,7 @@ export type ApproveGate =
 /** The verified data approval checks, as S4's view carries it. */
 export type VerifiedData = {
   legalEntity: ShelterLegalEntity | null;
-  exactAddress: ExactAddress | null;
+  premises: ShelterPremises;
 };
 
 /**

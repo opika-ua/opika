@@ -224,22 +224,44 @@ describe("pending → «Взяти на розгляд» → «Схвалити�
   });
 });
 
-describe("approve while the legal data or the address is missing (minimal create)", () => {
-  const missingData = { ...readyForApproval, legalEntity: null, exactAddress: null };
-
-  it("is disabled, and the list names the missing blocks before any evidence", async () => {
-    const { fns } = renderWithActions(<DecisionPanel />, { view: missingData });
+describe("approve while the form or its premises are missing (owner, 2026-11-24)", () => {
+  const missingData = {
+    ...readyForApproval,
+    legalEntity: null,
+    premises: { kind: "not_recorded" as const },
+  };
+  const blockedList = () => {
     const approve = panel().getByRole("button", { name: "Схвалити → «Перевірено»" });
     expect(approve.getAttribute("aria-disabled")).toBe("true");
     const blocked = document.getElementById(approve.getAttribute("aria-describedby") ?? "");
     expect(blocked?.textContent).toContain("Схвалити поки не можна – бракує:");
-    expect(
-      within(blocked as HTMLElement)
-        .getAllByRole("listitem")
-        .map((li) => li.textContent),
-    ).toEqual(["Юридичні дані", "Адреса приміщення"]);
-    await userEvent.click(approve);
+    return within(blocked as HTMLElement)
+      .getAllByRole("listitem")
+      .map((li) => li.textContent);
+  };
+
+  it("no form: disabled, the list names the form alone, before any evidence", async () => {
+    const { fns } = renderWithActions(<DecisionPanel />, { view: missingData });
+    expect(blockedList()).toEqual(["Форма: організація чи ініціатива"]);
+    await userEvent.click(panel().getByRole("button", { name: "Схвалити → «Перевірено»" }));
     expect(fns.verification.approve).not.toHaveBeenCalled();
+  });
+
+  it("an initiative with premises not recorded: the list names «Приміщення або перетримки»", () => {
+    renderWithActions(<DecisionPanel />, {
+      view: {
+        ...missingData,
+        legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена Коваль" },
+      },
+    });
+    expect(blockedList()[0]).toBe("Приміщення або перетримки");
+  });
+
+  it("an organisation in foster homes is still missing its address", () => {
+    renderWithActions(<DecisionPanel />, {
+      view: { ...readyForApproval, premises: { kind: "foster_homes" } },
+    });
+    expect(blockedList()).toEqual(["Адреса приміщення"]);
   });
 
   it("VERIFIED_DATA_MISSING (the data changed meanwhile): re-reads, and the panel shows what is missing", async () => {
@@ -252,7 +274,7 @@ describe("approve while the legal data or the address is missing (minimal create
           }),
         },
       },
-      reread: async () => ({ ...readyForApproval, exactAddress: null }),
+      reread: async () => ({ ...readyForApproval, premises: { kind: "not_recorded" } }),
     });
     await userEvent.click(panel().getByRole("button", { name: "Схвалити → «Перевірено»" }));
     expect(reread).toHaveBeenCalledOnce();

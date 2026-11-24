@@ -69,14 +69,14 @@ async function seed(
   const shelter = makeShelter({
     verification: STATES[state],
     donation,
-    exactAddress: {
+    premises: { kind: "address", address: {
       line1: "вул. Тестова 1",
       line2: null,
       postalCode: "01001",
       cityId: city.id,
       district: null,
       coordinates: { lat: 50.45, lng: 30.52 },
-    },
+    } },
   });
   await shelterRepo(h.db).insert(shelter);
   const animal = makeAnimal({ shelterId: shelter.id, ...animalOverrides });

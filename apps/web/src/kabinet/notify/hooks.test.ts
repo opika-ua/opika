@@ -145,7 +145,7 @@ describe("registry writes", () => {
     const city = makeCity();
     await cityRepo(db).insert(city);
     const base = makeShelter();
-    const { cityId: _drop, ...street } = base.exactAddress;
+    const { cityId: _drop, ...street } = base.premises.address;
     const created = await call<RegistryShelterView>(
       "registry.shelters.create",
       {

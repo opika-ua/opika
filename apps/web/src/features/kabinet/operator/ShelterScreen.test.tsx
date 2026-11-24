@@ -39,14 +39,14 @@ const view = (overrides: Partial<RegistryShelterView> = {}): RegistryShelterView
     district: null,
     approximate: { lat: 50.5, lng: 30.8 } as never,
   },
-  exactAddress: {
+  premises: { kind: "address", address: {
     line1: "вул. Київська, 300",
     line2: null,
     postalCode: "07400",
     cityId: "c1" as never,
     district: null,
     coordinates: { lat: 50.5, lng: 30.8 },
-  },
+  } },
   contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
   donation: null,
   pendingDonation: null,
@@ -226,7 +226,7 @@ describe("S4 evidence", () => {
   });
 
   it("names the missing legal data and address before any evidence, and no evidence without a legal form", () => {
-    renderScreen({ legalEntity: null, exactAddress: null });
+    renderScreen({ legalEntity: null, premises: { kind: "not_recorded" } });
     const evidence = section("Докази для перевірки");
     expect(within(evidence).getByText("Для схвалення бракує юридичних даних.")).toBeTruthy();
     expect(within(evidence).getByText("Для схвалення бракує адреси приміщення.")).toBeTruthy();
@@ -278,7 +278,7 @@ describe("S4 legal data, address, contacts, description", () => {
   });
 
   it("reads «Ще не заповнено» where the legal data, the address or its point is missing", () => {
-    renderScreen({ legalEntity: null, exactAddress: null });
+    renderScreen({ legalEntity: null, premises: { kind: "not_recorded" } });
     expect(within(section("Юридичні дані")).getByText("Ще не заповнено")).toBeTruthy();
     expect(within(section("Адреса приміщення")).getByText("Ще не заповнено")).toBeTruthy();
   });

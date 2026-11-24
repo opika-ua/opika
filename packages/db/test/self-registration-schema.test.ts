@@ -150,7 +150,7 @@ describe("0028: the database holds the self-registration facts together", () => 
     const id = await application(null);
     await db
       .update(shelters)
-      .set({ legalEntity: null, exactAddress: null, exactLat: null, exactLng: null })
+      .set({ legalEntity: null, premises: null, exactAddress: null, exactLat: null, exactLng: null })
       .where(eq(shelters.id, id));
     expect(
       await refusal(

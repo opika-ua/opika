@@ -94,6 +94,9 @@ describe("0021 drop orphan animal indexes", () => {
     await client.unsafe(
       "ALTER TABLE shelters ADD COLUMN IF NOT EXISTS registration_source text DEFAULT 'operator', ADD COLUMN IF NOT EXISTS registrant_user_id text, ADD COLUMN IF NOT EXISTS applied_at timestamptz, ADD COLUMN IF NOT EXISTS application_rejected_at timestamptz",
     );
+    // And 0033's premises.
+    await client.unsafe("ALTER TABLE shelters ADD COLUMN IF NOT EXISTS premises text",
+    );
     const db = drizzle(client, { schema });
     const city = makeCity();
     await cityRepo(db).insert(city);

@@ -9,7 +9,7 @@ import {
   renderWithActions,
   SHELTER_ID,
 } from "./test-fixtures";
-import { AddressEdit, LegalEdit } from "./VerifiedDataEditor";
+import { LegalEdit, PremisesEdit } from "./VerifiedDataEditor";
 
 /**
  * «Змінити» on S4's «Юридичні дані» and «Адреса приміщення». Strings transcribed: «Змінити»
@@ -81,14 +81,17 @@ describe("LegalEdit", () => {
   });
 });
 
-describe("AddressEdit", () => {
+describe("PremisesEdit", () => {
   it("sends the changed address, keeping the stored district and never a point (P0-6)", async () => {
     const view = registryView({
       version: 3,
-      exactAddress: { ...FIXTURE_ADDRESS, district: { uk: "Центральний", en: null } },
+      premises: {
+        kind: "address",
+        address: { ...FIXTURE_ADDRESS, district: { uk: "Центральний", en: null } },
+      },
     });
     const updateVerifiedData = vi.fn(async () => view);
-    renderWithActions(<AddressEdit cityName="Бровари" cities={{ search: vi.fn() }} />, {
+    renderWithActions(<PremisesEdit cityName="Бровари" cities={{ search: vi.fn() }} />, {
       view,
       client: { shelters: { updateVerifiedData } },
     });
@@ -101,13 +104,16 @@ describe("AddressEdit", () => {
       shelterId: SHELTER_ID,
       expectedVersion: 3,
       change: {
-        field: "exact_address",
+        field: "premises",
         next: {
-          line1: "вул. Нова, 1",
-          line2: FIXTURE_ADDRESS.line2,
-          postalCode: FIXTURE_ADDRESS.postalCode,
-          cityId: FIXTURE_ADDRESS.cityId,
-          district: { uk: "Центральний", en: null },
+          kind: "address",
+          address: {
+            line1: "вул. Нова, 1",
+            line2: FIXTURE_ADDRESS.line2,
+            postalCode: FIXTURE_ADDRESS.postalCode,
+            cityId: FIXTURE_ADDRESS.cityId,
+            district: { uk: "Центральний", en: null },
+          },
         },
       },
     });
@@ -115,7 +121,7 @@ describe("AddressEdit", () => {
 });
 
 describe("adding verified data a minimal create left out", () => {
-  const empty = registryView({ version: 3, legalEntity: null, exactAddress: null });
+  const empty = registryView({ version: 3, legalEntity: null, premises: { kind: "not_recorded" } });
 
   it("offers «Додати» on an empty legal block and sends the picked form from nothing", async () => {
     const updateVerifiedData = vi.fn(async () => after);
@@ -140,7 +146,7 @@ describe("adding verified data a minimal create left out", () => {
 
   it("starts an empty address in the shelter's city and sends a street without a point", async () => {
     const updateVerifiedData = vi.fn(async () => empty);
-    renderWithActions(<AddressEdit cityName="Бровари" cities={{ search: vi.fn() }} />, {
+    renderWithActions(<PremisesEdit cityName="Бровари" cities={{ search: vi.fn() }} />, {
       view: empty,
       client: { shelters: { updateVerifiedData } },
     });
@@ -151,15 +157,106 @@ describe("adding verified data a minimal create left out", () => {
       shelterId: SHELTER_ID,
       expectedVersion: 3,
       change: {
-        field: "exact_address",
+        field: "premises",
         next: {
-          line1: "вул. Нова, 1",
-          line2: null,
-          postalCode: null,
-          cityId: empty.publicLocation.cityId,
-          district: null,
+          kind: "address",
+          address: {
+            line1: "вул. Нова, 1",
+            line2: null,
+            postalCode: null,
+            cityId: empty.publicLocation.cityId,
+            district: null,
+          },
         },
       },
     });
+  });
+});
+
+/**
+ * The initiative's premises (owner, 2026-11-24). Strings transcribed from the approved copy rows 5
+ * and 8: «Де живуть тварини», «Є приміщення», «Тварини на перетримках, без приміщення», «Спершу
+ * додайте адресу приміщення: у зареєстрованої організації вона обовʼязкова.».
+ */
+describe("premises: an address or foster homes", () => {
+  const INITIATIVE = { kind: "unregistered_initiative", contactPersonName: "Олена Коваль" } as const;
+
+  it("offers an initiative the choice, and foster homes send no address", async () => {
+    const view = registryView({
+      version: 3,
+      legalEntity: INITIATIVE,
+      premises: { kind: "not_recorded" },
+    });
+    const updateVerifiedData = vi.fn(async () => view);
+    renderWithActions(<PremisesEdit cityName="Бровари" cities={{ search: vi.fn() }} />, {
+      view,
+      client: { shelters: { updateVerifiedData } },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Додати" }));
+    expect(screen.getByRole("radiogroup", { name: "Де живуть тварини" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Є приміщення" })).toHaveProperty("checked", true);
+    await userEvent.click(
+      screen.getByRole("radio", { name: "Тварини на перетримках, без приміщення" }),
+    );
+    // Address fields only under «Є приміщення».
+    expect(screen.queryByRole("textbox", { name: /Вулиця, будинок/ })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(updateVerifiedData).toHaveBeenCalledWith({
+      shelterId: SHELTER_ID,
+      expectedVersion: 3,
+      change: { field: "premises", next: { kind: "foster_homes" } },
+    });
+  });
+
+  it("opens an initiative in foster homes on that choice, and resending it sends nothing", async () => {
+    const view = registryView({
+      version: 3,
+      legalEntity: INITIATIVE,
+      premises: { kind: "foster_homes" },
+    });
+    const updateVerifiedData = vi.fn(async () => view);
+    renderWithActions(<PremisesEdit cityName="Бровари" cities={{ search: vi.fn() }} />, {
+      view,
+      client: { shelters: { updateVerifiedData } },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Змінити" }));
+    expect(
+      screen.getByRole("radio", { name: "Тварини на перетримках, без приміщення" }),
+    ).toHaveProperty("checked", true);
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(updateVerifiedData).not.toHaveBeenCalled();
+  });
+
+  it("never offers a registered organisation foster homes (D3)", async () => {
+    renderWithActions(<PremisesEdit cityName="Бровари" cities={{ search: vi.fn() }} />, {
+      view: registryView({ version: 3 }),
+      client: { shelters: { updateVerifiedData: vi.fn() } },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Змінити" }));
+    expect(screen.queryByRole("radio", { name: "Тварини на перетримках, без приміщення" })).toBeNull();
+    expect(screen.getByRole("textbox", { name: /Вулиця, будинок/ })).toBeTruthy();
+  });
+
+  it("PREMISES_NEEDS_ADDRESS: says to add the address first and keeps the form open (D5)", async () => {
+    const updateVerifiedData = vi.fn(async () => {
+      throw apiError("PREMISES_NEEDS_ADDRESS");
+    });
+    renderWithActions(<LegalEdit now={NOW} />, {
+      view: registryView({
+        version: 3,
+        legalEntity: INITIATIVE,
+        premises: { kind: "foster_homes" },
+      }),
+      client: { shelters: { updateVerifiedData } },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Змінити" }));
+    await userEvent.click(screen.getByRole("radio", { name: "ФОП" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "Юридична особа" }), "ФОП Коваль");
+    await userEvent.type(screen.getByRole("textbox", { name: "Код ЄДРПОУ" }), "12345678");
+    await userEvent.click(screen.getByRole("button", { name: "Зберегти" }));
+    expect(
+      (await screen.findByRole("alert")).textContent,
+    ).toBe("Спершу додайте адресу приміщення: у зареєстрованої організації вона обовʼязкова.");
+    expect(screen.getByRole("button", { name: "Зберегти" })).toBeTruthy();
   });
 });

@@ -2,11 +2,13 @@
 
 import "../../../../zod-client-config";
 import type { RegistryShelterView } from "@opika/contracts";
-import { kyivCalendarDateOf } from "@opika/domain";
+import { exactAddressOf, kyivCalendarDateOf, mayUseFosterHomes } from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { type FormEvent, type ReactNode, useId, useState } from "react";
 import { Button } from "../../../../ui/Button";
 import type { ComboboxOption } from "../../../../ui/Combobox";
+import { Radio } from "../../../../ui/form";
+import { Text } from "../../../../ui/Text";
 import { useCityPicker } from "../../shared/city-picker";
 import { typedDateMessage } from "../../shared/kabinet-date";
 import {
@@ -14,7 +16,7 @@ import {
   addressFormOf,
   type CreateField,
   type CreateFieldError,
-  exactAddressOf,
+  addressFromForm,
   type LegalForm,
   legalEntityOf,
   legalFormOf,
@@ -32,7 +34,12 @@ type Change = Parameters<
   RegistryActionsClient["registry"]["shelters"]["updateVerifiedData"]
 >[0]["change"];
 
-type Notice = { kind: "none" } | { kind: "saved" } | { kind: "conflict" } | { kind: "failed" };
+type Notice =
+  | { kind: "none" }
+  | { kind: "saved" }
+  | { kind: "conflict" }
+  | { kind: "needs_address" }
+  | { kind: "failed" };
 type FieldErrors = Partial<Record<CreateField, CreateFieldError>>;
 
 const message = (error: CreateFieldError | undefined): string | null => {
@@ -53,6 +60,16 @@ const canonical = (value: unknown): unknown => {
 };
 const sameValue = (a: unknown, b: unknown): boolean =>
   JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
+
+/** Whether a re-read record already holds the change (a lost answer); a saved address has no point. */
+const landedIn = (fresh: RegistryShelterView, change: Change): boolean => {
+  if (change.field === "legal_entity") return sameValue(fresh.legalEntity, change.next);
+  if (change.next.kind === "foster_homes") return fresh.premises.kind === "foster_homes";
+  return (
+    fresh.premises.kind === "address" &&
+    sameValue(fresh.premises.address, { ...change.next.address, coordinates: null })
+  );
+};
 
 /**
  * One «Змінити» → form → «Зберегти» cycle for a locked block, through S4's one runner, so
@@ -103,11 +120,7 @@ function EditCycle({
           change,
         }),
       viewOf: (answered) => answered,
-      landed: (fresh: RegistryShelterView) =>
-        sameValue(
-          change.field === "legal_entity" ? fresh.legalEntity : fresh.exactAddress,
-          change.next,
-        ),
+      landed: (fresh: RegistryShelterView) => landedIn(fresh, change),
     });
     switch (settled.kind) {
       case "busy":
@@ -125,6 +138,9 @@ function EditCycle({
           // The page now shows the record as it is; the form closes so nothing stale is resent.
           setOpen(false);
           setNotice({ kind: "conflict" });
+        } else if (settled.failure.kind === "premises_needs_address") {
+          // D5: the form stays open; the address goes in first, on the premises block.
+          setNotice({ kind: "needs_address" });
         } else {
           setNotice({ kind: "failed" });
         }
@@ -186,6 +202,11 @@ function EditCycle({
           {t.errors.conflictReload}
         </p>
       ) : null}
+      {notice.kind === "needs_address" ? (
+        <p role="alert" className={NOTICE}>
+          {t.premises.needsAddress}
+        </p>
+      ) : null}
       {notice.kind === "failed" ? (
         <p role="alert" className={NOTICE}>
           {t.errors.failed}
@@ -244,12 +265,16 @@ export function LegalEdit({ now = () => new Date() }: { now?: () => Date }) {
   );
 }
 
+type PremisesChoice = "address" | "foster_homes";
+
 /**
- * «Змінити» (or «Додати») on S4's «Адреса приміщення»: `exact_address`. The district is never
- * collected (RU-T6), so the stored one is kept rather than wiped. With no address on file the
- * form starts in the shelter's city.
+ * «Змінити» (or «Додати») on S4's «Адреса приміщення»: `premises`. An initiative first picks where
+ * the animals live (owner, 2026-11-24); the address fields show only under «Є приміщення», and
+ * foster homes store no address. A registered form sees the address alone (D3). The district is
+ * never collected (RU-T6), so the stored one is kept; with none on file the form starts in the
+ * shelter's city.
  */
-export function AddressEdit({
+export function PremisesEdit({
   cityName,
   cities = registryCreateBrowserClient.registry.cities,
 }: {
@@ -259,48 +284,95 @@ export function AddressEdit({
   const { view } = useOperatorActions();
   const id = useId();
   const picker = useCityPicker(cities);
+  const p = uk.kabinet.operator.premises;
   const cityId = view.publicLocation.cityId;
+  const current = exactAddressOf(view.premises);
+  const offerFosterHomes = mayUseFosterHomes(view.legalEntity);
+  const choiceOf = (): PremisesChoice =>
+    view.premises.kind === "foster_homes" ? "foster_homes" : "address";
   const cityOf = (): ComboboxOption | null =>
     cityName === null ? null : { value: cityId, label: cityName };
-  const [form, setForm] = useState<AddressForm>(() => addressFormOf(view.exactAddress, cityId));
+  const [choice, setChoice] = useState<PremisesChoice>(choiceOf);
+  const [form, setForm] = useState<AddressForm>(() => addressFormOf(current, cityId));
   const [city, setCity] = useState<ComboboxOption | null>(cityOf);
   const [errors, setErrors] = useState<FieldErrors>({});
   return (
     <EditCycle
-      owner="exact_address"
+      owner="premises"
       headingId="operator-address"
-      openLabel={openLabelOf(view.exactAddress)}
+      openLabel={
+        view.premises.kind === "not_recorded"
+          ? uk.kabinet.operator.shelter.add
+          : uk.kabinet.operator.shelter.edit
+      }
       onOpen={() => {
-        setForm(addressFormOf(view.exactAddress, cityId));
+        setChoice(choiceOf());
+        setForm(addressFormOf(current, cityId));
         setCity(cityOf());
         setErrors({});
       }}
       changeOf={() => {
+        if (choice === "foster_homes") {
+          setErrors({});
+          return view.premises.kind === "foster_homes"
+            ? "unchanged"
+            : { field: "premises", next: { kind: "foster_homes" } };
+        }
         const found: FieldErrors = {};
-        const checked = exactAddressOf(form, found);
+        const checked = addressFromForm(form, found);
         setErrors(found);
         if (checked.kind !== "ok") return null;
-        const next = { ...checked.exactAddress, district: view.exactAddress?.district ?? null };
-        if (sameValue(next, view.exactAddress)) return "unchanged";
-        return { field: "exact_address", next };
+        const address = { ...checked.exactAddress, district: current?.district ?? null };
+        if (current !== null) {
+          const { coordinates: _point, ...stored } = current;
+          if (sameValue(address, stored)) return "unchanged";
+        }
+        return { field: "premises", next: { kind: "address", address } };
       }}
       form={
         <>
-          <CityField
-            idPrefix={id}
-            city={city}
-            setCity={setCity}
-            setCityId={(next) => setForm((current) => ({ ...current, cityId: next }))}
-            picker={picker}
-            error={errors.cityId === undefined ? null : uk.kabinet.cityPicker.mustPick}
-          />
-          <AddressFields
-            idPrefix={id}
-            form={form}
-            set={(key, value) => setForm((current) => ({ ...current, [key]: value }))}
-            street="required"
-            errors={{ line1: message(errors.line1) }}
-          />
+          {offerFosterHomes ? (
+            <>
+              <Text look="label" id={`${id}-premises-title`}>
+                {p.title}
+              </Text>
+              <div
+                role="radiogroup"
+                aria-labelledby={`${id}-premises-title`}
+                className="flex min-w-0 flex-col gap-2"
+              >
+                {(["address", "foster_homes"] as const).map((kind) => (
+                  <Radio
+                    key={kind}
+                    label={kind === "address" ? p.address : p.fosterHomes}
+                    name={`${id}-premises`}
+                    value={kind}
+                    checked={choice === kind}
+                    onChange={() => setChoice(kind)}
+                  />
+                ))}
+              </div>
+            </>
+          ) : null}
+          {choice === "address" ? (
+            <>
+              <CityField
+                idPrefix={id}
+                city={city}
+                setCity={setCity}
+                setCityId={(next) => setForm((now) => ({ ...now, cityId: next }))}
+                picker={picker}
+                error={errors.cityId === undefined ? null : uk.kabinet.cityPicker.mustPick}
+              />
+              <AddressFields
+                idPrefix={id}
+                form={form}
+                set={(key, value) => setForm((now) => ({ ...now, [key]: value }))}
+                street="required"
+                errors={{ line1: message(errors.line1) }}
+              />
+            </>
+          ) : null}
         </>
       }
     />

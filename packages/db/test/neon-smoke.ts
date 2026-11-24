@@ -2329,7 +2329,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   const nbAddress = { ...nbBase.premises.address, cityId: nbCity.id };
   const nbShelter = {
     ...nbBase,
-    exactAddress: nbAddress,
+    premises: { kind: "address" as const, address: nbAddress },
     publicLocation: publicLocationOf(nbBase.id, nbAddress, policy),
   };
   await insertShelterFromScript(db, nbShelter, by);
@@ -2647,7 +2647,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     const address = { ...base.premises.address, cityId: s49City.id };
     const shelter = {
       ...base,
-      exactAddress: address,
+      premises: { kind: "address" as const, address },
       publicLocation: publicLocationOf(base.id, address, policy),
     };
     await insertShelterFromScript(db, shelter, by);

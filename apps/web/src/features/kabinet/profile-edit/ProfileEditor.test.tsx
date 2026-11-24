@@ -33,14 +33,14 @@ const baseView = (overrides: Partial<KabinetShelterView> = {}): KabinetShelterVi
     registeredAt: new Date("2020-01-01T00:00:00Z"),
   },
   cityId: "c1000000-0000-4000-8000-000000000001" as never,
-  exactAddress: {
+  premises: { kind: "address", address: {
     line1: "вул. Київська, 300",
     line2: null,
     postalCode: "07400",
     cityId: "c1000000-0000-4000-8000-000000000001" as never,
     district: null,
     coordinates: { lat: 50.5, lng: 30.8 },
-  },
+  } },
   contact: {
     primary: { kind: "phone", e164: "+380671234567" },
     additional: [{ kind: "telegram", handle: "domivka_brovary" }],

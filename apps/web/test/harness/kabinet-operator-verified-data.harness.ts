@@ -77,7 +77,7 @@ test.describe("S4 locked blocks: the operator changes ЄДРПОУ", () => {
         exactAddress,
         productionLocationPolicy(HARNESS_LOCATION_HMAC_SECRET),
       ),
-      exactAddress,
+      premises: { kind: "address", address: exactAddress },
       contact: { primary: { kind: "phone", e164: "+380671234568" }, additional: [] },
       donation: null,
       logo: null,

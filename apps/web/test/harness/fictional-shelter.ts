@@ -81,7 +81,7 @@ export async function createFixture(
       exactAddress,
       productionLocationPolicy(HARNESS_LOCATION_HMAC_SECRET),
     ),
-    exactAddress,
+    premises: { kind: "address", address: exactAddress },
     contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
     donation: null,
     logo: null,

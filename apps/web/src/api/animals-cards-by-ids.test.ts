@@ -22,14 +22,14 @@ async function seedFeedAnimal(animalOverrides?: AnimalFixtureOverrides) {
   await cityRepo(h.db).insert(city);
 
   const shelter = makeShelter({
-    exactAddress: {
+    premises: { kind: "address", address: {
       line1: "вул. Тестова 1",
       line2: null,
       postalCode: "01001",
       cityId: city.id,
       district: null,
       coordinates: { lat: 50.45, lng: 30.52 },
-    },
+    } },
   });
   await shelterRepo(h.db).insert(shelter);
 
@@ -93,8 +93,8 @@ describe("animals.cardsByIds", () => {
     // postal code and coordinates must never appear anywhere in the response,
     // regardless of what key they'd be under.
     expect(res.raw).not.toContain("вул. Тестова");
-    expect(res.raw).not.toContain(shelter.exactAddress.postalCode);
-    expect(res.raw).not.toContain(String(shelter.exactAddress.coordinates?.lat));
+    expect(res.raw).not.toContain(shelter.premises.address.postalCode);
+    expect(res.raw).not.toContain(String(shelter.premises.address.coordinates?.lat));
 
     const body = res.body as {
       items: { card?: { shelter?: Record<string, unknown> } }[];
@@ -148,14 +148,14 @@ describe("animals.cardsByIds", () => {
         },
         evidence: { items: [], submittedAt: new Date("2026-06-01T00:00:00Z") },
       },
-      exactAddress: {
+      premises: { kind: "address", address: {
         line1: "вул. Тестова 1",
         line2: null,
         postalCode: "01001",
         cityId: city.id,
         district: null,
         coordinates: { lat: 50.45, lng: 30.52 },
-      },
+      } },
     });
     await shelterRepo(h.db).insert(shelter);
     const animal = makeAnimal({ shelterId: shelter.id });
@@ -218,14 +218,14 @@ describe("animals.cardsByIds", () => {
         submittedAt: new Date("2026-08-01T00:00:00Z"),
         evidence: { items: [], submittedAt: new Date("2026-08-01T00:00:00Z") },
       },
-      exactAddress: {
+      premises: { kind: "address", address: {
         line1: "вул. Тестова 1",
         line2: null,
         postalCode: "01001",
         cityId: city.id,
         district: null,
         coordinates: { lat: 50.45, lng: 30.52 },
-      },
+      } },
     });
     await shelterRepo(h.db).insert(shelter);
     // A real, reachable state, not a fixture-only one (review of 3fce3b7,
@@ -264,14 +264,14 @@ describe("animals.cardsByIds", () => {
         reason: { code: "other", note: null },
         evidence: { items: [], submittedAt: new Date("2026-01-01T00:00:00Z") },
       },
-      exactAddress: {
+      premises: { kind: "address", address: {
         line1: "вул. Тестова 1",
         line2: null,
         postalCode: "01001",
         cityId: city.id,
         district: null,
         coordinates: { lat: 50.45, lng: 30.52 },
-      },
+      } },
     });
     await shelterRepo(h.db).insert(shelter);
     // Published and withdrawn entirely inside the paused window, so this
