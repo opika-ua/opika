@@ -156,6 +156,33 @@ describe("the envelope must name exactly our DSN", () => {
 });
 
 describe("size", () => {
+  // The cap must let a real error through, not only refuse a big one: a deep minified stack
+  // (100 frames, twice what Sentry keeps) and a long message, about 30 KB as the SDK sends it.
+  it("forwards a large real-shaped error envelope", async () => {
+    const { all, forward } = deps();
+    const frames = Array.from({ length: 100 }, (_, i) => ({
+      filename: `https://opika.example/_next/static/chunks/app/tvaryny/page-0123456789abcdef${i}.js`,
+      abs_path: `https://opika.example/_next/static/chunks/app/tvaryny/page-0123456789abcdef${i}.js`,
+      function: `renderWithHooksAndSomeLongComponentName${i}`,
+      lineno: 1,
+      colno: 10_000 + i,
+      in_app: true,
+    }));
+    const body = envelope([
+      {
+        type: "event",
+        payload: event({
+          exception: {
+            values: [{ type: "TypeError", value: "x".repeat(1024), stacktrace: { frames } }],
+          },
+        }),
+      },
+    ]);
+    const response = await handleMonitoringTunnel(post(body), all);
+    expect(response.status).toBe(204);
+    expect(forward).toHaveBeenCalledTimes(1);
+  });
+
   it("refuses a declared oversize body without forwarding", async () => {
     const { all, forward } = deps();
     const big = envelope([
