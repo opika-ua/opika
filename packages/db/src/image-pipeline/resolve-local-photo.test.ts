@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { animatedWebp, pngClaiming } from "../test-utils/photo-fixtures";
 import { resolveLocalPhotoPath, validateLocalPhoto } from "./resolve-local-photo";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../../..", import.meta.url)));
@@ -47,6 +48,23 @@ describe("validateLocalPhoto", () => {
     await expect(validateLocalPhoto(resolve(SEED_PHOTOS_DIR, "SOURCES.md"))).rejects.toThrow(
       /not a readable image/,
     );
+  });
+
+  it("refuses an animated file or one over 50 MP in the dry run, from the header", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "opika-validate-"));
+    try {
+      const animated = join(dir, "animated.webp");
+      writeFileSync(animated, await animatedWebp(3));
+      await expect(validateLocalPhoto(animated)).rejects.toThrow(/animated or has several pages/);
+      const huge = join(dir, "huge.png");
+      writeFileSync(huge, pngClaiming(50_000, 50_000));
+      await expect(validateLocalPhoto(huge)).rejects.toThrow(/over 50 megapixels/);
+    } finally {
+      // Windows: libvips keeps a recently opened file open in its cache until told to drop it.
+      sharp.cache(false);
+      rmSync(dir, { recursive: true, force: true });
+      sharp.cache(true);
+    }
   });
 
   describe("EXIF orientation", () => {

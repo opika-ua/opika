@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
-import { crc32 } from "node:zlib";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
+import { animatedWebp, pngClaiming } from "../test-utils/photo-fixtures";
 import { encodePhotoSource } from "./photo-source";
 import { prepareUploadedLogo, prepareUploadedPhoto } from "./prepare-uploaded-photo";
 import { sniffImageType } from "./sniff";
@@ -249,21 +249,6 @@ describe("the 2000 px ceiling (P-Q5)", () => {
 
 /** Audit I3: an animated file is refused from its header, not left to sharp's first-frame default. */
 describe("an animated (multi-frame) image is refused", () => {
-  const animatedWebp = async (frames: number) => {
-    const pngs = await Promise.all(
-      Array.from({ length: frames }, (_, i) =>
-        sharp({
-          create: { width: 40, height: 30, channels: 3, background: { r: i * 60, g: 0, b: 0 } },
-        })
-          .png()
-          .toBuffer(),
-      ),
-    );
-    return sharp(pngs, { join: { animated: true } })
-      .webp()
-      .toBuffer();
-  };
-
   it("precondition: the fixture is a WebP whose header reports 3 pages", async () => {
     const bytes = await animatedWebp(3);
     expect(sniffImageType(bytes)).toBe("webp");
@@ -292,28 +277,6 @@ describe("an animated (multi-frame) image is refused", () => {
  * only the header read can produce: had the pixels been decoded, the garbage
  * would have failed as `unreadable` instead (or exhausted memory first).
  */
-function pngClaiming(width: number, height: number): Buffer {
-  const chunk = (type: string, data: Buffer) => {
-    const length = Buffer.alloc(4);
-    length.writeUInt32BE(data.length);
-    const typed = Buffer.concat([ascii(type), data]);
-    const crc = Buffer.alloc(4);
-    crc.writeUInt32BE(crc32(typed));
-    return Buffer.concat([length, typed, crc]);
-  };
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(width, 0);
-  ihdr.writeUInt32BE(height, 4);
-  ihdr.writeUInt8(8, 8); // bit depth
-  ihdr.writeUInt8(2, 9); // colour type: RGB
-  return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk("IHDR", ihdr),
-    chunk("IDAT", Buffer.from([0x78, 0x9c, 0xde, 0xad, 0xbe, 0xef])),
-    chunk("IEND", Buffer.alloc(0)),
-  ]);
-}
-
 describe("a pixel bomb is refused from its header, without decoding", () => {
   it("precondition: the header really claims 50,000 × 50,000", async () => {
     const meta = await sharp(pngClaiming(50_000, 50_000), { limitInputPixels: false }).metadata();

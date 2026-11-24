@@ -38,18 +38,45 @@ export async function validateLocalPhoto(resolvedPath: string): Promise<LocalPho
   }
   let metadata: Metadata;
   try {
-    metadata = await sharp(resolvedPath).metadata();
+    // Header only, limit lifted so an oversized file is refused by name below.
+    metadata = await sharp(resolvedPath, { limitInputPixels: false }).metadata();
   } catch (cause) {
     throw new Error(`Photo file is not a readable image: ${resolvedPath}`, { cause });
   }
-  if (!metadata.width || !metadata.height) {
-    throw new Error(`Photo file has no readable dimensions: ${resolvedPath}`);
+  const { width, height } = checkOnboardingPhotoHeader(metadata, resolvedPath);
+  return displayedDimensions({ width, height, orientation: metadata.orientation });
+}
+
+/**
+ * Looser than the kabinet's 2000 px edge, since the onboarding CLI scales large originals down,
+ * but still a ceiling on what any of its decodes may open (a pixel bomb).
+ */
+export const ONBOARDING_PIXEL_LIMIT = 50_000_000;
+
+/** An animated or multi-page file: refused before any decode, by the kabinet and the onboarding CLI alike. */
+export function hasSeveralFrames(header: Pick<Metadata, "pages">): boolean {
+  return (header.pages ?? 1) > 1;
+}
+
+/** The onboarding CLI's header checks, run before anything is decoded: one frame, at most 50 MP. */
+export function checkOnboardingPhotoHeader(
+  header: Pick<Metadata, "pages" | "width" | "height">,
+  path: string,
+): LocalPhotoDimensions {
+  if (hasSeveralFrames(header)) {
+    throw new Error(
+      `Photo file is animated or has several pages, only a still image is accepted: ${path}`,
+    );
   }
-  return displayedDimensions({
-    width: metadata.width,
-    height: metadata.height,
-    orientation: metadata.orientation,
-  });
+  if (!header.width || !header.height) {
+    throw new Error(`Photo file has no readable dimensions: ${path}`);
+  }
+  if (header.width * header.height > ONBOARDING_PIXEL_LIMIT) {
+    throw new Error(
+      `Photo file is over ${ONBOARDING_PIXEL_LIMIT / 1_000_000} megapixels (${header.width} × ${header.height}): ${path}`,
+    );
+  }
+  return { width: header.width, height: header.height };
 }
 
 /**

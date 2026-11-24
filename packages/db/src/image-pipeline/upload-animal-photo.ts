@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { type AnimalId, type AnimalPhoto, frameBoxOf, type PhotoFraming } from "@opika/domain";
+import sharp from "sharp";
 import type { PhotoSource } from "../repos/photo-sources-repo";
 import {
   type EncodedVariants,
@@ -8,6 +9,7 @@ import {
 } from "./generate-variants";
 import { encodePhotoSource } from "./photo-source";
 import type { ImageStorageClient } from "./r2-client";
+import { checkOnboardingPhotoHeader, ONBOARDING_PIXEL_LIMIT } from "./resolve-local-photo";
 import {
   animalPhotoStorageKeyFor,
   IMAGE_CONTENT_TYPES,
@@ -63,18 +65,30 @@ export async function uploadAnimalPhoto(
   const storageKey = animalPhotoStorageKeyFor(animalId, ids.photoId);
   const sourceObjectKey = photoSourceObjectKeyFor(storageKey, ids.sourceId);
   const file = readFileSync(resolvedPath);
-  const source = await encodePhotoSource(file);
+  // Header only, limit lifted so the check can name a refusal; every decode below carries it.
+  checkOnboardingPhotoHeader(
+    await sharp(file, { limitInputPixels: false }).metadata(),
+    resolvedPath,
+  );
+  const decode = { limitInputPixels: ONBOARDING_PIXEL_LIMIT };
+  const source = await encodePhotoSource(file, decode);
   let variants: PhotoVariants;
   switch (framing.kind) {
     case "attention":
-      variants = await generateVariants(IMAGE_VARIANTS, file, PHOTO_FORMATS);
+      variants = await generateVariants(IMAGE_VARIANTS, file, PHOTO_FORMATS, decode);
       break;
     case "frame": {
       const box = frameBoxOf(framing.frame, source);
       if (box.kind === "rejected") {
         throw new Error(`The frame for ${resolvedPath} is refused (${box.reason})`);
       }
-      variants = await generateFramedVariants(IMAGE_VARIANTS, source.bytes, box.box, PHOTO_FORMATS);
+      variants = await generateFramedVariants(
+        IMAGE_VARIANTS,
+        source.bytes,
+        box.box,
+        PHOTO_FORMATS,
+        decode,
+      );
       break;
     }
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
