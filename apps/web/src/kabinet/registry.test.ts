@@ -1665,6 +1665,108 @@ describe("registry.verification.resubmit keeps what its input can't carry", () =
 });
 
 /**
+ * Owner, 2026-11-24, verbatim: "#573 D3: (a), age counted when the record is made." A record's
+ * months are checked when it is recorded or edited, never again against a later `now`. The rule
+ * is unit-tested in the domain's `ongoing-work.test.ts`; here, what resubmit and approval do.
+ */
+describe("registry.verification.resubmit: an ongoing-work record's age counts when it is made", () => {
+  const RECORDER = "0ec0ec0e-0000-4000-8000-000000000099" as ModeratorId;
+  const INITIATIVE = {
+    kind: "unregistered_initiative",
+    contactPersonName: "Олена Коваль",
+  } as const;
+  const VISIT = {
+    kind: "site_visit",
+    visitedAt: new Date("2025-09-14T00:00:00.000Z"),
+    visitedBy: RECORDER,
+    notes: "Відеодзвінок",
+  } as const;
+  const DOCUMENTS = [
+    { kind: "vet_receipt", month: "2025-08", issuer: "Ветклініка «Айболить»" },
+    { kind: "food_purchase", month: "2025-09", issuer: "Зоомагазин «Лапа»" },
+  ] as const;
+  /** Made 13 months before NOW, when its months were 0 and 1 back; by NOW they are 13 and 14. */
+  const RECORD = {
+    kind: "ongoing_work_record",
+    documents: DOCUMENTS,
+    notes: "Чеки показали в месенджері",
+    checkedAt: new Date("2025-09-15T10:00:00.000Z"),
+    checkedBy: RECORDER,
+  } as const;
+  const SENT_VISIT = { kind: "site_visit", visitedOn: "2025-09-14", notes: "Відеодзвінок" };
+  const SENT_RECORD = {
+    kind: "ongoing_work_record",
+    documents: DOCUMENTS,
+    notes: "Чеки показали в месенджері",
+  };
+
+  const rejectedInitiative = (items: readonly unknown[]) =>
+    shelter({
+      legalEntity: INITIATIVE,
+      verification: {
+        status: "rejected",
+        rejectedAt: NOW,
+        rejectedBy: OPERATOR as ModeratorId,
+        reason: { code: "spam", note: "Бракує відеодзвінка" },
+        stage: "verification",
+        evidence: { items: items as never, submittedAt: new Date("2025-09-15T10:00:00.000Z") },
+      },
+    });
+  const resubmit = (shelterId: string, evidence: readonly unknown[]) =>
+    call<{ data: unknown } & RegistryShelterView>("registry.verification.resubmit", {
+      shelterId,
+      evidence,
+    });
+
+  it("an unchanged record from 13 months ago survives the resubmit and the approval", async () => {
+    const s = await rejectedInitiative([VISIT, RECORD]);
+    const resubmitted = await resubmit(s.id, [SENT_VISIT, SENT_RECORD]);
+    expect(resubmitted.status).toBe(200);
+    expect((await reload(s.id)).verification.evidence.items).toEqual([VISIT, RECORD]);
+    expect((await call("registry.verification.startReview", { shelterId: s.id })).status).toBe(200);
+    const approved = await call<RegistryShelterView>("registry.verification.approve", {
+      shelterId: s.id,
+    });
+    expect(approved.status).toBe(200);
+    expect((await reload(s.id)).verification).toMatchObject({
+      status: "verified",
+      evidence: { items: [VISIT, RECORD] },
+    });
+  });
+
+  it("a newly added record that old is refused, and nothing is written", async () => {
+    const s = await rejectedInitiative([VISIT]);
+    const refused = await resubmit(s.id, [SENT_VISIT, SENT_RECORD]);
+    expect(refused.status).toBe(422);
+    expect(refused.body.data).toEqual({ reason: "ongoing_work_month_too_old" });
+    expect((await reload(s.id)).verification.status).toBe("rejected");
+    expect(await history(s.id)).toEqual([]);
+  });
+
+  it("an edited record is checked again: refused with those months, taken with recent ones", async () => {
+    const s = await rejectedInitiative([VISIT, RECORD]);
+    const notesEdited = await resubmit(s.id, [
+      SENT_VISIT,
+      { ...SENT_RECORD, notes: "Чеки і виписка з рахунку" },
+    ]);
+    expect(notesEdited.status).toBe(422);
+    expect(notesEdited.body.data).toEqual({ reason: "ongoing_work_month_too_old" });
+    expect((await reload(s.id)).verification.status).toBe("rejected");
+
+    const recent = [
+      { kind: "vet_receipt", month: "2026-09", issuer: "Ветклініка «Айболить»" },
+      { kind: "food_purchase", month: "2026-10", issuer: "Зоомагазин «Лапа»" },
+    ];
+    const monthsEdited = await resubmit(s.id, [SENT_VISIT, { ...SENT_RECORD, documents: recent }]);
+    expect(monthsEdited.status).toBe(200);
+    expect((await reload(s.id)).verification.evidence.items).toEqual([
+      VISIT,
+      { ...RECORD, documents: recent, checkedAt: NOW, checkedBy: OPERATOR },
+    ]);
+  });
+});
+
+/**
  * Adding evidence while pending / under_review. "Duplicate" = same kind and
  * same key field (EDRPOU code; reference contact channel; visit date; bank
  * holder name), notes and other free text ignored. The rule and its near

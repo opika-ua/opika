@@ -22,6 +22,8 @@ import {
   legalEntityEditRefusalOf,
   MAX_EVIDENCE_ITEMS,
   type ModeratorId,
+  type OngoingWorkMonthsCheck,
+  ongoingWorkRefusalOf,
   premisesEditRefusalOf,
   premisesPublicLocationOf,
   type RecordedPremises,
@@ -314,6 +316,7 @@ export const registryUpdateProfile = (
 export function acceptEvidence(
   inputs: readonly EvidenceItemInput[],
   by: { moderatorId: ModeratorId; now: Date },
+  months: OngoingWorkMonthsCheck = "on_recording",
 ):
   | { kind: "ok"; evidence: VerificationEvidence }
   | {
@@ -327,7 +330,11 @@ export function acceptEvidence(
         input.documentKey !== null),
   );
   if (carriesDocument) return { kind: "refused", reason: "document_not_supported_yet" };
-  const result = toVerificationEvidence(inputs, { recordedBy: by.moderatorId, recordedAt: by.now });
+  const result = toVerificationEvidence(
+    inputs,
+    { recordedBy: by.moderatorId, recordedAt: by.now },
+    months,
+  );
   if (result.kind !== "ok") return { kind: "refused", reason: result.kind };
   return { kind: "ok", evidence: result.evidence };
 }
@@ -531,7 +538,8 @@ export function registryResubmit(
   if (input.evidence.length > MAX_EVIDENCE_ITEMS) {
     throw errors.EVIDENCE_LIMIT_REACHED({ data: { limit: MAX_EVIDENCE_ITEMS } });
   }
-  const accepted = acceptEvidence(input.evidence, { moderatorId, now: deps.now });
+  // An ongoing-work record's months are checked once the unchanged ones are put back (D3 (a)).
+  const accepted = acceptEvidence(input.evidence, { moderatorId, now: deps.now }, "by_caller");
   if (accepted.kind === "refused")
     throw errors.INVALID_EVIDENCE({ data: { reason: accepted.reason } });
   return verificationMove(
@@ -543,6 +551,9 @@ export function registryResubmit(
       if (evidence.items.length > MAX_EVIDENCE_ITEMS) {
         throw errors.EVIDENCE_LIMIT_REACHED({ data: { limit: MAX_EVIDENCE_ITEMS } });
       }
+      // Each record at its own date: a new or edited one now, one on file unchanged when it was made.
+      const refusal = ongoingWorkRefusalOf(evidence.items);
+      if (refusal !== null) throw errors.INVALID_EVIDENCE({ data: { reason: refusal.kind } });
       return { type: "resubmit", at: deps.now, actor: moderatorActor(moderatorId), evidence };
     },
     errors,

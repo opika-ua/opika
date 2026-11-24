@@ -21,11 +21,14 @@ export const ONGOING_WORK_DOCUMENT_KINDS = [
 export const OngoingWorkDocumentKindSchema = z.enum(ONGOING_WORK_DOCUMENT_KINDS);
 export type OngoingWorkDocumentKind = z.infer<typeof OngoingWorkDocumentKindSchema>;
 
+/** The longest issuer, on input and in the stored schema alike: every typed name's cap. */
+export const ONGOING_WORK_ISSUER_MAX_LENGTH = 300;
+
 /** `issuer` is the clinic or shop, never a person's name. */
 export const OngoingWorkDocumentSchema = z.object({
   kind: OngoingWorkDocumentKindSchema,
   month: YearMonthSchema,
-  issuer: z.string().min(1),
+  issuer: z.string().min(1).max(ONGOING_WORK_ISSUER_MAX_LENGTH),
 });
 export type OngoingWorkDocument = z.infer<typeof OngoingWorkDocumentSchema>;
 

@@ -11,6 +11,7 @@ import {
   ongoingWorkMonthsAt,
   ongoingWorkProblemOf,
   type ReferenceRelationship,
+  type YearMonth,
 } from "@opika/domain";
 import { type DateFieldValue, EMPTY_DATE } from "../../../../ui/date-field";
 import { type ChannelKind, type FieldError, parseChannel } from "../../profile-edit/fields";
@@ -72,6 +73,42 @@ export const EMPTY_DOCUMENT_ROW: OngoingWorkDocumentRow = { kind: "", month: "",
 const isBlankDocument = (row: OngoingWorkDocumentRow): boolean =>
   row.kind === "" && row.month === "" && row.issuer.trim() === "";
 
+/** What of a record on file decides whether it comes back unchanged (the server's `sameTypedFacts`). */
+export type OngoingWorkOnFile = { documents: readonly OngoingWorkDocument[]; notes: string };
+
+/**
+ * The months a document may be from: those a record made `now` accepts, and, on a card prefilled
+ * from file, the months the record already holds, which count from when it was made (D3 (a)).
+ * Newest first.
+ */
+export const ongoingWorkMonthChoices = (
+  onFile: OngoingWorkOnFile | null,
+  now: Date,
+): readonly YearMonth[] => {
+  const months = new Set<YearMonth>(ongoingWorkMonthsAt(now));
+  for (const document of onFile?.documents ?? []) months.add(document.month);
+  return [...months].sort().reverse();
+};
+
+/** Whether a card sends its record back as on file, so the server keeps it whole. */
+const isUnchanged = (
+  onFile: OngoingWorkOnFile | null,
+  documents: readonly OngoingWorkDocument[],
+  notes: string,
+): boolean =>
+  onFile !== null &&
+  onFile.notes.trim() === notes &&
+  onFile.documents.length === documents.length &&
+  onFile.documents.every((stored, index) => {
+    const sent = documents[index];
+    return (
+      sent !== undefined &&
+      sent.kind === stored.kind &&
+      sent.month === stored.month &&
+      sent.issuer === stored.issuer.trim()
+    );
+  });
+
 /**
  * The slots the card shows: those typed, and one empty slot after them while there is room, so a
  * further document needs no button. Two at the least, the record's own minimum.
@@ -112,6 +149,8 @@ export type EvidenceRow =
       kind: "ongoing_work_record";
       documents: readonly OngoingWorkDocumentRow[];
       notes: string;
+      /** The record resubmit prefilled this card from, or null for a new card. */
+      onFile: OngoingWorkOnFile | null;
     }
   | {
       id: string;
@@ -162,7 +201,13 @@ export function emptyEvidenceRow(kind: EditableEvidenceKind, id: string): Eviden
     case "site_visit":
       return { id, kind, visitedOn: EMPTY_DATE, notes: "" };
     case "ongoing_work_record":
-      return { id, kind, documents: [EMPTY_DOCUMENT_ROW, EMPTY_DOCUMENT_ROW], notes: "" };
+      return {
+        id,
+        kind,
+        documents: [EMPTY_DOCUMENT_ROW, EMPTY_DOCUMENT_ROW],
+        notes: "",
+        onFile: null,
+      };
     case "open_sources_review":
       return {
         id,
@@ -305,8 +350,8 @@ function rowResult(row: EvidenceRow, now: Date): RowResult {
     case "ongoing_work_record": {
       const notes = trimmedOrNull(row.notes);
       if (notes === null) errors.notes = "required";
-      // The months the form offers: one past them (an older record sent back) reads as unpicked.
-      const offered = new Set<string>(ongoingWorkMonthsAt(now));
+      // The months the form offers: one past them reads as unpicked.
+      const offered = new Set<string>(ongoingWorkMonthChoices(row.onFile, now));
       const documents: OngoingWorkDocument[] = [];
       let lastTyped = 0;
       row.documents.forEach((document, index) => {
@@ -322,9 +367,11 @@ function rowResult(row: EvidenceRow, now: Date): RowResult {
         }
       });
       // Once every typed document is whole: the server's own rule (`ongoingWorkProblemOf`), shown on
-      // the last typed month, so the focus lands where a second month is missing.
+      // the last typed month, so the focus lands where a second month is missing. A record sent back
+      // unchanged was checked when it was made, never again (D3 (a)).
       if (
         Object.keys(errors).every((field) => field === "notes") &&
+        !(notes !== null && isUnchanged(row.onFile, documents, notes)) &&
         ongoingWorkProblemOf(documents, now) !== null
       ) {
         errors[`documents.${lastTyped}.month`] = "ongoingWorkMonths";

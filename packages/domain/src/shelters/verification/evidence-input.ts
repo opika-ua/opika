@@ -13,8 +13,10 @@ import {
   type VerificationEvidence,
 } from "./evidence";
 import {
+  ONGOING_WORK_ISSUER_MAX_LENGTH,
   ONGOING_WORK_MAX_DOCUMENTS,
   OngoingWorkDocumentKindSchema,
+  type OngoingWorkProblem,
   ongoingWorkProblemOf,
 } from "./ongoing-work";
 
@@ -131,7 +133,7 @@ export const EvidenceItemInputSchema = z.discriminatedUnion("kind", [
         z.object({
           kind: OngoingWorkDocumentKindSchema,
           month: YearMonthSchema,
-          issuer: z.string().min(1).max(EVIDENCE_NAME_MAX_LENGTH),
+          issuer: z.string().min(1).max(ONGOING_WORK_ISSUER_MAX_LENGTH),
         }),
       )
       .min(1)
@@ -244,18 +246,26 @@ export const isSiteVisitInFuture = (visitedOn: CalendarDate, recordedAt: Date): 
   visitedOn > kyivCalendarDateOf(recordedAt);
 
 /**
+ * When an ongoing-work record's months are checked: as it is recorded, or by a caller that first
+ * puts back the records sent unchanged (resubmit) and then runs `ongoingWorkRefusalOf` on the
+ * whole list. A record's age counts when it is made (owner, 2026-11-24, D3 (a)).
+ */
+export type OngoingWorkMonthsCheck = "on_recording" | "by_caller";
+
+/**
  * The whole evidence bundle, stamped with when it was recorded.
  *
  * Refuses a site visit or an open-sources check dated after the day it is
  * recorded (`isSiteVisitInFuture`): that is a typo, not a fact, and it would
  * let a reviewer approve on a check that hasn't happened. Refuses an ongoing-work record with
  * fewer than two different months, or a month in the future or past the 12-month cap
- * (`ongoingWorkProblemOf`, owner 2026-11-24). A result rather than a
- * throw, as in the verification FSM, so every caller handles the refusal.
+ * (`ongoingWorkProblemOf`, owner 2026-11-24), unless `months` leaves that to the caller. A result
+ * rather than a throw, as in the verification FSM, so every caller handles the refusal.
  */
 export const toVerificationEvidence = (
   inputs: readonly EvidenceItemInput[],
   by: EvidenceAttribution,
+  months: OngoingWorkMonthsCheck = "on_recording",
 ): EvidenceInputResult => {
   for (const input of inputs) {
     if (input.kind === "site_visit" && isSiteVisitInFuture(input.visitedOn, by.recordedAt)) {
@@ -267,15 +277,9 @@ export const toVerificationEvidence = (
     ) {
       return { kind: "open_sources_check_in_future", checkedOn: input.checkedOn };
     }
-    if (input.kind === "ongoing_work_record") {
-      const problem = ongoingWorkProblemOf(input.documents, by.recordedAt);
-      if (problem?.kind === "too_few_months") return { kind: "ongoing_work_too_few_months" };
-      if (problem?.kind === "month_in_future") {
-        return { kind: "ongoing_work_month_in_future", month: problem.month };
-      }
-      if (problem?.kind === "month_too_old") {
-        return { kind: "ongoing_work_month_too_old", month: problem.month };
-      }
+    if (input.kind === "ongoing_work_record" && months === "on_recording") {
+      const refusal = refusalOf(ongoingWorkProblemOf(input.documents, by.recordedAt));
+      if (refusal !== null) return refusal;
     }
   }
   return {
@@ -285,4 +289,35 @@ export const toVerificationEvidence = (
       submittedAt: by.recordedAt,
     },
   };
+};
+
+type OngoingWorkRefusal = Extract<EvidenceInputResult, { kind: `ongoing_work_${string}` }>;
+
+const refusalOf = (problem: OngoingWorkProblem | null): OngoingWorkRefusal | null => {
+  switch (problem?.kind) {
+    case undefined:
+      return null;
+    case "too_few_months":
+      return { kind: "ongoing_work_too_few_months" };
+    case "month_in_future":
+      return { kind: "ongoing_work_month_in_future", month: problem.month };
+    case "month_too_old":
+      return { kind: "ongoing_work_month_too_old", month: problem.month };
+  }
+};
+
+/**
+ * The first ongoing-work record in `items` its own recording would have refused, or null. Each is
+ * checked at its `checkedAt`: a new or edited one is stamped with the write's `now`, so it is
+ * checked then; one carried over unchanged keeps the date it was made, so it is never re-checked
+ * against a later `now` (owner, 2026-11-24, verbatim: "#573 D3: (a), age counted when the record
+ * is made.").
+ */
+export const ongoingWorkRefusalOf = (items: readonly EvidenceItem[]): OngoingWorkRefusal | null => {
+  for (const item of items) {
+    if (item.kind !== "ongoing_work_record") continue;
+    const refusal = refusalOf(ongoingWorkProblemOf(item.documents, item.checkedAt));
+    if (refusal !== null) return refusal;
+  }
+  return null;
 };

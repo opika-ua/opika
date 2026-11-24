@@ -89,7 +89,8 @@ export const EvidenceItemSchema = z.discriminatedUnion("kind", [
   /**
    * An initiative's documented ongoing work (owner, 2026-11-24): the month and issuer of each
    * document the operator saw, from at least two different months; the documents are never stored.
-   * The age cap needs `now`, so it is `ongoingWorkProblemOf`'s, at write. `notes` is operator-only.
+   * The guard is the write path (`ongoingWorkProblemOf`, each record at its own `checkedAt`): this
+   * schema never runs before a write. `notes` is operator-only.
    */
   z.object({
     kind: z.literal("ongoing_work_record"),

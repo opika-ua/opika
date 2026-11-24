@@ -86,11 +86,18 @@ Moved verbatim from CLAUDE.md in DS PR 5. Settled decisions (M1, M4, gallery con
    separate reviewer for the privacy text." Unregistered initiative = any-of(`site_visit`,
    `open_sources_review`) + any-of(`reference_contact`, `ongoing_work_record`). An `ongoing_work_record`
    holds documents (`vet_receipt | food_purchase | transport | other`, D2), each a `YearMonth` and an
-   issuer, from at least two different months (the stored schema refuses fewer), plus operator-only
-   notes, `checkedAt` (the recording) and `checkedBy`; no month in the future and none more than 12
-   months back (D3; the month exactly 12 back is accepted), checked at write with `now` as a parameter
-   (`ongoingWorkProblemOf`). Documents are never stored or uploaded. Early listing accepts a record
-   too (D1). Registered forms are unchanged. No migration: evidence lives in the verification JSONB.
+   issuer, from at least two different months, plus operator-only notes, `checkedAt` (the recording)
+   and `checkedBy`; no month in the future and none more than 12 months back (D3; the month exactly 12
+   back is accepted), checked at write with `now` as a parameter (`ongoingWorkProblemOf`). Documents
+   are never stored or uploaded. Early listing accepts a record too (D1). Registered forms are
+   unchanged. No migration: evidence lives in the verification JSONB.
+   2026-11-24, owner decision, verbatim: "#573 D3: (a), age counted when the record is made." A
+   record's months are checked when it is recorded or edited, never again against a later `now`: on
+   resubmit, a record sent back unchanged keeps its `checkedAt` (`withEvidenceOnFile`) and every record
+   is checked at its own `checkedAt` once the carry-over is done (`ongoingWorkRefusalOf`); approval
+   never checks months. The guard is that write-path check, not the stored schema: `EvidenceItemSchema`
+   (its two-months refinement, its issuer cap, the input's) never runs before a write; it runs only as
+   the output check of the operator's registry view, after the write has landed.
 7. **`RejectionReason` and `SuspensionReason` are separate code lists**
    (+ optional free-text note). A shelter is rejected for reasons about its
    application and suspended for reasons about its conduct; one merged enum
