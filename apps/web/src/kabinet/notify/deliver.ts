@@ -11,6 +11,8 @@ import { BATCH_KINDS, EVENT_KINDS, type NotificationIntent } from "./intents";
 /** Resend answers 2 requests a second per team; a mail every 500 ms stays under it. */
 export const SEND_SPACING_MS = 500;
 
+export type NearCapWarning = { kind: "mail_operator" } | { kind: "silent" };
+
 /** Everything a send needs from outside; the clock and the sleep are parameters so tests need neither. */
 export type NotifyDeps = {
   db: Database;
@@ -19,8 +21,8 @@ export type NotifyDeps = {
   now: () => Date;
   /** Event mails one Kyiv day may send in all (`NOTIFICATION_DAILY_EVENT_CAP`). */
   eventCap: number;
-  /** Tells the operator the cap is 80% used; unset where no warning mail should leave (tests, dev). */
-  warnNearCap?: boolean;
+  /** Mails the operator at 80% of the cap; silent where no warning should leave (tests, dev). */
+  nearCapWarning: NearCapWarning;
   sleep: (ms: number) => Promise<void>;
   log: (line: string) => void;
 };
@@ -33,7 +35,7 @@ export type NotifyDeps = {
  * claim, so concurrent runs can overshoot the cap by at most one mail per run.
  */
 export function openEventCap(
-  deps: Pick<NotifyDeps, "db" | "now" | "eventCap" | "mail" | "log" | "warnNearCap">,
+  deps: Pick<NotifyDeps, "db" | "now" | "eventCap" | "mail" | "log" | "nearCapWarning">,
 ) {
   let warned = false;
   const cap = {
@@ -45,7 +47,11 @@ export function openEventCap(
       );
       // The mail about to be claimed is the one that reaches the threshold. Once per run here;
       // the day's dedup key keeps every other run from mailing it again.
-      if (deps.warnNearCap === true && !warned && used + 1 >= nearCapAt(deps.eventCap)) {
+      if (
+        deps.nearCapWarning.kind === "mail_operator" &&
+        !warned &&
+        used + 1 >= nearCapAt(deps.eventCap)
+      ) {
         warned = true;
         await sendNearCapAlarm(deps, deps.eventCap);
       }

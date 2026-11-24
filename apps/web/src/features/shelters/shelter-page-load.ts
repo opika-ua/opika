@@ -9,7 +9,6 @@ import {
   type AnimalSpecies,
   type CityId,
   FEED_FILTER_DIMENSIONS,
-  GALLERY_SORT_LISTS,
   isConstrained,
   NO_FILTERS,
   ShelterIdSchema,
@@ -117,7 +116,7 @@ export async function loadShelterPage(
     );
     // The shelter's whole count is the freshest sort's, unfiltered: that sort lists every card,
     // while «Зачекались» leaves the stale ones out of the list and its counts.
-    const listsEveryCard = GALLERY_SORT_LISTS[query.sort] === "every_card";
+    const listsEveryCard = query.sort !== "longest_waiting";
     const shelterRead = client.shelters.byId({ shelterId });
     const restRead = Promise.all([
       client.gallery.list({ filters: query.filters, sort: query.sort, page: query.page, scope }),

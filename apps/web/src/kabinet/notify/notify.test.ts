@@ -603,7 +603,7 @@ describe("the daily cap on event mails", () => {
     const warnings = <T extends { to: string }>(sent: T[]) =>
       sent.filter((email) => email.to === OPERATOR);
     const warnDeps = (mail: Parameters<typeof depsOf>[1], options: { now?: Date } = {}) =>
-      depsOf(db, mail, { eventCap: 10, warnNearCap: true, ...options });
+      depsOf(db, mail, { eventCap: 10, nearCapWarning: { kind: "mail_operator" }, ...options });
 
     it("stays quiet while the mail being claimed leaves the day below 80%", async () => {
       await claimedRows(6, NOW);

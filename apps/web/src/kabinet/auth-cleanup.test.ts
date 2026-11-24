@@ -215,6 +215,42 @@ describe("the auth clean-up cron (KH-Q9)", () => {
     }
   });
 
+  it("a step that throws does not stop the later ones; the run still fails, logging step names only", async () => {
+    const lines: string[] = [];
+    let calls = 0;
+    const firstStepFails = () => {
+      calls += 1;
+      if (calls === 1) throw new Error(`connection to ${EMAIL} lost`);
+      return db;
+    };
+    const outcome = await handleAuthCleanup(
+      new Request("https://opika.example/api/cron/auth-cleanup", {
+        headers: { authorization: `Bearer ${SECRET}` },
+      }),
+      { cronSecret: SECRET, db: firstStepFails, now: NOW, log: (line) => lines.push(line) },
+    ).catch((error: unknown) => error);
+    expect(await rows()).toEqual({
+      sessions: ALL.sessions,
+      verifications: ALL.verifications,
+      adopterSessions: [LIVE_HASH],
+      adopters: [LIVE_ADOPTER],
+      sends: [LIVE_SEND],
+    });
+    expect(outcome).toBeInstanceOf(AggregateError);
+    expect((outcome as Error).message).toBe("auth clean-up steps failed: auth_expiry");
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0] ?? "")).toMatchObject({
+      outcome: "partial",
+      verifications: null,
+      sessions: null,
+      adopterSessions: 1,
+      orphanedAdopters: 1,
+      notificationSends: 1,
+      failedSteps: ["auth_expiry"],
+    });
+    expect(lines[0]).not.toContain(EMAIL);
+  });
+
   /**
    * GDPR erasure, decision 3 of the 2026-10-24 STOP (Oleksii, verbatim):
    * "add the expired-invitation sweep to the existing auth clean-up
@@ -593,13 +629,13 @@ describe("the auth clean-up cron's Healthchecks check-in", () => {
     expect(pings).toEqual([HC]);
   });
 
-  it("pings /fail and rethrows when the run throws", async () => {
+  it("pings /fail and throws when the run's steps fail", async () => {
     const pings: string[] = [];
     await expect(
       callWith(() => {
         throw new Error("db down");
       }, pings),
-    ).rejects.toThrow("db down");
+    ).rejects.toThrow("auth clean-up steps failed: auth_expiry, invited_users");
     expect(pings).toEqual([`${HC}/fail`]);
   });
 });

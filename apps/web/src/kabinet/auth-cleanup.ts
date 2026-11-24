@@ -11,49 +11,9 @@ import { bearerMatches } from "../api/bearer";
 import { pingHealthcheck } from "./cron-healthcheck";
 
 /**
- * The scheduled clean-up of dead Better Auth rows (inbox KH-Q9). Oleksii,
- * 2026-10-14, relayed, verbatim: "(b), a daily Vercel cron. (a) alone is too
- * weak: rows survive until the next sign-in, which can be weeks away." The
- * /pro sentence that expired sign-in records go within a day («…видаляються
- * протягом доби.») rests on this route running, not on Better Auth's lazy
- * deletes. It runs every 6 hours (`apps/web/vercel.json`): KH-Q12, resolved
- * 2026-10-18 by his VP-T1 answer, verbatim: "Run the sign-in clean-up every 6
- * hours on Pro, and change /pro to «…видаляються протягом доби.»". On Hobby it
- * ran once a day and /pro said «протягом двох діб» (KH-C1). A link's 15
- * minutes plus two gaps, should one run be skipped (Vercel does not retry), is
- * 12 h 15 min; `auth-cleanup.test.ts` reads the schedule from config and fails
- * if that worst case passes 24 h or the sentence changes.
- *
- * - **What goes:** exactly what `authExpiryRepo.deleteExpired` deletes, in
- *   one statement: rows past their expiry (KH-Q9), and sessions past their
- *   holder's idle limit or cap whatever their `expires_at` (EM-Q11,
- *   2026-10-14; by role since PW-1, `KABINET_SESSION_LIMITS`: 30 days idle
- *   and 90 at most for a shelter admin, 7 and 30 for the operator). Since
- *   2026-10-24 (the GDPR STOP decision, item 3: "add the expired-invitation
- *   sweep to the existing auth clean-up schedule. A dormant shelter's dead
- *   invitee is erased without any kabinet action"), also every account
- *   `kabinetInvitedUsersRepo.cleanupCandidates`/`deleteCandidates` finds
- *   eligible across every organisation - a departed invitee who never
- *   triggers a `registry.admins.*` call (no one ever removes or resends
- *   their dead invitation by hand) is erased here instead, within this
- *   cron's own 6-hour worst case, not left to wait indefinitely.
- * - **And the adopters' side** (audit F6, owner's S3 scope, 2026-10-29): anonymous sessions
- *   past decision 13's limits (`sessionRepo.deleteLapsed`, the rule `validateSession` refuses
- *   by), then reveals older than 90 days (`revealRepo.deleteExpired`; owner, 2026-11-20,
- *   privacy policy D2), then adopters left with no session or reveal
- *   (`adopterRepo.deleteOrphaned`), at most `ADOPTER_CLEANUP_BATCH` of each per run, so a
- *   backlog takes several runs rather than one long statement. Sessions and reveals first, so
- *   an adopter whose last one goes now can go too.
- * - **And the notification send log** (`notificationSendsRepo.purgeOlderThan`): rows older
- *   than 90 days, the retention `docs/gdpr-analysis.md` states for it.
- * - **Who may call it:** Vercel's cron, which sends
- *   `Authorization: Bearer <CRON_SECRET>`. Compared in constant time over
- *   SHA-256 digests (fixed length, so neither the value nor its length
- *   leaks through timing). No `CRON_SECRET`, or an empty one, refuses every
- *   call and deletes nothing: fail closed, never "no secret configured, so
- *   anyone may run it".
- * - **What it logs:** counts only, never an address, a token or an id
- *   ("Log counts only, never addresses").
+ * The 6-hourly clean-up (KH-Q9, KH-Q12): expired auth rows, dead invitees, lapsed adopter
+ * sessions, 90-day-old reveals, orphaned adopters and the send log; /pro's «протягом доби» rests on
+ * it. Bearer `CRON_SECRET` compared in constant time, fail closed; logs counts only.
  */
 export async function handleAuthCleanup(
   request: Request,
@@ -85,44 +45,63 @@ export async function handleAuthCleanup(
   }
 }
 
-async function runAuthCleanup(deps: {
-  db: () => Database;
-  now: Date;
-  log: (line: string) => void;
-}): Promise<Response> {
-  const counts = await authExpiryRepo(deps.db()).deleteExpired(deps.now);
-  const users = kabinetInvitedUsersRepo(deps.db());
-  const candidates = await users.cleanupCandidates({ organizationId: null, now: deps.now });
-  const erasedInvitedUsers =
-    candidates.length === 0
-      ? 0
-      : await users.deleteCandidates(
-          candidates.map((candidate) => candidate.userId),
-          deps.now,
-        );
-  const adopterSessions = await sessionRepo(deps.db()).deleteLapsed(deps.now);
-  const agedOutReveals = await revealRepo(deps.db()).deleteExpired(deps.now);
-  const orphanedAdopters = await adopterRepo(deps.db()).deleteOrphaned(deps.now);
-  const notificationSends = await notificationSendsRepo(deps.db()).purgeOlderThan(deps.now);
-  deps.log(
-    JSON.stringify({
-      event: "kabinet_auth_cleanup",
-      outcome: "deleted",
-      verifications: counts.verifications,
-      sessions: counts.sessions,
-      erasedInvitedUsers,
-      adopterSessions,
-      agedOutReveals,
-      orphanedAdopters,
-      notificationSends,
-    }),
+type CleanupDeps = { db: () => Database; now: Date; log: (line: string) => void };
+
+async function runAuthCleanup(deps: CleanupDeps): Promise<Response> {
+  const failed: { step: string; error: unknown }[] = [];
+  // Each step stands alone, so one failure still lets the later retention deletes run.
+  const step = async <T>(name: string, work: () => Promise<T>): Promise<T | null> => {
+    try {
+      return await work();
+    } catch (error) {
+      failed.push({ step: name, error });
+      return null;
+    }
+  };
+  const counts = await step("auth_expiry", () => authExpiryRepo(deps.db()).deleteExpired(deps.now));
+  const erasedInvitedUsers = await step("invited_users", async () => {
+    const users = kabinetInvitedUsersRepo(deps.db());
+    const candidates = await users.cleanupCandidates({ organizationId: null, now: deps.now });
+    if (candidates.length === 0) return 0;
+    return users.deleteCandidates(
+      candidates.map((candidate) => candidate.userId),
+      deps.now,
+    );
+  });
+  const adopterSessions = await step("adopter_sessions", () =>
+    sessionRepo(deps.db()).deleteLapsed(deps.now),
   );
-  return Response.json({
-    ...counts,
+  const agedOutReveals = await step("reveals", () => revealRepo(deps.db()).deleteExpired(deps.now));
+  // After sessions and reveals, so an adopter whose last one went this run goes too.
+  const orphanedAdopters = await step("orphaned_adopters", () =>
+    adopterRepo(deps.db()).deleteOrphaned(deps.now),
+  );
+  const notificationSends = await step("notification_sends", () =>
+    notificationSendsRepo(deps.db()).purgeOlderThan(deps.now),
+  );
+  const result = {
+    verifications: counts?.verifications ?? null,
+    sessions: counts?.sessions ?? null,
     erasedInvitedUsers,
     adopterSessions,
     agedOutReveals,
     orphanedAdopters,
     notificationSends,
-  });
+  };
+  const failedSteps = failed.map((failure) => failure.step);
+  deps.log(
+    JSON.stringify({
+      event: "kabinet_auth_cleanup",
+      outcome: failedSteps.length === 0 ? "deleted" : "partial",
+      ...result,
+      ...(failedSteps.length === 0 ? {} : { failedSteps }),
+    }),
+  );
+  if (failed.length > 0) {
+    throw new AggregateError(
+      failed.map((failure) => failure.error),
+      `auth clean-up steps failed: ${failedSteps.join(", ")}`,
+    );
+  }
+  return Response.json(result);
 }
