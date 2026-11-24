@@ -9,6 +9,7 @@
 import { createHash } from "node:crypto";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { type APIResponse, expect, type Page, test } from "@playwright/test";
+import { Window } from "happy-dom";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.94";
@@ -61,12 +62,26 @@ function kabinetPolicyOf(response: APIResponse, what: string): { policy: string;
   return { policy, nonce };
 }
 
-/** Every `<script …>` opening tag in a document, with its body. */
-const scriptsOf = (html: string) =>
-  [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)].map((m) => ({
-    attributes: m[1] ?? "",
-    body: m[2] ?? "",
-  }));
+/** Every `<script>` in a document, as an HTML parser reads it; nothing in it runs or loads. */
+function scriptsOf(html: string) {
+  const window = new Window({
+    settings: {
+      disableJavaScriptEvaluation: true,
+      disableJavaScriptFileLoading: true,
+      disableCSSFileLoading: true,
+    },
+  });
+  try {
+    const document = new window.DOMParser().parseFromString(html, "text/html");
+    return [...document.querySelectorAll("script")].map((script) => ({
+      nonce: script.getAttribute("nonce"),
+      src: script.getAttribute("src"),
+      body: script.textContent ?? "",
+    }));
+  } finally {
+    void window.happyDOM.close();
+  }
+}
 
 const sha256 = (text: string) =>
   `'sha256-${createHash("sha256").update(text, "utf8").digest("base64")}'`;
@@ -125,9 +140,9 @@ test.describe("kabinet CSP (audit B1)", () => {
       const html = await first.text();
       const scripts = scriptsOf(html);
       expect(scripts.length, path).toBeGreaterThan(0);
-      for (const { attributes, body } of scripts) {
-        if (attributes.includes(`nonce="${a.nonce}"`)) continue;
-        expect(attributes, `${path}: a script without the nonce`).not.toMatch(/\bsrc=/);
+      for (const { nonce, src, body } of scripts) {
+        if (nonce === a.nonce) continue;
+        expect(src, `${path}: a script without the nonce`).toBeNull();
         expect(scriptSrc, `${path}: an inline script outside the policy`).toContain(sha256(body));
       }
     }

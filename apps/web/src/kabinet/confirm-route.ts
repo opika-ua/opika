@@ -70,8 +70,6 @@ type PageState =
    */
   | { kind: "rate_limited"; token: string };
 
-export { STRIP_TOKEN_FROM_ADDRESS_BAR };
-
 function page(state: PageState, status: number): Response {
   const copy = uk.kabinet.confirm;
   // The failed accept has its own heading (IN-T12 item 7): the person is

@@ -120,6 +120,8 @@ describe("kabinetContentSecurityPolicy", () => {
   const kabinet = (development: boolean) =>
     directivesOf(kabinetContentSecurityPolicy({ photoBaseUrl: PHOTOS, development, nonce: NONCE }));
 
+  // Hashes the same constants the code does, so it passes by construction; the drift guard is
+  // `kabinet-csp.harness.ts`, which checks every served inline script body against the policy.
   it("lets scripts in by the nonce, two inline scripts' hashes and strict-dynamic only", () => {
     const sha256 = (script: string) =>
       `'sha256-${createHash("sha256").update(script).digest("base64")}'`;

@@ -7,17 +7,14 @@ import { ipRateLimitKey } from "../api/rate-limit-key";
 import { KABINET_REFERRER_POLICY } from "../security-headers";
 import { CONFIRM_PATH, createKabinetAuth, type KabinetAuth } from "./auth";
 import { handleKabinetAuth, type KabinetAuthAvailability } from "./auth-route";
-import {
-  handleKabinetConfirm,
-  isSameOriginPost,
-  STRIP_TOKEN_FROM_ADDRESS_BAR,
-} from "./confirm-route";
+import { handleKabinetConfirm, isSameOriginPost } from "./confirm-route";
 import { SIGN_IN_LINK } from "./email-links";
 import { capturingInvitationSender } from "./email-senders";
 import { type AcceptInvitation, invitationAccepter } from "./invitation-accept";
 import { capturingSender } from "./magic-link-sender";
 import { generousPasswordLimiters } from "./password-limits";
 import { capturingPasswordMail } from "./password-mail";
+import { STRIP_TOKEN_FROM_ADDRESS_BAR } from "./strip-token-script";
 
 // Better Auth 1.7 asks how a user came to be; it is read only by `validateUserInfo`, which is
 // unset here. These fixtures stand in for the operator's server-side invitation write.
