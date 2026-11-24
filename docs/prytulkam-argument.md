@@ -142,7 +142,10 @@ Must establish: a person checks, and here is what checking is.
   ініціативи я теж перевіряю дистанційно. Я дивлюся відкриті джерела і прошу одну рекомендацію
   від когось іншого, ніж ви – … Ваш другий номер телефону – не рекомендація. Якщо відкритих
   джерел замало, домовимося про коротку розмову.» `verification-claim.test.ts` also fails if a
-  reference reads as required of every form. The bullets above describe the policy, not the page.)
+  reference reads as required of every form. The bullets above describe the policy, not the page.
+  2026-11-24, owner-approved row 9: §6b adds, after «…не рекомендація.», «Замість рекомендації
+  підійдуть документи вашої постійної роботи – наприклад, чеки ветклініки щонайменше за два різні
+  місяці. На сайті я їх не зберігаю.»; the claim test pins it to the policy.)
 - A reference has to be someone other than the shelter itself - a neighbouring
   shelter, a vet clinic they work with. Not their own second phone number.
 

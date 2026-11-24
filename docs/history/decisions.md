@@ -81,6 +81,16 @@ Moved verbatim from CLAUDE.md in DS PR 5. Settled decisions (M1, M4, gallery con
    column `shelters.premises`, 0033). Foster homes are an initiative's only and store no address; leaving
    the initiative form while in them is `PREMISES_NEEDS_ADDRESS`; recorded premises of either kind lock
    the shelter's own city change.
+   2026-11-24, owner decision (initiative ongoing work), verbatim: "Initiative ongoing-work rule: types
+   approved. D1 yes, D2 yes (as listed), D3 yes (12 months). Copy rows 1–10 approved as written. Build it;
+   separate reviewer for the privacy text." Unregistered initiative = any-of(`site_visit`,
+   `open_sources_review`) + any-of(`reference_contact`, `ongoing_work_record`). An `ongoing_work_record`
+   holds documents (`vet_receipt | food_purchase | transport | other`, D2), each a `YearMonth` and an
+   issuer, from at least two different months (the stored schema refuses fewer), plus operator-only
+   notes, `checkedAt` (the recording) and `checkedBy`; no month in the future and none more than 12
+   months back (D3; the month exactly 12 back is accepted), checked at write with `now` as a parameter
+   (`ongoingWorkProblemOf`). Documents are never stored or uploaded. Early listing accepts a record
+   too (D1). Registered forms are unchanged. No migration: evidence lives in the verification JSONB.
 7. **`RejectionReason` and `SuspensionReason` are separate code lists**
    (+ optional free-text note). A shelter is rejected for reasons about its
    application and suspended for reasons about its conduct; one merged enum

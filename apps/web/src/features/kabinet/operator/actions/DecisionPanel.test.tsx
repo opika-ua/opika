@@ -283,6 +283,62 @@ describe("approve while the form or its premises are missing (owner, 2026-11-24)
   });
 });
 
+describe("an initiative's reference or ongoing work (owner, 2026-11-24)", () => {
+  const openSources = {
+    kind: "open_sources_review" as const,
+    registry: null,
+    pages: ["https://domivka.example.org/"],
+    reviews: null,
+    notes: "Сторінка ведеться з 2023 року",
+    checkedAt: AT,
+    checkedBy: MODERATOR,
+  };
+  const ongoingWork = {
+    kind: "ongoing_work_record" as const,
+    documents: [
+      { kind: "vet_receipt" as const, month: "2026-08", issuer: "Ветклініка «Айболить»" },
+      { kind: "food_purchase" as const, month: "2026-09", issuer: "Зоомагазин «Лапа»" },
+    ],
+    notes: "Чеки надіслали в месенджері",
+    checkedAt: AT,
+    checkedBy: MODERATOR,
+  };
+  const initiative = (items: readonly (typeof openSources | typeof ongoingWork)[]) => ({
+    ...withVerification(pending, {
+      status: "under_review",
+      startedAt: AT,
+      reviewerId: MODERATOR,
+      evidence: { items, submittedAt: AT },
+    }),
+    legalEntity: { kind: "unregistered_initiative" as const, contactPersonName: "Олена Коваль" },
+    premises: { kind: "foster_homes" as const },
+  });
+
+  it("open sources alone: the list names the reference-or-documents line", () => {
+    renderWithActions(<DecisionPanel />, { view: initiative([openSources]) });
+    const approve = panel().getByRole("button", { name: "Схвалити → «Перевірено»" });
+    expect(approve.getAttribute("aria-disabled")).toBe("true");
+    const blocked = document.getElementById(approve.getAttribute("aria-describedby") ?? "");
+    expect(
+      within(blocked as HTMLElement)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual(["Рекомендація або документи постійної роботи за два різні місяці – 0 з 1"]);
+  });
+
+  it("open sources and an ongoing-work record: approve is offered", async () => {
+    const { fns } = renderWithActions(<DecisionPanel />, {
+      view: initiative([openSources, ongoingWork]),
+      client: { verification: { approve: vi.fn(async () => verified) } },
+      reread: async () => verified,
+    });
+    const approve = panel().getByRole("button", { name: "Схвалити → «Перевірено»" });
+    expect(approve.getAttribute("aria-disabled")).not.toBe("true");
+    await userEvent.click(approve);
+    expect(fns.verification.approve).toHaveBeenCalledExactlyOnceWith({ shelterId: SHELTER_ID });
+  });
+});
+
 describe("reinstate names the status it returns to", () => {
   it("from verified: «Відновити → «Перевірено»», the animals come back, no confirmation", async () => {
     const { fns } = renderWithActions(<DecisionPanel />, {

@@ -4,7 +4,12 @@ import {
   EdrpouSchema,
   type EvidenceItemInput,
   isSiteVisitInFuture,
+  ONGOING_WORK_MAX_DOCUMENTS,
+  type OngoingWorkDocument,
+  type OngoingWorkDocumentKind,
   OPEN_SOURCES_MAX_PAGES,
+  ongoingWorkMonthsAt,
+  ongoingWorkProblemOf,
   type ReferenceRelationship,
 } from "@opika/domain";
 import { type DateFieldValue, EMPTY_DATE } from "../../../../ui/date-field";
@@ -19,7 +24,8 @@ import { requiredDateError, type TypedDateError } from "../../shared/kabinet-dat
  *
  * The document-free kinds (Oleksii, 2026-10-17, answer 3, verbatim: "Yes:
  * the four document-free evidence types. Document upload is a later R2
- * block."), plus open sources (owner, 2026-11-19), which needs none either. `acceptEvidence` refuses every `documentKey` until the
+ * block."), plus open sources (owner, 2026-11-19) and an initiative's ongoing-work record
+ * (2026-11-24), whose documents are only described, never attached. `acceptEvidence` refuses every `documentKey` until the
  * private bucket exists (RG-Q5), so nothing here can produce one: the output
  * type has no such field and no `supporting_document` variant.
  */
@@ -28,6 +34,7 @@ export const EDITABLE_EVIDENCE_KINDS = [
   "edrpou_registration",
   "bank_account_holder",
   "reference_contact",
+  "ongoing_work_record",
   "site_visit",
   "open_sources_review",
 ] as const satisfies readonly EvidenceItemInput["kind"][];
@@ -52,6 +59,35 @@ export const REFERENCE_RELATIONSHIPS = [
   "other",
 ] as const satisfies readonly ReferenceRelationship[];
 
+/** One document of an ongoing-work record as typed; a slot left wholly empty is not sent. */
+export type OngoingWorkDocumentRow = {
+  kind: OngoingWorkDocumentKind | "";
+  /** `YYYY-MM`, or empty until picked. */
+  month: string;
+  issuer: string;
+};
+
+export const EMPTY_DOCUMENT_ROW: OngoingWorkDocumentRow = { kind: "", month: "", issuer: "" };
+
+const isBlankDocument = (row: OngoingWorkDocumentRow): boolean =>
+  row.kind === "" && row.month === "" && row.issuer.trim() === "";
+
+/**
+ * The slots the card shows: those typed, and one empty slot after them while there is room, so a
+ * further document needs no button. Two at the least, the record's own minimum.
+ */
+export const documentSlots = (
+  documents: readonly OngoingWorkDocumentRow[],
+): readonly OngoingWorkDocumentRow[] => {
+  const slots = [...documents];
+  while (slots.length < 2) slots.push(EMPTY_DOCUMENT_ROW);
+  const last = slots.at(-1);
+  if (last !== undefined && !isBlankDocument(last) && slots.length < ONGOING_WORK_MAX_DOCUMENTS) {
+    slots.push(EMPTY_DOCUMENT_ROW);
+  }
+  return slots;
+};
+
 /**
  * One card as typed. `id` is a stable React key, never sent. A site visit
  * has no visitor field: whoever records the evidence is the visitor
@@ -71,6 +107,12 @@ export type EvidenceRow =
       relationship: ReferenceRelationship | "";
     }
   | { id: string; kind: "site_visit"; visitedOn: DateFieldValue; notes: string }
+  | {
+      id: string;
+      kind: "ongoing_work_record";
+      documents: readonly OngoingWorkDocumentRow[];
+      notes: string;
+    }
   | {
       id: string;
       kind: "open_sources_review";
@@ -99,6 +141,7 @@ export type DocumentFreeEvidenceInput =
       relationship: ReferenceRelationship;
     }
   | { kind: "site_visit"; visitedOn: string; notes: string }
+  | { kind: "ongoing_work_record"; documents: OngoingWorkDocument[]; notes: string }
   | {
       kind: "open_sources_review";
       registry: { edrpou: string; registeredName: string; registeredAddress: string } | null;
@@ -118,6 +161,8 @@ export function emptyEvidenceRow(kind: EditableEvidenceKind, id: string): Eviden
       return { id, kind, name: "", channelKind: "phone", channelValue: "", relationship: "" };
     case "site_visit":
       return { id, kind, visitedOn: EMPTY_DATE, notes: "" };
+    case "ongoing_work_record":
+      return { id, kind, documents: [EMPTY_DOCUMENT_ROW, EMPTY_DOCUMENT_ROW], notes: "" };
     case "open_sources_review":
       return {
         id,
@@ -149,6 +194,7 @@ export type EvidenceFieldError =
   | "openSourcesCheckInFuture"
   | "pagesInvalid"
   | "pagesTooMany"
+  | "ongoingWorkMonths"
   | TypedDateError
   | FieldError;
 
@@ -166,7 +212,11 @@ export type EvidenceField =
   | "registeredAddress"
   | "pages"
   | "reviews"
-  | "checkedOn";
+  | "checkedOn"
+  | DocumentField;
+
+/** A field of one document of an ongoing-work record, by its slot. */
+export type DocumentField = `documents.${number}.${"kind" | "month" | "issuer"}`;
 
 export type EvidenceCheck =
   | { kind: "ok"; items: DocumentFreeEvidenceInput[] }
@@ -251,6 +301,36 @@ function rowResult(row: EvidenceRow, now: Date): RowResult {
         return { kind: "invalid", errors };
       }
       return { kind: "ok", item: { kind: row.kind, visitedOn: visitedOn.date, notes } };
+    }
+    case "ongoing_work_record": {
+      const notes = trimmedOrNull(row.notes);
+      if (notes === null) errors.notes = "required";
+      // The months the form offers: one past them (an older record sent back) reads as unpicked.
+      const offered = new Set<string>(ongoingWorkMonthsAt(now));
+      const documents: OngoingWorkDocument[] = [];
+      let lastTyped = 0;
+      row.documents.forEach((document, index) => {
+        if (isBlankDocument(document)) return;
+        lastTyped = index;
+        const issuer = trimmedOrNull(document.issuer);
+        const month = offered.has(document.month) ? document.month : "";
+        if (document.kind === "") errors[`documents.${index}.kind`] = "required";
+        if (month === "") errors[`documents.${index}.month`] = "required";
+        if (issuer === null) errors[`documents.${index}.issuer`] = "required";
+        if (document.kind !== "" && month !== "" && issuer !== null) {
+          documents.push({ kind: document.kind, month, issuer });
+        }
+      });
+      // Once every typed document is whole: the server's own rule (`ongoingWorkProblemOf`), shown on
+      // the last typed month, so the focus lands where a second month is missing.
+      if (
+        Object.keys(errors).every((field) => field === "notes") &&
+        ongoingWorkProblemOf(documents, now) !== null
+      ) {
+        errors[`documents.${lastTyped}.month`] = "ongoingWorkMonths";
+      }
+      if (Object.keys(errors).length > 0 || notes === null) return { kind: "invalid", errors };
+      return { kind: "ok", item: { kind: row.kind, documents, notes } };
     }
     case "open_sources_review": {
       const edrpou = normalizeEdrpou(row.edrpou);

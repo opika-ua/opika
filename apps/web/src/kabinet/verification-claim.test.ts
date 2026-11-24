@@ -46,6 +46,16 @@ const EVERY_KIND_BUT_THE_CALL: Record<Exclude<EvidenceKind, "site_visit">, Evide
     checkedBy: ModeratorIdSchema.parse("11111111-1111-4111-8111-111111111111"),
   },
   public_link: { kind: "public_link", url: "https://lapa.example.org/" },
+  ongoing_work_record: {
+    kind: "ongoing_work_record",
+    documents: [
+      { kind: "vet_receipt", month: "2025-11", issuer: "Ветклініка «Айболить»" },
+      { kind: "vet_receipt", month: "2025-12", issuer: "Ветклініка «Айболить»" },
+    ],
+    notes: "Чеки",
+    checkedAt: AT,
+    checkedBy: ModeratorIdSchema.parse("11111111-1111-4111-8111-111111111111"),
+  },
   supporting_document: {
     kind: "supporting_document",
     label: { uk: "Статут", en: null },
@@ -80,11 +90,24 @@ const referenceRequired = (entity: ShelterLegalEntity): boolean =>
     DEFAULT_VERIFICATION_POLICY,
   );
 
+/** A form that falls short with neither a reference nor an ongoing-work record, all else given. */
+const referenceOrRecordRequired = (entity: ShelterLegalEntity): boolean =>
+  !meetsEvidenceRequirements(
+    entity,
+    {
+      items: EVERY_KIND_BUT_THE_REFERENCE.filter((item) => item.kind !== "ongoing_work_record"),
+      submittedAt: AT,
+    },
+    DEFAULT_VERIFICATION_POLICY,
+  );
+
 const CALL = /відеодзвін|дзвінок|дзвінк|розмов/i;
 const REFERENCE = /рекомендаці/i;
 /** A paragraph naming unregistered initiatives scopes every sentence in it to them. */
 const INITIATIVES_ONLY = /незареєстрован/i;
 const CONDITION = /якщо|наприклад/i;
+/** §6b's alternative to the reference (owner, 2026-11-24, row 9). */
+const ONGOING_WORK_ALTERNATIVE = /Замість рекомендації підійдуть документи вашої постійної роботи/u;
 
 const callSentences = (text: string): string[] =>
   text.split(/\n+|(?<=[.!?])\s+/).filter((sentence) => CALL.test(sentence));
@@ -135,10 +158,23 @@ describe("/prytulkam §6 against DEFAULT_VERIFICATION_POLICY", () => {
     else expect(unscoped).toEqual([]);
   });
 
-  it("today only an unregistered initiative needs a reference (owner, 2026-11-19, (a′))", () => {
-    expect(FORMS.filter(referenceRequired).map((form) => form.kind)).toEqual([
+  it("today no form needs a reference unconditionally: an initiative may give documented ongoing work instead (owner, 2026-11-24)", () => {
+    expect(FORMS.filter(referenceRequired)).toEqual([]);
+    expect(FORMS.filter(referenceOrRecordRequired).map((form) => form.kind)).toEqual([
       "unregistered_initiative",
     ]);
+  });
+
+  it("§6b offers ongoing work in place of the reference exactly when the policy accepts it", () => {
+    const initiative = FORMS.find((form) => form.kind === "unregistered_initiative");
+    if (initiative === undefined) throw new Error("no initiative form");
+    const recordReplacesReference =
+      !referenceRequired(initiative) && referenceOrRecordRequired(initiative);
+    expect(ONGOING_WORK_ALTERNATIVE.test(uk.forShelters.verificationOpenToVolunteers)).toBe(
+      recordReplacesReference,
+    );
+    // Documents are never kept on the site: §6b says so beside the offer.
+    expect(uk.forShelters.verificationOpenToVolunteers).toContain("На сайті я їх не зберігаю.");
   });
 
   /** Owner, 2026-11-19: §6b asks for a reference, so it must say it is about initiatives. */

@@ -21,6 +21,8 @@ type EvidenceRefusalReason = z.infer<typeof apiErrors.INVALID_EVIDENCE.data>["re
  * - `address_has_a_role`: ADDRESS_HAS_A_ROLE (409), the first admin's address
  *   already belongs to a shelter, is an operator's, or holds a live invitation
  *   elsewhere (RG-T10). Checked before anything is created.
+ * - `ongoing_work_too_few_months`: INVALID_EVIDENCE (422), an ongoing-work record from one
+ *   month. A month refused as future or too old is `failed`: the form offers only accepted months.
  * - `site_visit_in_future` / `open_sources_check_in_future`: INVALID_EVIDENCE
  *   (422) for a visit or an open-sources check dated after Kyiv's today. The form checks the same rule first; this is the server's
  *   word when the two clocks disagree.
@@ -49,6 +51,7 @@ export type CreateRefusal =
   | { kind: "address_has_a_role"; reason: AddressRoleReason }
   | { kind: "site_visit_in_future" }
   | { kind: "open_sources_check_in_future" }
+  | { kind: "ongoing_work_too_few_months" }
   | { kind: "unknown_city" }
   | { kind: "name_too_long" }
   | { kind: "description_too_long" }
@@ -73,6 +76,9 @@ const shapeOf = (error: unknown): ErrorShape | null => {
 const EVIDENCE_REFUSALS: Record<EvidenceRefusalReason, CreateRefusal> = {
   site_visit_in_future: { kind: "site_visit_in_future" },
   open_sources_check_in_future: { kind: "open_sources_check_in_future" },
+  ongoing_work_too_few_months: { kind: "ongoing_work_too_few_months" },
+  ongoing_work_month_in_future: { kind: "failed" },
+  ongoing_work_month_too_old: { kind: "failed" },
   // The form never sends a document (RU-Q3), so this one is a fault it can't
   // cause: the plain failure, not a message about something the operator did.
   document_not_supported_yet: { kind: "failed" },
@@ -117,6 +123,8 @@ export function refusalMessage(refusal: CreateRefusal): string {
       return t.siteVisitInFuture;
     case "open_sources_check_in_future":
       return t.openSourcesCheckInFuture;
+    case "ongoing_work_too_few_months":
+      return uk.kabinet.operator.evidence.ongoingWork.monthsError;
     case "unknown_city":
       return t.unknownCity;
     case "name_too_long":

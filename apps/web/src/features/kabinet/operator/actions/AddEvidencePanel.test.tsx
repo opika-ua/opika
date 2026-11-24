@@ -175,3 +175,135 @@ describe("«Додати докази»", () => {
     }
   });
 });
+
+/** An initiative's ongoing work (owner, 2026-11-24): copy rows 1-7, as approved. */
+describe("«Додати докази»: documents of ongoing work", () => {
+  const NOW = new Date("2026-11-24T10:00:00Z");
+
+  async function openRecord(u: ReturnType<typeof userEvent.setup>) {
+    await u.selectOptions(section().getByLabelText("Тип доказу"), "Документи постійної роботи");
+    await u.click(section().getByRole("button", { name: "+ Додати доказ" }));
+    return within(screen.getByRole("group", { name: "Документи постійної роботи" }));
+  }
+
+  async function fillDocument(
+    u: ReturnType<typeof userEvent.setup>,
+    card: ReturnType<typeof within>,
+    index: number,
+    month: string,
+  ) {
+    await u.selectOptions(
+      card.getAllByLabelText("Документ")[index] as HTMLElement,
+      "Чек ветклініки",
+    );
+    await u.selectOptions(card.getAllByLabelText("Місяць")[index] as HTMLElement, month);
+    await u.type(
+      card.getAllByLabelText("Хто видав: клініка, магазин")[index] as HTMLElement,
+      "Ветклініка «Айболить»",
+    );
+  }
+
+  it("says the documents are not kept, offers only the last 12 months, and sends month and issuer", async () => {
+    const addEvidence = vi.fn(async (_input: unknown) => withOneItem(pending));
+    renderWithActions(<AddEvidencePanel now={() => NOW} />, {
+      view: pending,
+      client: { verification: { addEvidence } },
+      reread: async () => withOneItem(pending),
+    });
+    const u = userEvent.setup();
+    const card = await openRecord(u);
+    expect(
+      card.getByText(
+        "Щонайменше два документи з різних місяців. Самі документи на сайті не зберігаються – лише місяць і хто видав.",
+      ),
+    ).toBeTruthy();
+    const months = within(card.getAllByLabelText("Місяць")[0] as HTMLElement)
+      .getAllByRole("option")
+      .map((option) => (option as HTMLOptionElement).value);
+    expect(months).toEqual(["", "2026-11", ...months.slice(2, -1), "2025-11"]);
+    expect(months).toHaveLength(14);
+    expect(
+      within(card.getAllByLabelText("Документ")[0] as HTMLElement)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["", "Чек ветклініки", "Купівля корму", "Перевезення", "Інше"]);
+    await fillDocument(u, card, 0, "2026-09");
+    await fillDocument(u, card, 1, "2026-10");
+    // A third, empty slot follows the last typed one and is not sent.
+    expect(card.getAllByLabelText("Місяць")).toHaveLength(3);
+    await u.type(card.getByLabelText("Нотатки"), "Чеки надіслали в месенджері");
+    await u.click(section().getByRole("button", { name: "Додати" }));
+    expect(addEvidence).toHaveBeenCalledExactlyOnceWith({
+      shelterId: SHELTER_ID,
+      evidence: [
+        {
+          kind: "ongoing_work_record",
+          documents: [
+            { kind: "vet_receipt", month: "2026-09", issuer: "Ветклініка «Айболить»" },
+            { kind: "vet_receipt", month: "2026-10", issuer: "Ветклініка «Айболить»" },
+          ],
+          notes: "Чеки надіслали в месенджері",
+        },
+      ],
+    });
+  });
+
+  it("refuses one month without a request, on the month field, with row 7", async () => {
+    const addEvidence = vi.fn();
+    renderWithActions(<AddEvidencePanel now={() => NOW} />, {
+      view: pending,
+      client: { verification: { addEvidence } },
+    });
+    const u = userEvent.setup();
+    const card = await openRecord(u);
+    await fillDocument(u, card, 0, "2026-10");
+    await fillDocument(u, card, 1, "2026-10");
+    await u.type(card.getByLabelText("Нотатки"), "Два чеки одного місяця");
+    await u.click(section().getByRole("button", { name: "Додати" }));
+    expect(addEvidence).not.toHaveBeenCalled();
+    const month = card.getAllByLabelText("Місяць")[1] as HTMLElement;
+    expect(month.getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(month);
+    expect(card.getByText("Потрібні документи щонайменше з двох різних місяців.")).toBeTruthy();
+  });
+
+  it("requires the issuer of a typed document", async () => {
+    const addEvidence = vi.fn();
+    renderWithActions(<AddEvidencePanel now={() => NOW} />, {
+      view: pending,
+      client: { verification: { addEvidence } },
+    });
+    const u = userEvent.setup();
+    const card = await openRecord(u);
+    await fillDocument(u, card, 0, "2026-09");
+    await u.selectOptions(card.getAllByLabelText("Документ")[1] as HTMLElement, "Купівля корму");
+    await u.selectOptions(card.getAllByLabelText("Місяць")[1] as HTMLElement, "2026-10");
+    await u.type(card.getByLabelText("Нотатки"), "Чеки");
+    await u.click(section().getByRole("button", { name: "Додати" }));
+    expect(addEvidence).not.toHaveBeenCalled();
+    expect(
+      (card.getAllByLabelText("Хто видав: клініка, магазин")[1] as HTMLElement).getAttribute(
+        "aria-invalid",
+      ),
+    ).toBe("true");
+  });
+
+  it("the server's one-month refusal reads as row 7", async () => {
+    const addEvidence = vi.fn(async () => {
+      throw apiError("INVALID_EVIDENCE", { reason: "ongoing_work_too_few_months" });
+    });
+    renderWithActions(<AddEvidencePanel now={() => NOW} />, {
+      view: pending,
+      client: { verification: { addEvidence } },
+    });
+    const u = userEvent.setup();
+    const card = await openRecord(u);
+    await fillDocument(u, card, 0, "2026-09");
+    await fillDocument(u, card, 1, "2026-10");
+    await u.type(card.getByLabelText("Нотатки"), "Чеки");
+    await u.click(section().getByRole("button", { name: "Додати" }));
+    expect((await section().findByRole("alert")).textContent).toBe(
+      "Потрібні документи щонайменше з двох різних місяців.",
+    );
+  });
+});

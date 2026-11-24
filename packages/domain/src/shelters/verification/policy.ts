@@ -38,7 +38,10 @@ const CALL_OR_OPEN_SOURCES: EvidenceRequirement = {
  * A registered form (NGO or ФОП) shows its ЄДР entry (a registration, or an open-sources check
  * with its registry part) and is seen by a person: a call or an open-sources check. An
  * unregistered group, with no entry to show, gives a call or an open-sources check and one
- * independent reference (owner, 2026-11-19, (a′)). No form needs the call unconditionally.
+ * independent reference (owner, 2026-11-19, (a′)) or documented ongoing work (owner, 2026-11-24:
+ * "(open sources OR a call) AND (one independent reference OR documented ongoing work)"; one
+ * valid record counts, its two months are the item's own rule). No form needs the call
+ * unconditionally.
  * Bank-account and further reference items stay addable but are not required (2026-11-10).
  *
  * Thresholds live here, not inside the check, so they can be tuned against the first real
@@ -50,7 +53,7 @@ export const DEFAULT_VERIFICATION_POLICY: VerificationPolicy = {
     sole_proprietor: [{ rule: "registry_entry", minimum: 1 }, CALL_OR_OPEN_SOURCES],
     unregistered_initiative: [
       CALL_OR_OPEN_SOURCES,
-      { rule: "kind", kind: "reference_contact", minimum: 1 },
+      { rule: "any_of", kinds: ["reference_contact", "ongoing_work_record"], minimum: 1 },
     ],
   },
 };

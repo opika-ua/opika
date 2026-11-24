@@ -81,7 +81,7 @@ return of a verified shelter to review, no reject from paused or verified (suspe
    | Legal form | Required |
    |---|---|
    | «Громадська організація чи фонд», «ФОП» | a registry entry (EDRPOU registration, or open sources with the registry filled) and a video call or open sources; one open-sources check with the registry clears both |
-   | «Ініціатива без реєстрації» | a video call or open sources, and 1 reference |
+   | «Ініціатива без реєстрації» | a video call or open sources, and 1 reference or one «Документи постійної роботи» record (owner, 2026-11-24) |
 
    (Open sources: owner decision, 2026-11-19; the gap list names such a line as «Відеодзвінок або
    Відкриті джерела – 0 з 1», the registry line as «Реєстрація · ЄДРПОУ або Відкриті джерела – 0 з 1».
@@ -127,8 +127,8 @@ Purpose: let a shelter's cards be public while the review runs. It sits beside t
 
 - Panel «Показ до завершення перевірки». Buttons «Дозволити показ до завершення перевірки» and
   «Зняти дозвіл». Only for pending or under review.
-- **Precondition:** any one of open sources, a video call or a reference on file, for any legal form
-  («Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок або рекомендація.»). Open sources count since
+- **Precondition:** any one of open sources, a video call, a reference or a «Документи постійної роботи» record (since 2026-11-24) on file, for any legal form
+  («Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок, рекомендація або документи постійної роботи.»). Open sources count since
   2026-11-19 (owner), with or without the registry part. Approval's rule (section 3) is not this one.
 - **Length:** 60 days from the allow, an instant sum. At the boundary instant it is already hidden. The
   panel counts «До кінця показу: N днів» and reminds you at 7 days or fewer. Nothing needs a cron: the

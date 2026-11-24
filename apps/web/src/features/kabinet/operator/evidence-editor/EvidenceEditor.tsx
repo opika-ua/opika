@@ -1,7 +1,13 @@
 "use client";
 
 import "../../../../zod-client-config";
-import type { ReferenceRelationship } from "@opika/domain";
+import {
+  instantOfCalendarDate,
+  ONGOING_WORK_DOCUMENT_KINDS,
+  type OngoingWorkDocumentKind,
+  ongoingWorkMonthsAt,
+  type ReferenceRelationship,
+} from "@opika/domain";
 import { uk } from "@opika/i18n";
 import { useEffect, useState } from "react";
 import { Button } from "../../../../ui/Button";
@@ -12,7 +18,10 @@ import { Text } from "../../../../ui/Text";
 import { inputModeOf } from "../../profile-edit/ContactFields";
 import type { ChannelKind } from "../../profile-edit/fields";
 import { DATE_FIELD_LABELS, typedDateMessage } from "../../shared/kabinet-date";
+import { formatYearMonth } from "../format";
 import {
+  type DocumentField,
+  documentSlots,
   EDITABLE_EVIDENCE_KINDS,
   type EditableEvidenceKind,
   type EvidenceField,
@@ -20,17 +29,19 @@ import {
   type EvidenceRow,
   type EvidenceRowErrors,
   emptyEvidenceRow,
+  type OngoingWorkDocumentRow,
   REFERENCE_CHANNEL_KINDS,
   REFERENCE_RELATIONSHIPS,
 } from "./evidence-rows";
 
-/** A text field of a card: every field but the dates. */
-type TextFieldName = Exclude<EvidenceField, "visitedOn" | "checkedOn">;
+/** A text field of a card: every field but the dates and a record's documents. */
+type TextFieldName = Exclude<EvidenceField, "visitedOn" | "checkedOn" | DocumentField>;
 
 /** A change to a card's typed fields: its own fields only, never `id` or `kind`. */
 type RowPatch = Partial<Record<TextFieldName | "channelKind", string>> & {
   visitedOn?: DateFieldValue;
   checkedOn?: DateFieldValue;
+  documents?: readonly OngoingWorkDocumentRow[];
 };
 
 /** The message for a field, from `create.errors.*` or, for a reference's channel, K4's contact errors. */
@@ -50,6 +61,8 @@ export function evidenceFieldMessage(error: EvidenceFieldError | undefined): str
       return create.pagesInvalid;
     case "pagesTooMany":
       return create.pagesTooMany;
+    case "ongoingWorkMonths":
+      return uk.kabinet.operator.evidence.ongoingWork.monthsError;
     case "dateIncomplete":
     case "dateNoSuchDate":
       return typedDateMessage(error);
@@ -70,6 +83,8 @@ const firstFieldId = (idPrefix: string, row: EvidenceRow): string => {
       return `${idPrefix}-${row.id}-name`;
     case "site_visit":
       return `${idPrefix}-${row.id}-visitedOn`;
+    case "ongoing_work_record":
+      return `${idPrefix}-${row.id}-documents.0.kind`;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
     default: {
       const unreachable: never = row;
@@ -317,6 +332,9 @@ function EvidenceCard({
           />
         </>
       ) : null}
+      {row.kind === "ongoing_work_record" ? (
+        <OngoingWorkFields id={id} row={row} errors={errors} today={today} patch={patch} />
+      ) : null}
       {row.kind === "open_sources_review" ? (
         <>
           <TextField
@@ -380,5 +398,94 @@ function EvidenceCard({
         {t.remove}
       </Button>
     </fieldset>
+  );
+}
+
+/**
+ * An initiative's ongoing work (owner, 2026-11-24): each document's kind, month and issuer, never
+ * the document. A new empty slot follows the last typed one (`documentSlots`); a slot left empty
+ * is not sent. Only the months a record accepts are offered (`ongoingWorkMonthsAt`).
+ */
+function OngoingWorkFields({
+  id,
+  row,
+  errors,
+  today,
+  patch,
+}: {
+  id: (field: string) => string;
+  row: Extract<EvidenceRow, { kind: "ongoing_work_record" }>;
+  errors: EvidenceRowErrors;
+  today: string;
+  patch: (change: RowPatch) => void;
+}) {
+  const t = uk.kabinet.operator.evidence;
+  const ow = t.ongoingWork;
+  const months = ongoingWorkMonthsAt(instantOfCalendarDate(today));
+  const slots = documentSlots(row.documents);
+  const setDocument = (index: number, change: Partial<OngoingWorkDocumentRow>) =>
+    patch({
+      documents: slots.map((document, at) =>
+        at === index ? { ...document, ...change } : document,
+      ),
+    });
+  return (
+    <>
+      <Text look="hint">{ow.hint}</Text>
+      <ol className="flex min-w-0 flex-col gap-6">
+        {slots.map((document, index) => (
+          // A slot is its position: slots are only ever appended, never reordered or removed.
+          <li key={index} className="flex min-w-0 flex-col gap-3">
+            <Select
+              id={id(`documents.${index}.kind`)}
+              // «Документ»: the approved word, reused as the slot's first field.
+              label={t.kind.supporting_document}
+              value={document.kind}
+              onChange={(event) =>
+                setDocument(index, { kind: event.target.value as OngoingWorkDocumentKind | "" })
+              }
+              error={evidenceFieldMessage(errors[`documents.${index}.kind`])}
+            >
+              <option value="" />
+              {ONGOING_WORK_DOCUMENT_KINDS.map((kind) => (
+                <option key={kind} value={kind}>
+                  {ow.documentKind[kind]}
+                </option>
+              ))}
+            </Select>
+            <Select
+              id={id(`documents.${index}.month`)}
+              label={ow.month}
+              value={months.includes(document.month) ? document.month : ""}
+              onChange={(event) => setDocument(index, { month: event.target.value })}
+              error={evidenceFieldMessage(errors[`documents.${index}.month`])}
+            >
+              <option value="" />
+              {months.map((month) => (
+                <option key={month} value={month}>
+                  {formatYearMonth(month)}
+                </option>
+              ))}
+            </Select>
+            <TextField
+              id={id(`documents.${index}.issuer`)}
+              label={ow.issuer}
+              type="text"
+              autoComplete="off"
+              value={document.issuer}
+              onChange={(event) => setDocument(index, { issuer: event.target.value })}
+              error={evidenceFieldMessage(errors[`documents.${index}.issuer`])}
+            />
+          </li>
+        ))}
+      </ol>
+      <TextArea
+        id={id("notes")}
+        label={ow.notes}
+        value={row.notes}
+        onChange={(event) => patch({ notes: event.target.value })}
+        error={evidenceFieldMessage(errors.notes)}
+      />
+    </>
   );
 }

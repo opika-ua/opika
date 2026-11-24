@@ -21,6 +21,7 @@ describe("EVIDENCE_KINDS", () => {
       "site_visit",
       "open_sources_review",
       "public_link",
+      "ongoing_work_record",
       "supporting_document",
     ]);
   });

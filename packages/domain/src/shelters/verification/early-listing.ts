@@ -103,12 +103,14 @@ export const keepsEarlyListing = (from: VerificationStatus, to: VerificationStat
 
 /**
  * Any one of these lets the operator allow, whatever the legal form or none (owner, 2026-11-04;
- * open sources, with or without the registry part, 2026-11-19). Approval's rule is not this one.
+ * open sources, with or without the registry part, 2026-11-19; an ongoing-work record, 2026-11-24
+ * D1). Approval's rule is not this one.
  */
 export const EARLY_LISTING_EVIDENCE_KINDS = [
   "open_sources_review",
   "site_visit",
   "reference_contact",
+  "ongoing_work_record",
 ] as const;
 
 export type AllowEarlyListingResult =

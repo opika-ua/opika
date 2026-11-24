@@ -60,6 +60,7 @@ const channelKey = (channel: ContactChannel): string => {
  * - site_visit: the visit date (notes and who recorded it are ignored)
  * - open_sources_review: the EDRPOU code (or none) and the check date (everything else ignored)
  * - public_link: the normalised URL
+ * - ongoing_work_record: its documents, in any order (notes and the recording are ignored)
  * - supporting_document: the document key
  */
 export function evidenceDuplicateKey(item: EvidenceItem): string {
@@ -76,6 +77,11 @@ export function evidenceDuplicateKey(item: EvidenceItem): string {
       return `${item.kind}|${item.registry?.edrpou ?? "-"}|${item.checkedAt.toISOString()}`;
     case "public_link":
       return `${item.kind}|${item.url}`;
+    case "ongoing_work_record":
+      return `${item.kind}|${item.documents
+        .map((document) => `${document.kind}:${document.month}:${text(document.issuer)}`)
+        .sort()
+        .join("|")}`;
     case "supporting_document":
       return `${item.kind}|${item.documentKey}`;
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */

@@ -270,6 +270,28 @@ describe("addEvidence: duplicates (same kind + same key field, notes ignored)", 
     expect(addEvidence(state, [visit()]).kind).toBe("ok");
   });
 
+  it("ongoing work: the same documents in any order (issuer trim, case) are a duplicate whatever the notes", () => {
+    const work = (
+      documents: { kind: "vet_receipt" | "food_purchase"; month: string; issuer: string }[],
+      notes = "Чеки",
+      checkedBy = MOD,
+    ): EvidenceItem => ({
+      kind: "ongoing_work_record",
+      documents,
+      notes,
+      checkedAt: T0,
+      checkedBy,
+    });
+    const a = { kind: "vet_receipt" as const, month: "2025-12", issuer: "Ветклініка" };
+    const b = { kind: "food_purchase" as const, month: "2026-01", issuer: "Зоомагазин" };
+    const state = pending([work([a, b])]);
+    expect(
+      addEvidence(state, [work([{ ...b, issuer: " зоомагазин " }, a], "Інше", OTHER_MOD)]),
+    ).toEqual({ kind: "nothing_new" });
+    expect(addEvidence(state, [work([a, { ...b, month: "2026-02" }])]).kind).toBe("ok");
+    expect(addEvidence(state, [work([a, b, { ...b, month: "2026-02" }])]).kind).toBe("ok");
+  });
+
   it("a different kind with a lookalike key is never a duplicate", () => {
     expect(evidenceDuplicateKey(bank("12345678"))).not.toBe(
       evidenceDuplicateKey(edrpou("12345678")),

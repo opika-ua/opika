@@ -330,7 +330,15 @@ describe("approve is gated by the domain's evidence policy", () => {
     };
     expect(approveOf(underReview([visit]), initiative)).toEqual({
       kind: "blocked",
-      gaps: [{ on: "evidence", rule: "kind", kind: "reference_contact", minimum: 1, provided: 0 }],
+      gaps: [
+        {
+          on: "evidence",
+          rule: "any_of",
+          kinds: ["reference_contact", "ongoing_work_record"],
+          minimum: 1,
+          provided: 0,
+        },
+      ],
     });
     expect(approveOf(underReview([visit, reference("Ветклініка")]), initiative)).toEqual({
       kind: "open",
@@ -409,7 +417,15 @@ describe("approve is gated by the domain's evidence policy", () => {
     ).toEqual({ kind: "open" });
     expect(approveOf(underReview([openSources]), initiative, FOSTER_HOMES)).toEqual({
       kind: "blocked",
-      gaps: [{ on: "evidence", rule: "kind", kind: "reference_contact", minimum: 1, provided: 0 }],
+      gaps: [
+        {
+          on: "evidence",
+          rule: "any_of",
+          kinds: ["reference_contact", "ongoing_work_record"],
+          minimum: 1,
+          provided: 0,
+        },
+      ],
     });
   });
 

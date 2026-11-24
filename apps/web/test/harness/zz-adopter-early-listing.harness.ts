@@ -51,7 +51,7 @@ test("early listing: evidence minimum, label, revoke, re-allow with a note", asy
     await dialog.getByRole("button", { name: ALLOW }).click();
     await expect(
       page.getByText(
-        "Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок або рекомендація.",
+        "Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок, рекомендація або документи постійної роботи.",
       ),
     ).toBeVisible();
 

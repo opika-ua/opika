@@ -541,6 +541,8 @@ export const en = {
       "I verify unregistered initiatives remotely too. I look at open sources and ask for one reference " +
       "from someone other than you – a neighbouring shelter, a vet clinic you work with, anyone who can confirm that you " +
       "exist and do what you say. Your second phone number is not a reference. " +
+      "Instead of a reference, documents of your ongoing work will do – for example, vet clinic receipts from at least " +
+      "two different months. I don't keep them on the site. " +
       "If open sources aren't enough, we'll arrange a short conversation.",
     whatToPrepare: `${COPY_PENDING} 7. What to prepare.`,
     whyHowOften: `${COPY_PENDING} 8. Why say how often you update your cards.`,
@@ -1708,7 +1710,21 @@ export const en = {
           site_visit: "Video call",
           open_sources_review: "Open sources",
           public_link: "Website or social media page",
+          ongoing_work_record: "Documents of ongoing work",
           supporting_document: "Document",
+        },
+        ongoingWork: {
+          documentKind: {
+            vet_receipt: "Vet clinic receipt",
+            food_purchase: "Food purchase",
+            transport: "Transport",
+            other: "Other",
+          },
+          month: "Month",
+          issuer: "Issued by: clinic, shop",
+          notes: "Notes",
+          hint: "At least two documents from different months. The documents themselves are not kept on the site – only the month and who issued them.",
+          monthsError: "Documents from at least two different months are needed.",
         },
         added: "added {date}",
         field: {
@@ -1947,6 +1963,8 @@ export const en = {
         gap: {
           legalForm: "Form: organisation or initiative",
           premises: "Premises or foster homes",
+          referenceOrOngoingWork:
+            "A reference, or documents of ongoing work from two different months",
         },
         reject: "Reject…",
         suspend: "Suspend…",
@@ -2023,7 +2041,7 @@ export const en = {
         extendNote: "Why are you extending the showing",
         limitReached: "Showing before the review has already been allowed twice.",
         evidenceMinimum:
-          "To allow showing, at least one is needed: open sources, a video call or a reference.",
+          "To allow showing, at least one is needed: open sources, a video call, a reference or documents of ongoing work.",
       },
       reminder: {
         title: "Email about unconfirmed cards",
@@ -2140,7 +2158,7 @@ export const en = {
       mailLogo:
         "Emails from {site} contain one image from the site, the logo, the same for everyone with no markers. When a mail app shows it, Vercel records the IP address and time in its technical log, as for any request. I don't use this to learn who opened an email.",
       verification:
-        "For verifying a shelter I keep what you provided: links, registration details, the contact of a person who can confirm the shelter's work. None of it is shown publicly.",
+        "For verifying a shelter I keep what you provided: links, registration details, the contact of a person who can confirm the shelter's work, or the month and the name of the issuer from documents of your work (the documents themselves are not kept). None of it is shown publicly.",
     },
     public: {
       heading: "Who sees what",

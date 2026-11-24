@@ -179,6 +179,36 @@ describe("buildShelter: a registered NGO on open sources (2026-11-19)", () => {
   });
 });
 
+describe("buildShelter: an initiative on documented ongoing work (2026-11-24)", () => {
+  const record = (months: readonly string[]) => ({
+    kind: "ongoing_work_record" as const,
+    documents: months.map((month) => ({
+      kind: "vet_receipt" as const,
+      month,
+      issuer: "Ветклініка «Айболить»",
+    })),
+    notes: "Чеки надіслали в месенджері",
+  });
+  const withRecord = (months: readonly string[]) => ({
+    ...SHELTER_INPUT,
+    evidence: [
+      { kind: "site_visit" as const, visitedOn: "2026-09-01", notes: "Відеодзвінок" },
+      record(months),
+    ],
+  });
+
+  it("verifies on a call and a record from two months, with no reference", () => {
+    const shelter = buildShelter(withRecord(["2026-08", "2026-09"]), now, SECRET_A);
+    expect(shelter.verification.status).toBe("verified");
+  });
+
+  it("refuses a record from one month", () => {
+    expect(() => buildShelter(withRecord(["2026-09", "2026-09"]), now, SECRET_A)).toThrow(
+      /at least two different months/,
+    );
+  });
+});
+
 describe("buildShelter's evidence requirement", () => {
   it("throws when the supplied evidence doesn't meet DEFAULT_VERIFICATION_POLICY for the legal entity kind", () => {
     const insufficientInput = {
