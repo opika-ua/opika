@@ -464,7 +464,7 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS – /tvaryny/[animalId] link-preview des
       // The route reads its data through the animal page's one loader (S4b),
       // which also asks for the shelter and its city.
       anonymousRouterClient: () => ({
-        animals: { byId: async () => fakeAnimal },
+        animals: { byId: async () => ({ kind: "listed", animal: fakeAnimal }) },
         shelters: {
           byId: async () => ({
             displayName: "Добрі лапи",

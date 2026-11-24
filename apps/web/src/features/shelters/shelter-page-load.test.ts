@@ -33,10 +33,12 @@ describe("the shelter page's filters (loader)", () => {
     const load = await loadShelterPage(SHELTER_ID, QUERY, client);
     expect(facetCounts).toHaveBeenCalledWith({
       filters: NO_FILTERS,
+      sort: "freshest",
       scope: { kind: "shelter", shelterId: SHELTER_ID },
     });
+    expect(facetCounts).toHaveBeenCalledTimes(1);
     if (load.kind !== "shelter") throw new Error("expected the shelter page");
-    expect(load.view.filterUi?.total).toBe(13);
+    expect(load.view.listedTotal).toBe(13);
     expect(load.view.filterUi?.hasBothSpecies).toBe(true);
   });
 
@@ -59,6 +61,7 @@ describe("the shelter page's filters (loader)", () => {
     await loadShelterPage(SHELTER_ID, { ...QUERY, filters: CATS }, empty.client);
     expect(empty.relaxationCounts).toHaveBeenCalledWith({
       filters: CATS,
+      sort: "freshest",
       scope: { kind: "shelter", shelterId: SHELTER_ID },
     });
     const some = stubShelterPageClient({ kind: "answer" }, listOf(5));
@@ -77,16 +80,69 @@ describe("the shelter page's filters (loader)", () => {
     if (load.kind !== "shelter") throw new Error("expected the shelter page");
     expect(facetCounts).toHaveBeenCalledWith({
       filters: CATS,
+      sort: "freshest",
       scope: { kind: "shelter", shelterId: SHELTER_ID },
     });
     expect(load.view.filterUi?.counts).toBe(filteredAnswer);
-    expect(load.view.filterUi?.total).toBe(12);
+    expect(load.view.listedTotal).toBe(12);
   });
 
   it("answers a legitimate 404 even when a read started beside the shelter fails", async () => {
     const { client, galleryList } = stubShelterPageClient({ kind: "refuse", code: "NOT_FOUND" });
     galleryList.mockRejectedValue(new Error("connection terminated"));
     expect(await loadShelterPage(SHELTER_ID, QUERY, client)).toEqual({ kind: "not_found" });
+  });
+});
+
+describe("the shelter page under «Зачекались» (loader)", () => {
+  const WAITING = { ...QUERY, sort: "longest_waiting" } as const;
+  const scope = { kind: "shelter", shelterId: SHELTER_ID } as const;
+  const wholeOf = (dog: number, cat: number) => makeFacetCounts({ species: { dog, cat } });
+
+  it("reads the shelter's whole count under the freshest sort, so the heading is not the sort's", async () => {
+    const { client, facetCounts } = stubShelterPageClient({ kind: "answer" }, listOf(0));
+    facetCounts.mockResolvedValue(wholeOf(3, 2));
+    const load = await loadShelterPage(SHELTER_ID, WAITING, client);
+    expect(facetCounts).toHaveBeenCalledTimes(1);
+    expect(facetCounts).toHaveBeenCalledWith({ filters: NO_FILTERS, sort: "freshest", scope });
+    if (load.kind !== "shelter") throw new Error("expected the shelter page");
+    expect(load.view.listedTotal).toBe(5);
+    expect(load.view.filterUi).toBeNull();
+    expect(load.view.listedSpecies).toEqual(["dog", "cat"]);
+  });
+
+  it("offers filters by the shelter's whole count, with counts and suggestions under the sort", async () => {
+    const { client, facetCounts, relaxationCounts } = stubShelterPageClient(
+      { kind: "answer" },
+      listOf(0),
+    );
+    const sorted = wholeOf(0, 0);
+    facetCounts.mockImplementation(async (input?: { filters: unknown; sort?: unknown }) =>
+      input?.sort === "freshest" ? wholeOf(10, 10) : sorted,
+    );
+    const load = await loadShelterPage(SHELTER_ID, WAITING, client);
+    expect(facetCounts).toHaveBeenCalledWith({
+      filters: NO_FILTERS,
+      sort: "longest_waiting",
+      scope,
+    });
+    expect(relaxationCounts).toHaveBeenCalledWith({
+      filters: NO_FILTERS,
+      sort: "longest_waiting",
+      scope,
+    });
+    if (load.kind !== "shelter") throw new Error("expected the shelter page");
+    expect(load.view.listedTotal).toBe(20);
+    expect(load.view.filterUi?.counts).toBe(sorted);
+    expect(load.view.filterUi?.hasBothSpecies).toBe(true);
+  });
+
+  it("with a filter on: the filtered counts under the sort, the whole under the freshest sort", async () => {
+    const { client, facetCounts } = stubShelterPageClient({ kind: "answer" }, listOf(1));
+    await loadShelterPage(SHELTER_ID, { ...WAITING, filters: CATS }, client);
+    expect(facetCounts).toHaveBeenCalledTimes(2);
+    expect(facetCounts).toHaveBeenCalledWith({ filters: CATS, sort: "longest_waiting", scope });
+    expect(facetCounts).toHaveBeenCalledWith({ filters: NO_FILTERS, sort: "freshest", scope });
   });
 });
 

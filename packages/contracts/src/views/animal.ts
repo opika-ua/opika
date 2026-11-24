@@ -109,3 +109,25 @@ export const AnimalDetailViewSchema = ListedAnimalSchema.pick({
     listingKind: FeedCardListingKindSchema,
   });
 export type AnimalDetailView = z.infer<typeof AnimalDetailViewSchema>;
+
+/**
+ * An adopted animal's page for `HOME_FOUND_PAGE_DAYS` after the adoption (owner, 2026-11-24):
+ * the name, species, first photo and shelter name only. No contact, address, city, reveal or
+ * listing date; the card stays out of the gallery and every list (commitment 6).
+ */
+export const HomeFoundAnimalViewSchema = ListedAnimalSchema.pick({
+  name: true,
+  species: true,
+}).extend({
+  kind: z.literal("home_found"),
+  primaryPhoto: AnimalPhotoSchema.nullable(),
+  shelterName: ShelterSummaryViewSchema.shape.displayName,
+});
+export type HomeFoundAnimalView = z.infer<typeof HomeFoundAnimalViewSchema>;
+
+/** What `animals.byId` answers: the listed animal's page, or the «Уже вдома» state. */
+export const PublicAnimalPageSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("listed"), animal: AnimalDetailViewSchema }),
+  HomeFoundAnimalViewSchema,
+]);
+export type PublicAnimalPage = z.infer<typeof PublicAnimalPageSchema>;

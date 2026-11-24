@@ -240,6 +240,15 @@ async function explainGalleryQuery(opts: {
 }
 
 describe("longest-waiting EXPLAIN", () => {
+  it("explains the query that carries «Зачекались»'s not-stale clause, not one without it", async () => {
+    const pageQuery = await captureGalleryQuery({
+      filters: NO_FILTERS,
+      scope: EVERYONE_SCOPE,
+      sort: "longest_waiting",
+    });
+    expect(pageQuery.query).toMatch(/"last_confirmed_at" > \$\d+::timestamptz/);
+  });
+
   it("unfiltered: no Sort node, served by animals_wait_anchor_idx", async () => {
     const plan = await explainGalleryQuery({ filters: NO_FILTERS, sort: "longest_waiting" });
 

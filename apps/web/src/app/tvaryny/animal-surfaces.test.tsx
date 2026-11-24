@@ -177,6 +177,42 @@ describe("the full page", () => {
   });
 });
 
+/** The owner's approved strings (2026-11-24), transcribed rather than read from the catalogue. */
+const HOME_FOUND_TITLE = "Мурчик уже вдома";
+const HOME_FOUND_BODY = "Ця тварина вже знайшла родину. Інші ще чекають на свій дім.";
+
+describe("«Уже вдома»: an adoption under 90 days old", () => {
+  it("the page shows the photo, the title, the line and the gallery link, and nothing to act on", async () => {
+    await renderPage({ kind: "home_found" });
+    expect(screen.getByRole("heading", { level: 1, name: HOME_FOUND_TITLE })).toBeTruthy();
+    expect(screen.getByText(HOME_FOUND_BODY)).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Мурчик" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Усі тварини" }).getAttribute("href")).toBe("/tvaryny");
+    expect(screen.getByRole("banner")).toBeTruthy();
+    expect(screen.getByRole("contentinfo")).toBeTruthy();
+    expect(screen.queryByTestId("reveal-trigger")).toBeNull();
+    expect(screen.queryByRole("button", { name: /звʼязатися|контакт/i })).toBeNull();
+    expect(screen.queryByText(NOT_FOUND_TITLE)).toBeNull();
+  });
+
+  it("the title is «{name} уже вдома – Opika», and the page is noindex, follow", async () => {
+    current = stubAnimalPageClient({ kind: "home_found" });
+    const metadata = await generateMetadata({ params });
+    expect(metadata.title).toEqual({ absolute: "Мурчик уже вдома – Opika" });
+    expect(metadata.robots).toEqual({ index: false, follow: true });
+    expect(metadata.alternates).toBeUndefined();
+  });
+
+  it("the overlay shows the same state, named by its title, without the gallery link", async () => {
+    const dialog = await renderOverlay({ kind: "home_found" });
+    expect(screen.getByRole("dialog", { name: HOME_FOUND_TITLE })).toBe(dialog);
+    expect(within(dialog).getByRole("heading", { name: HOME_FOUND_TITLE })).toBeTruthy();
+    expect(within(dialog).getByText(HOME_FOUND_BODY)).toBeTruthy();
+    expect(within(dialog).queryByTestId("reveal-trigger")).toBeNull();
+    expect(within(dialog).queryByText(NOT_FOUND_TITLE)).toBeNull();
+  });
+});
+
 describe("the gallery's overlay", () => {
   it("RATE_LIMITED shows his sentence and nothing that says the card is gone", async () => {
     const dialog = await renderOverlay({ kind: "refuse", code: "RATE_LIMITED" });

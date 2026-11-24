@@ -1,3 +1,5 @@
+import { isLiveLinkUrl } from "@opika/domain/core";
+
 /** A run of shelter-written text: plain, or a web link found in it. `start` is its offset in the text. */
 export type TextPart =
   | { kind: "text"; start: number; text: string }
@@ -9,8 +11,9 @@ const SCHEME = /^https?:\/\//i;
 const SENTENCE_PUNCTUATION = ".,;:!?'";
 
 /**
- * Splits shelter-written text into plain runs and http(s) links. Nothing else becomes a link
- * (no javascript:, data:, bare domains); markup is never parsed, so it stays text.
+ * Splits shelter-written text into plain runs and https links to a real host. An http, IP or
+ * lookalike address stays text (the donation links' host rule, `isLiveLinkUrl`), and nothing else
+ * becomes a link (no javascript:, data:, bare domains); markup is never parsed, so it stays text.
  */
 export function linkParts(text: string): TextPart[] {
   const parts: TextPart[] = [];
@@ -44,15 +47,5 @@ function trimTrailing(raw: string): string {
 
 const count = (text: string, char: string): number => text.split(char).length - 1;
 
-function safeHref(raw: string): string | null {
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    return null;
-  }
-  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-  // «https://monobank.ua@other.site» reads as one site and opens another, so it stays text.
-  if (url.username !== "" || url.password !== "" || url.hostname === "") return null;
-  return url.href;
-}
+// «https://monobank.ua@other.site» reads as one site and opens another, so it stays text.
+const safeHref = (raw: string): string | null => (isLiveLinkUrl(raw) ? new URL(raw).href : null);

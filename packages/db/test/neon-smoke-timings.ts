@@ -137,12 +137,12 @@ export async function runTimings(db: Database, log: Log): Promise<void> {
     }),
   );
   await timed("gallery.facetCounts, no filters", () =>
-    gallery.facetCounts({ filters: NO_FILTERS, now }),
+    gallery.facetCounts({ sort: "freshest", filters: NO_FILTERS, now }),
   );
   await timed("gallery.facetCounts, one oblast", () =>
-    gallery.facetCounts({ filters: oblast, now }),
+    gallery.facetCounts({ sort: "freshest", filters: oblast, now }),
   );
-  const counts = await gallery.facetCounts({ filters: NO_FILTERS, now });
+  const counts = await gallery.facetCounts({ sort: "freshest", filters: NO_FILTERS, now });
   log(
     `facet payload rows: ${counts.cities.length} cities with animals, ${counts.regions.length} oblasts (the contract carries one label per city)`,
   );

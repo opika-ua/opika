@@ -1,11 +1,15 @@
 import {
   ageAnchorRange,
+  DEFAULT_FRESHNESS_POLICY,
   DISCOVERABLE_LISTING_KINDS,
   EARLY_LISTING_STATUSES,
   earlyListingCutoff,
   FEED_VISIBLE_VERIFICATION_STATUSES,
   type FeedFilters,
+  GALLERY_SORT_LISTS,
   type GalleryScope,
+  type GallerySort,
+  staleCutoff,
 } from "@opika/domain";
 import { and, eq, inArray, or, type SQL, sql } from "drizzle-orm";
 import { animals } from "../schema/animals";
@@ -179,9 +183,33 @@ export function buildScopePredicate(scope: GalleryScope): SQL[] {
 }
 
 /**
+ * What the sort itself leaves out: nothing for the freshest sort, stale cards for «Зачекались»
+ * (`GALLERY_SORT_LISTS`). Every read under a sort takes it beside the filter half (the page, its
+ * totals, the facet and relaxation counts, the neighbours), so no count names a card the list
+ * hides. Strictly after `staleCutoff`, which is itself stale (`freshnessOf`).
+ */
+export function buildSortPredicate(sort: GallerySort, now: Date): SQL[] {
+  const lists = GALLERY_SORT_LISTS[sort];
+  switch (lists) {
+    case "every_card":
+      return [];
+    case "not_stale": {
+      const cutoff = staleCutoff(now, DEFAULT_FRESHNESS_POLICY).toISOString();
+      return [sql`${animals.lastConfirmedAt} > ${cutoff}::timestamptz`];
+    }
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
+    default: {
+      const unreachable: never = lists;
+      return unreachable;
+    }
+  }
+}
+
+/**
  * The full predicate: what is showable, and what was asked for.
  *
- * Callers add their own ordering and pagination on top.
+ * Callers add their own ordering and pagination on top, and under a sort its own clause
+ * (`buildSortPredicate`).
  */
 export function buildFeedPredicate(
   filters: FeedFilters,

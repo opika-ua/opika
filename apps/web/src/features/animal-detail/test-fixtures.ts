@@ -1,4 +1,9 @@
-import type { AnimalDetailView, CityLabelView, PublicShelterView } from "@opika/contracts";
+import type {
+  AnimalDetailView,
+  CityLabelView,
+  HomeFoundAnimalView,
+  PublicShelterView,
+} from "@opika/contracts";
 import type { AnimalSpecies, CityId } from "@opika/domain";
 import { ORPCError } from "@orpc/server";
 import { vi } from "vitest";
@@ -51,6 +56,19 @@ export function makeDetailAnimal(overrides: Partial<AnimalDetailView> = {}): Ani
   };
 }
 
+export function makeHomeFoundView(
+  overrides: Partial<HomeFoundAnimalView> = {},
+): HomeFoundAnimalView {
+  return {
+    kind: "home_found",
+    name: "Мурчик",
+    species: "cat",
+    primaryPhoto: { storageKey: "/a.jpg", width: 1200, height: 900, alt: null },
+    shelterName: "Тестовий притулок «Домівка»",
+    ...overrides,
+  };
+}
+
 export function makeDetailShelter(overrides: Partial<PublicShelterView> = {}): PublicShelterView {
   return {
     id: SHELTER_ID as PublicShelterView["id"],
@@ -80,6 +98,7 @@ export const CITY_LABEL: CityLabelView = {
 /** What `animals.byId` does in a test: answer, or refuse with an oRPC code, or fail outright. */
 export type ByIdBehaviour =
   | { kind: "answer"; animal?: AnimalDetailView }
+  | { kind: "home_found"; view?: HomeFoundAnimalView }
   | { kind: "refuse"; code: "NOT_FOUND" | "RATE_LIMITED" }
   | { kind: "fail" };
 
@@ -87,7 +106,9 @@ export function stubAnimalPageClient(byId: ByIdBehaviour = { kind: "answer" }) {
   const animalsById = vi.fn(async () => {
     switch (byId.kind) {
       case "answer":
-        return byId.animal ?? makeDetailAnimal();
+        return { kind: "listed" as const, animal: byId.animal ?? makeDetailAnimal() };
+      case "home_found":
+        return byId.view ?? makeHomeFoundView();
       case "refuse":
         throw new ORPCError(byId.code);
       case "fail":

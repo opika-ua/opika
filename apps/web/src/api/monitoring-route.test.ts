@@ -42,6 +42,41 @@ describe("app/api/monitoring/route.ts", () => {
     expect(forward).toHaveBeenCalledTimes(20);
   });
 
+  it("with Upstash unreachable it keeps the same limit per instance: the 21st call gets 429", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", DSN);
+    vi.stubEnv("KV_REST_API_URL", "https://unreachable.invalid");
+    vi.stubEnv("KV_REST_API_TOKEN", "t");
+    const limit = vi.fn(async () => {
+      throw new Error("ENOTFOUND unreachable.invalid");
+    });
+    vi.doMock("@upstash/ratelimit", () => ({
+      Ratelimit: Object.assign(
+        vi.fn(function RatelimitMock() {
+          return { limit };
+        }),
+        { slidingWindow: vi.fn() },
+      ),
+    }));
+    vi.doMock("@upstash/redis", () => ({ Redis: vi.fn(function RedisMock() {}) }));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const forward = vi.fn(async () => new Response("{}"));
+    vi.stubGlobal("fetch", forward);
+    try {
+      const route = await import("../app/api/monitoring/route");
+      const statuses: number[] = [];
+      for (let i = 0; i < 21; i++) statuses.push((await route.POST(request())).status);
+      expect(limit).toHaveBeenCalled();
+      expect(statuses.slice(0, 20).every((s) => s === 204)).toBe(true);
+      expect(statuses[20]).toBe(429);
+      expect(forward).toHaveBeenCalledTimes(20);
+    } finally {
+      vi.doUnmock("@upstash/ratelimit");
+      vi.doUnmock("@upstash/redis");
+      vi.restoreAllMocks();
+    }
+  });
+
   it("the test route has its own limiter: 5 calls a minute per address, checked before the secret", async () => {
     const secret = "s".repeat(40);
     vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", DSN);

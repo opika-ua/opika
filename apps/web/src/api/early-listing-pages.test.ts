@@ -156,9 +156,9 @@ describe("animals.byId, animals.cardsByIds and the gallery", () => {
     const { animal } = await seed("under_review", RUNNING);
     const page = await h.call("animals.byId", { animalId: animal.id });
     expect(page.status).toBe(200);
-    expect((field(page, "shelter") as { verification: string }).verification).toBe(
-      "listed_before_verification",
-    );
+    expect(
+      (field(page, "animal") as { shelter: { verification: string } }).shelter.verification,
+    ).toBe("listed_before_verification");
     expect(page.raw).not.toContain(RUNNING.toISOString());
 
     const list = await h.call("gallery.list", {

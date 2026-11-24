@@ -234,10 +234,11 @@ const UPSTASH_CHECK_TIMEOUT_MS = 1_000;
 /**
  * What a limiter answers when its store cannot be reached. Required on every limiter (no default)
  * so a new one must choose: `allow` for surfaces whose outage cost is worse than unthrottled
- * traffic (public reads, health and monitoring probes), `deny` for everything that guards a
- * credential, a mail or a write.
+ * traffic (public reads), `deny` for everything that guards a credential, a mail or a write,
+ * `in-memory` for an open endpoint that must keep working but not unthrottled (the Sentry
+ * tunnel, audit 2026-11-24): the same limit and window, counted per instance.
  */
-export type OnUnavailable = "allow" | "deny";
+export type OnUnavailable = "allow" | "deny" | "in-memory";
 
 /** Every limiter built here, by name, so a guard test can see that none lacks a choice. */
 export const registeredLimiters = new Map<
@@ -253,7 +254,12 @@ export function upstashRateLimiter(opts: {
   onUnavailable: OnUnavailable;
 }): PeekableRateLimiter {
   const unavailable = opts.onUnavailable === "allow";
-  const outcome = unavailable ? "failing open" : "failing closed";
+  const fallback =
+    opts.onUnavailable === "in-memory"
+      ? inMemoryRateLimiter({ windowMs: opts.windowMs, maxRequests: opts.maxRequests })
+      : null;
+  const outcome =
+    fallback !== null ? "per-instance limit" : unavailable ? "failing open" : "failing closed";
   const windowSeconds = Math.max(1, Math.round(opts.windowMs / 1000));
   const ratelimit = new Ratelimit({
     redis: opts.redis,
@@ -265,14 +271,17 @@ export function upstashRateLimiter(opts: {
   // `reset` of each key's last refusal (epoch ms), the end of the bucket that blocks it.
   const resets = new Map<string, number>();
   const MAX_TRACKED_REFUSALS = 10_000;
+  const recordRefusal = (key: string, reset: number) => {
+    if (resets.size >= MAX_TRACKED_REFUSALS) resets.clear();
+    resets.set(key, reset);
+  };
 
   // `outcome` names the limiter's own mode; a caller of `attempt` may decide otherwise.
   const attempt = async (key: string): Promise<LimitOutcome> => {
     try {
       const result = await ratelimit.limit(key);
       if (!result.success) {
-        if (resets.size >= MAX_TRACKED_REFUSALS) resets.clear();
-        resets.set(key, result.reset);
+        recordRefusal(key, result.reset);
       } else {
         resets.delete(key);
       }
@@ -295,13 +304,19 @@ export function upstashRateLimiter(opts: {
       return reset === undefined ? windowSeconds : (reset - now.getTime()) / 1000;
     },
     attempt: (key: string, _now: Date) => attempt(key),
-    async check(key: string, _now: Date): Promise<boolean> {
+    async check(key: string, now: Date): Promise<boolean> {
       const result = await attempt(key);
-      return result === "unavailable" ? unavailable : result === "allowed";
+      if (result !== "unavailable") return result === "allowed";
+      if (fallback === null) return unavailable;
+      const allowed = await fallback.check(key, now);
+      // Recorded like a store refusal, so `retryAfterSeconds` answers from the fallback's window.
+      if (allowed) resets.delete(key);
+      else recordRefusal(key, now.getTime() + retryAfterSecondsOf(fallback, key, now) * 1000);
+      return allowed;
     },
     // `getRemaining` runs `limit`'s window arithmetic and writes nothing. It has no timeout of its
     // own, so it gets the check's; unreachable or slow, the limiter's mode answers.
-    async wouldAllow(key: string, _now: Date): Promise<boolean> {
+    async wouldAllow(key: string, now: Date): Promise<boolean> {
       let timer: ReturnType<typeof setTimeout> | undefined;
       const timedOut = new Promise<"timeout">((resolve) => {
         timer = setTimeout(() => resolve("timeout"), UPSTASH_CHECK_TIMEOUT_MS);
@@ -310,13 +325,12 @@ export function upstashRateLimiter(opts: {
         const result = await Promise.race([ratelimit.getRemaining(key), timedOut]);
         if (result !== "timeout") return result.remaining > 0;
         warnLimiterUnreachable(opts.prefix, "timeout");
-        return unavailable;
       } catch {
         warnLimiterUnreachable(opts.prefix, "error");
-        return unavailable;
       } finally {
         clearTimeout(timer);
       }
+      return fallback === null ? unavailable : fallback.wouldAllow(key, now);
     },
   };
 }

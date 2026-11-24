@@ -86,6 +86,7 @@ import { runContactsSmoke } from "./neon-smoke-contacts";
 import { runDonationSmoke } from "./neon-smoke-donation";
 import { runEarlyListingSmoke } from "./neon-smoke-early-listing";
 import { runFiltersSmoke } from "./neon-smoke-filters";
+import { runFreshWaitingSmoke } from "./neon-smoke-fresh-waiting";
 import { runGeographySmoke } from "./neon-smoke-geography";
 import { runKabinetIdentitySmoke } from "./neon-smoke-kabinet-identity";
 import { runNotificationRecipientsSmoke } from "./neon-smoke-notification-recipients";
@@ -1916,6 +1917,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     );
   }
   const relaxation = await galleryRepo(db).relaxationCounts({
+    sort: "freshest",
     filters: {
       ...NO_FILTERS,
       cities: { kind: "oneOf", values: [relaxCity.id] },
@@ -2311,6 +2313,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   // sex counts ignore that choice (1 male, 1 female, 2 unrecorded); the city
   // count applies it (1); sizes and ages, with both applied, sum to 1.
   const pcFacets = await galleryRepo(db).facetCounts({
+    sort: "freshest",
     filters: {
       ...NO_FILTERS,
       cities: { kind: "oneOf", values: [pcCity.id] },
@@ -2698,11 +2701,16 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   }
   const s49Mine = { kind: "shelter", shelterId: s49A.id } as const;
   const s49Scoped = await galleryRepo(db).facetCounts({
+    sort: "freshest",
     filters: NO_FILTERS,
     scope: s49Mine,
     now: NOW,
   });
-  const s49Everyone = await galleryRepo(db).facetCounts({ filters: NO_FILTERS, now: NOW });
+  const s49Everyone = await galleryRepo(db).facetCounts({
+    sort: "freshest",
+    filters: NO_FILTERS,
+    now: NOW,
+  });
   const s49CityOf = (counts: typeof s49Scoped) =>
     counts.cities.find((entry) => entry.cityId === s49City.id)?.count;
   check(
@@ -2717,6 +2725,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
 
   const s49Dogs: FeedFilters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } };
   const s49Relax = await galleryRepo(db).relaxationCounts({
+    sort: "freshest",
     filters: s49Dogs,
     scope: s49Mine,
     now: NOW,
@@ -2768,6 +2777,7 @@ async function main(): Promise<void> {
     ...(await runContactsSmoke(database)),
     ...(await runRevealRetentionSmoke(database)),
     ...(await runOperatorDeleteSmoke(database)),
+    ...(await runFreshWaitingSmoke(database)),
   ];
   for (const o of outcomes) console.log(`${o.ok ? "PASS" : "FAIL"}  ${o.name}: ${o.detail}`);
   const failed = outcomes.filter((o) => !o.ok).length;

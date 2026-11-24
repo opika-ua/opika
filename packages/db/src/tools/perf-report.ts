@@ -191,7 +191,7 @@ export function scenariosOf(picked: Picked): Scenario[] {
     },
     {
       label: "gallery.facetCounts, no filters",
-      run: (db, now) => galleryRepo(db).facetCounts({ filters: NO_FILTERS, now }),
+      run: (db, now) => galleryRepo(db).facetCounts({ sort: "freshest", filters: NO_FILTERS, now }),
     },
     {
       label: "animal detail: findById + shelter + neighbours",
@@ -216,7 +216,12 @@ export function scenariosOf(picked: Picked): Scenario[] {
         ? async (db, now) => {
             const scope = shelterScope(busyShelter);
             await list(db, now, NO_FILTERS, "freshest", scope);
-            await galleryRepo(db).facetCounts({ filters: NO_FILTERS, now, scope });
+            await galleryRepo(db).facetCounts({
+              sort: "freshest",
+              filters: NO_FILTERS,
+              now,
+              scope,
+            });
           }
         : null,
     },

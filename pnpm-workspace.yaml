@@ -145,3 +145,6 @@ allowBuilds:
 overrides:
   vite: 8.3.5
   source-map-js: 1.2.2
+  # GHSA-67mh-4wv8-2f99: drizzle-kit's deprecated @esbuild-kit loader pins esbuild 0.18.20.
+  # 0.25.12 is the esbuild drizzle-kit itself already uses. Drop once drizzle-kit drops @esbuild-kit.
+  "@esbuild-kit/core-utils>esbuild": 0.25.12

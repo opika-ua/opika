@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ShelterAdminIdSchema } from "../primitives/ids";
+import { linkHostProblemOf } from "./link-host";
 
 /**
  * A flat enumeration rather than a union: this is a classification with no
@@ -31,8 +32,7 @@ export type DonationLink = z.infer<typeof DonationLinkSchema>;
  * Why a link a shelter would not mind showing is still not ours to send people to. Applied to a
  * new proposal and again when the operator approves one, never to stored live links
  * (`DonationLinkSchema` stays lenient so old rows parse).
- * `userinfo`: `https://user@host` reads as `user`'s site in a hurry. `idn`: a lookalike host
- * (Cyrillic letters, any `xn--` label) cannot be told apart from the real one by eye.
+ * `userinfo` and `idn`: the host rule shared with shelter-written text (`linkHostProblemOf`).
  * `checkout_session`: a LiqPay checkout session, a one-time payment page that stops working.
  */
 export const DONATION_URL_PROBLEMS = ["userinfo", "idn", "checkout_session"] as const;
@@ -52,17 +52,8 @@ export const donationUrlProblemOf = (raw: string): DonationUrlProblem | null => 
   } catch {
     return null;
   }
-  // The parser turns a Unicode host into its `xn--` form, so the parsed host catches both IDN
-  // cases; the raw authority is checked too, because the parser also folds some lookalikes into
-  // plain ASCII, and for a bare `@`, which it drops from the parsed result.
-  const authority =
-    raw
-      .trim()
-      .replace(/^[^:]*:\/*/, "")
-      .split(/[/?#]/, 1)[0] ?? "";
-  if (url.username !== "" || url.password !== "" || authority.includes("@")) return "userinfo";
-  if ([...authority].some((char) => char.charCodeAt(0) > 0x7f)) return "idn";
-  if (url.hostname.split(".").some((label) => label.toLowerCase().startsWith("xn--"))) return "idn";
+  const hostProblem = linkHostProblemOf(raw);
+  if (hostProblem !== null) return hostProblem;
   if (isCheckoutSession(url)) return "checkout_session";
   return null;
 };

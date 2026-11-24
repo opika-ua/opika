@@ -1,6 +1,6 @@
 import type { GalleryRelaxation } from "@opika/contracts";
 import type { FeedFilterDimension, FeedFilters, GallerySort, RegionId } from "@opika/domain";
-import { ANY, pluralizeUk, relaxDimension } from "@opika/domain";
+import { ANY, GALLERY_SORT_LISTS, pluralizeUk, relaxDimension } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { LinkButton } from "../../ui/Button";
 import { Heading } from "../../ui/Heading";
@@ -86,8 +86,11 @@ export function NoMatch({
   basePath,
 }: NoMatchProps) {
   // The registry itself is empty (the gallery page only renders this at zero matches): no filter to
-  // blame, nothing to reset. A shelter page (`basePath`) keeps the filter wording.
-  const registryEmpty = !anyFilterSet(filters) && basePath === undefined;
+  // blame, nothing to reset. A shelter page (`basePath`) keeps the filter wording, and so does a
+  // sort that leaves stale cards out: its empty list says nothing about the registry.
+  const filtered = anyFilterSet(filters);
+  const registryEmpty =
+    !filtered && basePath === undefined && GALLERY_SORT_LISTS[sort] === "every_card";
   // A removal that would add nothing is no suggestion ("no suggestion without a number" means a useful one).
   const offered = relaxations.filter((suggestion) => suggestion.additional > 0);
   const nothingToOffer = offered.length === 0 && neighbourRegions.length === 0;
@@ -150,7 +153,7 @@ export function NoMatch({
           </div>
         )}
 
-        {nothingToOffer && !registryEmpty && (
+        {nothingToOffer && filtered && (
           <LinkButton
             variant="secondary"
             href={resetFiltersHref(sort, basePath)}
