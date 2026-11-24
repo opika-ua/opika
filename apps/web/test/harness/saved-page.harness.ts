@@ -12,7 +12,7 @@
  */
 
 import { harnessPort } from "@opika/db/test";
-import { expect, test } from "./csp-watch";
+import { expect, test } from "@playwright/test";
 import { openRoute } from "./harness";
 import { DETAIL_DESKTOP } from "./viewports";
 

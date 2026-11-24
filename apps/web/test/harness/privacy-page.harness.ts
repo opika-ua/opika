@@ -2,7 +2,7 @@
  * The privacy policy against a real server: it answers 200 with its own title, reads as one h1 and
  * its sections, does not scroll sideways on a phone, and /pro's summary links to it.
  */
-import { expect, test } from "./csp-watch";
+import { expect, test } from "@playwright/test";
 import { noSidewaysScroll, openRoute } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
 

@@ -16,8 +16,7 @@
  */
 
 import { uk } from "@opika/i18n";
-import type { Page, Request } from "@playwright/test";
-import { expect, test } from "./csp-watch";
+import { expect, type Page, type Request, test } from "@playwright/test";
 import { openRoute, useClientAddressPerRepetition } from "./harness";
 import { ANDROID_PHONE, ANDROID_PHONE_TALL, DETAIL_DESKTOP, DETAIL_PHONE } from "./viewports";
 
