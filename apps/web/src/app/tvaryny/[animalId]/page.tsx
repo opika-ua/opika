@@ -5,11 +5,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { cache } from "react";
+import { titled } from "../../../brand";
 import { AnimalDetailScreen } from "../../../features/animal-detail/AnimalDetailScreen";
 import {
   type AnimalPageLoad,
   loadAnimalPage,
 } from "../../../features/animal-detail/animal-page-load";
+import { HomeFoundScreen, homeFoundTitle } from "../../../features/animal-detail/HomeFoundScreen";
 import { kabinetSessionCookiePresent } from "../../../features/chrome/kabinet-signed-in";
 import { RateLimitedScreen } from "../../../features/chrome/RateLimitedScreen";
 import { JsonLd } from "../../../seo/json-ld";
@@ -38,6 +40,8 @@ export const dynamic = "force-dynamic";
  *   segment): a malformed id, or an animal that doesn't exist, isn't
  *   discoverable or whose shelter isn't verified (`animals.byId` collapses
  *   all three to one `NOT_FOUND`).
+ * - `home_found` → the calm «Уже вдома» state (owner, 2026-11-24): an adoption less than 90
+ *   days old, 200 and noindex, follow; past 90 days it is `not_found` again.
  * - `rate_limited` → its own screen, his sentence (RL-F1). This used to be
  *   caught with everything else and shown as the 404, «Це не помилка —
  *   просто картки тут більше немає», which was false.
@@ -61,6 +65,8 @@ export function renderAnimalPage(load: AnimalPageLoad, kabinetSignedIn: boolean)
       return notFound();
     case "rate_limited":
       return <RateLimitedScreen />;
+    case "home_found":
+      return <HomeFoundScreen view={load.view} kabinetSignedIn={kabinetSignedIn} />;
     case "animal":
       return (
         <>
@@ -102,6 +108,13 @@ export function animalMetadataOf(load: AnimalPageLoad): Metadata {
   // A refusal says nothing about the animal; a search engine that met it
   // must not keep it as this URL's page (RL-F1).
   if (load.kind === "rate_limited") return { robots: { index: false, follow: false } };
+  // The animal is off the site: not a search result, but its links (header, gallery) are followed.
+  if (load.kind === "home_found") {
+    return {
+      title: { absolute: titled(homeFoundTitle(load.view)) },
+      robots: { index: false, follow: true },
+    };
+  }
   if (load.kind !== "animal") return {};
   const { animal, shelter, cityName } = load.view;
   const listedEarly = shelter.verification === "listed_before_verification";

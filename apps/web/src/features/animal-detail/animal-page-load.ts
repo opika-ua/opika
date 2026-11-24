@@ -1,4 +1,4 @@
-import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
+import type { AnimalDetailView, HomeFoundAnimalView, PublicShelterView } from "@opika/contracts";
 import { AnimalIdSchema, DEFAULT_GALLERY_SORT, NO_FILTERS } from "@opika/domain";
 import { placeName, placeText } from "@opika/i18n";
 import { pageRefusalOf } from "../../api/page-refusal";
@@ -31,6 +31,8 @@ export interface AnimalPageView {
  * - `not_found`: `animals.byId` answers one `NOT_FOUND` for a missing,
  *   undiscoverable or unverified-shelter animal (deliberately not telling a
  *   real id from a guessed one), and a malformed id is the same dead end.
+ * - `home_found`: an adoption less than 90 days old (owner, 2026-11-24), the calm «Уже вдома»
+ *   state instead of the 404; nothing else is read for it.
  * - `rate_limited` (RL-F1): a refusal to answer is not an answer about the
  *   card. Oleksii, 2026-10-20: the rate-limited case "never shows «Це не
  *   помилка…»", which is the not-found copy.
@@ -40,6 +42,7 @@ export interface AnimalPageView {
  */
 export type AnimalPageLoad =
   | { kind: "animal"; view: AnimalPageView }
+  | { kind: "home_found"; view: HomeFoundAnimalView }
   | { kind: "not_found" }
   | { kind: "rate_limited" };
 
@@ -51,7 +54,9 @@ export async function loadAnimalPage(
   if (!parsedId.success) return { kind: "not_found" };
 
   try {
-    const animal = await client.animals.byId({ animalId: parsedId.data });
+    const page = await client.animals.byId({ animalId: parsedId.data });
+    if (page.kind === "home_found") return { kind: "home_found", view: page };
+    const animal = page.animal;
     // The card's city is known from the animal view alone (its own city, else its shelter's), so
     // the shelter's page-only fields (`shelters.byId`, which answers NOT_FOUND if the shelter
     // stopped being verified between the calls) and the city are read together: two waits in all.

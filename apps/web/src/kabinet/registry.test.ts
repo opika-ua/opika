@@ -1175,11 +1175,12 @@ describe("registry.shelters.updateProfile: the rename (R-UI 4)", () => {
     const page = await publicCall<{ displayName: string }>("shelters.byId", { shelterId: s.id });
     expect(page.status).toBe(200);
     expect(page.body.displayName).toBe("Лапа допомоги");
-    const card = await publicCall<{ shelter: { displayName: string } }>("animals.byId", {
-      animalId: animal.id,
-    });
+    const card = await publicCall<{ animal: { shelter: { displayName: string } } }>(
+      "animals.byId",
+      { animalId: animal.id },
+    );
     expect(card.status).toBe(200);
-    expect(card.body.shelter.displayName).toBe("Лапа допомоги");
+    expect(card.body.animal.shelter.displayName).toBe("Лапа допомоги");
   });
 
   /**
@@ -1395,11 +1396,12 @@ describe("the display name's 100-character cap: input only (RUI4-F2)", () => {
     const page = await publicCall<{ displayName: string }>("shelters.byId", { shelterId: s.id });
     expect(page.status).toBe(200);
     expect(page.body.displayName).toBe(longer);
-    const card = await publicCall<{ shelter: { displayName: string } }>("animals.byId", {
-      animalId: animal.id,
-    });
+    const card = await publicCall<{ animal: { shelter: { displayName: string } } }>(
+      "animals.byId",
+      { animalId: animal.id },
+    );
     expect(card.status).toBe(200);
-    expect(card.body.shelter.displayName).toBe(longer);
+    expect(card.body.animal.shelter.displayName).toBe(longer);
 
     const described = await call<RegistryShelterView>("registry.shelters.updateProfile", {
       shelterId: s.id,

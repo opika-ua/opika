@@ -295,7 +295,9 @@ describe("reveal", () => {
       "ANIMAL_NOT_AVAILABLE",
       404,
     );
-    expectError(await h.call("animals.byId", { animalId: animal.id }), "NOT_FOUND", 404);
+    // The page itself is the calm «Уже вдома» state for 90 days, never a way to reveal.
+    const page = await h.call("animals.byId", { animalId: animal.id });
+    expect([page.status, (page.body as { kind: string }).kind]).toEqual([200, "home_found"]);
   });
 
   it("answers SHELTER_NOT_VISIBLE, at 404, once the shelter is no longer verified", async () => {
@@ -861,7 +863,7 @@ describe("a declared range on the public views", () => {
   it("the animal page and the saved cards send the same span", async () => {
     const { ranged } = await seedThreeKinds();
     const page = await h.call("animals.byId", { animalId: ranged.id }, { now: TWO_YEARS_ON });
-    expect((page.body as { ageSpan: unknown }).ageSpan).toEqual({
+    expect((page.body as { animal: { ageSpan: unknown } }).animal.ageSpan).toEqual({
       kind: "between",
       from: 3,
       to: 4,

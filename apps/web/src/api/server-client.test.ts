@@ -187,7 +187,9 @@ describe("anonymousRouterClient", () => {
     await animalRepo(h.db).insert(animal, city.id);
 
     const client = anonymousRouterClient(h.db);
-    const detail = await client.animals.byId({ animalId: animal.id });
+    const page = await client.animals.byId({ animalId: animal.id });
+    if (page.kind !== "listed") throw new Error(`expected the listed page, got ${page.kind}`);
+    const detail = page.animal;
     const publicShelter = await client.shelters.byId({ shelterId: shelter.id });
 
     // Asserted as a full key set rather than "does not contain X": `pick`

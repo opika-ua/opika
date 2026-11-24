@@ -195,6 +195,10 @@ export const en = {
       body: "The animal is no longer on the site or the link is out of date. This isn't an error – the listing is simply no longer here.",
       action: "All animals",
     },
+    homeFound: {
+      title: "{name} is home",
+      body: "This animal has found a family. Others are still waiting for a home.",
+    },
     rateLimited: "Too many requests. Please try again later.",
     photoGalleryLabel: "Photo gallery",
     photoNext: "Next photo",

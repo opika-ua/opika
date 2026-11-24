@@ -7,6 +7,10 @@ import {
   overlayNoticeTitle,
 } from "../../../../features/animal-detail/AnimalPageStates";
 import type { AnimalPageClient } from "../../../../features/animal-detail/animal-page-load";
+import {
+  HomeFoundContent,
+  homeFoundTitle,
+} from "../../../../features/animal-detail/HomeFoundScreen";
 import { AnimalOverlay } from "../../../../features/animal-overlay/AnimalOverlay";
 import { loadOverlayData } from "../../../../features/animal-overlay/overlay-load";
 import type { SearchParams } from "../../../../features/gallery/filter-url";
@@ -76,6 +80,20 @@ export async function renderAnimalOverlay(
   // The full page lets a failure reach `/tvaryny/error.tsx`; from here that
   // boundary would replace the gallery the visitor is still using.
   if (load.kind === "failed") return notice("failed");
+  // The page's own «Уже вдома» state, as one loader promises; ✕ is the way back to the gallery.
+  if (load.kind === "home_found") {
+    return (
+      <AnimalOverlay
+        label={homeFoundTitle(load.view)}
+        openerHref={openerHref}
+        neighbours={noNeighbours}
+      >
+        <div className="flex flex-col items-start gap-4 p-4 tablet:p-6">
+          <HomeFoundContent view={load.view} headingLevel={2} />
+        </div>
+      </AnimalOverlay>
+    );
+  }
   if (load.kind !== "animal") return notice(load.kind);
 
   return (
