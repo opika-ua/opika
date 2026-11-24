@@ -1,8 +1,6 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { bearerMatches } from "./bearer";
 import type { RateLimiter } from "./rate-limit";
 import { retryAfterSecondsOf } from "./retry-after";
-
-const digest = (value: string) => createHash("sha256").update(value, "utf8").digest();
 
 /** Fixed on purpose: nothing from the request (header, body, query, URL, address) goes into it. */
 export const TEST_ERROR_MESSAGE =
@@ -32,14 +30,8 @@ export async function handleMonitoringTestError(
       headers: { "Retry-After": String(retryAfterSecondsOf(deps.limiter, deps.ipKey, deps.now)) },
     });
   }
-  const header = request.headers.get("authorization");
-  const secret = deps.cronSecret;
   const allowed =
-    !!deps.dsn?.trim() &&
-    secret !== undefined &&
-    secret !== "" &&
-    header !== null &&
-    timingSafeEqual(digest(header), digest(`Bearer ${secret}`));
+    !!deps.dsn?.trim() && bearerMatches(request.headers.get("authorization"), deps.cronSecret);
   if (!allowed) return new Response("Not Found", { status: 404 });
   throw new Error(TEST_ERROR_MESSAGE);
 }

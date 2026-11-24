@@ -11,8 +11,8 @@ const SCHEME = /^https?:\/\//i;
 const SENTENCE_PUNCTUATION = ".,;:!?'";
 
 /**
- * Splits shelter-written text into plain runs and https links to a real host. An http, IP or
- * lookalike address stays text (the donation links' host rule, `isLiveLinkUrl`), and nothing else
+ * Splits shelter-written text into plain runs and https links to a real host. An http, IP,
+ * single-label or lookalike address stays text (`isLiveLinkUrl`), and nothing else
  * becomes a link (no javascript:, data:, bare domains); markup is never parsed, so it stays text.
  */
 export function linkParts(text: string): TextPart[] {
@@ -32,20 +32,23 @@ export function linkParts(text: string): TextPart[] {
   return parts;
 }
 
-/** Drops sentence punctuation and an unmatched closing bracket: «(див. https://x.org).» */
+/**
+ * Drops sentence punctuation and an unmatched closing bracket: «(див. https://x.org).»
+ * Bracket counts are taken once and kept as the end moves, so a long run of «)» stays linear.
+ */
 function trimTrailing(raw: string): string {
-  let url = raw;
-  for (;;) {
-    const end = url.at(-1) ?? "";
-    const unmatched =
-      (end === ")" && count(url, ")") > count(url, "(")) ||
-      (end === "]" && count(url, "]") > count(url, "["));
-    if (end === "" || (!SENTENCE_PUNCTUATION.includes(end) && !unmatched)) return url;
-    url = url.slice(0, -1);
+  const counts = { "(": 0, ")": 0, "[": 0, "]": 0 };
+  for (const char of raw) if (char in counts) counts[char as keyof typeof counts]++;
+  let end = raw.length;
+  while (end > 0) {
+    const last = raw[end - 1] ?? "";
+    if (last === ")" && counts[")"] > counts["("]) counts[")"]--;
+    else if (last === "]" && counts["]"] > counts["["]) counts["]"]--;
+    else if (!SENTENCE_PUNCTUATION.includes(last)) break;
+    end--;
   }
+  return raw.slice(0, end);
 }
-
-const count = (text: string, char: string): number => text.split(char).length - 1;
 
 // «https://monobank.ua@other.site» reads as one site and opens another, so it stays text.
 const safeHref = (raw: string): string | null => (isLiveLinkUrl(raw) ? new URL(raw).href : null);

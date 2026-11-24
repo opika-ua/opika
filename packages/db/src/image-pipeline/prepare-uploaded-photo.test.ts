@@ -3,7 +3,7 @@ import { crc32 } from "node:zlib";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import { encodePhotoSource } from "./photo-source";
-import { prepareUploadedPhoto } from "./prepare-uploaded-photo";
+import { prepareUploadedLogo, prepareUploadedPhoto } from "./prepare-uploaded-photo";
 import { sniffImageType } from "./sniff";
 import { PHOTO_SOURCE_MAX_BYTES } from "./variants";
 
@@ -244,6 +244,44 @@ describe("the 2000 px ceiling (P-Q5)", () => {
       kind: "rejected",
       reason: "dimensions_exceeded",
     });
+  });
+});
+
+/** Audit I3: an animated file is refused from its header, not left to sharp's first-frame default. */
+describe("an animated (multi-frame) image is refused", () => {
+  const animatedWebp = async (frames: number) => {
+    const pngs = await Promise.all(
+      Array.from({ length: frames }, (_, i) =>
+        sharp({
+          create: { width: 40, height: 30, channels: 3, background: { r: i * 60, g: 0, b: 0 } },
+        })
+          .png()
+          .toBuffer(),
+      ),
+    );
+    return sharp(pngs, { join: { animated: true } })
+      .webp()
+      .toBuffer();
+  };
+
+  it("precondition: the fixture is a WebP whose header reports 3 pages", async () => {
+    const bytes = await animatedWebp(3);
+    expect(sniffImageType(bytes)).toBe("webp");
+    const meta = await sharp(bytes).metadata();
+    expect(meta.pages).toBe(3);
+  });
+
+  it("as unsupported_type, for a photo and for a logo", async () => {
+    const bytes = await animatedWebp(3);
+    const refused = { kind: "rejected", reason: "unsupported_type" };
+    expect(await prepareUploadedPhoto(bytes)).toEqual(refused);
+    expect(await prepareUploadedLogo(bytes)).toEqual(refused);
+  });
+
+  it("a still WebP (no pages field) is still accepted", async () => {
+    const bytes = await solid(40, 30).webp().toBuffer();
+    expect((await sharp(bytes).metadata()).pages).toBeUndefined();
+    expect((await prepareUploadedPhoto(bytes)).kind).toBe("ok");
   });
 });
 

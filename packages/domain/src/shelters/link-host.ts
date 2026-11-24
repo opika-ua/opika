@@ -67,9 +67,10 @@ export const linkHostProblemOf = (raw: string): LinkHostProblem | null => {
 };
 
 /**
- * Whether a URL in shelter-written text may be a live link: https, a named host (an IP address
- * names no one), and no `LinkHostProblem` but `port`, which shelter text keeps (owner, 2026-11-24:
- * the port rule is for donation links only).
+ * Whether a URL in shelter-written text may be a live link: https, a named public host (an IP
+ * address names no one, and a single label such as `localhost` is no public site, so it needs a
+ * dot), and no `LinkHostProblem` but `port`, which shelter text keeps for now (owner, 2026-11-24:
+ * the port rule is for donation links first). Anything else is shown as the text it is.
  */
 export const isLiveLinkUrl = (raw: string): boolean => {
   let url: URL;
@@ -79,6 +80,7 @@ export const isLiveLinkUrl = (raw: string): boolean => {
     return false;
   }
   if (url.protocol !== "https:" || url.hostname === "") return false;
+  if (!url.hostname.replace(/\.$/, "").includes(".")) return false;
   const problem = linkHostProblemOf(raw);
   return problem === null || problem === "port";
 };

@@ -6,7 +6,6 @@ import {
   earlyListingCutoff,
   FEED_VISIBLE_VERIFICATION_STATUSES,
   type FeedFilters,
-  GALLERY_SORT_LISTS,
   type GalleryScope,
   type GallerySort,
   staleCutoff,
@@ -183,26 +182,14 @@ export function buildScopePredicate(scope: GalleryScope): SQL[] {
 }
 
 /**
- * What the sort itself leaves out: nothing for the freshest sort, stale cards for «Зачекались»
- * (`GALLERY_SORT_LISTS`). Every read under a sort takes it beside the filter half (the page, its
- * totals, the facet and relaxation counts, the neighbours), so no count names a card the list
- * hides. Strictly after `staleCutoff`, which is itself stale (`freshnessOf`).
+ * Only «Зачекались» leaves cards out: the stale ones (owner, 2026-11-24). Every read under a sort
+ * takes this beside the filter half, so no count names a card the list hides.
  */
 export function buildSortPredicate(sort: GallerySort, now: Date): SQL[] {
-  const lists = GALLERY_SORT_LISTS[sort];
-  switch (lists) {
-    case "every_card":
-      return [];
-    case "not_stale": {
-      const cutoff = staleCutoff(now, DEFAULT_FRESHNESS_POLICY).toISOString();
-      return [sql`${animals.lastConfirmedAt} > ${cutoff}::timestamptz`];
-    }
-    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled variant; unreachable at runtime */
-    default: {
-      const unreachable: never = lists;
-      return unreachable;
-    }
-  }
+  if (sort !== "longest_waiting") return [];
+  // Strictly after `staleCutoff`, which is itself stale (`freshnessOf`).
+  const cutoff = staleCutoff(now, DEFAULT_FRESHNESS_POLICY).toISOString();
+  return [sql`${animals.lastConfirmedAt} > ${cutoff}::timestamptz`];
 }
 
 /**

@@ -318,7 +318,7 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       session: {
         create: {
           // No user agent on the session row (D6, see `advanced.ipAddress`). User hooks run after
-          // plugins' and their `data` is merged last; Better Auth 1.7.26 never writes it on update.
+          // plugins' and their `data` is merged last; Better Auth 1.7.27 never writes it on update.
           before: async () => ({ data: { userAgent: null } }),
           /**
            * The first sign-in of a user an invitation created (RG-Q3, RS-Q0):
@@ -372,7 +372,7 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
         if (!token) return refuseUnchecked();
         const found = await ctx.context.internalAdapter.findSession(token);
         if (found === null) return refuseUnchecked();
-        // `findSession` doesn't check `expiresAt` (Better Auth 1.7.26, `internal-adapter.mjs`), so
+        // `findSession` doesn't check `expiresAt` (Better Auth 1.7.27, `internal-adapter.mjs`), so
         // the outage pass-through does: an expired session is no session (review of #567).
         if (ipUnchecked && new Date(found.session.expiresAt).getTime() <= now.getTime()) {
           return refuseUnchecked();
@@ -402,18 +402,9 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       // here would mean every test ran a less safe product than production
       // (reviewer, row 3, finding 2).
       disableOriginCheck: false,
-      // KH-Q6: no client IP on the session row. Better Auth 1.7.14 then
-      // writes `ip_address = ''` (its `getIP(...) || ""`), never an address.
-      // The same switch turns off Better Auth's own built-in rate limiter
-      // (`resolveRateLimitConfig` returns null without an IP). Every limit
-      // here is ours, keyed on the request's IP in the limiter store, never
-      // in this table: `signInLimiters` on magic-link requests (HS-Q5), and
-      // the kabinet limiters on verify, get-session and sign-out (the
-      // `hooks.before` above, `LIMITED_AUTH_PATHS`). The user agent has no option
-      // (`createSession` copies the header); KH-Q6 kept it until Oleksii, 2026-11-20 (D6):
-      // "drop privacy.kabinet.userAgent. Separate small PR: stop storing the session user
-      // agent if Better Auth allows it without patching". `databaseHooks.session.create.before`
-      // clears it; `auth.test.ts` asserts what the row holds after a sign-in.
+      // KH-Q6: no client IP on the session row (Better Auth writes ''); this also turns off its
+      // own limiter, so every limit is ours (`signInLimiters`, `LIMITED_AUTH_PATHS`). The user
+      // agent has no such switch: `databaseHooks.session.create.before` clears it (D6).
       ipAddress: { disableIpTracking: true },
       // Prefixes are ours (`kabinetCookieName`), not Better Auth's. The
       // `kabinet` prefix still names any cookie not listed below, so nothing

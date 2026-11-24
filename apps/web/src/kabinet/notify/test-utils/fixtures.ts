@@ -6,7 +6,7 @@ import { makeAnimal, makeCity, makeShelter } from "@opika/db/test";
 import type { AnimalListingState, Shelter, ShelterVerification } from "@opika/domain";
 import { type OutgoingEmail, ProviderSendError } from "../../email-provider";
 import type { ProviderMail } from "../../email-senders";
-import type { NotifyDeps } from "../deliver";
+import type { NearCapWarning, NotifyDeps } from "../deliver";
 
 /** Shared by the notify tests only: a fake provider and the rows a mail's recipients come from. */
 
@@ -42,7 +42,7 @@ export function fakeMail() {
 export function depsOf(
   db: Database,
   mail: ProviderMail,
-  options: { now?: Date | (() => Date); eventCap?: number; warnNearCap?: boolean } = {},
+  options: { now?: Date | (() => Date); eventCap?: number; nearCapWarning?: NearCapWarning } = {},
 ): NotifyDeps & { sleeps: number[]; logs: string[] } {
   const sleeps: number[] = [];
   const logs: string[] = [];
@@ -53,7 +53,7 @@ export function depsOf(
     // A clock that never moves unless asked to, so every send after the first asks for the full spacing.
     now: () => (typeof options.now === "function" ? options.now() : (options.now ?? NOW)),
     eventCap: options.eventCap ?? 40,
-    warnNearCap: options.warnNearCap ?? false,
+    nearCapWarning: options.nearCapWarning ?? { kind: "silent" },
     sleep: async (ms) => {
       sleeps.push(ms);
     },

@@ -22,11 +22,9 @@ type Outcome = { name: string; ok: boolean; detail: string };
 const DAY = 86_400_000;
 
 /**
- * Migration 0031 and the 90-day reveal clean-up (owner, 2026-11-20, privacy policy D2) on Neon's
- * driver: the index, the batched DELETE's `revealed_at` boundary, and the orphaned-adopter sweep
- * after it. A copy of production holds older reveals of its own, which the drain takes too, so
- * the total is compared with a count taken just before; this run's rows are checked by id.
- * Rows stay on the child branch.
+ * Migration 0031 and the 90-day reveal clean-up on Neon's driver. A production copy holds old
+ * reveals of its own that the drain also takes, so totals are compared with a count taken just
+ * before and this run's rows are checked by id.
  */
 export async function runRevealRetentionSmoke(db: Database): Promise<Outcome[]> {
   const out: Outcome[] = [];

@@ -1,6 +1,6 @@
 import type { GalleryRelaxation } from "@opika/contracts";
 import type { FeedFilterDimension, FeedFilters, GallerySort, RegionId } from "@opika/domain";
-import { ANY, GALLERY_SORT_LISTS, pluralizeUk, relaxDimension } from "@opika/domain";
+import { ANY, pluralizeUk, relaxDimension } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { LinkButton } from "../../ui/Button";
 import { Heading } from "../../ui/Heading";
@@ -89,9 +89,8 @@ export function NoMatch({
   // blame, nothing to reset. Unfiltered and empty under «Зачекались» means every card is stale, on
   // the gallery and on a shelter page alike, so it points to «Нові».
   const filtered = anyFilterSet(filters);
-  const registryEmpty =
-    !filtered && basePath === undefined && GALLERY_SORT_LISTS[sort] === "every_card";
-  const freshOnlyEmpty = !filtered && GALLERY_SORT_LISTS[sort] === "not_stale";
+  const registryEmpty = !filtered && basePath === undefined && sort !== "longest_waiting";
+  const freshOnlyEmpty = !filtered && sort === "longest_waiting";
   const heading = registryEmpty
     ? uk.emptyRegistry.heading
     : freshOnlyEmpty

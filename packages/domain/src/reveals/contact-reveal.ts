@@ -47,16 +47,9 @@ export const AnimalRevealSnapshotSchema = z.object({
 export type AnimalRevealSnapshot = z.infer<typeof AnimalRevealSnapshotSchema>;
 
 /**
- * An append-only event, never updated. That is what makes it usable as an
- * audit record, as analytics, and later as the entry in a reward ledger.
- *
- * The snapshot keeps the shelter's exact address as the operator's record of
- * what was true at the reveal. It never reaches the adopter: the contract's
- * reveal view picks the contact channels and the city only (Oleksii,
- * 2026-10-15, inbox EM-B6 answer 5, decision EM-D1: "the exact address never
- * leaves the server for adopters; the meeting place is agreed with the
- * shelter"). The contact details are what a reveal discloses, and only after
- * the adopter has committed to it.
+ * An append-only event, never updated; deleted after `REVEAL_RETENTION_DAYS` (90).
+ * Its exact-address snapshot never reaches the adopter: the contract's reveal view picks the
+ * contact channels and the city only (EM-D1).
  */
 export const ContactRevealSchema = z.object({
   id: RevealIdSchema,
