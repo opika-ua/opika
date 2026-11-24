@@ -750,7 +750,7 @@ events (`early-listing.ts`).
   a `site_visit` (video call), a `reference_contact` or an `ongoing_work_record`, whatever the legal
   form, or none recorded yet (`EARLY_LISTING_EVIDENCE_KINDS`; open sources since 2026-11-19, the
   record since 2026-11-24, owner). This is weaker than
-  approval and is not the table in "Evidence". Otherwise refused with «Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок або рекомендація.»
+  approval and is not the table in "Evidence". Otherwise refused with «Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок, рекомендація або документи постійної роботи.»
 - **Length.** 60 days from the moment you allow it (`EARLY_LISTING_DAYS`), an exact instant sum with
   no calendar maths. Expiry is worked out when read, with no job: at the boundary instant the
   shelter is already hidden. While it runs the panel shows «До кінця показу: {n} день/дні/днів»,

@@ -2330,9 +2330,9 @@ export const uk = {
         oneMoreLeft: "Можна дозволити ще один, останній період – з поясненням.",
         extendNote: "Чому подовжуєте показ",
         limitReached: "Показ до перевірки вже дозволяли двічі.",
-        /** Owner-approved 2026-11-19 (open sources count for the allow). */
+        /** Owner-approved 2026-11-24 (open sources and, D1, an ongoing-work record count). */
         evidenceMinimum:
-          "Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок або рекомендація.",
+          "Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок, рекомендація або документи постійної роботи.",
       },
       /** The weekly «непідтверджені картки» email's switch on S4 (approved by the owner, 2026-11-11). */
       reminder: {

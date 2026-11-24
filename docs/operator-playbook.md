@@ -128,7 +128,7 @@ Purpose: let a shelter's cards be public while the review runs. It sits beside t
 - Panel «Показ до завершення перевірки». Buttons «Дозволити показ до завершення перевірки» and
   «Зняти дозвіл». Only for pending or under review.
 - **Precondition:** any one of open sources, a video call, a reference or a «Документи постійної роботи» record (since 2026-11-24) on file, for any legal form
-  («Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок або рекомендація.»). Open sources count since
+  («Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок, рекомендація або документи постійної роботи.»). Open sources count since
   2026-11-19 (owner), with or without the registry part. Approval's rule (section 3) is not this one.
 - **Length:** 60 days from the allow, an instant sum. At the boundary instant it is already hidden. The
   panel counts «До кінця показу: N днів» and reminds you at 7 days or fewer. Nothing needs a cron: the

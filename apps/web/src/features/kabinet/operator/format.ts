@@ -70,22 +70,29 @@ const sameKinds = (a: readonly EvidenceKind[], b: readonly EvidenceKind[]): bool
 /** The initiative's reference-or-record line, which has its own label (owner, 2026-11-24, row 8). */
 const REFERENCE_OR_ONGOING_WORK = ["reference_contact", "ongoing_work_record"] as const;
 
+/** A label as it reads inside a sentence, after a colon: its first letter lowercase. */
+const inSentence = (label: string): string =>
+  label.charAt(0).toLocaleLowerCase("uk") + label.slice(1);
+
 /**
  * What an evidence gap asks for, by name: one kind, or several joined with «або» by
- * `Intl.ListFormat` («Відеодзвінок або Відкриті джерела»), or a line's own label.
+ * `Intl.ListFormat` («Відеодзвінок або Відкриті джерела»), or a line's own label. `sentence`
+ * starts each name lowercase, for a line that names it after a colon (owner, 2026-11-24); a list
+ * item keeps the label as written.
  */
-export function evidenceGapKinds(gap: EvidenceGap): string {
+export function evidenceGapKinds(gap: EvidenceGap, as: "label" | "sentence" = "label"): string {
   const kind = uk.kabinet.operator.evidence.kind;
+  const name = (label: string): string => (as === "sentence" ? inSentence(label) : label);
   const either = (kinds: readonly EvidenceKind[]): string => {
     disjunction ??= new Intl.ListFormat("uk", { type: "disjunction" });
-    return disjunction.format(kinds.map((each) => kind[each]));
+    return disjunction.format(kinds.map((each) => name(kind[each])));
   };
   switch (gap.rule) {
     case "kind":
-      return kind[gap.kind];
+      return name(kind[gap.kind]);
     case "any_of":
       return sameKinds(gap.kinds, REFERENCE_OR_ONGOING_WORK)
-        ? uk.kabinet.operator.verification.gap.referenceOrOngoingWork
+        ? name(uk.kabinet.operator.verification.gap.referenceOrOngoingWork)
         : either(gap.kinds);
     case "registry_entry":
       return either(REGISTRY_ENTRY_KINDS);

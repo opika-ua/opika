@@ -317,7 +317,7 @@ Public wording. Card and animal-page label «На перевірці»; shelter 
 проходить перевірку.» Minimum evidence to allow: one site visit OR one reference (`EARLY_LISTING_EVIDENCE_KINDS`,
 `packages/domain/src/shelters/verification/early-listing.ts` on `ae755c7`); EDRPOU and bank holder do NOT count.
 (Changed 2026-11-19, owner: an open-sources check counts too, with or without its registry part;
-the refusal now reads «Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок або рекомендація.»)
+the refusal now reads «Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок, рекомендація або документи постійної роботи.»)
 
 | # | Step | Who | Expect |
 |---|---|---|---|

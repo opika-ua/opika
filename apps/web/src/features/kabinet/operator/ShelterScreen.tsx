@@ -117,7 +117,7 @@ function EvidenceCard({ view }: { view: RegistryShelterView }) {
         ) : (
           <Text key={evidenceGapKey(gap)} look="label">
             {fillTemplate(e.gaps, {
-              kind: evidenceGapKinds(gap),
+              kind: evidenceGapKinds(gap, "sentence"),
               provided: String(gap.provided),
               minimum: String(gap.minimum),
             })}

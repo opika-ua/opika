@@ -2028,7 +2028,7 @@ export const en = {
         extendNote: "Why are you extending the showing",
         limitReached: "Showing before the review has already been allowed twice.",
         evidenceMinimum:
-          "To allow showing, at least one is needed: open sources, a video call or a reference.",
+          "To allow showing, at least one is needed: open sources, a video call, a reference or documents of ongoing work.",
       },
       reminder: {
         title: "Email about unconfirmed cards",
