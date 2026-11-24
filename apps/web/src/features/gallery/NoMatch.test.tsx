@@ -1,4 +1,5 @@
-import { NO_FILTERS } from "@opika/domain";
+import { DEFAULT_FRESHNESS_POLICY, NO_FILTERS } from "@opika/domain";
+import { uk } from "@opika/i18n";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { NoMatch } from "./NoMatch";
@@ -157,8 +158,13 @@ describe("NoMatch: an empty registry versus filters that exclude everything", ()
   });
 });
 
+/** Owner-approved copy (2026-11-24), transcribed from his message, not read from the catalogue. */
+const FRESH_ONLY_HEADING = "Зараз тут нікого немає.";
+const FRESH_ONLY_LINE =
+  "У «Зачекались» – лише картки, оновлені за останні 30 днів. Перемкніть на «Нові», щоб побачити всіх.";
+
 describe("NoMatch: an empty «Зачекались» with no filter", () => {
-  it("is the no-match state, not the empty registry, and offers no reset that changes nothing", () => {
+  it("on the gallery says no card is fresh and points to «Нові», with no reset that changes nothing", () => {
     render(
       <NoMatch
         filters={NO_FILTERS}
@@ -167,11 +173,59 @@ describe("NoMatch: an empty «Зачекались» with no filter", () => {
         relaxations={[]}
       />,
     );
+    expect(screen.getByRole("heading", { name: FRESH_ONLY_HEADING })).toBeTruthy();
+    expect(screen.getByText(FRESH_ONLY_LINE)).toBeTruthy();
+    expect(screen.queryByText("Під ці фільтри зараз нікого немає.")).toBeNull();
+    expect(screen.queryByText("Тут поки немає тварин.")).toBeNull();
+    expect(screen.queryByTestId("no-match-reset")).toBeNull();
+  });
+
+  it("on a shelter page says the same", () => {
+    render(
+      <NoMatch
+        filters={NO_FILTERS}
+        sort="longest_waiting"
+        citySlugs={new Map()}
+        relaxations={[]}
+        basePath="/prytulky/abc"
+      />,
+    );
+    expect(screen.getByRole("heading", { name: FRESH_ONLY_HEADING })).toBeTruthy();
+    expect(screen.getByText(FRESH_ONLY_LINE)).toBeTruthy();
+  });
+
+  it("names «Зачекались» and «Нові» exactly as the sort toggle labels them", () => {
+    expect(FRESH_ONLY_LINE).toContain(`«${uk.filters.sortLongestWaitingShort}»`);
+    expect(FRESH_ONLY_LINE).toContain(`«${uk.filters.sortFreshestShort}»`);
+  });
+
+  // This line, /prytulkam §3 and the kabinet order note all say 30 days: a new bound needs new copy.
+  it("says 30 days because a card turns stale after 30", () => {
+    expect(DEFAULT_FRESHNESS_POLICY.agingMaxDays).toBe(30);
+    for (const text of [
+      uk.noMatch.freshOnlyLine,
+      uk.forShelters.whatHappensToAnimals,
+      uk.kabinet.animalList.orderNote,
+    ]) {
+      expect(text).toMatch(/оновлен(?:і|их) за останні 30 днів/);
+    }
+  });
+
+  it("with a filter set keeps «Під ці фільтри…» and the reset", () => {
+    render(
+      <NoMatch
+        filters={{ ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } }}
+        sort="longest_waiting"
+        citySlugs={new Map()}
+        relaxations={[]}
+      />,
+    );
     expect(
       screen.getByRole("heading", { name: "Під ці фільтри зараз нікого немає." }),
     ).toBeTruthy();
-    expect(screen.queryByText("Тут поки немає тварин.")).toBeNull();
-    expect(screen.queryByTestId("no-match-reset")).toBeNull();
+    expect(screen.getByText("Це не помилка пошуку.")).toBeTruthy();
+    expect(screen.queryByText(FRESH_ONLY_HEADING)).toBeNull();
+    expect(screen.getByRole("link", { name: "Скинути" })).toBeTruthy();
   });
 
   it("under the freshest sort the same empty page is the empty registry", () => {

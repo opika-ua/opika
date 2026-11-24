@@ -86,11 +86,22 @@ export function NoMatch({
   basePath,
 }: NoMatchProps) {
   // The registry itself is empty (the gallery page only renders this at zero matches): no filter to
-  // blame, nothing to reset. A shelter page (`basePath`) keeps the filter wording, and so does a
-  // sort that leaves stale cards out: its empty list says nothing about the registry.
+  // blame, nothing to reset. Unfiltered and empty under «Зачекались» means every card is stale, on
+  // the gallery and on a shelter page alike, so it points to «Нові».
   const filtered = anyFilterSet(filters);
   const registryEmpty =
     !filtered && basePath === undefined && GALLERY_SORT_LISTS[sort] === "every_card";
+  const freshOnlyEmpty = !filtered && GALLERY_SORT_LISTS[sort] === "not_stale";
+  const heading = registryEmpty
+    ? uk.emptyRegistry.heading
+    : freshOnlyEmpty
+      ? uk.noMatch.freshOnlyHeading
+      : uk.noMatch.heading;
+  const line = registryEmpty
+    ? uk.emptyRegistry.line
+    : freshOnlyEmpty
+      ? uk.noMatch.freshOnlyLine
+      : uk.noMatch.reassurance;
   // A removal that would add nothing is no suggestion ("no suggestion without a number" means a useful one).
   const offered = relaxations.filter((suggestion) => suggestion.additional > 0);
   const nothingToOffer = offered.length === 0 && neighbourRegions.length === 0;
@@ -110,10 +121,10 @@ export function NoMatch({
             <Mascot kind="cat" pose="lie" size={48} className="self-start" />
           )}
           <Heading level={2} look="display-l" id="gallery-no-match-heading" className="text-pretty">
-            {registryEmpty ? uk.emptyRegistry.heading : uk.noMatch.heading}
+            {heading}
           </Heading>
           <Text look="body" className="text-ink-2 text-pretty">
-            {registryEmpty ? uk.emptyRegistry.line : uk.noMatch.reassurance}
+            {line}
           </Text>
           {regionEmpty && (
             <Text

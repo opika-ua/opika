@@ -1,4 +1,10 @@
-import { donationHost, type GallerySort, NO_FILTERS, pluralizeUk } from "@opika/domain";
+import {
+  DEFAULT_GALLERY_SORT,
+  donationHost,
+  type GallerySort,
+  NO_FILTERS,
+  pluralizeUk,
+} from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import Image from "next/image";
 import { useId } from "react";
@@ -224,7 +230,8 @@ export function ShelterPageScreen({
             {filterUi === null ? (
               <div className="flex flex-wrap items-center justify-between gap-4">
                 {heading}
-                {listedTotal > 1 && sortToggle}
+                {/* Off the default sort it stays, even for one card: it is the only way back. */}
+                {(listedTotal > 1 || query.sort !== DEFAULT_GALLERY_SORT) && sortToggle}
               </div>
             ) : (
               <GalleryControlBlock

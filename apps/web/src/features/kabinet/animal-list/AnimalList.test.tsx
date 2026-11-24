@@ -247,7 +247,7 @@ describe("the page: header, rows, order note", () => {
     );
     // The order note sits behind a «?» button, closed until pressed.
     const NOTE =
-      "У галереї картки впорядковані за датою: відвідувач сам обирає, спочатку найсвіжіші чи ті, хто чекає найдовше. Змінити порядок або підняти картку тут не можна.";
+      "У галереї картки впорядковані за датою: відвідувач сам обирає, спочатку найсвіжіші чи ті, хто чекає найдовше (серед карток, оновлених за останні 30 днів). Змінити порядок або підняти картку тут не можна.";
     expect(screen.queryByText(NOTE)).toBeNull();
     const info = screen.getByRole("button", { name: "Як впорядковано список" });
     expect(info.getAttribute("aria-expanded")).toBe("false");

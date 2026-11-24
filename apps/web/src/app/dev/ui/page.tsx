@@ -682,7 +682,8 @@ export default function DevUiPage() {
               Long
               <InfoTip label="How the list is ordered (long)" closeLabel="Close">
                 У галереї картки впорядковані за датою: відвідувач сам обирає, спочатку найсвіжіші
-                чи ті, хто чекає найдовше. Змінити порядок або підняти картку тут не можна.
+                чи ті, хто чекає найдовше (серед карток, оновлених за останні 30 днів). Змінити
+                порядок або підняти картку тут не можна.
               </InfoTip>
             </span>
             <span className="flex items-center">

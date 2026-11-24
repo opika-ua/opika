@@ -1854,7 +1854,7 @@ describe("/prytulkam §3 ordering paragraph (forShelters.whatHappensToAnimals)",
     const paragraphs = uk.forShelters.whatHappensToAnimals.split("\n\n");
     expect(paragraphs).toHaveLength(3);
     expect(paragraphs[1]).toBe(
-      "Порядок у списку – за датою: спочатку ті, чиї картки оновлено найновіше, або ті, хто чекає найдовше. Людина обирає сама. Просування немає.",
+      "Порядок у списку – за датою: спочатку ті, чиї картки оновлено найновіше, або ті, хто чекає найдовше (серед карток, оновлених за останні 30 днів). Людина обирає сама. Просування немає.",
     );
     expect(uk.forShelters.whatHappensToAnimals).not.toContain("по одній");
     expect(uk.forShelters.whatHappensToAnimals).not.toContain("Не зараз");
@@ -2258,7 +2258,7 @@ describe("kabinet K2 copy (final, 2026-10-18)", () => {
     "kabinet.animalList.notVisible.pending":
       "Опубліковані картки зʼявляться в галереї, щойно притулок пройде перевірку.",
     "kabinet.animalList.orderNote":
-      "У галереї картки впорядковані за датою: відвідувач сам обирає, спочатку найсвіжіші чи ті, хто чекає найдовше. Змінити порядок або підняти картку тут не можна.",
+      "У галереї картки впорядковані за датою: відвідувач сам обирає, спочатку найсвіжіші чи ті, хто чекає найдовше (серед карток, оновлених за останні 30 днів). Змінити порядок або підняти картку тут не можна.",
     "kabinet.animalList.empty.title": "Тут поки немає тварин.",
     "kabinet.animalList.empty.body":
       "Додайте першу. Ті, хто шукає тварину, побачать картку після публікації.",
