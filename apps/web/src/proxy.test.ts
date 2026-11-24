@@ -267,6 +267,92 @@ describe("proxy", () => {
       expect(last.status).toBe(200);
     });
   });
+
+  /**
+   * Audit B1 (owner, 2026-11-24): an enforced nonce policy on /kabinet and /kabinet/* only. Next
+   * reads the nonce from the request's CSP header, which `NextResponse.next` carries as
+   * `x-middleware-request-*`; the browser enforces the response's.
+   */
+  describe("the kabinet's enforced CSP (audit B1)", () => {
+    const KABINET = [
+      "/kabinet",
+      "/kabinet/",
+      "/kabinet/vkhid",
+      "/kabinet/vkhid?zaproshennia=x",
+      "/kabinet/tvaryny/some-animal-id",
+    ];
+    const NOT_KABINET = [
+      "/kabinetx",
+      "/kabinet-x",
+      "/tvaryny",
+      "/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      "/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      "/prytulkam",
+      "/pro",
+      "/zberezheni",
+      "/rate-limited",
+      "/api/rpc/animals/cardsByIds",
+    ];
+    const NEXTS_NONCE_SOURCE = /^'nonce-([A-Za-z0-9+/_-]+={0,2})'$/;
+
+    const load = async (path: string, ip = "9.9.9.9") => {
+      const { proxy } = await import("./proxy");
+      return proxy(request(`https://opika.example${path}`, { "x-forwarded-for": ip }));
+    };
+
+    it("sets it on every kabinet page, on the response and on the request Next renders", async () => {
+      const { getScriptNonceFromHeader } = await import(
+        "next/dist/server/app-render/get-script-nonce-from-header"
+      );
+      for (const path of KABINET) {
+        const response = await load(path);
+        expect(response.status, path).toBe(200);
+        const policy = response.headers.get("content-security-policy") ?? "";
+        expect(response.headers.get("x-middleware-request-content-security-policy"), path).toBe(
+          policy,
+        );
+        const scriptSrc = policy
+          .split(";")
+          .map((d) => d.trim().split(/\s+/))
+          .find(([name]) => name === "script-src");
+        const nonceSource = scriptSrc?.find((source) => source.startsWith("'nonce-")) ?? "";
+        expect(nonceSource, path).toMatch(NEXTS_NONCE_SOURCE);
+        // Next's own parser finds the same nonce, so its scripts carry it.
+        expect(`'nonce-${getScriptNonceFromHeader(policy)}'`, path).toBe(nonceSource);
+        expect(scriptSrc, path).toContain("'strict-dynamic'");
+        expect(scriptSrc, path).not.toContain("'unsafe-inline'");
+        expect(scriptSrc, path).not.toContain("'unsafe-eval'");
+      }
+    }, 30_000);
+
+    it("is never set outside the kabinet, a look-alike path included", async () => {
+      for (const path of NOT_KABINET) {
+        const response = await load(path, "9.9.9.10");
+        expect(response.headers.get("content-security-policy"), path).toBeNull();
+        expect(
+          response.headers.get("x-middleware-request-content-security-policy"),
+          path,
+        ).toBeNull();
+      }
+    }, 30_000);
+
+    it("draws a new nonce for every request", async () => {
+      const nonces = new Set<string>();
+      for (let i = 0; i < 20; i++) {
+        const policy = (await load("/kabinet/vkhid", "9.9.9.11")).headers.get(
+          "content-security-policy",
+        );
+        nonces.add(/'nonce-([^']+)'/.exec(policy ?? "")?.[1] ?? "");
+      }
+      expect(nonces.size).toBe(20);
+    }, 30_000);
+
+    it("keeps a token page's no-store alongside it", async () => {
+      const response = await load("/kabinet/vkhid?zaproshennia=x", "9.9.9.12");
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(response.headers.get("content-security-policy")).toContain("'strict-dynamic'");
+    }, 30_000);
+  });
 });
 
 /**

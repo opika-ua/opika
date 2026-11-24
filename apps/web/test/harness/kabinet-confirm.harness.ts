@@ -31,7 +31,7 @@ import { createDatabase } from "@opika/db";
 import { kabinetInvitationRepo } from "@opika/db/repos";
 import { authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./csp-watch";
 import { CONFIRM_PATH, type SignInServer, startSignInServer } from "./sign-in-server";
 
 /** Over plain HTTP the cookie has no `__Host-` prefix (`kabinetCookieName`). */

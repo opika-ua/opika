@@ -4,7 +4,7 @@
  * Own `x-forwarded-for` (.96).
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./csp-watch";
 import { createFixture, HARNESS_DATABASE_URL, LOCATION_ENV, signedIn } from "./fictional-shelter";
 import { startSignInServer } from "./sign-in-server";
 

@@ -36,9 +36,10 @@ import { animalRepo, kabinetInvitationRepo, photoSourcesRepo } from "@opika/db/r
 import { animals, authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import type { AnimalId, CityId, PhotoFraming } from "@opika/domain";
-import { type BrowserContext, expect, type Page, test } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
 import { R2_PUBLIC_BASE_URL } from "../harness-env";
 import { expectToastClearOfBottomBars } from "./bottom-bars";
+import { expect, test } from "./csp-watch";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.36";

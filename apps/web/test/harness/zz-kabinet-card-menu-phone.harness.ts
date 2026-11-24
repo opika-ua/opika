@@ -14,7 +14,8 @@ import { randomUUID } from "node:crypto";
 import { createDatabase } from "@opika/db";
 import { animalRepo, shelterRepo } from "@opika/db/repos";
 import { makeAnimal, makeDraftAnimal } from "@opika/db/test";
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import { expect, test } from "./csp-watch";
 import { createFixture, HARNESS_DATABASE_URL, LOCATION_ENV, signedIn } from "./fictional-shelter";
 import { startSignInServer } from "./sign-in-server";
 

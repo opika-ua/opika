@@ -9,7 +9,8 @@
  */
 
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
-import { expect, type Page, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./csp-watch";
 import { layoutWidth, noSidewaysScroll } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 

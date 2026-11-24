@@ -30,7 +30,8 @@ import { createDatabase } from "@opika/db";
 import { kabinetInvitationRepo } from "@opika/db/repos";
 import { authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
-import { type BrowserContext, expect, test } from "@playwright/test";
+import type { BrowserContext } from "@playwright/test";
+import { expect, test } from "./csp-watch";
 import { openAccountMenu } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 

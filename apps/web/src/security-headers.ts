@@ -1,8 +1,12 @@
+import { createHash } from "node:crypto";
+import { SAVED_PREPAINT_SCRIPT } from "./features/chrome/saved-prepaint";
+import { STRIP_TOKEN_FROM_ADDRESS_BAR } from "./kabinet/strip-token-script";
 import { securityReportUrlOf } from "./observability/dsn";
 
 /**
  * Audit F5: the browser security headers on every response (`next.config.ts`). The owner's enforced
- * set is pinned in the test; the rest (scripts, styles, connections) stays report-only until read.
+ * set is pinned in the test; the rest stays report-only on public pages. /kabinet enforces it all, with
+ * a nonce (audit B1, `kabinetContentSecurityPolicy`).
  */
 export type SecurityHeader = { key: string; value: string };
 export type HeaderRule = { source: string; headers: SecurityHeader[] };
@@ -37,10 +41,7 @@ export function securityHeaders(options: SecurityHeaderOptions): SecurityHeader[
   return [
     { key: "X-Content-Type-Options", value: "nosniff" },
     // Nothing here embeds plugins, sets <base>, posts a form off-site or needs window.opener.
-    {
-      key: "Content-Security-Policy",
-      value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
-    },
+    { key: "Content-Security-Policy", value: SITE_WIDE_ENFORCED_POLICY },
     { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
     { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
     // Nothing here uses these; an empty allowlist also stops an embedded script from asking.
@@ -88,25 +89,44 @@ export function cspReportingRules(
   }));
 }
 
+/** The enforced policy on every response; the kabinet's own policy repeats all four. */
+const SITE_WIDE_ENFORCED_POLICY =
+  "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'";
+
+type Directive = [string, ...string[]];
+
+const VERCEL_SCRIPT_CDN = "https://va.vercel-scripts.com";
+
+const joined = (directives: readonly Directive[]): string =>
+  directives.map((d) => d.join(" ")).join("; ");
+
 /**
  * No nonce (Next inlines its scripts; a nonce means rendering every page per request), so its value is
  * in what it shuts out: other origins. No `frame-ancestors`: browsers ignore it in report-only.
  */
-function reportOnlyPolicy({ photoBaseUrl, development }: SecurityHeaderOptions): string {
+function reportOnlyPolicy(options: SecurityHeaderOptions): string {
+  const scriptSrc: Directive = [
+    "script-src",
+    "'self'",
+    "'unsafe-inline'",
+    ...(options.development ? ["'unsafe-eval'", VERCEL_SCRIPT_CDN] : []),
+  ];
+  return joined(policyDirectives(options, scriptSrc));
+}
+
+/** Every directive but the script rule, which each policy brings: one list, so the two never drift. */
+function policyDirectives(
+  { photoBaseUrl, development }: SecurityHeaderOptions,
+  scriptSrc: Directive,
+): Directive[] {
   const photoOrigin = originOf(photoBaseUrl);
-  const vercelScriptCdn = "https://va.vercel-scripts.com";
-  const directives: [string, ...string[]][] = [
+  return [
     ["default-src", "'self'"],
-    [
-      "script-src",
-      "'self'",
-      "'unsafe-inline'",
-      ...(development ? ["'unsafe-eval'", vercelScriptCdn] : []),
-    ],
+    scriptSrc,
     ["style-src", "'self'", "'unsafe-inline'"],
     ["img-src", "'self'", "data:", ...(photoOrigin === null ? [] : [photoOrigin])],
     ["font-src", "'self'"],
-    ["connect-src", "'self'", ...(development ? [vercelScriptCdn] : [])],
+    ["connect-src", "'self'", ...(development ? [VERCEL_SCRIPT_CDN] : [])],
     ["media-src", "'self'"],
     ["worker-src", "'self'"],
     ["manifest-src", "'self'"],
@@ -115,7 +135,45 @@ function reportOnlyPolicy({ photoBaseUrl, development }: SecurityHeaderOptions):
     ["base-uri", "'self'"],
     ["form-action", "'self'"],
   ];
-  return directives.map((d) => d.join(" ")).join("; ");
+}
+
+/**
+ * Audit B1 (owner, 2026-11-24): the enforced /kabinet policy, a fresh nonce per request (`proxy.ts`).
+ * The root layout's inline script goes by its hash, so that layout never reads the request and public
+ * pages stay static. `'self'` is only for browsers without `'strict-dynamic'`.
+ */
+export function kabinetContentSecurityPolicy(
+  options: SecurityHeaderOptions & { nonce: string },
+): string {
+  const scriptSrc: Directive = [
+    "script-src",
+    "'self'",
+    `'nonce-${options.nonce}'`,
+    "'strict-dynamic'",
+    ...KABINET_INLINE_SCRIPT_HASHES,
+    // React's dev build rebuilds server error stacks with eval; production never does (Next's CSP guide).
+    ...(options.development ? ["'unsafe-eval'"] : []),
+  ];
+  return joined([...policyDirectives(options, scriptSrc), ["frame-ancestors", "'none'"]]);
+}
+
+/** A CSP hash source for an inline script's exact text. */
+const scriptHashSource = (script: string): string =>
+  `'sha256-${createHash("sha256").update(script, "utf8").digest("base64")}'`;
+
+/**
+ * The inline scripts a kabinet response carries without a nonce: the root layout's pre-paint one, and
+ * the token strip on the email-link pages, which are route handlers writing their own HTML.
+ */
+const KABINET_INLINE_SCRIPT_HASHES: readonly string[] = [
+  scriptHashSource(SAVED_PREPAINT_SCRIPT),
+  scriptHashSource(STRIP_TOKEN_FROM_ADDRESS_BAR),
+];
+
+/** 128 random bits, base64: the form Next's nonce parser accepts. */
+export function newCspNonce(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return btoa(String.fromCharCode(...bytes));
 }
 
 function originOf(url: string | undefined): string | null {

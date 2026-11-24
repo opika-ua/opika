@@ -25,8 +25,9 @@ import { animalRepo, kabinetInvitationRepo, shelterRepo } from "@opika/db/repos"
 import { authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, makeAnimal, testDatabaseUrl } from "@opika/db/test";
 import type { ShelterId } from "@opika/domain";
-import { type BrowserContext, expect, type Locator, type Page, test } from "@playwright/test";
+import type { BrowserContext, Locator, Page } from "@playwright/test";
 import { expectToastClearOfBottomBars } from "./bottom-bars";
+import { expect, test } from "./csp-watch";
 import { expectTabRowSound } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 

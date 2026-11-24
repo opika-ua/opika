@@ -7,7 +7,8 @@
  * Sign-in is off on this server, so the kabinet answers its own 404: still a kabinet document. Its
  * own `x-forwarded-for` (TEST-NET-2), as every sibling gives: the per-IP limiters are app-wide.
  */
-import { expect, type Page, type Response, test } from "@playwright/test";
+import type { Page, Response } from "@playwright/test";
+import { expect, test } from "./csp-watch";
 import { expectReachableByTab } from "./harness";
 
 test.use({

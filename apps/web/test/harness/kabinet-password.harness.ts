@@ -17,7 +17,7 @@ import { createDatabase } from "@opika/db";
 import { kabinetInvitationRepo } from "@opika/db/repos";
 import { authMember, authUser, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./csp-watch";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.42";

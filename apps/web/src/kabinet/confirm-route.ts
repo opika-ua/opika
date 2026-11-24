@@ -5,6 +5,7 @@ import { CONFIRM_PATH } from "./auth";
 import type { KabinetAuthAvailability } from "./auth-route";
 import { forwardedClientHeaders } from "./forwarded-client-headers";
 import type { AcceptInvitation, InvitationAcceptOutcome } from "./invitation-accept";
+import { STRIP_TOKEN_FROM_ADDRESS_BAR } from "./strip-token-script";
 
 /**
  * The page an emailed sign-in link opens (IN-Q11,
@@ -69,15 +70,7 @@ type PageState =
    */
   | { kind: "rate_limited"; token: string };
 
-/**
- * Oleksii, 2026-10-20, verbatim: "Address bar: after the page reads the token, remove it with
- * history.replaceState. The form carries it in a hidden field." The server has put the token in
- * the form's hidden field before the page arrives, so the page's first script takes it out of
- * the address bar and the history entry. Inline, so the page still loads nothing from anywhere
- * (IN-T6); without JS the form works as before and the token stays in the bar.
- */
-export const STRIP_TOKEN_FROM_ADDRESS_BAR =
-  'if(location.search){history.replaceState(null,"",location.pathname)}';
+export { STRIP_TOKEN_FROM_ADDRESS_BAR };
 
 function page(state: PageState, status: number): Response {
   const copy = uk.kabinet.confirm;
