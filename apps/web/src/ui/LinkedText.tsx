@@ -2,8 +2,9 @@ import { Fragment } from "react";
 import { linkParts } from "./linkify";
 
 /**
- * Shelter-written text with its http(s) links clickable, everything else as plain text. Renders
- * inline: the caller's Text or <p> keeps the type and the line breaks.
+ * Shelter-written text with its https links to a real host clickable (`linkParts`), everything
+ * else, refused addresses included, as plain text. Renders inline: the caller's Text or <p> keeps
+ * the type and the line breaks.
  */
 export function LinkedText({ text }: { text: string }) {
   return linkParts(text).map((part) =>

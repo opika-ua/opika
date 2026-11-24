@@ -13,6 +13,7 @@ export * from "./geography/place-search";
 export * from "./geography/transliterate";
 export * from "./primitives/plural";
 export * from "./shelters/contact-links";
+export * from "./shelters/link-host";
 
 export const ANIMAL_SPECIES = ["dog", "cat"] as const;
 export type AnimalSpecies = (typeof ANIMAL_SPECIES)[number];
