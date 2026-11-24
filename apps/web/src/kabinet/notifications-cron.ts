@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { bearerMatches } from "../api/bearer";
 import { pingHealthcheck } from "./cron-healthcheck";
 import { runDailyNotifications } from "./notify/daily";
 import type { NotifyDeps } from "./notify/deliver";
@@ -66,10 +66,3 @@ export const handleNotificationsCron = (request: Request, deps: NotifyCronDeps) 
     event: "kabinet_notifications",
     run: (notify) => runDailyNotifications(notify),
   });
-
-const digest = (value: string) => createHash("sha256").update(value, "utf8").digest();
-
-function bearerMatches(header: string | null, secret: string): boolean {
-  if (header === null) return false;
-  return timingSafeEqual(digest(header), digest(`Bearer ${secret}`));
-}

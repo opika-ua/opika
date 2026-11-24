@@ -55,4 +55,19 @@ describe("isLiveLinkUrl", () => {
   ])("anything else is not: %s", (url) => {
     expect(isLiveLinkUrl(url)).toBe(false);
   });
+
+  // A real host needs a dot: a single label is a local name, never a shelter's site.
+  it.each([
+    "https://localhost/",
+    "https://localhost./",
+    "https://LOCALHOST:8443/pay",
+    "https://intranet/jar",
+  ])("a single-label host is not a link: %s", (url) => {
+    expect(isLiveLinkUrl(url)).toBe(false);
+  });
+
+  it("the dot rule is the text links' only: donation links keep their own host rule", () => {
+    expect(linkHostProblemOf("https://localhost/")).toBeNull();
+    expect(donationUrlProblemOf("https://localhost/")).toBeNull();
+  });
 });

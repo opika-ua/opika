@@ -127,7 +127,7 @@ catalog:
   "@upstash/redis": 1.41.0
   # The kabinet's crop frame, apps/web only, in a lazy chunk. MIT, about 8 KB gzip with its one
   # dependency; drag, pinch, wheel, a fixed aspect and keyboard moves (ADR §12: cropping is "buy").
-  # Exactly 6.2.4: 6.2.5 was under the owner's 7-day rule (crop-frame approvals, Q9).
+  # Exactly 6.2.5 (published 2026-11-09): new versions wait out the owner's 7-day rule (crop-frame approvals, Q9).
   react-easy-crop: 6.2.5
   # Branded HTML emails (plan 2026-11-20, owner-approved tooling), server-only (`src/kabinet/emails`).
   # Resend's own library, MIT, npm provenance. `react-email` 6 replaces the deprecated
@@ -137,6 +137,10 @@ catalog:
 
 allowBuilds:
   esbuild: true
+
+# The 24h quarantine (minutes), the same as pnpm 11's default, written out so a changed default
+# can't silently remove it (audit 2026-11-24). Never add minimumReleaseAgeExclude entries.
+minimumReleaseAge: 1440
 
 # Transitive dev-tooling pins for audit advisories (vitest pulls vite, and
 # vite/magicast pull source-map-js; none is declared by us). Not catalog

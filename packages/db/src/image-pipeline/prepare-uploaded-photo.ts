@@ -55,7 +55,8 @@ const rejected = <Name extends string, F extends ImageFormat>(
  *
  * 1. its magic bytes say JPEG, PNG or WebP (`sniffImageType`);
  * 2. sharp reads the header only (`metadata()` decodes no pixels), and the
- *    format it finds must be the one the bytes claim;
+ *    format it finds must be the one the bytes claim, with one frame (an
+ *    animated WebP is refused as `unsupported_type`);
  * 3. neither side may exceed `PHOTO_MAX_EDGE_PX`: the device scales to it
  *    before uploading, so a larger file is refused, not scaled here, and a
  *    header claiming a huge image (a decompression bomb) is refused before
@@ -97,6 +98,9 @@ async function prepareUploadedImage<Name extends string, F extends ImageFormat>(
     return rejected("unreadable");
   }
   if (metadata.format !== sniffed) return rejected("format_mismatch");
+  // An animated or multi-page file is refused before any decode, so the decode
+  // never depends on sharp's default of reading only the first frame.
+  if ((metadata.pages ?? 1) > 1) return rejected("unsupported_type");
   if (!metadata.width || !metadata.height) return rejected("unreadable");
   if (metadata.width > PHOTO_MAX_EDGE_PX || metadata.height > PHOTO_MAX_EDGE_PX) {
     return rejected("dimensions_exceeded");

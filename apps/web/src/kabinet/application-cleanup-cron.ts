@@ -1,5 +1,5 @@
-import { createHash, timingSafeEqual } from "node:crypto";
 import { type ApplicationCleanupReport, type Database, runApplicationCleanup } from "@opika/db";
+import { bearerMatches } from "../api/bearer";
 import { pingHealthcheck } from "./cron-healthcheck";
 
 /**
@@ -63,11 +63,4 @@ export async function handleApplicationCleanupCron(
   else deps.log(line);
   await ping(counts.failed > 0 ? "fail" : "ok");
   return Response.json(counts);
-}
-
-const digest = (value: string) => createHash("sha256").update(value, "utf8").digest();
-
-function bearerMatches(header: string | null, secret: string): boolean {
-  if (header === null) return false;
-  return timingSafeEqual(digest(header), digest(`Bearer ${secret}`));
 }

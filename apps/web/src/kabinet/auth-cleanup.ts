@@ -1,4 +1,3 @@
-import { createHash, timingSafeEqual } from "node:crypto";
 import type { Database } from "@opika/db";
 import {
   adopterRepo,
@@ -8,6 +7,7 @@ import {
   revealRepo,
   sessionRepo,
 } from "@opika/db/repos";
+import { bearerMatches } from "../api/bearer";
 import { pingHealthcheck } from "./cron-healthcheck";
 
 /**
@@ -125,11 +125,4 @@ async function runAuthCleanup(deps: {
     orphanedAdopters,
     notificationSends,
   });
-}
-
-const digest = (value: string) => createHash("sha256").update(value, "utf8").digest();
-
-function bearerMatches(header: string | null, secret: string): boolean {
-  if (header === null) return false;
-  return timingSafeEqual(digest(header), digest(`Bearer ${secret}`));
 }

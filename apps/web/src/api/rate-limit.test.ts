@@ -303,7 +303,9 @@ describe("upstashRateLimiter", () => {
    */
   it("fails closed and logs when the SDK's limit() call rejects outright", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    limitMock.mockRejectedValue(new Error("getaddrinfo ENOTFOUND example.invalid"));
+    limitMock.mockRejectedValue(
+      new TypeError("fetch failed: https://example.invalid key test:1.2.3.4"),
+    );
     const { upstashRateLimiter } = await import("./rate-limit");
     const { Redis } = await import("@upstash/redis");
     const limiter = upstashRateLimiter({
@@ -315,7 +317,10 @@ describe("upstashRateLimiter", () => {
     });
 
     expect(await limiter.check("1.2.3.4", new Date())).toBe(false);
-    expect(consoleErrorSpy).toHaveBeenCalled();
+    // Only the error's name is logged, never its message (which can hold a key or the URL).
+    expect(consoleErrorSpy.mock.calls).toEqual([
+      ["apiRateLimiter: Upstash check failed - failing closed (RL-1): TypeError"],
+    ]);
     consoleErrorSpy.mockRestore();
   });
 });

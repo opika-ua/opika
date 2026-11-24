@@ -318,7 +318,7 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
       session: {
         create: {
           // No user agent on the session row (D6, see `advanced.ipAddress`). User hooks run after
-          // plugins' and their `data` is merged last; Better Auth 1.7.26 never writes it on update.
+          // plugins' and their `data` is merged last; Better Auth 1.7.27 never writes it on update.
           before: async () => ({ data: { userAgent: null } }),
           /**
            * The first sign-in of a user an invitation created (RG-Q3, RS-Q0):
@@ -372,7 +372,7 @@ export function createKabinetAuth(deps: KabinetAuthDeps) {
         if (!token) return refuseUnchecked();
         const found = await ctx.context.internalAdapter.findSession(token);
         if (found === null) return refuseUnchecked();
-        // `findSession` doesn't check `expiresAt` (Better Auth 1.7.26, `internal-adapter.mjs`), so
+        // `findSession` doesn't check `expiresAt` (Better Auth 1.7.27, `internal-adapter.mjs`), so
         // the outage pass-through does: an expired session is no session (review of #567).
         if (ipUnchecked && new Date(found.session.expiresAt).getTime() <= now.getTime()) {
           return refuseUnchecked();
