@@ -25,6 +25,11 @@ const reveal: ContactRevealView = {
   animalSnapshot: { name: "Пес $& $1", primaryPhoto: null },
 };
 
+const CARD_URL = "https://opika.org.ua/tvaryny/11111111-2222-4333-8444-555555555555";
+/** The owner's approved row 2 (2026-11-24) for «Мурчик», written out. */
+const MESSAGE_MALE = `Добрий день. Пишу щодо картки «Мурчик» на Opika: ${CARD_URL}. Він ще шукає дім?`;
+const ENCODED_MALE = encodeURIComponent(MESSAGE_MALE);
+
 const renderOpen = (view: ContactRevealView, names = { animal: "Мурчик", city: "Бровари" }) =>
   render(
     <ContactRevealDialog
@@ -32,6 +37,7 @@ const renderOpen = (view: ContactRevealView, names = { animal: "Мурчик", c
         kind: "open",
         animalId: ANIMAL_ID,
         animalName: names.animal,
+        sex: "male",
         cityName: names.city,
         reveal: view,
       }}
@@ -113,6 +119,7 @@ describe("the ✕ is named «Закрити», never «Не зараз»", () =>
           reason: "loadFailed",
           animalId: ANIMAL_ID,
           animalName: "Мурчик",
+          sex: "male",
           cityName: null,
         }}
         onClose={() => {}}
@@ -387,12 +394,12 @@ describe("WhatsApp and form rows", () => {
     ],
   } as const;
 
-  it("opens wa.me with the number as digits only, in a new tab, and copies the +380 number", async () => {
+  it("opens wa.me with the number as digits only and the message, in a new tab, and copies the +380 number", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
     renderOpen(revealWith(FULL));
     const link = screen.getByRole("link", { name: /Написати в WhatsApp/ });
-    expect(link.getAttribute("href")).toBe("https://wa.me/380501112233");
+    expect(link.getAttribute("href")).toBe(`https://wa.me/380501112233?text=${ENCODED_MALE}`);
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toBe("noopener noreferrer");
     fireEvent.click(screen.getByRole("button", { name: "Копіювати номер WhatsApp" }));
@@ -490,7 +497,14 @@ describe("«Повернутися до картки»", () => {
     const onClick = vi.fn();
     const { unmount } = render(
       <ContactRevealDialog
-        state={{ kind: "open", animalId: ANIMAL_ID, animalName: "Мурчик", cityName: null, reveal }}
+        state={{
+          kind: "open",
+          animalId: ANIMAL_ID,
+          animalName: "Мурчик",
+          sex: "male",
+          cityName: null,
+          reveal,
+        }}
         onClose={() => {}}
         onRetry={() => {}}
         secondaryAction={{ label: "Повернутися до картки", onClick }}
@@ -513,6 +527,7 @@ describe("the error dialog for a paused shelter", () => {
           reason: "shelterPaused",
           animalId: ANIMAL_ID,
           animalName: "Мурчик",
+          sex: "male",
           cityName: null,
         }}
         onClose={() => {}}
@@ -521,5 +536,112 @@ describe("the error dialog for a paused shelter", () => {
     );
     expect(screen.getByText("Притулок тимчасово не приймає нових звернень")).toBeTruthy();
     expect(screen.queryByTestId("reveal-retry")).toBeNull();
+  });
+});
+
+/** Item 1 (owner-approved 2026-11-24): a suggested first message, copied or carried by mailto/wa.me. */
+describe("the suggested first message", () => {
+  const original = window.matchMedia;
+  afterEach(() => {
+    window.matchMedia = original;
+    vi.unstubAllGlobals();
+  });
+  const phone = () => {
+    window.matchMedia = ((query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia;
+  };
+  const ALL = {
+    primary: { kind: "email", address: "hello@domivka.example" },
+    additional: [
+      { kind: "whatsapp", e164: "+380501112233" },
+      { kind: "telegram", handle: "domivka_brovary" },
+      { kind: "viber", e164: "+380671234567" },
+      { kind: "instagram", handle: "dobri_lapy" },
+    ],
+  } as const;
+
+  it("shows the heading, the message and one copy button on a phone, above the contact rows", () => {
+    phone();
+    renderOpen(revealWith(ALL));
+    const block = screen.getByRole("region", { name: "Можна почати з такого повідомлення:" });
+    expect(within(block).getByText(MESSAGE_MALE)).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Копіювати повідомлення" })).toHaveLength(1);
+    const firstRow = screen.getAllByTestId("reveal-contact-row")[0] as HTMLElement;
+    expect(block.compareDocumentPosition(firstRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("picks the pronoun by sex", () => {
+    render(
+      <ContactRevealDialog
+        state={{
+          kind: "open",
+          animalId: ANIMAL_ID,
+          animalName: "Ластівка",
+          sex: "unknown",
+          cityName: null,
+          reveal: revealWith(ALL),
+        }}
+        onClose={() => {}}
+        onRetry={() => {}}
+      />,
+    );
+    expect(
+      screen.getByText(
+        `Добрий день. Пишу щодо картки «Ластівка» на Opika: ${CARD_URL}. Ця тварина ще шукає дім?`,
+      ),
+    ).toBeTruthy();
+  });
+
+  it("copies the exact message, says «Скопійовано.», and makes no request", async () => {
+    phone();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    const fetchSpy = vi.fn();
+    const beacon = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    Object.defineProperty(navigator, "sendBeacon", { value: beacon, configurable: true });
+    renderOpen(revealWith(ALL));
+
+    fireEvent.click(screen.getByRole("button", { name: "Копіювати повідомлення" }));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(MESSAGE_MALE));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Скопійовано."));
+    expect(screen.getByTestId("reveal-first-message-copy").textContent).toBe("Скопійовано.");
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(beacon).not.toHaveBeenCalled();
+  });
+
+  it("stays silent when the clipboard is refused, and the message stays on screen", async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error("denied"));
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    renderOpen(revealWith(ALL));
+
+    fireEvent.click(screen.getByRole("button", { name: "Копіювати повідомлення" }));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    expect(screen.getByRole("status").textContent).toBe("");
+    expect(screen.getByText(MESSAGE_MALE)).toBeTruthy();
+  });
+
+  it("carries the encoded message on mailto and wa.me, and leaves Telegram, Viber and Instagram as they were", () => {
+    renderOpen(revealWith(ALL));
+    const hrefs = screen
+      .getAllByTestId("reveal-contact-row")
+      .map((row) => within(row).getByRole("link").getAttribute("href"));
+    expect(hrefs).toEqual([
+      `mailto:hello@domivka.example?body=${ENCODED_MALE}`,
+      `https://wa.me/380501112233?text=${ENCODED_MALE}`,
+      "https://t.me/domivka_brovary",
+      "viber://chat?number=%2B380671234567",
+      "https://www.instagram.com/dobri_lapy/",
+    ]);
+    // The body decodes back to the exact message: no «+» for spaces, nothing lost to « » or ':'.
+    expect(decodeURIComponent((hrefs[0] as string).split("?body=")[1] as string)).toBe(
+      MESSAGE_MALE,
+    );
   });
 });

@@ -334,6 +334,21 @@ test.describe("/tvaryny/[animalId] contact reveal – before, after, and close",
     await expect(shelterLine.first()).toBeVisible();
   });
 
+  test("a phone shows the suggested first message, naming this card, with its copy button", async ({
+    page,
+  }) => {
+    await openFirstAnimalDetail(page, DETAIL_PHONE);
+    const path = new URL(page.url()).pathname;
+    await page.getByTestId("reveal-trigger").click();
+
+    const block = page.getByRole("region", { name: "Можна почати з такого повідомлення:" });
+    await expect(block).toBeVisible();
+    await expect(page.getByTestId("reveal-first-message-text")).toContainText(
+      `https://opika.org.ua${path}.`,
+    );
+    await expect(page.getByRole("button", { name: "Копіювати повідомлення" })).toBeVisible();
+  });
+
   test("focus moves to the dialog's own heading on open", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
     await page.getByTestId("reveal-trigger").click();

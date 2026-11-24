@@ -1,6 +1,6 @@
 "use client";
 
-import type { AnimalId } from "@opika/domain";
+import type { AnimalId, AnimalSex } from "@opika/domain";
 import { ukPublic as uk } from "@opika/i18n/public";
 import { useCallback, useRef } from "react";
 import { Button } from "../../ui/Button";
@@ -10,6 +10,7 @@ import { useReveal } from "../reveal/useReveal";
 interface RevealFlowProps {
   animalId: AnimalId;
   animalName: string;
+  sex: AnimalSex;
   cityName: string | null;
   cityLabel?: string | null | undefined;
 }
@@ -44,13 +45,13 @@ interface RevealFlowProps {
  * "Написати притулку" to `uk.detail.giveHome`.
  * The dialog it opens, `secondaryAction` included, is untouched.
  */
-export function RevealFlow({ animalId, animalName, cityName, cityLabel }: RevealFlowProps) {
+export function RevealFlow({ animalId, animalName, sex, cityName, cityLabel }: RevealFlowProps) {
   const { state, open, close: closeReveal } = useReveal();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   const openThisAnimal = useCallback(
-    () => open({ animalId, animalName, cityName, cityLabel }),
-    [open, animalId, animalName, cityName, cityLabel],
+    () => open({ animalId, animalName, sex, cityName, cityLabel }),
+    [open, animalId, animalName, sex, cityName, cityLabel],
   );
 
   // Memoised - caught on review: an inline arrow here re-created a new

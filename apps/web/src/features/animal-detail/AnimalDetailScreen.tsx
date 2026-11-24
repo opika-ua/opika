@@ -161,6 +161,7 @@ export function AnimalDetailContent({
               <RevealFlow
                 animalId={animal.id}
                 animalName={animal.name}
+                sex={animal.sex}
                 cityName={cityPlace}
                 cityLabel={cityName}
               />

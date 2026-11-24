@@ -637,6 +637,17 @@ export const ukPublic = {
      * (audit 2026-10-22, #8), behaviour unchanged. The key keeps its old name.
      */
     backToFeed: "Повернутися до картки",
+    /**
+     * A suggested first message above the contact rows (owner-approved 2026-11-24, rows 1–5).
+     * «щодо картки «{name}»» keeps the name in the nominative; {site} is the wordmark, {url} the card.
+     */
+    firstMessage: {
+      heading: "Можна почати з такого повідомлення:",
+      male: "Добрий день. Пишу щодо картки «{name}» на {site}: {url}. Він ще шукає дім?",
+      female: "Добрий день. Пишу щодо картки «{name}» на {site}: {url}. Вона ще шукає дім?",
+      unknown: "Добрий день. Пишу щодо картки «{name}» на {site}: {url}. Ця тварина ще шукає дім?",
+      copy: "Копіювати повідомлення",
+    },
   },
 
   // --- My reveals (06) ---
