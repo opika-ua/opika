@@ -30,7 +30,7 @@ describe("notifyRuntimeOf in production", () => {
   it("serves deps that warn the operator at 80% of the cap", () => {
     const runtime = notifyRuntimeOf(full);
     if (runtime.kind !== "on") throw new Error("expected the runtime to be on");
-    expect(notifyDepsOf(runtime, {} as Database).warnNearCap).toBe(true);
+    expect(notifyDepsOf(runtime, {} as Database).nearCapWarning).toEqual({ kind: "mail_operator" });
   });
 
   it("is off for a preview, an unidentified environment and an unknown one", () => {

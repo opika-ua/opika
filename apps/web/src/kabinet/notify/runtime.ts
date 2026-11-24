@@ -97,7 +97,7 @@ export const notifyDepsOf = (
   mail: runtime.mail,
   context: runtime.context,
   eventCap: runtime.eventCap,
-  warnNearCap: true,
+  nearCapWarning: { kind: "mail_operator" },
   now: () => new Date(),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   log: warn,

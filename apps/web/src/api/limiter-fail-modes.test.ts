@@ -108,6 +108,27 @@ describe("limiter fail modes with the store unreachable", () => {
     }
   });
 
+  // These paths read a limiter through `attemptOf` and refuse on «unavailable» whatever its own
+  // mode says (review of #567), so the limiters behind them must stay `deny` to keep one answer.
+  it("guard: the limiters behind forgot, reset, invite and registration's firstLimit stay deny", async () => {
+    const registered = await loadAllLimiters();
+    const { passwordLimiters, inviteLimiters } = await import("../kabinet/limiters");
+    const { registrationLimiters } = await import("../features/registration/limits");
+    const readThroughAttemptOf = {
+      "password-hooks forgotPerIp": passwordLimiters.forgotPerIp,
+      "password-hooks forgotPerAddress": passwordLimiters.forgotPerAddress,
+      "password-hooks resetPerIp": passwordLimiters.resetPerIp,
+      "invite-password perIp": inviteLimiters.perIp,
+      "firstLimit perIpHour": registrationLimiters.perIpHour,
+      "firstLimit perIpDay": registrationLimiters.perIpDay,
+      "firstLimit perAddress": registrationLimiters.perAddress,
+    };
+    for (const [path, limiter] of Object.entries(readThroughAttemptOf)) {
+      const entry = [...registered.values()].find((candidate) => candidate.limiter === limiter);
+      expect(entry?.onUnavailable, path).toBe("deny");
+    }
+  });
+
   it("guard: every file that builds a shared limiter is one the tables cover", () => {
     const here = join(__dirname, "..");
     const callers: string[] = [];

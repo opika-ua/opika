@@ -200,6 +200,8 @@ export async function handleKabinetRpc(
   let identity: Awaited<ReturnType<typeof deps.resolve>> | undefined;
   let bounded: Request;
   if (invitationLink) {
+    // In a store outage this still reads its 16 KB body and resolves the session before its
+    // procedure refuses as unavailable (#567, kept): the form's own message is worth that cost.
     const small = await boundedBody(request, KABINET_UNVERIFIED_MAX_BODY_BYTES);
     if (small === "too_large") return tooLarge();
     bounded = small;

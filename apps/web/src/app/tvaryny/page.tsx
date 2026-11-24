@@ -1,11 +1,5 @@
 import type { CityLabelView, GalleryFacetCounts } from "@opika/contracts";
-import {
-  ANY,
-  type FeedFilters,
-  GALLERY_SORT_LISTS,
-  type GallerySort,
-  type RegionId,
-} from "@opika/domain";
+import { ANY, type FeedFilters, type GallerySort, type RegionId } from "@opika/domain";
 import { fillTemplate, placeName, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
@@ -288,7 +282,7 @@ export async function renderGallery(
     : uk.feed.galleryTitle;
   // An empty «Зачекались» (it leaves stale cards out) is a result, not an empty registry.
   const registryEmpty =
-    page.totalMatching === 0 && !anyFilterSet(filters) && GALLERY_SORT_LISTS[sort] === "every_card";
+    page.totalMatching === 0 && !anyFilterSet(filters) && sort !== "longest_waiting";
 
   return (
     <div className="min-h-dvh bg-page">
