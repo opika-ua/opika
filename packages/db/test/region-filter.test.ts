@@ -167,7 +167,11 @@ describe("the oblast filter (union of scopes)", () => {
 describe("galleryRepo.facetCounts, location facets", () => {
   it("offers only the cities that have animals, with their labels, and rolls them up per oblast", async () => {
     const { brovary, irpin, lviv, yalta, empty } = await corpus();
-    const counts = await galleryRepo(db).facetCounts({ filters: NO_FILTERS, now: NOW });
+    const counts = await galleryRepo(db).facetCounts({
+      sort: "freshest",
+      filters: NO_FILTERS,
+      now: NOW,
+    });
 
     const byCity = new Map(counts.cities.map((c) => [c.cityId, c.count]));
     expect(byCity).toEqual(
@@ -191,7 +195,11 @@ describe("galleryRepo.facetCounts, location facets", () => {
 
   it("offers Crimea like any region, and its animals count in the tallies and the list alike", async () => {
     const { yalta } = await corpus();
-    const counts = await galleryRepo(db).facetCounts({ filters: NO_FILTERS, now: NOW });
+    const counts = await galleryRepo(db).facetCounts({
+      sort: "freshest",
+      filters: NO_FILTERS,
+      now: NOW,
+    });
     expect(counts.regions.find((r) => r.regionId === CRIMEA)?.count).toBe(1);
     expect(counts.cities.find((c) => c.cityId === yalta.id)?.count).toBe(1);
     expect(await total({ ...NO_FILTERS, regions: regionsOf(CRIMEA) })).toBe(1);
@@ -203,6 +211,7 @@ describe("galleryRepo.facetCounts, location facets", () => {
   it("relaxes both location dimensions, so a pick in one oblast does not zero the others", async () => {
     const { brovary, lviv } = await corpus();
     const counts = await galleryRepo(db).facetCounts({
+      sort: "freshest",
       filters: { ...NO_FILTERS, regions: regionsOf(KYIV_OBL), cities: citiesOf(brovary.id) },
       now: NOW,
     });
@@ -213,7 +222,7 @@ describe("galleryRepo.facetCounts, location facets", () => {
   it("gives every option the total the list reports with that option chosen alone", async () => {
     const { brovary, irpin, lviv } = await corpus();
     const filters: FeedFilters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } };
-    const counts = await galleryRepo(db).facetCounts({ filters, now: NOW });
+    const counts = await galleryRepo(db).facetCounts({ sort: "freshest", filters, now: NOW });
 
     for (const city of [brovary, irpin, lviv]) {
       expect(counts.cities.find((c) => c.cityId === city.id)?.count).toBe(

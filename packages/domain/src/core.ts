@@ -45,6 +45,16 @@ export type GallerySort = (typeof GALLERY_SORTS)[number];
  */
 export const DEFAULT_GALLERY_SORT: GallerySort = "freshest";
 
+/**
+ * Which cards a sort lists. «Зачекались» leaves out the stale ones; the freshest sort lists every
+ * card (owner, 2026-11-24, verbatim: `"Fresh" = not stale (≤30 days), applied only inside
+ * «Зачекались», no toggle.`).
+ */
+export const GALLERY_SORT_LISTS = {
+  freshest: "every_card",
+  longest_waiting: "not_stale",
+} as const satisfies Record<GallerySort, "every_card" | "not_stale">;
+
 export const LOCALES = ["uk", "en"] as const;
 export type Locale = (typeof LOCALES)[number];
 

@@ -47,6 +47,14 @@ export const DEFAULT_FRESHNESS_POLICY: FreshnessPolicy = {
 const MS_PER_DAY = 86_400_000;
 
 /**
+ * A confirmation at or before this instant reads as `stale` under `policy` (`freshnessOf`: more than
+ * `agingMaxDays` whole days old). The SQL that leaves stale cards out compares against it, so the
+ * list and the badge share one boundary.
+ */
+export const staleCutoff = (now: Date, policy: FreshnessPolicy): Date =>
+  new Date(now.getTime() - (policy.agingMaxDays + 1) * MS_PER_DAY);
+
+/**
  * A visible card nobody has confirmed for this many days is named in the shelter's weekly email.
  * Its own number, shorter than the 30 days at which the card reads «stale» to adopters: a nudge
  * before the badge, not the badge's own threshold (owner, proposal Q1).

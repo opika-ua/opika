@@ -93,6 +93,7 @@ export async function runFiltersSmoke(db: Database): Promise<Outcome[]> {
     new Map(
       (
         await galleryRepo(db).facetCounts({
+          sort: "freshest",
           filters: { ...NO_FILTERS, regions: regionsOf(ZAKARPATTIA) },
           now: NOW,
         })
@@ -140,6 +141,7 @@ export async function runFiltersSmoke(db: Database): Promise<Outcome[]> {
   );
 
   const counts = await galleryRepo(db).facetCounts({
+    sort: "freshest",
     filters: { ...NO_FILTERS, regions: regionsOf(ZAKARPATTIA) },
     now: NOW,
   });

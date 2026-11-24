@@ -156,10 +156,14 @@ describe("the SQL discoverability predicate matches the domain rule", () => {
       expect(item.shelter.availability, found?.label).toBe("open");
     }
 
-    const facets = await gallery.facetCounts({ filters: NO_FILTERS, now: NOW });
+    const facets = await gallery.facetCounts({ sort: "freshest", filters: NO_FILTERS, now: NOW });
     expect(facets.cities.reduce((sum, entry) => sum + entry.count, 0)).toBe(expectedIds.length);
 
-    const relaxed = await gallery.relaxationCounts({ filters: NO_FILTERS, now: NOW });
+    const relaxed = await gallery.relaxationCounts({
+      sort: "freshest",
+      filters: NO_FILTERS,
+      now: NOW,
+    });
     expect(relaxed.current).toBe(expectedIds.length);
 
     const sitemap = await gallery.sitemapRows({ now: NOW });

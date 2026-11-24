@@ -5,6 +5,7 @@ import {
   FreshnessPolicySchema,
   formatFreshnessRelative,
   freshnessOf,
+  staleCutoff,
 } from "./freshness";
 
 const NOW = new Date("2026-08-05T12:00:00.000Z");
@@ -52,6 +53,24 @@ describe("FreshnessPolicy validation", () => {
 
   it("accepts the shipped default", () => {
     expect(FreshnessPolicySchema.safeParse(DEFAULT_FRESHNESS_POLICY).success).toBe(true);
+  });
+});
+
+describe("staleCutoff", () => {
+  // The gallery's «Зачекались» clause compares `last_confirmed_at > staleCutoff`, so this pins the
+  // instant on both sides against `freshnessOf` itself, not against a restated number.
+  for (const policy of [DEFAULT_FRESHNESS_POLICY, { freshMaxDays: 1, agingMaxDays: 3 }]) {
+    it(`is the newest stale confirmation under agingMaxDays ${policy.agingMaxDays}`, () => {
+      const cutoff = staleCutoff(NOW, policy);
+      expect(freshnessOf(cutoff, NOW, policy).kind).toBe("stale");
+      expect(freshnessOf(new Date(cutoff.getTime() + 1), NOW, policy).kind).toBe("aging");
+    });
+  }
+
+  it("leaves a card confirmed exactly 30 days ago on the not-stale side, and 31 days ago on the stale side", () => {
+    const cutoff = staleCutoff(NOW, DEFAULT_FRESHNESS_POLICY).getTime();
+    expect(daysAgo(30).getTime()).toBeGreaterThan(cutoff);
+    expect(daysAgo(31).getTime()).toBe(cutoff);
   });
 });
 

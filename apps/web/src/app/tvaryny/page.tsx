@@ -1,5 +1,11 @@
 import type { CityLabelView, GalleryFacetCounts } from "@opika/contracts";
-import { ANY, type FeedFilters, type GallerySort, type RegionId } from "@opika/domain";
+import {
+  ANY,
+  type FeedFilters,
+  GALLERY_SORT_LISTS,
+  type GallerySort,
+  type RegionId,
+} from "@opika/domain";
 import { fillTemplate, placeName, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
@@ -142,7 +148,7 @@ export async function readGallery(
   // no-JS sheet too (measured and argued in the filter selectors PR).
   const [page, facetCounts] = await Promise.all([
     client.gallery.list({ filters, sort: parsed.sort, page: parsed.page }),
-    client.gallery.facetCounts({ filters }),
+    client.gallery.facetCounts({ filters, sort: parsed.sort }),
   ]);
 
   // Labels for every link the page writes: the cities with an animal (the filter's options), the
@@ -271,7 +277,7 @@ export async function renderGallery(
    */
   const relaxations =
     page.totalMatching === 0
-      ? (await client.gallery.relaxationCounts({ filters })).relaxations
+      ? (await client.gallery.relaxationCounts({ filters, sort })).relaxations
       : [];
   const neighbourRegions =
     page.totalMatching === 0 ? neighbourRegionsOf(filters.regions, book, facetCounts.regions) : [];
@@ -280,7 +286,9 @@ export async function renderGallery(
   const heading = cityPage
     ? fillTemplate(uk.cityPage.heading, { city: placeName(cityPage.city) })
     : uk.feed.galleryTitle;
-  const registryEmpty = page.totalMatching === 0 && !anyFilterSet(filters);
+  // An empty «Зачекались» (it leaves stale cards out) is a result, not an empty registry.
+  const registryEmpty =
+    page.totalMatching === 0 && !anyFilterSet(filters) && GALLERY_SORT_LISTS[sort] === "every_card";
 
   return (
     <div className="min-h-dvh bg-page">

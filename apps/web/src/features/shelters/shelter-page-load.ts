@@ -9,6 +9,7 @@ import {
   type AnimalSpecies,
   type CityId,
   FEED_FILTER_DIMENSIONS,
+  GALLERY_SORT_LISTS,
   isConstrained,
   NO_FILTERS,
   ShelterIdSchema,
@@ -40,6 +41,8 @@ export interface ShelterPageView {
   /** «Тварини в: …»: every city its listed animals are in, the shelter's first; empty when that is the only one. */
   animalCities: readonly string[];
   query: ShelterPageQuery;
+  /** All of the shelter's discoverable animals, whatever the filters and the sort: the heading's number. */
+  listedTotal: number;
   /** The filter controls' data; null while the shelter has {@link SHELTER_FILTERS_ABOVE} animals or fewer and no filter is on. */
   filterUi: ShelterFilterUi | null;
 }
@@ -68,10 +71,8 @@ export function animalCitiesOf(
 }
 
 export interface ShelterFilterUi {
-  /** Per-option counts for the filters in force, scoped to this shelter. */
+  /** Per-option counts for the filters and the sort in force, scoped to this shelter. */
   counts: GalleryFacetCounts;
-  /** All of the shelter's discoverable animals, whatever the filters (the heading's number). */
-  total: number;
   /** The species switch shows only when both are present. */
   hasBothSpecies: boolean;
   /** Suggestions for a no-match page; empty otherwise. */
@@ -114,14 +115,17 @@ export async function loadShelterPage(
     const filtersOn = FEED_FILTER_DIMENSIONS.some((dimension) =>
       isConstrained(query.filters, dimension),
     );
+    // The shelter's whole count is the freshest sort's, unfiltered: that sort lists every card,
+    // while «Зачекались» leaves the stale ones out of the list and its counts.
+    const listsEveryCard = GALLERY_SORT_LISTS[query.sort] === "every_card";
     const shelterRead = client.shelters.byId({ shelterId });
     const restRead = Promise.all([
       client.gallery.list({ filters: query.filters, sort: query.sort, page: query.page, scope }),
+      filtersOn || !listsEveryCard
+        ? client.gallery.facetCounts({ filters: NO_FILTERS, sort: "freshest", scope })
+        : null,
       filtersOn
-        ? Promise.all([
-            client.gallery.facetCounts({ filters: query.filters, scope }),
-            client.gallery.facetCounts({ filters: NO_FILTERS, scope }),
-          ])
+        ? client.gallery.facetCounts({ filters: query.filters, sort: query.sort, scope })
         : null,
     ]);
     // The shelter settles first: its NOT_FOUND (or RATE_LIMITED) must win over a failure of a read
@@ -129,48 +133,49 @@ export async function loadShelterPage(
     // rejection is then handled below, or silenced if the shelter already ended the page.
     restRead.catch(() => undefined);
     const shelter = await shelterRead;
-    const [animals, early] = await restRead;
-    // Second wait, all together: the counts the list's total calls for, the zero-match suggestions,
-    // and the shelter's own city when no card carried it (the cards' cities ride with the list).
+    const [animals, whole, early] = await restRead;
+    // Without `whole`, the list is the freshest sort's and unfiltered, so its total is the whole.
+    const listedTotal = whole ? whole.species.dog + whole.species.cat : animals.totalMatching;
+    // Second wait, all together: the counts the shelter's total calls for, the zero-match
+    // suggestions, and the shelter's own city when no card carried it (the cards' cities ride with
+    // the list).
     const shelterCityId = shelter.publicLocation.cityId;
-    const needsCounts = filtersOn || animals.totalMatching > SHELTER_FILTERS_ABOVE;
-    const [counted, relaxed, cityRows] = await Promise.all([
+    const needsCounts = filtersOn || listedTotal > SHELTER_FILTERS_ABOVE;
+    const [counts, relaxed, cityRows] = await Promise.all([
       early ??
         (needsCounts
-          ? client.gallery
-              .facetCounts({ filters: query.filters, scope })
-              .then((c) => [c, c] as const)
+          ? client.gallery.facetCounts({ filters: query.filters, sort: query.sort, scope })
           : null),
       needsCounts && animals.totalMatching === 0
-        ? client.gallery.relaxationCounts({ filters: query.filters, scope })
+        ? client.gallery.relaxationCounts({ filters: query.filters, sort: query.sort, scope })
         : null,
       animals.cityLabels.some((city) => city.id === shelterCityId)
         ? null
         : client.cities.byIds({ ids: [shelterCityId] }),
     ]);
+    // The shelter's own facts (species, cities) come from the whole; `counts` is the whole only
+    // when neither a filter nor the sort narrows the list.
+    const all = whole ?? counts;
     let filterUi: ShelterFilterUi | null = null;
-    if (counted) {
-      const [counts, all] = counted;
+    if (counts && all) {
       filterUi = {
         counts,
-        total: all.species.dog + all.species.cat,
         hasBothSpecies: all.species.dog > 0 && all.species.cat > 0,
         relaxations: relaxed?.relaxations ?? [],
       };
     }
-    // Without counts there are at most 12 animals and no filter, so page 1 holds them all.
+    // Without either count there are at most 12 animals, no filter and the freshest sort, so page 1
+    // holds them all.
     const listedSpecies = ANIMAL_SPECIES.filter((species) =>
-      counted
-        ? counted[1].species[species] > 0
-        : animals.items.some((card) => card.species === species),
+      all ? all.species[species] > 0 : animals.items.some((card) => card.species === species),
     );
     const shelterCity =
       animals.cityLabels.find((city) => city.id === shelterCityId) ??
       cityRows?.find((city) => city.id === shelterCityId) ??
       null;
     // With counts, the cities come from the unfiltered scan; without, page 1 holds every animal.
-    const listedCityLabels = counted
-      ? counted[1].cities.filter((city) => city.count > 0).map((city) => city.label)
+    const listedCityLabels = all
+      ? all.cities.filter((city) => city.count > 0).map((city) => city.label)
       : animals.cityLabels;
     const cityNames = new Map<CityId, string>(
       animals.cityLabels.map((city) => [city.id, placeName(city)]),
@@ -186,6 +191,7 @@ export async function loadShelterPage(
         cityNames,
         animalCities: animalCitiesOf(shelterCityId, listedCityLabels),
         query,
+        listedTotal,
         filterUi,
       },
     };

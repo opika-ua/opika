@@ -95,6 +95,16 @@ describe("gallery pagination input", () => {
     ).toBe(false);
   });
 
+  it("gives the facet and relaxation counts the list's sort, with the list's default", () => {
+    for (const schema of [GalleryFacetCountsInputSchema, GalleryRelaxationCountsInputSchema]) {
+      expect(schema.parse({ filters: ANY_FILTERS }).sort).toBe("freshest");
+      expect(schema.parse({ filters: ANY_FILTERS, sort: "longest_waiting" }).sort).toBe(
+        "longest_waiting",
+      );
+      expect(schema.safeParse({ filters: ANY_FILTERS, sort: "best_match" }).success).toBe(false);
+    }
+  });
+
   it("refuses a sort mode outside the two the surface offers", () => {
     expect(
       GalleryListInputSchema.safeParse({ filters: ANY_FILTERS, sort: "best_match" }).success,

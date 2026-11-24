@@ -112,6 +112,8 @@ export type GalleryRelaxation = z.infer<typeof GalleryRelaxationSchema>;
 
 export const GalleryRelaxationCountsInputSchema = z.object({
   filters: FeedFiltersSchema,
+  /** The list's sort: one sort lists fewer cards than the other, so the counts follow it. */
+  sort: GallerySortSchema.default(DEFAULT_GALLERY_SORT),
   /** As on `gallery.list`: one shelter's animals for its page, everyone by default. */
   scope: GalleryScopeSchema.default(EVERYONE_SCOPE),
 });
@@ -141,6 +143,8 @@ export const galleryRelaxationCountsContract = oc
 
 export const GalleryFacetCountsInputSchema = z.object({
   filters: FeedFiltersSchema,
+  /** The list's sort: one sort lists fewer cards than the other, so the counts follow it. */
+  sort: GallerySortSchema.default(DEFAULT_GALLERY_SORT),
   /**
    * The same scope as `gallery.list`: `{ kind: "shelter" }` counts one shelter's animals only (its
    * page's filters). Defaults to everyone, so every caller that predates it is unchanged.

@@ -205,7 +205,7 @@ describe("the shelter page, states", () => {
 });
 
 describe("the shelter page, filters", () => {
-  const UI = { counts: makeFacetCounts(), total: 41, hasBothSpecies: true, relaxations: [] };
+  const UI = { counts: makeFacetCounts(), hasBothSpecies: true, relaxations: [] };
   const many = makeListOutput([makeCardView(1), makeCardView(2)]);
 
   it("shows no filter controls without filterUi", () => {
@@ -215,7 +215,7 @@ describe("the shelter page, filters", () => {
   });
 
   it("with filterUi: the species switch, the «Фільтри» sheet and the desktop selectors, but no Область or Місто", async () => {
-    renderScreen({ animals: many, filterUi: UI });
+    renderScreen({ animals: many, listedTotal: 41, filterUi: UI });
     expect(screen.getByTestId("species-toggle-mobile")).toBeTruthy();
     expect(await screen.findByTestId("filter-sheet-trigger")).toBeTruthy();
     const desktop = screen.getByTestId("gallery-filter-dropdowns");
@@ -269,6 +269,7 @@ describe("the shelter page, filters", () => {
   it("with no match: the gallery's no-match block, no list", () => {
     renderScreen({
       animals: makeListOutput([]),
+      listedTotal: 20,
       filterUi: { ...UI, relaxations: [{ dimension: "ages", additional: 7 }] },
       query: {
         sort: "freshest",
@@ -302,6 +303,7 @@ describe("the shelter page, filters", () => {
   it("no match with only zero-gain suggestions: none shown, «Скинути» back to the bare shelter page", () => {
     renderScreen({
       animals: makeListOutput([]),
+      listedTotal: 20,
       filterUi: { ...UI, relaxations: [{ dimension: "species", additional: 0 }] },
       query: {
         sort: "freshest",
@@ -311,5 +313,25 @@ describe("the shelter page, filters", () => {
     });
     expect(screen.queryByTestId("no-match-suggestion")).toBeNull();
     expect(screen.getByTestId("no-match-reset").getAttribute("href")).toBe(PAGE);
+  });
+});
+
+describe("the shelter page under «Зачекались» (it leaves stale cards out)", () => {
+  const WAITING = { sort: "longest_waiting", page: 1, filters: NO_FILTERS } as const;
+
+  it("with every card stale: the shelter's own count and the sort stay, and the no-match block replaces the list", () => {
+    renderScreen({ animals: makeListOutput([]), listedTotal: 5, query: WAITING });
+    expect(screen.getByRole("heading", { level: 2, name: "Шукають дім: 5" })).toBeTruthy();
+    expect(screen.getByRole("navigation", { name: "Сортування" })).toBeTruthy();
+    expect(screen.getByTestId("gallery-no-match")).toBeTruthy();
+    expect(screen.queryByTestId("shelter-no-animals")).toBeNull();
+    expect(screen.queryByTestId("no-match-reset")).toBeNull();
+  });
+
+  it("with one card not stale out of five: the heading is still the shelter's five, and the sort stays", () => {
+    renderScreen({ animals: makeListOutput([makeCardView(1)]), listedTotal: 5, query: WAITING });
+    expect(screen.getByRole("heading", { level: 2, name: "Шукають дім: 5" })).toBeTruthy();
+    expect(screen.getByRole("navigation", { name: "Сортування" })).toBeTruthy();
+    expect(screen.queryByTestId("gallery-no-match")).toBeNull();
   });
 });

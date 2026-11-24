@@ -107,6 +107,7 @@ describe("galleryRepo.cityPages (SEO B3: a city page exists only with an indexab
 
     // The early-listed animal is in the gallery (any-listed), so the empty answer is the basis, not the fixture.
     const gallery = await galleryRepo(db).facetCounts({
+      sort: "freshest",
       filters: NO_FILTERS,
       now: NOW,
     });
@@ -189,6 +190,7 @@ describe("galleryRepo.facetCounts' hasPage: the same rule, riding the facet grou
     ]);
 
     const counts = await galleryRepo(db).facetCounts({
+      sort: "freshest",
       filters: { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } },
       now: NOW,
     });

@@ -156,3 +156,26 @@ describe("NoMatch: an empty registry versus filters that exclude everything", ()
     expect(screen.getByRole("link", { name: "Скинути" })).toBeTruthy();
   });
 });
+
+describe("NoMatch: an empty «Зачекались» with no filter", () => {
+  it("is the no-match state, not the empty registry, and offers no reset that changes nothing", () => {
+    render(
+      <NoMatch
+        filters={NO_FILTERS}
+        sort="longest_waiting"
+        citySlugs={new Map()}
+        relaxations={[]}
+      />,
+    );
+    expect(
+      screen.getByRole("heading", { name: "Під ці фільтри зараз нікого немає." }),
+    ).toBeTruthy();
+    expect(screen.queryByText("Тут поки немає тварин.")).toBeNull();
+    expect(screen.queryByTestId("no-match-reset")).toBeNull();
+  });
+
+  it("under the freshest sort the same empty page is the empty registry", () => {
+    render(<NoMatch filters={NO_FILTERS} sort="freshest" citySlugs={new Map()} relaxations={[]} />);
+    expect(screen.getByRole("heading", { name: "Тут поки немає тварин." })).toBeTruthy();
+  });
+});
