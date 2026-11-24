@@ -96,6 +96,13 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
       next: { kind: "unregistered_initiative", contactPersonName: "Олена К." },
     },
   },
+  premises_changed: {
+    kind: "premises_changed",
+    at: new Date("2026-10-08T00:30:00.000Z"),
+    moderatorId: MOD,
+    previous: { kind: "not_recorded" },
+    next: { kind: "foster_homes" },
+  },
   shelter_created: {
     kind: "shelter_created",
     at: new Date("2026-10-09T00:00:00.000Z"),
@@ -463,6 +470,7 @@ describe("historyEntryAt", () => {
         "2026-10-07",
         "2026-10-07",
         "2026-10-07",
+        "2026-10-08",
         "2026-10-08",
         "2026-10-09",
         "2026-10-09",

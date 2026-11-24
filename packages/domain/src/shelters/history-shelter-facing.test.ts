@@ -108,6 +108,13 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
       next: { kind: "unregistered_initiative", contactPersonName: "Олена К." },
     },
   },
+  premises_changed: {
+    kind: "premises_changed",
+    at: AT,
+    moderatorId: MOD,
+    previous: { kind: "not_recorded" },
+    next: { kind: "foster_homes" },
+  },
   shelter_created: { kind: "shelter_created", at: AT, moderatorId: MOD, via: "script" },
   shelter_registered: { kind: "shelter_registered", at: AT, shelterAdminId: ADMIN_ID },
   not_me_after_approval: { kind: "not_me_after_approval", at: AT },
@@ -367,6 +374,19 @@ describe("shelterFacingHistoryOf", () => {
   });
 
   /** R-UI 4: both names, the operator as the actor, and no moderator id. */
+  it("premises_changed: both premises, the operator by display name, no address for foster homes", () => {
+    const item = shelterFacingHistoryOf(ENTRIES.premises_changed, OPERATOR);
+    expect(item).toEqual({
+      kind: "premises_changed",
+      at: AT,
+      actor: { kind: "operator", displayName: OPERATOR },
+      previous: { kind: "not_recorded" },
+      next: { kind: "foster_homes" },
+    });
+    expect(JSON.stringify(item)).not.toContain("line1");
+    expect(JSON.stringify(item)).not.toContain(MOD);
+  });
+
   it("display_name_changed: both names, the operator by display name", () => {
     expect(facing(ENTRIES.display_name_changed, OPERATOR)).toEqual({
       kind: "display_name_changed",

@@ -169,7 +169,7 @@ export const ShelterRegistrationViewSchema = z.discriminatedUnion("source", [
 export type ShelterRegistrationView = z.infer<typeof ShelterRegistrationViewSchema>;
 
 /**
- * K4: what a shelter sees of itself. Legal entity and premises address appear
+ * K4: what a shelter sees of itself. Legal entity and premises appear
  * read-only in the locked block; verification is the shelter-facing projection
  * (no evidence, no moderator ids). `version` goes out so a write can send back
  * what it read.
@@ -179,7 +179,7 @@ export const KabinetShelterViewSchema = ShelterSchema.pick({
   displayName: true,
   description: true,
   legalEntity: true,
-  exactAddress: true,
+  premises: true,
   contact: true,
   donation: true,
   pendingDonation: true,
@@ -362,7 +362,7 @@ export const RegistryShelterViewSchema = ShelterSchema.pick({
   description: true,
   legalEntity: true,
   publicLocation: true,
-  exactAddress: true,
+  premises: true,
   contact: true,
   donation: true,
   pendingDonation: true,
