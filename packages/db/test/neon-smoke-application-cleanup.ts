@@ -130,7 +130,7 @@ export async function runApplicationCleanupSmoke(db: Database): Promise<Outcome[
         evidence: { items: [], submittedAt: NOW },
       },
     });
-    const shelter: Shelter = { ...fixture, legalEntity: null, exactAddress: null };
+    const shelter: Shelter = { ...fixture, legalEntity: null, premises: { kind: "not_recorded" } };
     await shelterRepo(db).insert(shelter);
     const organizationId = randomUUID();
     await db

@@ -49,7 +49,7 @@ export async function runRevealRetentionSmoke(db: Database): Promise<Outcome[]> 
   await cityRepo(db).insert(city);
   const shelter = makeShelter({
     id: randomUUID() as ShelterId,
-    exactAddress: { ...makeShelter().exactAddress, cityId: city.id },
+    premises: { kind: "address", address: { ...makeShelter().premises.address, cityId: city.id } },
   });
   await shelterRepo(db).insert(shelter);
   const animals: AnimalId[] = [];

@@ -2,7 +2,7 @@ import {
   DISCOVERABLE_LISTING_KINDS,
   type DonationLink,
   EARLY_LISTING_STATUSES,
-  type ExactAddress,
+  type RecordedPremises,
   historyEntryAt,
   type LocalizedText,
   type PendingDonation,
@@ -21,7 +21,7 @@ import { animals } from "../schema/animals";
 import { shelterHistory } from "../schema/shelter-history";
 import { shelters } from "../schema/shelters";
 import { historyRowSelect } from "./history-sql";
-import { exactPointColumns, optionalTextToColumns, shelterToRow } from "./mappers";
+import { optionalTextToColumns, premisesColumns, shelterToRow } from "./mappers";
 
 /**
  * One audited change to a shelter, as a union rather than an arbitrary column
@@ -45,11 +45,11 @@ export type AuditedShelterChange =
   /** The shelter's own logo, set or cleared (pet card PR 3b). */
   | { kind: "logo"; logo: ShelterLogo | null }
   /**
-   * The premises moved (S4). The public location is recomputed by the caller
-   * with the location policy and travels with the address, never apart from
-   * it, so the fuzzed pin can't describe an address the row no longer holds.
+   * The premises recorded or changed (S4): an address, or foster homes with none. The public
+   * location is recomputed by the caller (`premisesPublicLocationOf`) and travels with them, so
+   * the fuzzed pin can't describe an address the row no longer holds.
    */
-  | { kind: "exact_address"; exactAddress: ExactAddress; publicLocation: PublicLocation }
+  | { kind: "premises"; premises: RecordedPremises; publicLocation: PublicLocation }
   /** The operator approved the proposed link: it goes live and the proposal clears (N20). */
   | { kind: "donation_approved"; donation: DonationLink }
   /**
@@ -109,12 +109,11 @@ function columnsOf(change: AuditedShelterChange) {
       return { legalEntity: change.legalEntity };
     case "logo":
       return { logo: change.logo };
-    case "exact_address":
+    case "premises":
       return {
-        exactAddress: change.exactAddress,
+        ...premisesColumns(change.premises),
         publicLocation: change.publicLocation,
         cityId: change.publicLocation.cityId,
-        ...exactPointColumns(change.exactAddress),
       };
     case "donation_approved":
       return { donation: change.donation, pendingDonation: null };
@@ -204,7 +203,7 @@ export function kabinetShelterRepo(db: Database) {
       );
       // An address move and a city move both carry the animals that follow the shelter's city.
       const moved = input.changes.find(
-        (change) => change.kind === "exact_address" || change.kind === "city",
+        (change) => change.kind === "premises" || change.kind === "city",
       );
       // S8-F5, hook 2: entering `verified` (approve, resume, reinstate - the
       // only three events `transition()` can produce this status for) can

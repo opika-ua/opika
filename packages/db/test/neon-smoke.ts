@@ -163,8 +163,8 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   const base = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} A` });
   const shelter = {
     ...base,
-    exactAddress: { ...base.exactAddress, cityId: city.id },
-    publicLocation: publicLocationOf(base.id, { ...base.exactAddress, cityId: city.id }, policy),
+    exactAddress: { ...base.premises.address, cityId: city.id },
+    publicLocation: publicLocationOf(base.id, { ...base.premises.address, cityId: city.id }, policy),
   };
   const shelters = kabinetShelterRepo(db);
   const history = () => shelters.historyOf(shelter.id);
@@ -265,7 +265,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
 
   // 5. an address change: pin, city, and the at-shelter animal move in one statement; the fostered one stays.
   const nextAddress = {
-    ...shelter.exactAddress,
+    ...shelter.premises.address,
     cityId: otherCity.id,
     coordinates: { lat: 49.84, lng: 24.03 },
   };
@@ -273,15 +273,16 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     shelterId: shelter.id,
     expectedVersion: 1,
     change: {
-      kind: "exact_address",
-      exactAddress: nextAddress,
+      kind: "premises",
+      premises: { kind: "address", address: nextAddress },
       publicLocation: publicLocationOf(shelter.id, nextAddress, policy),
     },
     entry: {
-      kind: "verified_data_changed",
+      kind: "premises_changed",
       at: NOW,
       moderatorId: operator,
-      change: { field: "exact_address", previous: shelter.exactAddress, next: nextAddress },
+      previous: shelter.premises,
+      next: { kind: "address", address: nextAddress },
     },
     historyId: randomUUID(),
     now: NOW,
@@ -478,8 +479,8 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       db,
       {
         ...b,
-        exactAddress: { ...b.exactAddress, cityId: city.id },
-        publicLocation: publicLocationOf(b.id, { ...b.exactAddress, cityId: city.id }, policy),
+        premises: { kind: "address", address: { ...b.premises.address, cityId: city.id } },
+        publicLocation: publicLocationOf(b.id, { ...b.premises.address, cityId: city.id }, policy),
       },
       by,
     );
@@ -546,8 +547,8 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       db,
       {
         ...s,
-        exactAddress: { ...s.exactAddress, cityId: city.id },
-        publicLocation: publicLocationOf(s.id, { ...s.exactAddress, cityId: city.id }, policy),
+        premises: { kind: "address", address: { ...s.premises.address, cityId: city.id } },
+        publicLocation: publicLocationOf(s.id, { ...s.premises.address, cityId: city.id }, policy),
       },
       by,
     );
@@ -635,10 +636,10 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
     db,
     {
       ...dupShelter,
-      exactAddress: { ...dupShelter.exactAddress, cityId: city.id },
+      premises: { kind: "address", address: { ...dupShelter.premises.address, cityId: city.id } },
       publicLocation: publicLocationOf(
         dupShelter.id,
-        { ...dupShelter.exactAddress, cityId: city.id },
+        { ...dupShelter.premises.address, cityId: city.id },
         policy,
       ),
     },
@@ -1200,8 +1201,8 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
       db,
       {
         ...s,
-        exactAddress: { ...s.exactAddress, cityId: city.id },
-        publicLocation: publicLocationOf(s.id, { ...s.exactAddress, cityId: city.id }, policy),
+        premises: { kind: "address", address: { ...s.premises.address, cityId: city.id } },
+        publicLocation: publicLocationOf(s.id, { ...s.premises.address, cityId: city.id }, policy),
       },
       by,
     );
@@ -1559,10 +1560,10 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   const k2Base = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} K2` });
   const k2Shelter = {
     ...k2Base,
-    exactAddress: { ...k2Base.exactAddress, cityId: city.id },
+    exactAddress: { ...k2Base.premises.address, cityId: city.id },
     publicLocation: publicLocationOf(
       k2Base.id,
-      { ...k2Base.exactAddress, cityId: city.id },
+      { ...k2Base.premises.address, cityId: city.id },
       policy,
     ),
   };
@@ -1890,12 +1891,12 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   const relaxCity = makeCity({ id: randomUUID() as never });
   await cityRepo(db).insert(relaxCity);
   const relaxBase = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} G` });
-  const relaxAddress = { ...relaxBase.exactAddress, cityId: relaxCity.id };
+  const relaxAddress = { ...relaxBase.premises.address, cityId: relaxCity.id };
   await insertShelterFromScript(
     db,
     {
       ...relaxBase,
-      exactAddress: relaxAddress,
+      premises: { kind: "address", address: relaxAddress },
       publicLocation: publicLocationOf(relaxBase.id, relaxAddress, policy),
     },
     by,
@@ -1930,12 +1931,12 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   const furCity = makeCity({ id: randomUUID() as never });
   await cityRepo(db).insert(furCity);
   const furBase = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} H` });
-  const furAddress = { ...furBase.exactAddress, cityId: furCity.id };
+  const furAddress = { ...furBase.premises.address, cityId: furCity.id };
   await insertShelterFromScript(
     db,
     {
       ...furBase,
-      exactAddress: furAddress,
+      premises: { kind: "address", address: furAddress },
       publicLocation: publicLocationOf(furBase.id, furAddress, policy),
     },
     by,
@@ -2105,10 +2106,10 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   const r2LogoBase = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} R2` });
   const r2LogoShelter = {
     ...r2LogoBase,
-    exactAddress: { ...r2LogoBase.exactAddress, cityId: city.id },
+    exactAddress: { ...r2LogoBase.premises.address, cityId: city.id },
     publicLocation: publicLocationOf(
       r2LogoBase.id,
-      { ...r2LogoBase.exactAddress, cityId: city.id },
+      { ...r2LogoBase.premises.address, cityId: city.id },
       policy,
     ),
     logo: { storageKey: r2LogoStorageKey, width: 160, height: 160 },
@@ -2216,12 +2217,12 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   const pcCity = makeCity({ id: randomUUID() as never });
   await cityRepo(db).insert(pcCity);
   const pcBase = makeShelter({ id: randomUUID() as ShelterId, displayName: `Smoke ${tag} T` });
-  const pcAddress = { ...pcBase.exactAddress, cityId: pcCity.id };
+  const pcAddress = { ...pcBase.premises.address, cityId: pcCity.id };
   await insertShelterFromScript(
     db,
     {
       ...pcBase,
-      exactAddress: pcAddress,
+      premises: { kind: "address", address: pcAddress },
       publicLocation: publicLocationOf(pcBase.id, pcAddress, policy),
     },
     by,
@@ -2325,7 +2326,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   const nbCity = makeCity({ id: randomUUID() as never });
   await cityRepo(db).insert(nbCity);
   const nbBase = makeShelter({ id: randomUUID() as ShelterId, displayName: "Smoke neighbours" });
-  const nbAddress = { ...nbBase.exactAddress, cityId: nbCity.id };
+  const nbAddress = { ...nbBase.premises.address, cityId: nbCity.id };
   const nbShelter = {
     ...nbBase,
     exactAddress: nbAddress,
@@ -2473,7 +2474,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   const s47Shelter = makeShelter({
     id: randomUUID() as ShelterId,
     displayName: `Smoke ${tag} S3`,
-    exactAddress: { ...makeShelter().exactAddress, cityId: s47City.id },
+    premises: { kind: "address", address: { ...makeShelter().premises.address, cityId: s47City.id } },
   });
   await shelterRepo(db).insert(s47Shelter);
   const s47Animal = makeAnimal({ id: randomUUID() as never, shelterId: s47Shelter.id });
@@ -2517,7 +2518,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   for (let i = 0; i < 31; i++) {
     const shelter = makeShelter({
       id: randomUUID() as ShelterId,
-      exactAddress: { ...makeShelter().exactAddress, cityId: s48City.id },
+      premises: { kind: "address", address: { ...makeShelter().premises.address, cityId: s48City.id } },
     });
     await shelterRepo(db).insert(shelter);
     const animals: AnimalId[] = [];
@@ -2643,7 +2644,7 @@ export async function runSmoke(db: Database): Promise<Outcome[]> {
   await cityRepo(db).insert(s49City);
   const s49Shelter = async (name: string) => {
     const base = makeShelter({ id: randomUUID() as ShelterId, displayName: name });
-    const address = { ...base.exactAddress, cityId: s49City.id };
+    const address = { ...base.premises.address, cityId: s49City.id };
     const shelter = {
       ...base,
       exactAddress: address,

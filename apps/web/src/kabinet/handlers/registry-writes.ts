@@ -18,9 +18,12 @@ import {
   type LocalizedText,
   type LocationPrivacyPolicy,
   lapsedAtOf,
+  legalEntityEditRefusalOf,
   MAX_EVIDENCE_ITEMS,
   type ModeratorId,
-  publicLocationOf,
+  premisesEditRefusalOf,
+  premisesPublicLocationOf,
+  type RecordedPremises,
   type RejectionCode,
   revokeEarlyListing,
   type Shelter,
@@ -122,9 +125,10 @@ async function tapWithRetry(
 // ─── shelters.updateVerifiedData / updateProfile ────────────────────────────
 
 /**
- * The locked fields, one per call (S4). An address change recomputes the
- * public location with the configured key (`publicLocationOf`, the only
- * sanctioned constructor) and moves it together with the address.
+ * The locked fields, one per call (S4). A premises change recomputes the public location with the
+ * configured key (`premisesPublicLocationOf`: an address through `publicLocationOf`, foster homes as
+ * the city alone) and moves it with them. Foster homes need an initiative (D3); leaving the
+ * initiative form while in foster homes is `PREMISES_NEEDS_ADDRESS` (D5).
  */
 export async function registryUpdateVerifiedData(
   deps: RegistryDeps,
@@ -135,13 +139,20 @@ export async function registryUpdateVerifiedData(
     expectedVersion: number;
     change:
       | { field: "legal_entity"; next: ShelterLegalEntity }
-      | { field: "exact_address"; next: Omit<ExactAddress, "coordinates"> };
+      | {
+          field: "premises";
+          next:
+            | { kind: "address"; address: Omit<ExactAddress, "coordinates"> }
+            | { kind: "foster_homes" };
+        };
   },
-  errors: E<"CONFLICT">,
+  errors: E<"CONFLICT" | "PREMISES_NEEDS_ADDRESS">,
 ): Promise<RegistryShelterView> {
+  const { change } = input;
   if (
-    input.change.field === "exact_address" &&
-    (await cityRepo(deps.db).findCurrentById(input.change.next.cityId as CityId)) === null
+    change.field === "premises" &&
+    change.next.kind === "address" &&
+    (await cityRepo(deps.db).findCurrentById(change.next.address.cityId as CityId)) === null
   ) {
     // As on create (RG-T5): a client fault, answered 400, never the FK's 500.
     throw new ORPCError("BAD_REQUEST", { status: 400, message: UNKNOWN_CITY_MESSAGE });
@@ -151,9 +162,11 @@ export async function registryUpdateVerifiedData(
     input.shelterId,
     input.expectedVersion,
     (shelter): Planned => {
-      const { change } = input;
       if (change.field === "legal_entity") {
         if (same(shelter.legalEntity, change.next)) return { changes: [], entries: [] };
+        if (legalEntityEditRefusalOf(shelter.premises, change.next) !== null) {
+          throw errors.PREMISES_NEEDS_ADDRESS();
+        }
         return {
           changes: [{ kind: "legal_entity", legalEntity: change.next }],
           entries: [
@@ -167,22 +180,39 @@ export async function registryUpdateVerifiedData(
         };
       }
       // Never a point (P0-6): a stored one is nulled by this save.
-      const next: ExactAddress = { ...change.next, coordinates: null };
-      if (same(shelter.exactAddress, next)) return { changes: [], entries: [] };
+      const next: RecordedPremises =
+        change.next.kind === "address"
+          ? { kind: "address", address: { ...change.next.address, coordinates: null } }
+          : { kind: "foster_homes" };
+      if (premisesEditRefusalOf(shelter.legalEntity, next) !== null) {
+        // The editor offers foster homes to an initiative only, and a form change since the read
+        // conflicts first: a client fault, like an unknown city.
+        throw new ORPCError("BAD_REQUEST", {
+          status: 400,
+          message: "Foster homes are for an unregistered initiative only.",
+        });
+      }
+      if (same(shelter.premises, next)) return { changes: [], entries: [] };
       return {
         changes: [
           {
-            kind: "exact_address",
-            exactAddress: next,
-            publicLocation: publicLocationOf(shelter.id, next, policy),
+            kind: "premises",
+            premises: next,
+            publicLocation: premisesPublicLocationOf(
+              shelter.id,
+              next,
+              shelter.publicLocation.cityId,
+              policy,
+            ),
           },
         ],
         entries: [
           {
-            kind: "verified_data_changed",
+            kind: "premises_changed",
             at: deps.now,
             moderatorId,
-            change: { field: "exact_address", previous: shelter.exactAddress, next },
+            previous: shelter.premises,
+            next,
           },
         ],
       };
@@ -375,7 +405,7 @@ export const registryStartReview = (
   );
 
 /**
- * Approval is refused while the legal entity or address is missing
+ * Approval is refused while the form, or the premises the form needs, is missing
  * (VERIFIED_DATA_MISSING, checked first), then while the evidence misses the
  * policy for the shelter's legal form (EVIDENCE_INSUFFICIENT), each with the
  * gaps as data. Checked after legality, so an approve on the wrong state is

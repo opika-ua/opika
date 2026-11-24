@@ -887,6 +887,7 @@ export const en = {
       registrationStatus: "Registration status",
       statusSince: "{status} · since {date}",
       address: "Premises address",
+      premisesFosterHomes: "None: the animals live in foster homes",
       addressNote: "People looking for an animal don't see the exact address, only the city.",
     },
     profileStatus: {
@@ -1591,6 +1592,7 @@ export const en = {
     history: {
       adminJoined: `{email} now has access to the dashboard`,
       adminJoinedErased: `Dashboard access opened: address deleted`,
+      premisesFosterHomes: "Marked: the animals live in foster homes, no premises",
     },
     /** R-UI, the operator's screens: the English sense of uk.ts's final Ukrainian (2026-10-17). */
     operator: {
@@ -1719,8 +1721,10 @@ export const en = {
         gaps: "Missing for approval: {kind}, {provided} of {minimum}.",
         gapItem: "{kind}, {provided} of {minimum}",
         missingData: {
-          legal_entity: "Approval needs the legal details.",
+          legal_entity: "To approve, choose the form: organisation or initiative.",
           exact_address: "Approval needs the premises address.",
+          premises:
+            "To approve, give the premises address or mark that the animals live in foster homes.",
         },
         add: "+ Add evidence",
         remove: "Remove",
@@ -1909,6 +1913,13 @@ export const en = {
           copy_pending: "Invitation not sent: the email's text isn't ready yet.",
         },
       },
+      premises: {
+        title: "Where the animals live",
+        address: "Has premises",
+        fosterHomes: "Animals in foster homes, no premises",
+        needsAddress:
+          "Add the premises address first: a registered organisation must have one.",
+      },
       verification: {
         decisionTitle: "Decision",
         decisionCaption:
@@ -1919,6 +1930,10 @@ export const en = {
         approveNote:
           "Once approved, the shelter's animals appear in the gallery at once. A rejection needs an explanation.",
         approveBlocked: "Can't approve yet. Missing:",
+        gap: {
+          legalForm: "Form: organisation or initiative",
+          premises: "Premises or foster homes",
+        },
         reject: "Reject…",
         suspend: "Suspend…",
         reinstate: "Reinstate → «{status}»",

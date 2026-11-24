@@ -53,7 +53,7 @@ describe("runRevealRetentionSmoke against the local database", () => {
     const city = makeCity();
     await cityRepo(db).insert(city);
     const shelter = makeShelter({
-      exactAddress: { ...makeShelter().exactAddress, cityId: city.id },
+      premises: { kind: "address", address: { ...makeShelter().premises.address, cityId: city.id } },
     });
     await shelterRepo(db).insert(shelter);
     const animal = makeAnimal({ shelterId: shelter.id });

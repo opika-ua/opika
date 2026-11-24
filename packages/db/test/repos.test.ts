@@ -71,14 +71,14 @@ describe("shelterRepo", () => {
           precisionMetres: 1000,
         } as never,
       },
-      exactAddress: {
+      premises: { kind: "address", address: {
         line1: "вул. Тестова 1",
         line2: null,
         postalCode: "01001",
         cityId: city.id,
         district: null,
         coordinates: { lat: 50.45, lng: 30.52 },
-      },
+      } },
     });
     await shelters.insert(shelter);
     const found = await shelters.findById(shelter.id);
@@ -104,14 +104,14 @@ describe("shelterRepo", () => {
           precisionMetres: 1000,
         } as never,
       },
-      exactAddress: {
+      premises: { kind: "address", address: {
         line1: "вул. Тестова 1",
         line2: null,
         postalCode: "01001",
         cityId: city.id,
         district: null,
         coordinates: { lat: 50.45, lng: 30.52 },
-      },
+      } },
       logo: { storageKey: "shelters/test/logo/abc123", width: 160, height: 160 },
     });
     await shelters.insert(shelter);
@@ -144,14 +144,14 @@ describe("animalRepo", () => {
         precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
-      exactAddress: {
+      premises: { kind: "address", address: {
         line1: "вул. Тестова 1",
         line2: null,
         postalCode: "01001",
         cityId: city.id,
         district: null,
         coordinates: { lat: 50.45, lng: 30.52 },
-      },
+      } },
     });
     await shelters.insert(shelter);
 
@@ -177,14 +177,14 @@ describe("animalRepo", () => {
         precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
-      exactAddress: {
+      premises: { kind: "address", address: {
         line1: "вул. Тестова 1",
         line2: null,
         postalCode: "01001",
         cityId: city.id,
         district: null,
         coordinates: { lat: 50.45, lng: 30.52 },
-      },
+      } },
     });
     await shelters.insert(shelter);
 
@@ -214,14 +214,14 @@ describe("animalRepo", () => {
         precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
-      exactAddress: {
+      premises: { kind: "address", address: {
         line1: "вул. Тестова 1",
         line2: null,
         postalCode: "01001",
         cityId: city.id,
         district: null,
         coordinates: { lat: 50.45, lng: 30.52 },
-      },
+      } },
     });
     await shelters.insert(shelter);
 
@@ -308,14 +308,14 @@ describe("revealRepo", () => {
         precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
-      exactAddress: {
+      premises: { kind: "address", address: {
         line1: "вул. Тестова 1",
         line2: null,
         postalCode: "01001",
         cityId: city.id,
         district: null,
         coordinates: { lat: 50.45, lng: 30.52 },
-      },
+      } },
     });
     await sheltersR.insert(shelter);
     const animal = makeAnimal({ shelterId: shelter.id });
@@ -350,14 +350,14 @@ describe("revealRepo", () => {
         precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
-      exactAddress: {
+      premises: { kind: "address", address: {
         line1: "вул. Тестова 1",
         line2: null,
         postalCode: "01001",
         cityId: city.id,
         district: null,
         coordinates: { lat: 50.45, lng: 30.52 },
-      },
+      } },
     });
     await sheltersR.insert(shelter);
     const animal = makeAnimal({ shelterId: shelter.id });
@@ -393,14 +393,14 @@ describe("revealRepo", () => {
     const city = makeCity();
     await cities.insert(city);
     const shelter = makeShelter({
-      exactAddress: {
+      premises: { kind: "address", address: {
         line1: "вул. Тестова 1",
         line2: null,
         postalCode: "01001",
         cityId: city.id,
         district: null,
         coordinates: { lat: 50.45, lng: 30.52 },
-      },
+      } },
     });
     await sheltersR.insert(shelter);
     const adopter = makeAdopter();
@@ -467,14 +467,14 @@ describe("galleryRepo city filter", () => {
         precision: "fuzzed_address",
         approximate: { center: { lat: 49.99, lng: 36.23 }, precisionMetres: 1000 } as never,
       },
-      exactAddress: {
+      premises: { kind: "address", address: {
         line1: "вул. Тестова 1",
         line2: null,
         postalCode: "61000",
         cityId: shelterCity.id,
         district: null,
         coordinates: { lat: 49.99, lng: 36.23 },
-      },
+      } },
     });
     await sheltersR.insert(shelter);
 

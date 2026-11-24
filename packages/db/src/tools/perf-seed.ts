@@ -211,7 +211,7 @@ export function buildPerfShelters(cityList: readonly City[], now: Date): Shelter
         registeredAt: daysAgo(365 * 3),
       },
       publicLocation: publicLocationOf(id, exactAddress, policy),
-      exactAddress,
+      premises: { kind: "address", address: exactAddress },
       // `.invalid` can never resolve or deliver (RFC 2606); the phone is the all-zero demo number.
       contact: {
         primary: { kind: "email", address: `perf-${i + 1}@opika-perf.invalid` },

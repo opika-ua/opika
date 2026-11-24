@@ -121,12 +121,12 @@ describe("buildDemoShelters", () => {
 
   it("exact address is an obviously fictional street, at the shelter's own (already public) city centroid", () => {
     for (const shelter of shelters) {
-      expect(shelter.exactAddress.line1).toBe("вул. Демонстраційна, 1");
-      const city = cities.find((c) => c.id === shelter.exactAddress.cityId);
+      expect(shelter.premises.address.line1).toBe("вул. Демонстраційна, 1");
+      const city = cities.find((c) => c.id === shelter.premises.address.cityId);
       expect(city).toBeDefined();
       expect(city?.centroid.kind).toBe("recorded");
       if (city?.centroid.kind === "recorded") {
-        expect(shelter.exactAddress.coordinates).toEqual(city.centroid.coordinates);
+        expect(shelter.premises.address.coordinates).toEqual(city.centroid.coordinates);
       }
     }
   });

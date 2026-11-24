@@ -60,7 +60,7 @@ export async function runApplicationsSmoke(db: Database): Promise<Outcome[]> {
         },
       },
     });
-    const shelter: Shelter = { ...fixture, legalEntity: null, exactAddress: null };
+    const shelter: Shelter = { ...fixture, legalEntity: null, premises: { kind: "not_recorded" } };
     await shelterRepo(db).insert(shelter);
     await db.update(shelters).set({ registrantUserId: userId }).where(eq(shelters.id, shelter.id));
     return shelter.id;

@@ -232,6 +232,13 @@
       "when": 1795192479908,
       "tag": "0032_application_deletions_operator",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1795506221041,
+      "tag": "0033_shelter_premises",
+      "breakpoints": true
     }
   ]
 }

@@ -56,7 +56,7 @@ export async function runKabinetIdentitySmoke(db: Database): Promise<Outcome[]> 
     const shelter: Shelter = {
       ...fixture,
       legalEntity: null,
-      exactAddress: null,
+      premises: { kind: "not_recorded" },
       publicLocation: cityAt(city),
     };
     await shelterRepo(db).insert(shelter);

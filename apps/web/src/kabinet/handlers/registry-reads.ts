@@ -69,7 +69,7 @@ export function registryShelterViewOf(
     description: shelter.description,
     legalEntity: shelter.legalEntity,
     publicLocation: shelter.publicLocation,
-    exactAddress: shelter.exactAddress,
+    premises: shelter.premises,
     contact: shelter.contact,
     donation: shelter.donation,
     pendingDonation: shelter.pendingDonation,

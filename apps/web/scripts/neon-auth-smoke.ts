@@ -147,10 +147,10 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
   const city = makeCity({ id: randomUUID() as never });
   await cityRepo(db).insert(city);
   const base = makeShelter({ id: randomUUID() as ShelterId, displayName: `Auth smoke ${tag}` });
-  const address = { ...base.exactAddress, cityId: city.id };
+  const address = { ...base.premises.address, cityId: city.id };
   await shelterRepo(db).insert({
     ...base,
-    exactAddress: address,
+    premises: { kind: "address", address },
     publicLocation: publicLocationOf(
       base.id,
       address,

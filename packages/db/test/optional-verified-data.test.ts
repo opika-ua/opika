@@ -216,7 +216,7 @@ describe("0024 optional verified data: what the database accepts", () => {
     const shelter = await seedShelter();
     await client`UPDATE shelters SET legal_entity = NULL, exact_address = NULL, exact_lat = NULL, exact_lng = NULL WHERE id = ${shelter.id}`;
     const read = await shelterRepo(db).findById(shelter.id);
-    expect([read?.legalEntity, read?.exactAddress]).toEqual([null, null]);
+    expect([read?.legalEntity, read?.premises]).toEqual([null, { kind: "not_recorded" }]);
   });
 
   it("writes no point for an address without coordinates", async () => {
@@ -225,7 +225,7 @@ describe("0024 optional verified data: what the database accepts", () => {
     const base = makeShelter({ verification: PENDING });
     const shelter = {
       ...base,
-      exactAddress: { ...base.exactAddress, cityId: city.id, coordinates: null },
+      exactAddress: { ...base.premises.address, cityId: city.id, coordinates: null },
       publicLocation: { precision: "city" as const, cityId: city.id, district: null },
     };
     await db.insert(shelters).values(shelterToRow(shelter));
