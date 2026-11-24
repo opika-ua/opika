@@ -46,6 +46,7 @@
       "includes": [
         "packages/db/src/tools/perf-seed.ts",
         "packages/db/src/tools/perf-report.ts",
+        "packages/db/src/tools/audit-donation-hosts.ts",
         "apps/web/scripts/neon-perf-routes.ts"
       ],
       "linter": { "rules": { "suspicious": { "noConsole": "off" } } }
