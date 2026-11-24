@@ -375,29 +375,6 @@ function RevealContent({
           {uk.underReview.revealNotice}
         </p>
       )}
-      <section
-        aria-labelledby={messageHeadingId}
-        data-testid="reveal-first-message"
-        className="flex flex-col gap-2"
-      >
-        <p id={messageHeadingId} className="text-label text-ink">
-          {uk.reveal.firstMessage.heading}
-        </p>
-        <p
-          data-testid="reveal-first-message-text"
-          className="select-text break-words rounded-field border-2 border-line bg-surface p-4 text-body text-ink"
-        >
-          {message}
-        </p>
-        <Button
-          variant="secondary"
-          onClick={() => void copy(FIRST_MESSAGE_KEY, message)}
-          data-testid="reveal-first-message-copy"
-          className="self-start"
-        >
-          {copiedKey === FIRST_MESSAGE_KEY ? uk.reveal.copied : uk.reveal.firstMessage.copy}
-        </Button>
-      </section>
       <ul className="flex flex-col gap-3">
         {channels.map((channel, index) => {
           const action = channelAction(channel, message);
@@ -447,6 +424,30 @@ function RevealContent({
           );
         })}
       </ul>
+      {/* Below the rows on every screen (owner, 2026-11-24), so a 360×640 phone still sees every contact. */}
+      <section
+        aria-labelledby={messageHeadingId}
+        data-testid="reveal-first-message"
+        className="flex flex-col gap-2"
+      >
+        <p id={messageHeadingId} className="text-label text-ink">
+          {uk.reveal.firstMessage.heading}
+        </p>
+        <p
+          data-testid="reveal-first-message-text"
+          className="select-text break-words rounded-field border-2 border-line bg-surface p-4 text-body text-ink"
+        >
+          {message}
+        </p>
+        <Button
+          variant="secondary"
+          onClick={() => void copy(FIRST_MESSAGE_KEY, message)}
+          data-testid="reveal-first-message-copy"
+          className="self-start"
+        >
+          {copiedKey === FIRST_MESSAGE_KEY ? uk.reveal.copied : uk.reveal.firstMessage.copy}
+        </Button>
+      </section>
       <span role="status" aria-live="polite" className="sr-only">
         {copiedKey === null ? "" : uk.reveal.copied}
       </span>

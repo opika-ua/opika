@@ -564,14 +564,15 @@ describe("the suggested first message", () => {
     ],
   } as const;
 
-  it("shows the heading, the message and one copy button on a phone, above the contact rows", () => {
+  // Below the rows on every screen (owner, 2026-11-24): the rows stay in view on a 360×640 phone.
+  it("shows the heading, the message and one copy button on a phone, below the contact rows", () => {
     phone();
     renderOpen(revealWith(ALL));
     const block = screen.getByRole("region", { name: "Можна почати з такого повідомлення:" });
     expect(within(block).getByText(MESSAGE_MALE)).toBeTruthy();
     expect(screen.getAllByRole("button", { name: "Копіювати повідомлення" })).toHaveLength(1);
-    const firstRow = screen.getAllByTestId("reveal-contact-row")[0] as HTMLElement;
-    expect(block.compareDocumentPosition(firstRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const lastRow = screen.getAllByTestId("reveal-contact-row").at(-1) as HTMLElement;
+    expect(lastRow.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("picks the pronoun by sex", () => {
