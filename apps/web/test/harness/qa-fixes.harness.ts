@@ -5,7 +5,7 @@
  * `198.51.100.61` keeps this file's requests off every other file's per-IP budget.
  */
 
-import { expect, test } from "./csp-watch";
+import { expect, test } from "@playwright/test";
 import { expectReachableByTab } from "./harness";
 
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.61" } });

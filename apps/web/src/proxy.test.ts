@@ -325,14 +325,14 @@ describe("proxy", () => {
       }
     }, 30_000);
 
-    it("is never enforced outside the kabinet, a look-alike path included", async () => {
+    it("is never set outside the kabinet, a look-alike path included", async () => {
       for (const path of NOT_KABINET) {
         const response = await load(path, "9.9.9.10");
         expect(response.headers.get("content-security-policy"), path).toBeNull();
-        // A public page's request carries only its report-only policy, under the enforced name (#589).
-        expect(response.headers.get("x-middleware-request-content-security-policy"), path).toBe(
-          response.headers.get("content-security-policy-report-only"),
-        );
+        expect(
+          response.headers.get("x-middleware-request-content-security-policy"),
+          path,
+        ).toBeNull();
       }
     }, 30_000);
 
@@ -351,167 +351,6 @@ describe("proxy", () => {
       const response = await load("/kabinet/vkhid?zaproshennia=x", "9.9.9.12");
       expect(response.headers.get("cache-control")).toBe("no-store");
       expect(response.headers.get("content-security-policy")).toContain("'strict-dynamic'");
-    }, 30_000);
-  });
-
-  /**
-   * The trial (owner, 2026-11-24, D3): every public page reports against the kabinet's nonce policy,
-   * report-only. `/rate-limited` keeps the site-wide policy (D5); files and APIs get none.
-   */
-  describe("the public pages' report-only nonce policy (trial)", () => {
-    const REPORT_ONLY = "content-security-policy-report-only";
-    const ENFORCED = "content-security-policy";
-    /** The request headers `NextResponse.next` hands Next, decoded from its override encoding. */
-    const requestHeadersNextSees = (response: Response): Record<string, string> =>
-      Object.fromEntries(
-        (response.headers.get("x-middleware-override-headers") ?? "")
-          .split(",")
-          .map((name) => [name, response.headers.get(`x-middleware-request-${name}`) ?? ""]),
-      );
-    const PUBLIC_DOCUMENTS = [
-      "/",
-      "/tvaryny",
-      "/tvaryny?misto=kyiv",
-      "/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
-      "/tvaryny/misto/kyiv",
-      "/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd",
-      "/prytulkam",
-      "/pro",
-      "/zberezheni",
-      "/polityka-konfidentsiinosti",
-      "/some-new-page",
-      "/kabinetx",
-    ];
-    const NOT_DOCUMENTS = [
-      "/rate-limited",
-      "/rate-limited/screen",
-      "/api/rpc/animals/cardsByIds",
-      "/api/health",
-      "/api/monitoring",
-      "/robots.txt",
-      "/sitemap.xml",
-      "/manifest.webmanifest",
-      "/icon1.png",
-      "/apple-icon.png",
-      "/opengraph-image",
-      "/opengraph-image-abc123",
-      "/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc/opengraph-image",
-      "/email/logo@2x-v1.png",
-      "/brand-v3/logo.svg",
-    ];
-    const DSN = "https://0123456789abcdef0123456789abcdef@o1.ingest.de.sentry.io/4500000000000001";
-
-    const load = async (path: string, ip: string, headers: Record<string, string> = {}) => {
-      const { proxy } = await import("./proxy");
-      return proxy(request(`https://opika.example${path}`, { "x-forwarded-for": ip, ...headers }));
-    };
-    const directive = (policy: string, name: string) =>
-      policy
-        .split(";")
-        .map((d) => d.trim().split(/\s+/))
-        .find(([n]) => n === name);
-
-    it("sets it on the response and on the request Next renders, and never the enforced header", async () => {
-      const { getScriptNonceFromHeaders } = await import(
-        "next/dist/server/app-render/get-script-nonce-from-header"
-      );
-      for (const path of PUBLIC_DOCUMENTS) {
-        const response = await load(path, "9.9.9.20");
-        expect(response.status, path).toBe(200);
-        const policy = response.headers.get(REPORT_ONLY) ?? "";
-        // To Next under the enforced name, the one proven on Vercel (#589); never on the response.
-        expect(response.headers.get(`x-middleware-request-${ENFORCED}`), path).toBe(policy);
-        expect(response.headers.get(`x-middleware-request-${REPORT_ONLY}`), path).toBeNull();
-        expect(response.headers.get(ENFORCED), path).toBeNull();
-        const scriptSrc = directive(policy, "script-src") ?? [];
-        expect(scriptSrc, path).toContain("'strict-dynamic'");
-        expect(scriptSrc, path).not.toContain("'unsafe-inline'");
-        expect(scriptSrc, path).not.toContain("'unsafe-eval'");
-        expect(directive(policy, "frame-ancestors"), path).toBeUndefined();
-        // Next's own reader, on the request headers as Next will see them, finds this nonce.
-        const nonce = getScriptNonceFromHeaders(requestHeadersNextSees(response));
-        expect(nonce, path).toBeDefined();
-        expect(scriptSrc, path).toContain(`'nonce-${nonce}'`);
-      }
-    }, 30_000);
-
-    /**
-     * #589: on Vercel the public pages' scripts got no nonce. Modelled as the site-wide enforced policy
-     * (no script-src) reaching Next on the request: Next prefers it to a report-only override.
-     */
-    it("hands Next the nonce even with the site-wide enforced policy on the request", async () => {
-      const { getScriptNonceFromHeaders } = await import(
-        "next/dist/server/app-render/get-script-nonce-from-header"
-      );
-      const { securityHeaders } = await import("./security-headers");
-      const siteWide =
-        securityHeaders({ photoBaseUrl: undefined, development: false }).find(
-          (h) => h.key.toLowerCase() === ENFORCED,
-        )?.value ?? "";
-      expect(siteWide).not.toContain("script-src");
-      const response = await load("/tvaryny", "9.9.9.26");
-      const nonce = getScriptNonceFromHeaders({
-        [ENFORCED]: siteWide,
-        ...requestHeadersNextSees(response),
-      });
-      expect(nonce).toBeDefined();
-      expect(response.headers.get(REPORT_ONLY)).toContain(`'nonce-${nonce}'`);
-    }, 30_000);
-
-    it("drops a client's own CSP request headers, so Next can only read the proxy's nonce", async () => {
-      const response = await load("/pro", "9.9.9.21", {
-        [ENFORCED]: "script-src 'nonce-chosenByTheClient'",
-        [REPORT_ONLY]: "script-src 'nonce-chosenByTheClient'",
-      });
-      const passed = (response.headers.get("x-middleware-override-headers") ?? "").split(",");
-      expect(passed).toContain(ENFORCED);
-      expect(passed).not.toContain(REPORT_ONLY);
-      expect(response.headers.get(`x-middleware-request-${ENFORCED}`)).toBe(
-        response.headers.get(REPORT_ONLY),
-      );
-      expect(response.headers.get(REPORT_ONLY)).not.toContain("chosenByTheClient");
-    }, 30_000);
-
-    it("draws a new nonce for every request", async () => {
-      const nonces = new Set<string>();
-      for (let i = 0; i < 20; i++) {
-        const policy = (await load("/pro", "9.9.9.22")).headers.get(REPORT_ONLY);
-        nonces.add(/'nonce-([^']+)'/.exec(policy ?? "")?.[1] ?? "");
-      }
-      expect(nonces.size).toBe(20);
-    }, 30_000);
-
-    it("leaves /rate-limited, the APIs, files and metadata images to the site-wide policy", async () => {
-      for (const path of NOT_DOCUMENTS) {
-        const response = await load(path, "9.9.9.23");
-        expect(response.headers.get(REPORT_ONLY), path).toBeNull();
-        expect(response.headers.get(`x-middleware-request-${REPORT_ONLY}`), path).toBeNull();
-        expect(response.headers.get(`x-middleware-request-${ENFORCED}`), path).toBeNull();
-        expect(response.headers.get(ENFORCED), path).toBeNull();
-      }
-    }, 30_000);
-
-    it("gives a refused gallery load's 429 rewrite no nonce policy (D5)", async () => {
-      const { apiRateLimiter } = await import("./api/rate-limit");
-      vi.spyOn(apiRateLimiter, "check").mockResolvedValue(false);
-      const response = await load("/tvaryny", "9.9.9.24");
-      expect(response.status).toBe(429);
-      expect(response.headers.get(REPORT_ONLY)).toBeNull();
-      expect(response.headers.get(`x-middleware-request-${REPORT_ONLY}`)).toBeNull();
-      expect(response.headers.get(`x-middleware-request-${ENFORCED}`)).toBeNull();
-    }, 30_000);
-
-    it("names the report group on allowlisted pages only, and only with a usable DSN", async () => {
-      const reportTo = async (path: string) =>
-        directive((await load(path, "9.9.9.25")).headers.get(REPORT_ONLY) ?? "", "report-to");
-      expect(await reportTo("/pro")).toBeUndefined();
-      vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", DSN);
-      for (const path of ["/tvaryny", "/pro", "/polityka-konfidentsiinosti"]) {
-        expect(await reportTo(path), path).toEqual(["report-to", "csp-endpoint"]);
-      }
-      for (const path of ["/some-new-page", "/kabinetx", "/pro/x"]) {
-        expect(await reportTo(path), path).toBeUndefined();
-      }
     }, 30_000);
   });
 });

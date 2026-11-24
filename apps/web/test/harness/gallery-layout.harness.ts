@@ -11,7 +11,7 @@
  * resolve.
  */
 
-import { expect, test } from "./csp-watch";
+import { expect, test } from "@playwright/test";
 import { openRoute } from "./harness";
 import { PHONE } from "./viewports";
 
