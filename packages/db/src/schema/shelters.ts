@@ -34,6 +34,11 @@ export const shelters = pgTable(
     publicLocation: jsonb<PublicLocation>("public_location").notNull(),
     /** Null until the operator adds it; the city is then only `city_id` / `public_location`. */
     exactAddress: jsonb<ExactAddress>("exact_address"),
+    /**
+     * Where the animals live (`ShelterPremises`, 0033): `address` (with `exact_address`) or
+     * `foster_homes` (an initiative only, no address); null is `not_recorded`.
+     */
+    premises: text("premises", { enum: ["address", "foster_homes"] }),
     /** Null only for a self-registered shelter that gave none yet (`shelters_contact_check`). */
     contact: jsonb<ShelterContact>("contact"),
     donation: jsonb<DonationLink>("donation"),
@@ -132,10 +137,25 @@ export const shelters = pgTable(
       "shelters_description_en_check",
       sql`${t.descriptionUk} IS NOT NULL OR (${t.descriptionEnText} IS NULL AND ${t.descriptionEnProvenance} IS NULL)`,
     ),
-    /** The approve gate, held by the database too: verified, paused and suspended all come from approval. */
+    check("shelters_premises_check", sql`${t.premises} IN ('address', 'foster_homes')`),
+    /** An address exactly when the premises are one; NULL-safe, so not_recorded holds none either. */
+    check(
+      "shelters_premises_address_check",
+      sql`(${t.premises} IS NOT DISTINCT FROM 'address') = (${t.exactAddress} IS NOT NULL)`,
+    ),
+    /** Foster homes are an initiative's only (D3); a null form is refused too. */
+    check(
+      "shelters_foster_homes_initiative_only",
+      sql`${t.premises} IS DISTINCT FROM 'foster_homes' OR (${t.legalEntity} ->> 'kind') IS NOT DISTINCT FROM 'unregistered_initiative'`,
+    ),
+    /**
+     * The approve gate, held by the database too: verified, paused and suspended all come from
+     * approval, so each has a form and recorded premises (0033; which premises a form needs is the
+     * domain's `approvalGaps` and the CHECK above).
+     */
     check(
       "shelters_verified_has_verified_data",
-      sql`${t.verificationStatus} IN ('application', 'pending', 'under_review', 'rejected') OR (${t.legalEntity} IS NOT NULL AND ${t.exactAddress} IS NOT NULL)`,
+      sql`${t.verificationStatus} IN ('application', 'pending', 'under_review', 'rejected') OR (${t.legalEntity} IS NOT NULL AND ${t.premises} IS NOT NULL)`,
     ),
     check(
       "shelters_registration_source_check",

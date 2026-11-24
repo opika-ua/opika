@@ -57,7 +57,7 @@ export function kabinetShelterViewOf(
     displayName: shelter.displayName,
     description: shelter.description,
     legalEntity: shelter.legalEntity,
-    exactAddress: shelter.exactAddress,
+    premises: shelter.premises,
     cityId: shelter.publicLocation.cityId,
     contact: shelter.contact,
     donation: shelter.donation,

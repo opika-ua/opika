@@ -13,6 +13,7 @@ import {
 import { ShelterLegalEntitySchema } from "./legal-entity";
 import { ExactAddressSchema } from "./location";
 import { ShelterLogoSchema } from "./logo";
+import { RecordedPremisesSchema, ShelterPremisesSchema } from "./premises";
 import {
   PauseReasonSchema,
   RejectionReasonSchema,
@@ -122,6 +123,13 @@ export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
         next: ExactAddressSchema,
       }),
     ]),
+  }),
+  /** The shelter's own premises as the operator recorded them; foster homes carry no address. */
+  z.object({
+    kind: z.literal("premises_changed"),
+    ...base,
+    previous: ShelterPremisesSchema,
+    next: RecordedPremisesSchema,
   }),
   /** Both names: the shelter already shows its name on every card, so neither is news to it. */
   z.object({
@@ -283,6 +291,14 @@ export function shelterFacingHistoryOf(
       };
     case "verified_data_changed":
       return { kind: "verified_data_changed", at: entry.at, actor: operator, change: entry.change };
+    case "premises_changed":
+      return {
+        kind: "premises_changed",
+        at: entry.at,
+        actor: operator,
+        previous: entry.previous,
+        next: entry.next,
+      };
     // Operator-only (owner, 2026-11-04): the shelter learns nothing of it.
     case "evidence_added":
     case "freshness_reminder_changed":

@@ -81,13 +81,16 @@ async function seedFeedAnimal(animalOverrides?: AnimalFixtureOverrides) {
   await cityRepo(h.db).insert(city);
 
   const shelter = makeShelter({
-    exactAddress: {
-      line1: "вул. Тестова 1",
-      line2: null,
-      postalCode: "01001",
-      cityId: city.id,
-      district: null,
-      coordinates: { lat: 50.45, lng: 30.52 },
+    premises: {
+      kind: "address",
+      address: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city.id,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
     },
   });
   await shelterRepo(h.db).insert(shelter);
@@ -305,13 +308,16 @@ describe("reveal", () => {
         submittedAt: new Date("2026-08-01T00:00:00Z"),
         evidence: { items: [], submittedAt: new Date("2026-08-01T00:00:00Z") },
       },
-      exactAddress: {
-        line1: "вул. Тестова 1",
-        line2: null,
-        postalCode: "01001",
-        cityId: city.id,
-        district: null,
-        coordinates: { lat: 50.45, lng: 30.52 },
+      premises: {
+        kind: "address",
+        address: {
+          line1: "вул. Тестова 1",
+          line2: null,
+          postalCode: "01001",
+          cityId: city.id,
+          district: null,
+          coordinates: { lat: 50.45, lng: 30.52 },
+        },
       },
     });
     await shelterRepo(h.db).insert(shelter);
@@ -348,13 +354,16 @@ describe("reveal rate limit", () => {
   /** Insert one shelter (in `cityId`) with one animal; does not reveal it. */
   async function insertShelterWithAnimal(cityId: (typeof city)["id"]) {
     const shelter = makeShelter({
-      exactAddress: {
-        line1: "вул. Тестова 1",
-        line2: null,
-        postalCode: "01001",
-        cityId,
-        district: null,
-        coordinates: { lat: 50.45, lng: 30.52 },
+      premises: {
+        kind: "address",
+        address: {
+          line1: "вул. Тестова 1",
+          line2: null,
+          postalCode: "01001",
+          cityId,
+          district: null,
+          coordinates: { lat: 50.45, lng: 30.52 },
+        },
       },
     });
     await shelterRepo(h.db).insert(shelter);
@@ -553,13 +562,16 @@ describe("gallery.list", () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
     const shelter = makeShelter({
-      exactAddress: {
-        line1: "вул. Тестова 1",
-        line2: null,
-        postalCode: "01001",
-        cityId: city.id,
-        district: null,
-        coordinates: { lat: 50.45, lng: 30.52 },
+      premises: {
+        kind: "address",
+        address: {
+          line1: "вул. Тестова 1",
+          line2: null,
+          postalCode: "01001",
+          cityId: city.id,
+          district: null,
+          coordinates: { lat: 50.45, lng: 30.52 },
+        },
       },
     });
     await shelterRepo(h.db).insert(shelter);
@@ -720,13 +732,16 @@ describe("gallery.list", () => {
       const corpus = await seedGalleryCorpus();
       const other = makeShelter({
         displayName: "Інший притулок",
-        exactAddress: {
-          line1: "вул. Тестова 2",
-          line2: null,
-          postalCode: "01001",
-          cityId: corpus.city.id,
-          district: null,
-          coordinates: { lat: 50.45, lng: 30.52 },
+        premises: {
+          kind: "address",
+          address: {
+            line1: "вул. Тестова 2",
+            line2: null,
+            postalCode: "01001",
+            cityId: corpus.city.id,
+            district: null,
+            coordinates: { lat: 50.45, lng: 30.52 },
+          },
         },
       });
       await shelterRepo(h.db).insert(other);
@@ -863,13 +878,16 @@ describe("gallery.relaxationCounts", () => {
     const city = makeCity();
     await cityRepo(h.db).insert(city);
     const shelter = makeShelter({
-      exactAddress: {
-        line1: "вул. Тестова 1",
-        line2: null,
-        postalCode: "01001",
-        cityId: city.id,
-        district: null,
-        coordinates: { lat: 50.45, lng: 30.52 },
+      premises: {
+        kind: "address",
+        address: {
+          line1: "вул. Тестова 1",
+          line2: null,
+          postalCode: "01001",
+          cityId: city.id,
+          district: null,
+          coordinates: { lat: 50.45, lng: 30.52 },
+        },
       },
     });
     await shelterRepo(h.db).insert(shelter);
@@ -1244,4 +1262,31 @@ describe("reveal views name the shelter from the same moment as its contacts (RU
       expect(JSON.stringify(items[0])).not.toContain(NEW_NAME);
     },
   );
+});
+
+/** Owner, 2026-11-24: an initiative in foster homes has no premises, so a reveal stores no address. */
+describe("a reveal of an initiative in foster homes", () => {
+  it("stores no exact address in the snapshot, and the city alone as the location", async () => {
+    const city = makeCity();
+    await cityRepo(h.db).insert(city);
+    const shelter = makeShelter({
+      legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена" },
+      premises: { kind: "foster_homes" } as never,
+      publicLocation: { precision: "city", cityId: city.id, district: null },
+    });
+    await shelterRepo(h.db).insert(shelter);
+    const animal = makeAnimal({ shelterId: shelter.id });
+    await animalRepo(h.db).insert(animal, city.id);
+
+    const cookie = await bootstrap();
+    const revealed = await h.call("animals.reveal", { animalId: animal.id }, { cookie });
+    expect(revealed.status).toBe(200);
+    const stored = await revealRepo(h.db).findById((revealed.body as { id: string }).id as never);
+    expect(stored?.shelterSnapshot.exactAddress).toBeNull();
+    expect(stored?.shelterSnapshot.publicLocation).toEqual({
+      precision: "city",
+      cityId: city.id,
+      district: null,
+    });
+  });
 });

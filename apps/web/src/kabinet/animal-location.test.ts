@@ -15,6 +15,7 @@ import {
   type CityId,
   EVERYONE_SCOPE,
   effectiveCityId,
+  exactAddressOf,
   type ModeratorId,
   NO_FILTERS,
   type Shelter,
@@ -223,7 +224,7 @@ describe("a shelter city change (the operator's path) moves only the animals tha
     const follows = await listed();
     const away = await listed();
     await locate(away, { kind: "own_city", cityId: fosterCity });
-    const address = shelter.exactAddress;
+    const address = exactAddressOf(shelter.premises);
     if (address === null) throw new Error("the fixture shelter has an address");
     const moved = await call<RegistryShelterView>(
       "registry.shelters.updateVerifiedData",
@@ -231,8 +232,8 @@ describe("a shelter city change (the operator's path) moves only the animals tha
         shelterId: shelter.id,
         expectedVersion: shelter.version,
         change: {
-          field: "exact_address",
-          next: { ...address, cityId: movedCity },
+          field: "premises",
+          next: { kind: "address", address: { ...address, cityId: movedCity } },
         },
       },
       { kind: "super_admin", moderatorId: OPERATOR },

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { ShelterLegalEntity } from "../legal-entity";
-import type { ExactAddress } from "../location";
+import type { ShelterPremises } from "../premises";
 import {
   countEvidence,
   type EvidenceKind,
@@ -118,33 +118,55 @@ export const meetsEvidenceRequirements = (
   policy: VerificationPolicy,
 ): boolean => evidenceGaps(legalEntity, evidence, policy).length === 0;
 
-/** The verified data a minimal create may leave out, in the order approval asks for it. */
-export const VERIFIED_DATA_FIELDS = ["legal_entity", "exact_address"] as const;
-export const VerifiedDataFieldSchema = z.enum(VERIFIED_DATA_FIELDS);
-export type VerifiedDataField = z.infer<typeof VerifiedDataFieldSchema>;
+/**
+ * What approval asks of the verified data before any evidence (owner, 2026-11-24, D1-D3): a form
+ * picked (`legal_form`); a registered form an address (`exact_address`); an initiative an address
+ * or foster homes (`premises`).
+ */
+export const VERIFIED_DATA_GAPS = ["legal_form", "exact_address", "premises"] as const;
+export const VerifiedDataGapSchema = z.enum(VERIFIED_DATA_GAPS);
+export type VerifiedDataGap = z.infer<typeof VerifiedDataGapSchema>;
 
 export type ApprovalGap =
-  | { on: "verified_data"; field: VerifiedDataField }
+  | { on: "verified_data"; field: VerifiedDataGap }
   | ({ on: "evidence" } & EvidenceGap);
 
+/** The one verified-data gap the form and premises leave, per form; with no form, the form. */
+export const verifiedDataGapOf = (
+  legalEntity: ShelterLegalEntity | null,
+  premises: ShelterPremises,
+): VerifiedDataGap | null => {
+  if (legalEntity === null) return "legal_form";
+  switch (legalEntity.kind) {
+    case "registered_ngo":
+    case "sole_proprietor":
+      return premises.kind === "address" ? null : "exact_address";
+    case "unregistered_initiative":
+      return premises.kind === "not_recorded" ? "premises" : null;
+    /* v8 ignore next 4 -- exists so the compiler rejects an unhandled kind; unreachable at runtime */
+    default: {
+      const unreachable: never = legalEntity;
+      return unreachable;
+    }
+  }
+};
+
 /**
- * Verified data first (in this order), then evidence. Evidence requirements depend on the legal
- * form, so with no legal entity there is nothing to measure evidence against yet.
+ * Verified data first, then evidence. Evidence requirements depend on the legal form, so with no
+ * legal entity there is nothing to measure evidence against yet.
  */
 export const approvalGaps = (
-  shelter: { legalEntity: ShelterLegalEntity | null; exactAddress: ExactAddress | null },
+  shelter: { legalEntity: ShelterLegalEntity | null; premises: ShelterPremises },
   evidence: VerificationEvidence,
   policy: VerificationPolicy,
-): readonly ApprovalGap[] => [
-  ...(shelter.legalEntity === null
-    ? [{ on: "verified_data", field: "legal_entity" } as const]
-    : []),
-  ...(shelter.exactAddress === null
-    ? [{ on: "verified_data", field: "exact_address" } as const]
-    : []),
-  ...(shelter.legalEntity === null
-    ? []
-    : evidenceGaps(shelter.legalEntity, evidence, policy).map(
-        (gap) => ({ on: "evidence", ...gap }) as const,
-      )),
-];
+): readonly ApprovalGap[] => {
+  const field = verifiedDataGapOf(shelter.legalEntity, shelter.premises);
+  return [
+    ...(field === null ? [] : [{ on: "verified_data", field } as const]),
+    ...(shelter.legalEntity === null
+      ? []
+      : evidenceGaps(shelter.legalEntity, evidence, policy).map(
+          (gap) => ({ on: "evidence", ...gap }) as const,
+        )),
+  ];
+};

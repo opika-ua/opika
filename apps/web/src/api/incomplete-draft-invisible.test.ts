@@ -25,7 +25,9 @@ async function seed() {
   const city = makeCity();
   await cityRepo(h.db).insert(city);
   const base = makeShelter();
-  const shelter = makeShelter({ exactAddress: { ...base.exactAddress, cityId: city.id } });
+  const shelter = makeShelter({
+    premises: { kind: "address", address: { ...base.premises.address, cityId: city.id } },
+  });
   await shelterRepo(h.db).insert(shelter);
   const visible = makeAnimal({ shelterId: shelter.id, name: "Видима" });
   // A photo, so the draft lacks only facts: nothing about it but its listing hides it.

@@ -13,7 +13,7 @@ import { OperatorActionsRoot } from "./OperatorActionsRoot";
 import { ReminderPanel } from "./ReminderPanel";
 import { RenameForm } from "./RenameForm";
 import { SupportEntry } from "./SupportEntry";
-import { AddressEdit, LegalEdit } from "./VerifiedDataEditor";
+import { LegalEdit, PremisesEdit } from "./VerifiedDataEditor";
 
 /**
  * S4 as the page serves it: R-UI 1's screen with R-UI 3's controls and
@@ -50,7 +50,7 @@ export function ShelterActionsScreen({
           supportEntry: <SupportEntry />,
           rename: <RenameForm />,
           legalEdit: <LegalEdit />,
-          addressEdit: <AddressEdit cityName={cityName} />,
+          addressEdit: <PremisesEdit cityName={cityName} />,
           aboutEdit: <AboutForm />,
           decision: (
             <>

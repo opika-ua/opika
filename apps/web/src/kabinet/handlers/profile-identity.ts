@@ -78,12 +78,12 @@ export async function profileUpdateIdentity(
   const shelter = await shelterRepo(deps.db).findById(scope.shelterId);
   if (shelter === null) throw new Error(`Scope names missing shelter ${scope.shelterId}`);
   if (shelter.version !== input.expectedVersion) throw errors.CONFLICT();
-  // A verified address fixes the city: only the operator moves it, so the whole request is refused
-  // (owner, 2026-11-18). An address added since the read bumps the version, so the write conflicts.
+  // Recorded premises (an address or foster homes) fix the city: only the operator moves it, so the
+  // whole request is refused (owner, 2026-11-18; D4, 2026-11-24). A record since the read conflicts.
   if (
     input.cityId !== undefined &&
     input.cityId !== shelter.publicLocation.cityId &&
-    shelter.exactAddress !== null
+    shelter.premises.kind !== "not_recorded"
   ) {
     throw errors.CITY_LOCKED();
   }

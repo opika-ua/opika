@@ -4,12 +4,13 @@ import { LocalizedTextSchema } from "../primitives/localized-text";
 import { ShelterContactSchema } from "./contact";
 import { DonationLinkSchema, PendingDonationSchema } from "./donation";
 import { type ShelterLegalEntity, ShelterLegalEntitySchema } from "./legal-entity";
-import { type ExactAddress, ExactAddressSchema, PublicLocationSchema } from "./location";
+import { type ExactAddress, PublicLocationSchema } from "./location";
 import { ShelterLogoSchema } from "./logo";
+import { ShelterPremisesSchema } from "./premises";
 import { ShelterVerificationSchema } from "./verification/state";
 
 /**
- * `exactAddress` and `contact` sit on the domain object and are excluded from
+ * The premises address and `contact` sit on the domain object and are excluded from
  * every public projection. That exclusion is expressed in the contract layer by
  * listing the fields a view may contain, never by subtracting the fields it may
  * not - so a field added here cannot leak by default.
@@ -22,8 +23,11 @@ export const ShelterSchema = z.object({
   /** Null until the operator adds it (minimal create); approval is refused while null (`approvalGaps`). */
   legalEntity: ShelterLegalEntitySchema.nullable(),
   publicLocation: PublicLocationSchema,
-  /** Null until the operator adds it; the city is then only `publicLocation.cityId`. */
-  exactAddress: ExactAddressSchema.nullable(),
+  /**
+   * `not_recorded` until the operator records it; the city is then only `publicLocation.cityId`.
+   * The address is read through `exactAddressOf`; foster homes store none.
+   */
+  premises: ShelterPremisesSchema,
   /**
    * Null only on a self-registered shelter that has given none yet (owner, 2026-11-19; DB CHECK in
    * 0030). Nothing of it publishes while null (`publishGateOf`), and once set it can't be cleared.
@@ -64,5 +68,5 @@ export type Shelter = z.infer<typeof ShelterSchema>;
 /** A shelter with its verified data on file: the full onboarding path, seeds and fixtures. */
 export type ShelterWithVerifiedData = Shelter & {
   legalEntity: ShelterLegalEntity;
-  exactAddress: ExactAddress;
+  premises: { kind: "address"; address: ExactAddress };
 };

@@ -1,4 +1,5 @@
 import type { RegistryShelterView } from "@opika/contracts";
+import type { ExactAddress } from "@opika/domain";
 import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { vi } from "vitest";
@@ -31,7 +32,7 @@ export const FIXTURE_ADDRESS = {
   cityId: "c1000000-0000-4000-8000-000000000001" as never,
   district: null,
   coordinates: { lat: 50.5, lng: 30.8 },
-} as const satisfies NonNullable<RegistryShelterView["exactAddress"]>;
+} as const satisfies ExactAddress;
 
 export function registryView(overrides: Partial<RegistryShelterView> = {}): RegistryShelterView {
   return {
@@ -46,7 +47,7 @@ export function registryView(overrides: Partial<RegistryShelterView> = {}): Regi
       district: null,
       approximate: { lat: 50.5, lng: 30.8 } as never,
     },
-    exactAddress: FIXTURE_ADDRESS,
+    premises: { kind: "address", address: FIXTURE_ADDRESS },
     contact: { primary: { kind: "phone", e164: "+380671234567" }, additional: [] },
     donation: null,
     pendingDonation: null,

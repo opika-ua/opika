@@ -160,7 +160,7 @@ describe("an address change (S4, verified data)", () => {
     await animalRepo(db).insert(atShelter, homeCity as never);
     await animalRepo(db).insert(fostered, homeCity as never);
     const exactAddress = {
-      ...s.exactAddress,
+      ...s.premises.address,
       cityId: otherCity as never,
       coordinates: { lat: 49.84, lng: 24.03 },
     };
@@ -168,15 +168,18 @@ describe("an address change (S4, verified data)", () => {
     const result = await repo().applyAuditedMany({
       shelterId: s.id,
       expectedVersion,
-      changes: [{ kind: "exact_address", exactAddress, publicLocation }],
+      changes: [
+        { kind: "premises", premises: { kind: "address", address: exactAddress }, publicLocation },
+      ],
       entries: [
         {
           id: "h1",
           entry: {
-            kind: "verified_data_changed",
+            kind: "premises_changed",
             at: NOW,
             moderatorId: MOD,
-            change: { field: "exact_address", previous: s.exactAddress, next: exactAddress },
+            previous: s.premises,
+            next: { kind: "address", address: exactAddress },
           },
         },
       ],
@@ -189,7 +192,7 @@ describe("an address change (S4, verified data)", () => {
     const { s, atShelter, fostered, exactAddress, publicLocation, result } = await move(0);
     expect(result).toEqual({ kind: "ok" });
     const after = await shelterRepo(db).findById(s.id);
-    expect(after?.exactAddress).toEqual(exactAddress);
+    expect(after?.premises).toEqual({ kind: "address", address: exactAddress });
     expect(after?.publicLocation).toEqual(publicLocation);
     expect(await cityOfAnimal(atShelter.id)).toBe(otherCity);
     // A fostered animal is discoverable in its foster city, not the shelter's.
@@ -646,7 +649,7 @@ describe("S8-F5: everServedAt, a shelter entering `verified` (hook 2)", () => {
     await animalRepo(db).insert(atShelter, homeCity as never);
 
     const exactAddress = {
-      ...s.exactAddress,
+      ...s.premises.address,
       cityId: otherCity as never,
       coordinates: { lat: 49.84, lng: 24.03 },
     };
@@ -656,17 +659,18 @@ describe("S8-F5: everServedAt, a shelter entering `verified` (hook 2)", () => {
       shelterId: s.id,
       expectedVersion: s.version,
       changes: [
-        { kind: "exact_address", exactAddress, publicLocation },
+        { kind: "premises", premises: { kind: "address", address: exactAddress }, publicLocation },
         { kind: "verification", verification: VERIFIED },
       ],
       entries: [
         {
           id: "h1",
           entry: {
-            kind: "verified_data_changed",
+            kind: "premises_changed",
             at: NOW,
             moderatorId: MOD,
-            change: { field: "exact_address", previous: s.exactAddress, next: exactAddress },
+            previous: s.premises,
+            next: { kind: "address", address: exactAddress },
           },
         },
         {

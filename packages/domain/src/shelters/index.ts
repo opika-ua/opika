@@ -9,6 +9,7 @@ export * from "./legal-entity";
 export * from "./location";
 export * from "./logo";
 export * from "./password-policy";
+export * from "./premises";
 export * from "./public-donation";
 export * from "./registration/index";
 export * from "./shelter";

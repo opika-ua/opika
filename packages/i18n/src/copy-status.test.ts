@@ -185,8 +185,9 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
       // 25 with addressNote back (row 57, his replacement, 2026-10-14): deleted as
       // a false claim (a map no adopter sees), restored once adopters receive
       // the city only (EM-Q10). 30 with earlyListingEnded (gap 6, 2026-11-10). 27 since the
-      // shelter description replaced voiceTitle, voiceLabel and voiceNote.
-      profile: 27,
+      // shelter description replaced voiceTitle, voiceLabel and voiceNote. 28 with
+      // premisesFosterHomes (initiative gate, 2026-11-24).
+      profile: 28,
       profileStatus: [
         "application",
         "paused",
@@ -219,7 +220,7 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
         "whatBeforeVerification",
       ],
       registry: ["tellPersonally"],
-      history: ["adminJoined", "adminJoinedErased"],
+      history: ["adminJoined", "adminJoinedErased", "premisesFosterHomes"],
     });
   });
 
@@ -531,6 +532,9 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     // The owner's text, verbatim (2026-11-18): a verified address locks the shelter's city.
     "profileEdit.identity.cityLocked":
       "Ваша адреса вже перевірена, тому місто змінюю я. Напишіть мені на {email}.",
+    // Owner-approved 2026-11-24 (#570's open question): an initiative in foster homes has no address.
+    "profileEdit.identity.cityLockedFosterHomes":
+      "Місто вже перевірене, тому змінюю його я. Напишіть мені на {email}.",
   };
 
   const leafPaths = (node: unknown, prefix: string): string[] =>
@@ -1018,10 +1022,28 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.reminder.turnOff": "Вимкнути лист",
     "operator.reminder.turnOn": "Увімкнути лист",
   };
+  /**
+   * Owner-approved 2026-11-24 (initiative gate proposal, copy rows 1-8, verbatim: "Copy rows 1–8
+   * approved as written."). Row 3 replaces «Для схвалення бракує юридичних даних.».
+   */
+  const INITIATIVE_GATE_COPY: Record<string, string> = {
+    "operator.verification.gap.legalForm": "Форма: організація чи ініціатива",
+    "operator.verification.gap.premises": "Приміщення або перетримки",
+    "operator.evidence.missingData.legal_entity":
+      "Для схвалення оберіть форму: організація чи ініціатива.",
+    "operator.evidence.missingData.premises":
+      "Для схвалення вкажіть адресу приміщення або позначте, що тварини на перетримках.",
+    "operator.premises.title": "Де живуть тварини",
+    "operator.premises.address": "Є приміщення",
+    "operator.premises.fosterHomes": "Тварини на перетримках, без приміщення",
+    "profile.premisesFosterHomes": "Немає: тварини на перетримках",
+    "history.premisesFosterHomes": "Позначено: тварини на перетримках, без приміщення",
+    "operator.premises.needsAddress":
+      "Спершу додайте адресу приміщення: у зареєстрованої організації вона обовʼязкова.",
+  };
   const MINIMAL_CREATE_COPY: Record<string, string> = {
     "operator.shelter.add": "Додати",
     "operator.verification.approveBlocked": "Схвалити поки не можна – бракує:",
-    "operator.evidence.missingData.legal_entity": "Для схвалення бракує юридичних даних.",
     "operator.evidence.missingData.exact_address": "Для схвалення бракує адреси приміщення.",
     "operator.history.verified_data_added.legal_entity": "Додано юридичні дані",
     "operator.history.verified_data_added.exact_address": "Додано адресу приміщення",
@@ -1192,6 +1214,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(DATE_FIELD_OPERATOR_COPY),
         ...Object.keys(OPEN_SOURCES_OPERATOR_COPY),
         ...Object.keys(DELETE_SHELTER_OPERATOR_COPY),
+        ...Object.keys(INITIATIVE_GATE_COPY).filter((path) => path.startsWith("operator.")),
       ].sort(),
     );
   });
@@ -1268,6 +1291,10 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     expect(en.kabinet.operator.donation.approveHintInitiative).toBe(
       "Check that the bank account holder is the initiative’s contact person.",
     );
+  });
+
+  it.each(Object.entries(INITIATIVE_GATE_COPY))("%s is the owner-approved text", (path, text) => {
+    expect(valueAt(path)).toBe(text);
   });
 
   it.each(Object.entries(MINIMAL_CREATE_COPY))("%s is the owner-approved text", (path, text) => {
@@ -1839,8 +1866,8 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
     // 74 since PR 6 deleted errors.notAvailable (P6-Q8); 72 since DR1 deleted
     // voice.nameStaysHint, voice.insertName and voice.previewNoAnimals and added
     // errors.nameTokenGone; 84 since pet card PR 3b added the twelve-key
-    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms); 98 since the donation safety copy added six; 100 with the Instagram and Facebook errors; 102 with the form field; 103 with the channel cap's message; 94 since the shelter description replaced the sentence editor (five error messages and six voice strings went, aboutTooLong and about.hint came); 95 with the LiqPay checkout-session error; 96 with identity.cityLocked.
-    expect(k4.length).toBe(96);
+    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms); 98 since the donation safety copy added six; 100 with the Instagram and Facebook errors; 102 with the form field; 103 with the channel cap's message; 94 since the shelter description replaced the sentence editor (five error messages and six voice strings went, aboutTooLong and about.hint came); 95 with the LiqPay checkout-session error; 96 with identity.cityLocked; 97 with identity.cityLockedFosterHomes.
+    expect(k4.length).toBe(97);
     expect(uk.kabinet.profileEdit.contacts.atLeastOne).toContain(String.fromCodePoint(0x2bc));
   });
 });

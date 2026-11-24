@@ -1,5 +1,5 @@
 import type { KabinetShelterView } from "@opika/contracts";
-import type { ShelterFacingVerification } from "@opika/domain";
+import { exactAddressOf, type ShelterFacingVerification } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import type { ReactNode } from "react";
 import { Card } from "../../ui/Card";
@@ -95,10 +95,14 @@ export function LockedBlock({
   const t = uk.kabinet.profile;
   const notRecorded = uk.kabinet.profileNotRecorded;
   const legal = view.legalEntity;
-  // No address on file yet: the city alone.
-  const address = [cityName, view.exactAddress?.line1 ?? null, view.exactAddress?.line2 ?? null]
-    .filter((part): part is string => part !== null && part !== "")
-    .join(", ");
+  // No address on file yet: the city alone. Foster homes: no premises at all (copy row 6).
+  const exact = exactAddressOf(view.premises);
+  const address =
+    view.premises.kind === "foster_homes"
+      ? t.premisesFosterHomes
+      : [cityName, exact?.line1 ?? null, exact?.line2 ?? null]
+          .filter((part): part is string => part !== null && part !== "")
+          .join(", ");
   return (
     <Card as="section" tone="outline" aria-labelledby="kabinet-locked">
       <div className="flex flex-col gap-4 p-4 tablet:p-6 desktop:p-8">

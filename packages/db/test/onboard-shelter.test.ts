@@ -1,6 +1,6 @@
 import { basename, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CityIdSchema, EdrpouSchema } from "@opika/domain";
+import { CityIdSchema, EdrpouSchema, exactAddressOf } from "@opika/domain";
 import { describe, expect, it, vi } from "vitest";
 import {
   buildAnimal,
@@ -71,7 +71,7 @@ describe("buildShelter's public location", () => {
       cityId: EXACT_ADDRESS.cityId,
       district: null,
     });
-    expect(shelter.exactAddress?.coordinates).toBeNull();
+    expect(exactAddressOf(shelter.premises)?.coordinates).toBeNull();
   });
 
   it("refuses an input that still carries a point, by name", () => {

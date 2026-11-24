@@ -41,16 +41,21 @@ const NGO: ShelterLegalEntity = {
   registeredAt: new Date("2020-01-01T00:00:00.000Z"),
 };
 
-const ADDRESS: VerifiedData["exactAddress"] = {
-  line1: "вул. Київська, 300",
-  line2: null,
-  postalCode: null,
-  cityId: "c1000000-0000-4000-8000-000000000001" as never,
-  district: null,
-  coordinates: null,
+const ADDRESS: VerifiedData["premises"] = {
+  kind: "address",
+  address: {
+    line1: "вул. Київська, 300",
+    line2: null,
+    postalCode: null,
+    cityId: "c1000000-0000-4000-8000-000000000001" as never,
+    district: null,
+    coordinates: null,
+  },
 };
+const FOSTER_HOMES: VerifiedData["premises"] = { kind: "foster_homes" };
+const NOT_RECORDED: VerifiedData["premises"] = { kind: "not_recorded" };
 
-const DATA: VerifiedData = { legalEntity: NGO, exactAddress: ADDRESS };
+const DATA: VerifiedData = { legalEntity: NGO, premises: ADDRESS };
 
 const reference = (name: string): EvidenceItem => ({
   kind: "reference_contact",
@@ -287,9 +292,9 @@ describe("approve is gated by the domain's evidence policy", () => {
   const approveOf = (
     state: ShelterVerification,
     legalEntity: ShelterLegalEntity | null,
-    exactAddress: VerifiedData["exactAddress"] = ADDRESS,
+    premises: VerifiedData["premises"] = ADDRESS,
   ) => {
-    const action = offeredActionsOf(state, { legalEntity, exactAddress }).find(
+    const action = offeredActionsOf(state, { legalEntity, premises }).find(
       (a) => a.event === "approve",
     );
     if (action?.event !== "approve") throw new Error("approve not offered");
@@ -366,22 +371,60 @@ describe("approve is gated by the domain's evidence policy", () => {
     };
     expect(approveOf(underReview([check]), NGO)).toEqual({ kind: "open" });
     expect(approveOf(underReview([check]), fop)).toEqual({ kind: "open" });
-    // The legal entity is still required first (approvalGaps' verified data).
+    // The form is still required first (approvalGaps' verified data).
     expect(approveOf(underReview([check]), null)).toEqual({
       kind: "blocked",
-      gaps: [{ on: "verified_data", field: "legal_entity" }],
+      gaps: [{ on: "verified_data", field: "legal_form" }],
     });
   });
 
-  it("missing legal data and address block it first, before any evidence is measured", () => {
-    expect(approveOf(underReview([]), null, null)).toEqual({
+  it("no form blocks it with legal_form alone, before any evidence is measured", () => {
+    for (const premises of [NOT_RECORDED, ADDRESS, FOSTER_HOMES]) {
+      expect(approveOf(underReview([]), null, premises)).toEqual({
+        kind: "blocked",
+        gaps: [{ on: "verified_data", field: "legal_form" }],
+      });
+    }
+  });
+
+  it("an initiative: premises not recorded is blocked with premises; foster homes on (a′) open; no reference blocked", () => {
+    const initiative: ShelterLegalEntity = {
+      kind: "unregistered_initiative",
+      contactPersonName: "Олена Коваль",
+    };
+    const openSources: EvidenceItem = {
+      kind: "open_sources_review",
+      registry: null,
+      pages: ["https://hvostatyi.example.org/"],
+      reviews: null,
+      notes: "Сторінка ведеться з 2023 року",
+      checkedAt: STATE_AT,
+      checkedBy: MODERATOR,
+    };
+    expect(
+      approveOf(underReview([openSources, reference("Ветклініка")]), initiative, NOT_RECORDED),
+    ).toEqual({ kind: "blocked", gaps: [{ on: "verified_data", field: "premises" }] });
+    expect(
+      approveOf(underReview([openSources, reference("Ветклініка")]), initiative, FOSTER_HOMES),
+    ).toEqual({ kind: "open" });
+    expect(approveOf(underReview([openSources]), initiative, FOSTER_HOMES)).toEqual({
       kind: "blocked",
-      gaps: [
-        { on: "verified_data", field: "legal_entity" },
-        { on: "verified_data", field: "exact_address" },
-      ],
+      gaps: [{ on: "evidence", rule: "kind", kind: "reference_contact", minimum: 1, provided: 0 }],
     });
-    expect(approveOf(underReview([]), NGO, null)).toEqual({
+  });
+
+  it("an organisation without an address is blocked with exact_address, foster homes or not", () => {
+    for (const premises of [NOT_RECORDED, FOSTER_HOMES]) {
+      const gate = approveOf(underReview([]), NGO, premises);
+      expect(gate.kind === "blocked" ? gate.gaps[0] : null).toEqual({
+        on: "verified_data",
+        field: "exact_address",
+      });
+    }
+  });
+
+  it("a missing address comes before the evidence gaps of a known form", () => {
+    expect(approveOf(underReview([]), NGO, NOT_RECORDED)).toEqual({
       kind: "blocked",
       gaps: [
         { on: "verified_data", field: "exact_address" },

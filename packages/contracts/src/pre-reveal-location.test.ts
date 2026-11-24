@@ -35,6 +35,7 @@ const FORBIDDEN_KEYS = [
   "centroid",
   "precisionMetres",
   "exactAddress",
+  "premises",
   // The exact address's own lines, so it can't come back flattened into the
   // snapshot under its field names. Not a bare `address`: that is the email
   // contact channel's key (`{ kind: "email", address }`), which a reveal

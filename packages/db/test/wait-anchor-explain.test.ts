@@ -115,13 +115,16 @@ beforeAll(async () => {
         precision: "fuzzed_address",
         approximate: { center: { lat: 50.45, lng: 30.52 }, precisionMetres: 1000 } as never,
       },
-      exactAddress: {
-        line1: `вул. Тестова ${i}`,
-        line2: null,
-        postalCode: "01001",
-        cityId: city.id,
-        district: null,
-        coordinates: { lat: 50.45, lng: 30.52 },
+      premises: {
+        kind: "address",
+        address: {
+          line1: `вул. Тестова ${i}`,
+          line2: null,
+          postalCode: "01001",
+          cityId: city.id,
+          district: null,
+          coordinates: { lat: 50.45, lng: 30.52 },
+        },
       },
     });
   });

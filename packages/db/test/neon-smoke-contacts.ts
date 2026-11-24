@@ -70,7 +70,7 @@ export async function runContactsSmoke(db: Database): Promise<Outcome[]> {
         evidence: { items: [], submittedAt: NOW },
       },
     }),
-    exactAddress: null,
+    premises: { kind: "not_recorded" },
     legalEntity: null,
   });
 

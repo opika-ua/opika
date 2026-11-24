@@ -374,6 +374,39 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
     "Додано адресу приміщення · ви",
   ],
   [
+    "premises_changed, foster homes (owner-approved, 2026-11-24)",
+    {
+      kind: "premises_changed",
+      at: AT,
+      moderatorId: ME,
+      previous: { kind: "not_recorded" },
+      next: { kind: "foster_homes" },
+    },
+    "Позначено: тварини на перетримках, без приміщення · ви",
+  ],
+  [
+    "premises_changed, an address over foster homes is added",
+    {
+      kind: "premises_changed",
+      at: AT,
+      moderatorId: ME,
+      previous: { kind: "foster_homes" },
+      next: { kind: "address", address },
+    },
+    "Додано адресу приміщення · ви",
+  ],
+  [
+    "premises_changed, an address over an address is changed",
+    {
+      kind: "premises_changed",
+      at: AT,
+      moderatorId: ME,
+      previous: { kind: "address", address },
+      next: { kind: "address", address },
+    },
+    "Змінено адресу приміщення · ви",
+  ],
+  [
     "display_name_changed (R-UI 4), both names",
     {
       kind: "display_name_changed",

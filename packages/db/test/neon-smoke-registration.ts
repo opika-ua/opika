@@ -63,7 +63,7 @@ export async function runRegistrationSmoke(db: Database): Promise<Outcome[]> {
       passwordHash: "smoke-hash",
       organizationId: randomUUID(),
       memberId: randomUUID(),
-      shelter: { ...shelter, legalEntity: null, exactAddress: null },
+      shelter: { ...shelter, legalEntity: null, premises: { kind: "not_recorded" } },
       history: {
         id: randomUUID(),
         entry: { kind: "shelter_registered", at: NOW, shelterAdminId: userId as ShelterAdminId },

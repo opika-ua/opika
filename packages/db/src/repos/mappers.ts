@@ -11,6 +11,7 @@ import type {
   ExactAddress,
   LocalizedText,
   Shelter,
+  ShelterPremises,
   Temperament,
   TemperamentTrait,
   TextProvenance,
@@ -21,6 +22,7 @@ import {
   CitySlugSchema,
   confirmationAnchorOf,
   type DiscoverableAnimal,
+  exactAddressOf,
   isDiscoverableAnimal,
   searchLatinOf,
   searchNameOf,
@@ -189,7 +191,7 @@ export function shelterToRow(shelter: Shelter): ShelterInsert {
     descriptionEnProvenance: desc.enProvenance,
     legalEntity: shelter.legalEntity,
     publicLocation: shelter.publicLocation,
-    exactAddress: shelter.exactAddress,
+    ...premisesColumns(shelter.premises),
     contact: shelter.contact,
     donation: shelter.donation,
     logo: shelter.logo,
@@ -200,7 +202,6 @@ export function shelterToRow(shelter: Shelter): ShelterInsert {
     earlyListingSince: shelter.earlyListingSince,
     freshnessReminderOffAt: shelter.freshnessReminderOffAt,
     cityId: shelter.publicLocation.cityId,
-    ...exactPointColumns(shelter.exactAddress),
     ...registrationColumns(shelter.verification),
     createdAt: shelter.createdAt,
     lastUpdatedAt: shelter.lastUpdatedAt,
@@ -216,6 +217,31 @@ const registrationColumns = (verification: Shelter["verification"]) =>
   verification.status === "application"
     ? { registrationSource: "self_registration" as const, appliedAt: verification.appliedAt }
     : {};
+
+/**
+ * The premises as their three column groups: the kind (null is `not_recorded`), the address (only
+ * for `address`; foster homes store none) and its write-only point.
+ */
+export const premisesColumns = (premises: ShelterPremises) => {
+  const address = exactAddressOf(premises);
+  return {
+    premises: premises.kind === "not_recorded" ? null : premises.kind,
+    exactAddress: address,
+    ...exactPointColumns(address),
+  };
+};
+
+/** The premises a row's two columns hold; the CHECKs keep them in step. */
+export const premisesOfRow = (row: {
+  premises: "address" | "foster_homes" | null;
+  exactAddress: ExactAddress | null;
+}): ShelterPremises => {
+  if (row.premises === "foster_homes") return { kind: "foster_homes" };
+  if (row.premises === "address" && row.exactAddress !== null) {
+    return { kind: "address", address: row.exactAddress };
+  }
+  return { kind: "not_recorded" };
+};
 
 /** The write-only point columns: both null when the address, or just its point, is not known. */
 export const exactPointColumns = (
@@ -238,7 +264,10 @@ export function rowToShelter(row: ShelterRow): Shelter {
     ),
     legalEntity: row.legalEntity ?? null,
     publicLocation: row.publicLocation,
-    exactAddress: row.exactAddress ?? null,
+    premises: premisesOfRow({
+      premises: row.premises ?? null,
+      exactAddress: row.exactAddress ?? null,
+    }),
     contact: row.contact,
     donation: row.donation ?? null,
     logo: row.logo ?? null,

@@ -9,7 +9,7 @@ import {
   REPORT_EVENT_TYPES,
   VERIFICATION_EVENT_TYPES,
   VerificationStatusSchema,
-  VerifiedDataFieldSchema,
+  VerifiedDataGapSchema,
 } from "@opika/domain";
 import { z } from "zod";
 
@@ -147,13 +147,21 @@ export const apiErrors = {
     data: IllegalTransitionDataSchema,
   },
   /**
-   * Approve while the legal entity or the premises address is still missing (`data.missing`, in
-   * that order). Checked before `EVIDENCE_INSUFFICIENT`.
+   * Approve while the form or the premises the form needs is missing (`data.missing`: `legal_form`,
+   * `exact_address` or `premises`, `approvalGaps`). Checked before `EVIDENCE_INSUFFICIENT`.
    */
   VERIFIED_DATA_MISSING: {
     status: 422,
     message: "The shelter's verified data is incomplete.",
-    data: z.object({ missing: z.array(VerifiedDataFieldSchema).min(1).readonly() }),
+    data: z.object({ missing: z.array(VerifiedDataGapSchema).min(1).readonly() }),
+  },
+  /**
+   * A legal form other than an initiative while the premises are foster homes (D5): an address
+   * comes first. Foster homes are an initiative's only.
+   */
+  PREMISES_NEEDS_ADDRESS: {
+    status: 409,
+    message: "Add the premises address before choosing a registered form.",
   },
   /** Approve with evidence short of `DEFAULT_VERIFICATION_POLICY` (`data.gaps` says what's missing). */
   EVIDENCE_INSUFFICIENT: {

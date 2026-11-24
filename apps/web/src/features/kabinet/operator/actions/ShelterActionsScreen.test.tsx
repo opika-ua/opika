@@ -145,11 +145,14 @@ describe("S4 with its actions", () => {
 });
 
 describe("S4 for a shelter created without its legal data and address", () => {
-  const minimal = withVerification(registryView({ legalEntity: null, exactAddress: null }), {
-    status: "pending",
-    submittedAt: AT,
-    evidence: { items: [], submittedAt: AT },
-  });
+  const minimal = withVerification(
+    registryView({ legalEntity: null, premises: { kind: "not_recorded" } }),
+    {
+      status: "pending",
+      submittedAt: AT,
+      evidence: { items: [], submittedAt: AT },
+    },
+  );
 
   it("reads «Ще не заповнено» on both blocks, each with «Додати» that opens its edit form", async () => {
     render(

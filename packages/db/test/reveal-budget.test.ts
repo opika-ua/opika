@@ -46,13 +46,16 @@ type Spot = { shelterId: ShelterId; animalIds: AnimalId[] };
 let city: CityId;
 async function shelterWith(animals = 1): Promise<Spot> {
   const shelter = makeShelter({
-    exactAddress: {
-      line1: "вул. Тестова 1",
-      line2: null,
-      postalCode: "01001",
-      cityId: city,
-      district: null,
-      coordinates: { lat: 50.45, lng: 30.52 },
+    premises: {
+      kind: "address",
+      address: {
+        line1: "вул. Тестова 1",
+        line2: null,
+        postalCode: "01001",
+        cityId: city,
+        district: null,
+        coordinates: { lat: 50.45, lng: 30.52 },
+      },
     },
   });
   await shelterRepo(db).insert(shelter);

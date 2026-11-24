@@ -229,7 +229,7 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   changePassword: 7,
 
-  profile: 27,
+  profile: 28,
 
   profileStatus: 7,
 
@@ -243,7 +243,7 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   profileTabs: 5,
 
-  profileEdit: 95,
+  profileEdit: 96,
 
   listingStatus: 5,
 
@@ -267,11 +267,11 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   confirm: 9,
 
-  history: 2,
+  history: 3,
 
   // +13: open sources (2026-11-19).
   // +13: «Видалити притулок» (2026-11-20).
-  operator: 312,
+  operator: 319,
 
   verificationDecision: 8,
 
