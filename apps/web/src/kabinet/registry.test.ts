@@ -901,6 +901,28 @@ describe("registry.shelters.updateVerifiedData / updateProfile (S4)", () => {
     ]);
   });
 
+  it("an initiative at an address (with a point) moving to foster homes keeps no address, point or pin", async () => {
+    const s = await shelter({
+      legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена" },
+    });
+    expect(s.premises.address.coordinates).not.toBeNull();
+    expect(s.publicLocation.precision).toBe("fuzzed_address");
+    const result = await call<RegistryShelterView>("registry.shelters.updateVerifiedData", {
+      shelterId: s.id,
+      expectedVersion: 0,
+      change: { field: "premises", next: { kind: "foster_homes" } },
+    });
+    expect(result.status).toBe(200);
+    const row = (await db.select().from(shelters)).find((r) => r.id === s.id);
+    expect(row?.publicLocation).toEqual({ precision: "city", cityId, district: null });
+    expect([row?.premises, row?.exactAddress, row?.exactLat, row?.exactLng]).toEqual([
+      "foster_homes",
+      null,
+      null,
+      null,
+    ]);
+  });
+
   it("answers an address in an unknown city as a bad request, changing nothing", async () => {
     const s = await shelter();
     const result = await call("registry.shelters.updateVerifiedData", {
