@@ -80,3 +80,23 @@ export const calendarDateYearsBefore = (date: CalendarDate, years: number): stri
   const [year, rest] = [date.slice(0, 4), date.slice(4)];
   return `${String(Number(year) - years).padStart(4, "0")}${rest}`;
 };
+
+/** A calendar month (`YYYY-MM`): when a document was issued, where the day does not matter. */
+export const YearMonthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+export type YearMonth = z.infer<typeof YearMonthSchema>;
+
+/** The month a calendar date falls in. */
+export const yearMonthOf = (date: CalendarDate): YearMonth => date.slice(0, 7);
+
+const monthIndex = (month: YearMonth): number =>
+  Number(month.slice(0, 4)) * 12 + Number(month.slice(5, 7)) - 1;
+
+/** Whole months from `from` to `to`; negative when `from` is later. */
+export const monthsBetween = (from: YearMonth, to: YearMonth): number =>
+  monthIndex(to) - monthIndex(from);
+
+/** The month `months` before `month`. */
+export const yearMonthMonthsBefore = (month: YearMonth, months: number): YearMonth => {
+  const index = monthIndex(month) - months;
+  return `${String(Math.floor(index / 12)).padStart(4, "0")}-${String((index % 12) + 1).padStart(2, "0")}`;
+};

@@ -266,7 +266,8 @@ export const apiErrors = {
   },
   /**
    * Evidence input refused (`data.reason`): a site visit or an open-sources
-   * check dated in the future (`toVerificationEvidence`), or, once the registry writers land in this PR, a
+   * check dated in the future, an ongoing-work record from fewer than two months or with a month
+   * in the future or past the 12-month cap (`toVerificationEvidence`), or a
    * `documentKey` before the private evidence bucket exists (RG-Q5,
    * `document_not_supported_yet`).
    */
@@ -277,6 +278,9 @@ export const apiErrors = {
       reason: z.enum([
         "site_visit_in_future",
         "open_sources_check_in_future",
+        "ongoing_work_too_few_months",
+        "ongoing_work_month_in_future",
+        "ongoing_work_month_too_old",
         "document_not_supported_yet",
       ]),
     }),

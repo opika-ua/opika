@@ -499,6 +499,15 @@ export function buildShelter(input: OnboardInput["shelter"], now: Date, secret: 
       `open_sources_review.checkedOn ${recorded.checkedOn} is after today - a check that hasn't happened can't back a verification.`,
     );
   }
+  if (recorded.kind === "ongoing_work_too_few_months") {
+    throw new Error("ongoing_work_record.documents must come from at least two different months.");
+  }
+  if (recorded.kind === "ongoing_work_month_in_future") {
+    throw new Error(`ongoing_work_record month ${recorded.month} is after this month.`);
+  }
+  if (recorded.kind === "ongoing_work_month_too_old") {
+    throw new Error(`ongoing_work_record month ${recorded.month} is more than 12 months back.`);
+  }
   const evidence = recorded.evidence;
   const exactAddress = { ...input.exactAddress, coordinates: null };
 

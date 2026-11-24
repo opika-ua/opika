@@ -2,6 +2,11 @@ import { z } from "zod";
 import { EdrpouSchema, ModeratorIdSchema } from "../../primitives/ids";
 import { LocalizedTextSchema } from "../../primitives/localized-text";
 import { ContactChannelSchema } from "../contact";
+import {
+  distinctMonthCount,
+  ONGOING_WORK_MIN_MONTHS,
+  OngoingWorkDocumentSchema,
+} from "./ongoing-work";
 
 export const ReferenceRelationshipSchema = z.enum([
   "veterinary_clinic",
@@ -81,6 +86,21 @@ export const EvidenceItemSchema = z.discriminatedUnion("kind", [
     kind: z.literal("public_link"),
     url: z.url({ protocol: /^https$/ }),
   }),
+  /**
+   * An initiative's documented ongoing work (owner, 2026-11-24): the month and issuer of each
+   * document the operator saw, from at least two different months; the documents are never stored.
+   * The age cap needs `now`, so it is `ongoingWorkProblemOf`'s, at write. `notes` is operator-only.
+   */
+  z.object({
+    kind: z.literal("ongoing_work_record"),
+    documents: z
+      .array(OngoingWorkDocumentSchema)
+      .refine((documents) => distinctMonthCount(documents) >= ONGOING_WORK_MIN_MONTHS)
+      .readonly(),
+    notes: z.string().min(1),
+    checkedAt: z.date(),
+    checkedBy: ModeratorIdSchema,
+  }),
   z.object({
     kind: z.literal("supporting_document"),
     label: LocalizedTextSchema,
@@ -97,6 +117,7 @@ export const EVIDENCE_KINDS = [
   "site_visit",
   "open_sources_review",
   "public_link",
+  "ongoing_work_record",
   "supporting_document",
 ] as const satisfies readonly EvidenceKind[];
 export const EvidenceKindSchema = z.enum(EVIDENCE_KINDS);

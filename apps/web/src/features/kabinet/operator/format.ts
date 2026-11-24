@@ -38,6 +38,11 @@ const lazyFormat = (options: KyivFormatOptions) => {
   };
 };
 
+/** «листопад 2026 р.»: a document's month (`YYYY-MM`), read at its first day in Kyiv. */
+const monthYear = lazyFormat({ month: "long", year: "numeric" });
+export const formatYearMonth = (month: string): string =>
+  monthYear(new Date(`${month}-01T00:00:00.000Z`));
+
 /** HH:mm, Kyiv. */
 export const formatTime = lazyFormat({ hour: "2-digit", minute: "2-digit" });
 
@@ -58,9 +63,16 @@ let disjunction: Intl.ListFormat | undefined;
 /** The kinds a registry entry can come in (`holdsRegistryEntry`), as the gap names them. */
 const REGISTRY_ENTRY_KINDS = ["edrpou_registration", "open_sources_review"] as const;
 
+/** An any-of line's kinds as one set, order aside. */
+const sameKinds = (a: readonly EvidenceKind[], b: readonly EvidenceKind[]): boolean =>
+  a.length === b.length && a.every((kind) => b.includes(kind));
+
+/** The initiative's reference-or-record line, which has its own label (owner, 2026-11-24, row 8). */
+const REFERENCE_OR_ONGOING_WORK = ["reference_contact", "ongoing_work_record"] as const;
+
 /**
  * What an evidence gap asks for, by name: one kind, or several joined with «або» by
- * `Intl.ListFormat` («Відеодзвінок або Відкриті джерела»).
+ * `Intl.ListFormat` («Відеодзвінок або Відкриті джерела»), or a line's own label.
  */
 export function evidenceGapKinds(gap: EvidenceGap): string {
   const kind = uk.kabinet.operator.evidence.kind;
@@ -72,7 +84,9 @@ export function evidenceGapKinds(gap: EvidenceGap): string {
     case "kind":
       return kind[gap.kind];
     case "any_of":
-      return either(gap.kinds);
+      return sameKinds(gap.kinds, REFERENCE_OR_ONGOING_WORK)
+        ? uk.kabinet.operator.verification.gap.referenceOrOngoingWork
+        : either(gap.kinds);
     case "registry_entry":
       return either(REGISTRY_ENTRY_KINDS);
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled rule; unreachable at runtime */

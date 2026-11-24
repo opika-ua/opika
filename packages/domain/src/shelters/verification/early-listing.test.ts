@@ -58,6 +58,17 @@ const OPEN_SOURCES_REGISTRY: EvidenceItem = {
   ...OPEN_SOURCES,
   registry: { edrpou: EDRPOU, registeredName: "ГО «Лапа»", registeredAddress: "м. Київ" },
 } as EvidenceItem;
+/** An initiative's documented ongoing work (owner, 2026-11-24). */
+const ONGOING_WORK = {
+  kind: "ongoing_work_record",
+  documents: [
+    { kind: "vet_receipt", month: "2026-09", issuer: "Ветклініка «Айболить»" },
+    { kind: "transport", month: "2026-10", issuer: "Перевізник «Дорога додому»" },
+  ],
+  notes: "Чеки показали в месенджері",
+  checkedAt: AT,
+  checkedBy: MOD,
+} as EvidenceItem;
 /** Any one qualifying item is enough to allow. */
 const ENOUGH: EvidenceItem[] = [VISIT];
 
@@ -210,12 +221,14 @@ describe("allowEarlyListing", () => {
   /**
    * Owner, 2026-11-19: any ONE of open sources (registry part or not), a call or a reference
    * allows, whatever the legal form (the input carries none); approval's rule (a′) is not applied.
+   * 2026-11-24 (D1): an ongoing-work record allows too.
    */
   const QUALIFYING: Record<string, EvidenceItem> = {
     "open sources, no registry": OPEN_SOURCES,
     "open sources with the registry": OPEN_SOURCES_REGISTRY,
     "a call": VISIT,
     "a reference": REFERENCE,
+    "an ongoing-work record": ONGOING_WORK,
   };
   const NOT_QUALIFYING: Record<string, EvidenceItem> = {
     "a bank holder": BANK,
@@ -240,7 +253,7 @@ describe("allowEarlyListing", () => {
   });
 
   it("leaves approval as it was: one call, reference or registry-less check is short for every form", () => {
-    for (const item of [VISIT, REFERENCE, OPEN_SOURCES]) {
+    for (const item of [VISIT, REFERENCE, OPEN_SOURCES, ONGOING_WORK]) {
       expect(verdict([item])).toBe("ok");
       for (const entity of FORMS) {
         const approval = evidenceGaps(

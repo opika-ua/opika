@@ -1,6 +1,7 @@
 import { apiErrors, type EmailSendOutcome } from "@opika/contracts";
 import type { DonationUrlProblem } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
+import type { z } from "zod";
 import { refusedForAboutLength } from "../about-text";
 import { refusedForNameLength } from "../display-name";
 
@@ -63,10 +64,23 @@ type EarlyListingRefusal =
   | "note_required"
   | "limit_reached";
 type AddressRoleReason = "shelter_admin" | "operator" | "invited_elsewhere";
-type InvalidEvidenceReason =
-  | "site_visit_in_future"
-  | "open_sources_check_in_future"
-  | "document_not_supported_yet";
+export type InvalidEvidenceReason = z.infer<typeof apiErrors.INVALID_EVIDENCE.data>["reason"];
+
+/**
+ * What the add and resubmit panels say for an evidence refusal the operator can act on. The
+ * form offers only the months a record accepts, so a month refused as future or too old means
+ * the month turned between loading and sending: the plain failure, a reload fixes it.
+ */
+export const EVIDENCE_REFUSAL_TEXT: Record<
+  Exclude<InvalidEvidenceReason, "document_not_supported_yet">,
+  string
+> = {
+  site_visit_in_future: uk.kabinet.operator.create.errors.siteVisitInFuture,
+  open_sources_check_in_future: uk.kabinet.operator.create.errors.openSourcesCheckInFuture,
+  ongoing_work_too_few_months: uk.kabinet.operator.evidence.ongoingWork.monthsError,
+  ongoing_work_month_in_future: uk.kabinet.operator.errors.failed,
+  ongoing_work_month_too_old: uk.kabinet.operator.errors.failed,
+};
 
 const fieldOf = (error: unknown, field: "code" | "data"): unknown =>
   typeof error === "object" && error !== null && field in error

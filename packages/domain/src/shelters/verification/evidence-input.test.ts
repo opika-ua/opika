@@ -261,6 +261,26 @@ describe("toEvidenceItem", () => {
       },
     ],
     [
+      {
+        kind: "ongoing_work_record",
+        documents: [
+          { kind: "vet_receipt", month: "2026-08", issuer: "Ветклініка «Айболить»" },
+          { kind: "food_purchase", month: "2026-09", issuer: "Зоомагазин «Лапа»" },
+        ],
+        notes: "Чеки показали в месенджері",
+      },
+      {
+        kind: "ongoing_work_record",
+        documents: [
+          { kind: "vet_receipt", month: "2026-08", issuer: "Ветклініка «Айболить»" },
+          { kind: "food_purchase", month: "2026-09", issuer: "Зоомагазин «Лапа»" },
+        ],
+        notes: "Чеки показали в месенджері",
+        checkedAt: RECORDED_AT,
+        checkedBy: OPERATOR,
+      },
+    ],
+    [
       { kind: "supporting_document", labelUk: "Статут", documentKey: "evidence/statute.pdf" },
       {
         kind: "supporting_document",

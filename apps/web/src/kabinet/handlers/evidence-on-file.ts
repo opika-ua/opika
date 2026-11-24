@@ -17,7 +17,7 @@ import type { EvidenceItem, VerificationEvidence } from "@opika/domain";
  *   either. (No record holds such a key today: every writer refuses one.)
  *   The cost, until documents can be managed: a resubmit can't remove a
  *   document.
- * - **Who made a site visit or an open-sources check.** Never typed (`toEvidenceItem`: the recording
+ * - **Who made a site visit, an open-sources check or an ongoing-work record.** Never typed (`toEvidenceItem`: the recording
  *   operator vouches for the visit). A visit that comes back unchanged, the
  *   same day and the same notes, keeps whoever recorded it; a new or changed
  *   one is the resubmitting operator's, who is vouching for it as now written
@@ -42,7 +42,8 @@ export function withEvidenceOnFile(
   const items = sent.items.map((item): EvidenceItem => {
     switch (item.kind) {
       case "site_visit":
-      case "open_sources_review": {
+      case "open_sources_review":
+      case "ongoing_work_record": {
         // An unchanged visit or check stays exactly as on file: its recorder, and its
         // text as stored (the script stores it untrimmed; the editor trims).
         const pair = pairOf(item);
@@ -87,6 +88,22 @@ function sameTypedFacts(onFile: EvidenceItem, sent: EvidenceItem): boolean {
         sent.pages.length === onFile.pages.length &&
         sent.pages.every((page, index) => page === onFile.pages[index]) &&
         sameText(sent.reviews ?? "", onFile.reviews ?? "") &&
+        sameText(sent.notes, onFile.notes)
+      );
+    // The documents in order, as the editor sends them back; `checkedAt` is the recording's.
+    case "ongoing_work_record":
+      return (
+        sent.kind === "ongoing_work_record" &&
+        sent.documents.length === onFile.documents.length &&
+        sent.documents.every((document, index) => {
+          const stored = onFile.documents[index];
+          return (
+            stored !== undefined &&
+            document.kind === stored.kind &&
+            document.month === stored.month &&
+            sameText(document.issuer, stored.issuer)
+          );
+        }) &&
         sameText(sent.notes, onFile.notes)
       );
     case "edrpou_registration":

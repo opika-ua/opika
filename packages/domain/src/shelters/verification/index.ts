@@ -3,6 +3,7 @@ export * from "./events";
 export * from "./evidence";
 export * from "./evidence-add";
 export * from "./evidence-input";
+export * from "./ongoing-work";
 export * from "./policy";
 export * from "./public-pause";
 export * from "./reasons";

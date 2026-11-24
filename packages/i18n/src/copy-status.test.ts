@@ -1041,6 +1041,26 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.premises.needsAddress":
       "Спершу додайте адресу приміщення: у зареєстрованої організації вона обовʼязкова.",
   };
+  /**
+   * Owner-approved 2026-11-24 (ongoing-work proposal, verbatim: "Copy rows 1–10 approved as
+   * written."): rows 1-8, the operator's.
+   */
+  const ONGOING_WORK_OPERATOR_COPY: Record<string, string> = {
+    "operator.evidence.kind.ongoing_work_record": "Документи постійної роботи",
+    "operator.evidence.ongoingWork.documentKind.vet_receipt": "Чек ветклініки",
+    "operator.evidence.ongoingWork.documentKind.food_purchase": "Купівля корму",
+    "operator.evidence.ongoingWork.documentKind.transport": "Перевезення",
+    "operator.evidence.ongoingWork.documentKind.other": "Інше",
+    "operator.evidence.ongoingWork.month": "Місяць",
+    "operator.evidence.ongoingWork.issuer": "Хто видав: клініка, магазин",
+    "operator.evidence.ongoingWork.notes": "Нотатки",
+    "operator.evidence.ongoingWork.hint":
+      "Щонайменше два документи з різних місяців. Самі документи на сайті не зберігаються – лише місяць і хто видав.",
+    "operator.evidence.ongoingWork.monthsError":
+      "Потрібні документи щонайменше з двох різних місяців.",
+    "operator.verification.gap.referenceOrOngoingWork":
+      "Рекомендація або документи постійної роботи за два різні місяці",
+  };
   const MINIMAL_CREATE_COPY: Record<string, string> = {
     "operator.shelter.add": "Додати",
     "operator.verification.approveBlocked": "Схвалити поки не можна – бракує:",
@@ -1215,6 +1235,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(OPEN_SOURCES_OPERATOR_COPY),
         ...Object.keys(DELETE_SHELTER_OPERATOR_COPY),
         ...Object.keys(INITIATIVE_GATE_COPY).filter((path) => path.startsWith("operator.")),
+        ...Object.keys(ONGOING_WORK_OPERATOR_COPY),
       ].sort(),
     );
   });
@@ -1296,6 +1317,13 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
   it.each(Object.entries(INITIATIVE_GATE_COPY))("%s is the owner-approved text", (path, text) => {
     expect(valueAt(path)).toBe(text);
   });
+
+  it.each(Object.entries(ONGOING_WORK_OPERATOR_COPY))(
+    "%s is the owner-approved text",
+    (path, text) => {
+      expect(valueAt(path)).toBe(text);
+    },
+  );
 
   it.each(Object.entries(MINIMAL_CREATE_COPY))("%s is the owner-approved text", (path, text) => {
     expect(valueAt(path)).toBe(text);
@@ -1609,8 +1637,9 @@ describe("the privacy policy's text (owner-approved 2026-11-20)", () => {
       "Щоб кожен лист надходив лише раз, сайт 90 днів зберігає журнал надісланих листів: який лист, до якого притулку і чи його доставлено. Ні адреси, ні тексту листа в журналі немає.",
     "kabinet.mailLogo":
       "У листах від {site} є лише одне зображення з сайту – логотип, однаковий для всіх і без жодних міток. Коли поштова програма його показує, хостинг Vercel, як і для будь-якого запиту, записує в технічний журнал IP-адресу й час. Я не використовую це, щоб дізнатися, хто відкрив лист.",
+    // Owner-approved 2026-11-24 (ongoing-work row 10): the month and issuer of the work documents.
     "kabinet.verification":
-      "Для перевірки притулку я зберігаю те, що ви надали: посилання, реквізити, контакт людини, яка може підтвердити роботу притулку. Публічно це не показується.",
+      "Для перевірки притулку я зберігаю те, що ви надали: посилання, реквізити, контакт людини, яка може підтвердити роботу притулку, або місяць і назву закладу з документів вашої роботи (самі документи не зберігаються). Публічно це не показується.",
     "public.heading": "Що бачать інші",
     "public.body":
       "Публічно сайт показує назву притулку, опис, місто, логотип, картки тварин із фото та позначку перевірки. Контакти притулку людина бачить, лише натиснувши «Дати сімʼю». Точна адреса притулку й пошта адміністраторів публічно не показуються ніколи. Я, як оператор, бачу все, що внесено в кабінет, і дані для перевірки.",
@@ -3098,8 +3127,9 @@ describe("the copy audit of 2026-10-22", () => {
         "Я дивлюся відкриті джерела: сайт і сторінки притулку, реєстр організацій, відгуки. Якщо їх не вистачає, я напишу вам і попрошу щось додати – наприклад, рекомендацію або коротку розмову.\n\n" +
         "Поки перевірка триває, я можу дозволити показ карток до 60 днів – з позначкою «на перевірці». Позначку «перевірений» притулок отримує лише після повної перевірки.",
     );
+    // §6b with his 2026-11-24 row 9 (the ongoing-work alternative), approved as written.
     expect(uk.forShelters.verificationOpenToVolunteers).toBe(
-      "Незареєстровані ініціативи я теж перевіряю дистанційно. Я дивлюся відкриті джерела і прошу одну рекомендацію від когось іншого, ніж ви – сусідній притулок, ветклініка, з якою ви працюєте, будь-хто, хто може підтвердити, що ви існуєте і робите те, що кажете. Ваш другий номер телефону – не рекомендація. Якщо відкритих джерел замало, домовимося про коротку розмову.",
+      "Незареєстровані ініціативи я теж перевіряю дистанційно. Я дивлюся відкриті джерела і прошу одну рекомендацію від когось іншого, ніж ви – сусідній притулок, ветклініка, з якою ви працюєте, будь-хто, хто може підтвердити, що ви існуєте і робите те, що кажете. Ваш другий номер телефону – не рекомендація. Замість рекомендації підійдуть документи вашої постійної роботи – наприклад, чеки ветклініки щонайменше за два різні місяці. На сайті я їх не зберігаю. Якщо відкритих джерел замало, домовимося про коротку розмову.",
     );
     expect(uk.kabinet.email.applicationApproved.pending).toBe(
       "Поки біля назви притулку стоїть позначка «На перевірці». Якщо для повної перевірки мені забракне інформації з відкритих джерел, я напишу вам.",

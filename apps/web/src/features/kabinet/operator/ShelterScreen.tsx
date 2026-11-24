@@ -22,7 +22,13 @@ import { TextLink } from "../../../ui/TextLink";
 import { channelValue, groupEdrpou } from "../ProfileParts";
 import { OPERATOR_HOME } from "../routes";
 import { VerificationStatusChip } from "../StatusChips";
-import { evidenceGapKey, evidenceGapKinds, formatDate, formatTime } from "./format";
+import {
+  evidenceGapKey,
+  evidenceGapKinds,
+  formatDate,
+  formatTime,
+  formatYearMonth,
+} from "./format";
 import { HistoryList } from "./HistoryList";
 import type { HistoryPage } from "./pages";
 
@@ -189,6 +195,27 @@ function EvidenceFacts({ item }: { item: EvidenceItem }) {
           <Fact label={f.checkedOn}>{formatDate(item.checkedAt)}</Fact>
         </dl>
       );
+    // What the operator saw of each document, never the document (owner, 2026-11-24).
+    case "ongoing_work_record": {
+      const ow = t.evidence.ongoingWork;
+      return (
+        <div className="flex flex-col gap-2">
+          {/* The card's own title names the list, so it takes no label of its own. */}
+          <ul className="flex flex-col gap-1">
+            {item.documents.map((document, index) => (
+              <li key={index}>
+                {ow.documentKind[document.kind]} · {formatYearMonth(document.month)} ·{" "}
+                {document.issuer}
+              </li>
+            ))}
+          </ul>
+          <dl className="flex flex-col gap-2">
+            <Fact label={ow.notes}>{item.notes}</Fact>
+            <Fact label={f.checkedOn}>{formatDate(item.checkedAt)}</Fact>
+          </dl>
+        </div>
+      );
+    }
     case "supporting_document":
       return (
         <dl className="flex flex-col gap-2">

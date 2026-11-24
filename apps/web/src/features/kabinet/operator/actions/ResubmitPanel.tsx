@@ -12,6 +12,7 @@ import {
   type EvidenceRowErrors,
   evidenceOfRows,
 } from "../evidence-editor/evidence-rows";
+import { EVIDENCE_REFUSAL_TEXT, type InvalidEvidenceReason } from "./action-result";
 import { DECISION_OWNER, type DecisionOutcome } from "./decision-outcome";
 import { useOperatorActions } from "./operator-actions";
 import { resubmitRowsOf } from "./resubmit-evidence";
@@ -52,7 +53,7 @@ export function ResubmitPanel({
   const [rowErrors, setRowErrors] = useState(NO_ROW_ERRORS);
   const [focusFirstError, setFocusFirstError] = useState(0);
   const [error, setError] = useState<
-    "none" | "failed" | "site_visit_in_future" | "open_sources_check_in_future"
+    "none" | "failed" | Exclude<InvalidEvidenceReason, "document_not_supported_yet">
   >("none");
   const busy = phase.kind !== "idle";
   const mine = busy && phase.owner === DECISION_OWNER;
@@ -129,8 +130,7 @@ export function ResubmitPanel({
           {
             {
               failed: t.errors.failed,
-              site_visit_in_future: t.create.errors.siteVisitInFuture,
-              open_sources_check_in_future: t.create.errors.openSourcesCheckInFuture,
+              ...EVIDENCE_REFUSAL_TEXT,
             }[error]
           }
         </p>

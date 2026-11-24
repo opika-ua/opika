@@ -18,6 +18,7 @@ import {
   type EvidenceRowErrors,
   evidenceOfRows,
 } from "../evidence-editor/evidence-rows";
+import { EVIDENCE_REFUSAL_TEXT, type InvalidEvidenceReason } from "./action-result";
 import { DECISION_OWNER } from "./decision-outcome";
 import { useOperatorActions } from "./operator-actions";
 import { NOTICE } from "./styles";
@@ -32,8 +33,7 @@ type Message =
   | "failed"
   | "not_editable"
   | "limit"
-  | "site_visit_in_future"
-  | "open_sources_check_in_future";
+  | Exclude<InvalidEvidenceReason, "document_not_supported_yet">;
 
 /**
  * «Додати докази» (pending and under_review): the operator appends evidence
@@ -128,8 +128,7 @@ export function AddEvidencePanel({ now = () => new Date() }: { now?: () => Date 
     failed: t.errors.failed,
     not_editable: t.evidence.notEditable,
     limit: t.evidence.limit,
-    site_visit_in_future: t.create.errors.siteVisitInFuture,
-    open_sources_check_in_future: t.create.errors.openSourcesCheckInFuture,
+    ...EVIDENCE_REFUSAL_TEXT,
   };
 
   return (

@@ -160,6 +160,32 @@ describe("withEvidenceOnFile (resubmit)", () => {
     expect(withEvidenceOnFile(onFile(withKey), sent(edited)).items).toEqual([edited, withKey]);
   });
 
+  it("an unchanged ongoing-work record keeps who recorded it and when; a changed one is the resubmitter's", () => {
+    const work = (
+      by: typeof RECORDER,
+      at: Date,
+      issuer = "Ветклініка «Айболить»",
+    ): EvidenceItem => ({
+      kind: "ongoing_work_record",
+      documents: [
+        { kind: "vet_receipt", month: "2026-08", issuer },
+        { kind: "vet_receipt", month: "2026-09", issuer },
+      ],
+      notes: "Чеки на стерилізацію",
+      checkedAt: at,
+      checkedBy: by,
+    });
+    const stored = work(RECORDER, ON_FILE_AT);
+    expect(
+      withEvidenceOnFile(
+        onFile(stored),
+        sent(work(RESUBMITTER, SENT_AT, " Ветклініка «Айболить» ")),
+      ).items,
+    ).toEqual([stored]);
+    const changed = work(RESUBMITTER, SENT_AT, "Ветклініка «Ветдопомога»");
+    expect(withEvidenceOnFile(onFile(stored), sent(changed)).items).toEqual([changed]);
+  });
+
   it("nothing on file: what was sent, as sent", () => {
     expect(withEvidenceOnFile(onFile(), sent(REFERENCE, visit(RESUBMITTER)))).toEqual(
       sent(REFERENCE, visit(RESUBMITTER)),

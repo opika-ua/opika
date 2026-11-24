@@ -191,6 +191,42 @@ describe("S4 evidence", () => {
     expect(within(evidence).queryByText(/Для схвалення бракує/)).toBeNull();
   });
 
+  it("shows an ongoing-work record as what was seen: kind, month and issuer of each document", () => {
+    renderScreen({
+      legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена Коваль" },
+      verification: {
+        status: "under_review",
+        startedAt: NOW,
+        reviewerId: ME,
+        evidence: {
+          submittedAt: NOW,
+          items: [
+            {
+              kind: "ongoing_work_record",
+              documents: [
+                { kind: "vet_receipt", month: "2026-08", issuer: "Ветклініка «Айболить»" },
+                { kind: "transport", month: "2026-09", issuer: "Перевізник «Дорога»" },
+              ],
+              notes: "Чеки надіслали в месенджері",
+              checkedAt: new Date("2026-10-12T09:00:00Z"),
+              checkedBy: ME,
+            },
+          ],
+        },
+      },
+    });
+    const evidence = section("Докази для перевірки");
+    expect(
+      within(evidence).getByText("Чек ветклініки · серпень 2026 р. · Ветклініка «Айболить»"),
+    ).toBeTruthy();
+    expect(
+      within(evidence).getByText("Перевезення · вересень 2026 р. · Перевізник «Дорога»"),
+    ).toBeTruthy();
+    expect(within(evidence).getByText("Чеки надіслали в месенджері")).toBeTruthy();
+    // The reference line is met; the call-or-open-sources line is not.
+    expect(within(evidence).queryByText(/Рекомендація або документи постійної роботи/)).toBeNull();
+  });
+
   it("shows an open-sources check's facts and opens its pages; with it an NGO needs no video call", () => {
     renderScreen({
       verification: {

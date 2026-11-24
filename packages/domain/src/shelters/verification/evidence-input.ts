@@ -3,6 +3,7 @@ import {
   type CalendarDate,
   instantOfCalendarDate,
   kyivCalendarDateOf,
+  YearMonthSchema,
 } from "../../primitives/calendar-date";
 import { EdrpouSchema, type ModeratorId } from "../../primitives/ids";
 import { CONTACT_INPUT_MAX_LENGTH, ContactChannelInputSchema } from "../contact";
@@ -11,6 +12,11 @@ import {
   ReferenceRelationshipSchema,
   type VerificationEvidence,
 } from "./evidence";
+import {
+  ONGOING_WORK_MAX_DOCUMENTS,
+  OngoingWorkDocumentKindSchema,
+  ongoingWorkProblemOf,
+} from "./ongoing-work";
 
 /**
  * Evidence as an operator enters it: the operator script's JSON input file
@@ -114,6 +120,25 @@ export const EvidenceItemInputSchema = z.discriminatedUnion("kind", [
     notes: z.string().min(1).max(EVIDENCE_NOTES_MAX_LENGTH),
     checkedOn: z.iso.date(),
   }),
+  /**
+   * No check date: the record is dated when it is recorded. One document or one month is not
+   * refused here but by `toVerificationEvidence`, so the operator is told why (owner, 2026-11-24).
+   */
+  z.object({
+    kind: z.literal("ongoing_work_record"),
+    documents: z
+      .array(
+        z.object({
+          kind: OngoingWorkDocumentKindSchema,
+          month: YearMonthSchema,
+          issuer: z.string().min(1).max(EVIDENCE_NAME_MAX_LENGTH),
+        }),
+      )
+      .min(1)
+      .max(ONGOING_WORK_MAX_DOCUMENTS)
+      .readonly(),
+    notes: z.string().min(1).max(EVIDENCE_NOTES_MAX_LENGTH),
+  }),
   z.object({
     kind: z.literal("supporting_document"),
     labelUk: z.string().min(1).max(EVIDENCE_LABEL_MAX_LENGTH),
@@ -176,6 +201,14 @@ export const toEvidenceItem = (input: EvidenceItemInput, by: EvidenceAttribution
         // As with a visit: whoever records the check vouches for it.
         checkedBy: by.recordedBy,
       };
+    case "ongoing_work_record":
+      return {
+        kind: "ongoing_work_record",
+        documents: input.documents.map(({ kind, month, issuer }) => ({ kind, month, issuer })),
+        notes: input.notes,
+        checkedAt: by.recordedAt,
+        checkedBy: by.recordedBy,
+      };
     case "supporting_document":
       return {
         kind: "supporting_document",
@@ -193,7 +226,10 @@ export const toEvidenceItem = (input: EvidenceItemInput, by: EvidenceAttribution
 export type EvidenceInputResult =
   | { kind: "ok"; evidence: VerificationEvidence }
   | { kind: "site_visit_in_future"; visitedOn: string }
-  | { kind: "open_sources_check_in_future"; checkedOn: string };
+  | { kind: "open_sources_check_in_future"; checkedOn: string }
+  | { kind: "ongoing_work_too_few_months" }
+  | { kind: "ongoing_work_month_in_future"; month: string }
+  | { kind: "ongoing_work_month_too_old"; month: string };
 
 /**
  * Whether a visit dated `visitedOn` lies after the day `recordedAt` falls on
@@ -212,7 +248,9 @@ export const isSiteVisitInFuture = (visitedOn: CalendarDate, recordedAt: Date): 
  *
  * Refuses a site visit or an open-sources check dated after the day it is
  * recorded (`isSiteVisitInFuture`): that is a typo, not a fact, and it would
- * let a reviewer approve on a check that hasn't happened. A result rather than a
+ * let a reviewer approve on a check that hasn't happened. Refuses an ongoing-work record with
+ * fewer than two different months, or a month in the future or past the 12-month cap
+ * (`ongoingWorkProblemOf`, owner 2026-11-24). A result rather than a
  * throw, as in the verification FSM, so every caller handles the refusal.
  */
 export const toVerificationEvidence = (
@@ -228,6 +266,16 @@ export const toVerificationEvidence = (
       isSiteVisitInFuture(input.checkedOn, by.recordedAt)
     ) {
       return { kind: "open_sources_check_in_future", checkedOn: input.checkedOn };
+    }
+    if (input.kind === "ongoing_work_record") {
+      const problem = ongoingWorkProblemOf(input.documents, by.recordedAt);
+      if (problem?.kind === "too_few_months") return { kind: "ongoing_work_too_few_months" };
+      if (problem?.kind === "month_in_future") {
+        return { kind: "ongoing_work_month_in_future", month: problem.month };
+      }
+      if (problem?.kind === "month_too_old") {
+        return { kind: "ongoing_work_month_too_old", month: problem.month };
+      }
     }
   }
   return {

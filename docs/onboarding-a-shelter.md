@@ -138,13 +138,19 @@ script - `buildShelter` checks against it and refuses to produce a
 
 | Legal shape | Needs |
 |---|---|
-| `unregistered_initiative` (most volunteer groups) | 1× `site_visit` (a video call) **or** 1× `open_sources_review`, and 1× `reference_contact` |
+| `unregistered_initiative` (most volunteer groups) | 1× `site_visit` (a video call) **or** 1× `open_sources_review`, and 1× `reference_contact` **or** 1× `ongoing_work_record` |
 | `registered_ngo` / `sole_proprietor` | a registry entry (1× `edrpou_registration`, or an `open_sources_review` with its `registry` filled), and 1× `site_visit` **or** 1× `open_sources_review` |
 
 (Changed 2026-11-19, owner decision: open sources are every form's alternative to the video call.
 For a registered form one open-sources check with its `registry` filled clears both lines; for an
 initiative an open-sources check replaces the call, never the reference. Approval still needs the
 legal entity and the exact address first, whatever the evidence.)
+
+(Changed 2026-11-24, owner decision: an initiative may give documented ongoing work instead of the
+reference. An `ongoing_work_record` lists `documents`, each `{ "kind": "vet_receipt" | "food_purchase" |
+"transport" | "other", "month": "YYYY-MM", "issuer": "the clinic or shop" }`, from at least two
+different months, none after this month and none more than 12 months back, plus `notes` (operator
+only). It is dated when recorded. The documents themselves are never stored: only what you saw.)
 
 (Changed 2026-11-10, owner decision: previously an initiative needed two references, and a
 registered shape needed a `bank_account_holder` and a `reference_contact` instead of the video
@@ -741,8 +747,9 @@ events (`early-listing.ts`).
 - **Who and where.** Operator only. Panel «Показ до завершення перевірки» on the shelter's registry
   page, shown in `pending` and `under_review` only.
 - **Minimum evidence.** Any one of an `open_sources_review` (with or without its registry part),
-  a `site_visit` (video call) or a `reference_contact`, whatever the legal form, or none recorded
-  yet (`EARLY_LISTING_EVIDENCE_KINDS`; open sources since 2026-11-19, owner). This is weaker than
+  a `site_visit` (video call), a `reference_contact` or an `ongoing_work_record`, whatever the legal
+  form, or none recorded yet (`EARLY_LISTING_EVIDENCE_KINDS`; open sources since 2026-11-19, the
+  record since 2026-11-24, owner). This is weaker than
   approval and is not the table in "Evidence". Otherwise refused with «Щоб дозволити показ, потрібне хоча б одне: відкриті джерела, відеодзвінок або рекомендація.»
 - **Length.** 60 days from the moment you allow it (`EARLY_LISTING_DAYS`), an exact instant sum with
   no calendar maths. Expiry is worked out when read, with no job: at the boundary instant the

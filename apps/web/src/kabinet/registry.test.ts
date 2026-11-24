@@ -786,12 +786,21 @@ describe("the minimal shelter: created without legal data or address", () => {
       expect(stored.premises).toEqual({ kind: "foster_homes" });
     });
 
-    it("in foster homes without a reference: blocked on the evidence", async () => {
+    it("in foster homes without a reference or an ongoing-work record: blocked on the evidence", async () => {
       const { id, version } = await underReview([OPEN_SOURCES_ONLY]);
       await update(id, version, { field: "premises", next: { kind: "foster_homes" } });
       expect((await approve(id)).body).toMatchObject({
         code: "EVIDENCE_INSUFFICIENT",
-        data: { gaps: [{ rule: "kind", kind: "reference_contact", minimum: 1, provided: 0 }] },
+        data: {
+          gaps: [
+            {
+              rule: "any_of",
+              kinds: ["reference_contact", "ongoing_work_record"],
+              minimum: 1,
+              provided: 0,
+            },
+          ],
+        },
       });
     });
 
@@ -1781,6 +1790,87 @@ describe("registry.verification.addEvidence", () => {
     expect((await add(s.id, refs(0, 1))).status).toBe(200);
     expect(await kindsOn(s.id)).toHaveLength(30);
     expect(await history(s.id)).toHaveLength(3);
+  });
+
+  describe("an initiative's ongoing-work record (owner, 2026-11-24)", () => {
+    const RECORD = (months: readonly string[], notes = "Чеки надіслали в месенджері") => ({
+      kind: "ongoing_work_record",
+      documents: months.map((month) => ({
+        kind: "vet_receipt",
+        month,
+        issuer: "Ветклініка «Айболить»",
+      })),
+      notes,
+    });
+    const asAdminOf = (shelterId: string): KabinetPrincipal => ({
+      kind: "shelter_admin",
+      shelterAdminId: "33333333-3333-4333-8333-333333333333" as ShelterAdminId,
+      shelterId: shelterId as never,
+    });
+
+    it("the operator adds one: stored with who recorded it and when, history names the kind only", async () => {
+      const s = await shelter({ verification: STATES.pending });
+      expect((await add(s.id, [RECORD(["2026-09", "2026-10"])])).status).toBe(200);
+      const after = await reload(s.id);
+      expect(after.verification.evidence.items).toEqual([
+        { ...RECORD(["2026-09", "2026-10"]), checkedAt: NOW, checkedBy: OPERATOR },
+      ]);
+      const entries = await history(s.id);
+      expect(entries).toEqual([
+        expect.objectContaining({
+          kind: "evidence_added",
+          items: [{ kind: "ongoing_work_record" }],
+        }),
+      ]);
+      expect(JSON.stringify(entries)).not.toContain("Айболить");
+      expect(JSON.stringify(entries)).not.toContain("месенджері");
+    });
+
+    it("refuses one month, a future month and one past 12 months, writing nothing", async () => {
+      const s = await shelter({ verification: STATES.pending });
+      const reasons = [];
+      for (const months of [
+        ["2026-10", "2026-10"],
+        ["2026-10", "2026-11"],
+        ["2025-09", "2026-10"],
+      ]) {
+        const refused = await add(s.id, [RECORD(months)]);
+        expect(refused.status).toBe(422);
+        reasons.push(refused.body.data);
+      }
+      expect(reasons).toEqual([
+        { reason: "ongoing_work_too_few_months" },
+        { reason: "ongoing_work_month_in_future" },
+        { reason: "ongoing_work_month_too_old" },
+      ]);
+      // October 2025 is exactly 12 months before October 2026 (NOW): accepted.
+      expect((await add(s.id, [RECORD(["2025-10", "2026-10"])])).status).toBe(200);
+      expect(await history(s.id)).toHaveLength(1);
+    });
+
+    it("a shelter admin is refused, and nothing of the record reaches the shelter's own reads", async () => {
+      const s = await shelter({ verification: STATES.pending });
+      const refused = await call(
+        "registry.verification.addEvidence",
+        { shelterId: s.id, evidence: [RECORD(["2026-09", "2026-10"])] },
+        { principal: asAdminOf(s.id) },
+      );
+      expect(refused.status).toBe(403);
+      expect(await kindsOn(s.id)).toEqual([]);
+      await add(s.id, [RECORD(["2026-09", "2026-10"], "Нотатка лише для оператора")]);
+      expect(await kindsOn(s.id)).toEqual(["ongoing_work_record"]);
+      for (const [path, input] of [
+        ["shelter.profile.get", {}],
+        ["shelter.history.list", { cursor: null, limit: 50 }],
+      ] as const) {
+        const read = await call(path, input, { principal: asAdminOf(s.id) });
+        expect(read.status).toBe(200);
+        const body = JSON.stringify(read.body);
+        expect(body).not.toContain("Нотатка лише для оператора");
+        expect(body).not.toContain("Айболить");
+        expect(body).not.toContain("ongoing_work_record");
+      }
+    });
   });
 
   it("loses a race to an approve cleanly: EVIDENCE_NOT_EDITABLE, nothing written, no history row", async () => {

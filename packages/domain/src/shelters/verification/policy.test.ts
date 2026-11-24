@@ -90,7 +90,25 @@ const CALL_OR_OPEN_SOURCES_GAP = {
   minimum: 1,
   provided: 0,
 } as const;
-const NO_REFERENCE = { rule: "kind", kind: "reference_contact", minimum: 1, provided: 0 } as const;
+/** (a′) as amended (owner, 2026-11-24): a reference or documented ongoing work. */
+const NO_REFERENCE_OR_RECORD = {
+  rule: "any_of",
+  kinds: ["reference_contact", "ongoing_work_record"],
+  minimum: 1,
+  provided: 0,
+} as const;
+
+/** Vet receipts from two different months, the owner's example. */
+const ONGOING_WORK: EvidenceItem = {
+  kind: "ongoing_work_record",
+  documents: [
+    { kind: "vet_receipt", month: "2025-11", issuer: "Ветклініка «Айболить»" },
+    { kind: "vet_receipt", month: "2025-12", issuer: "Ветклініка «Айболить»" },
+  ],
+  notes: "Чеки на стерилізацію двох собак",
+  checkedAt: AT,
+  checkedBy: MODERATOR,
+};
 
 /**
  * Every legal form against every evidence set that matters to the rule, with the exact gaps.
@@ -106,31 +124,31 @@ const TABLE: ReadonlyArray<{
     name: "nothing",
     items: [],
     registered: [REGISTRY_ENTRY_GAP, CALL_OR_OPEN_SOURCES_GAP],
-    initiative: [CALL_OR_OPEN_SOURCES_GAP, NO_REFERENCE],
+    initiative: [CALL_OR_OPEN_SOURCES_GAP, NO_REFERENCE_OR_RECORD],
   },
   {
     name: "registration and a video call",
     items: [EDRPOU_ITEM, VIDEO_CALL],
     registered: [],
-    initiative: [NO_REFERENCE],
+    initiative: [NO_REFERENCE_OR_RECORD],
   },
   {
     name: "open sources with the registry, alone",
     items: [OPEN_SOURCES_REGISTRY],
     registered: [],
-    initiative: [NO_REFERENCE],
+    initiative: [NO_REFERENCE_OR_RECORD],
   },
   {
     name: "open sources without the registry, alone",
     items: [OPEN_SOURCES],
     registered: [REGISTRY_ENTRY_GAP],
-    initiative: [NO_REFERENCE],
+    initiative: [NO_REFERENCE_OR_RECORD],
   },
   {
     name: "registration and open sources without the registry",
     items: [EDRPOU_ITEM, OPEN_SOURCES],
     registered: [],
-    initiative: [NO_REFERENCE],
+    initiative: [NO_REFERENCE_OR_RECORD],
   },
   {
     name: "open sources without the registry and a reference",
@@ -148,7 +166,7 @@ const TABLE: ReadonlyArray<{
     name: "two open-sources checks",
     items: [OPEN_SOURCES, { ...OPEN_SOURCES, checkedAt: new Date(2) } as EvidenceItem],
     registered: [REGISTRY_ENTRY_GAP],
-    initiative: [NO_REFERENCE],
+    initiative: [NO_REFERENCE_OR_RECORD],
   },
   {
     name: "registration, banking and a reference",
@@ -160,13 +178,37 @@ const TABLE: ReadonlyArray<{
     name: "a video call alone",
     items: [VIDEO_CALL],
     registered: [REGISTRY_ENTRY_GAP],
-    initiative: [NO_REFERENCE],
+    initiative: [NO_REFERENCE_OR_RECORD],
   },
   {
     name: "a video call and a reference",
     items: [VIDEO_CALL, reference("Ветклініка")],
     registered: [REGISTRY_ENTRY_GAP],
     initiative: [],
+  },
+  {
+    name: "open sources and an ongoing-work record",
+    items: [OPEN_SOURCES, ONGOING_WORK],
+    registered: [REGISTRY_ENTRY_GAP],
+    initiative: [],
+  },
+  {
+    name: "a video call and an ongoing-work record",
+    items: [VIDEO_CALL, ONGOING_WORK],
+    registered: [REGISTRY_ENTRY_GAP],
+    initiative: [],
+  },
+  {
+    name: "an ongoing-work record alone",
+    items: [ONGOING_WORK],
+    registered: [REGISTRY_ENTRY_GAP, CALL_OR_OPEN_SOURCES_GAP],
+    initiative: [CALL_OR_OPEN_SOURCES_GAP],
+  },
+  {
+    name: "two ongoing-work records",
+    items: [ONGOING_WORK, { ...ONGOING_WORK, notes: "Ще одна" } as EvidenceItem],
+    registered: [REGISTRY_ENTRY_GAP, CALL_OR_OPEN_SOURCES_GAP],
+    initiative: [CALL_OR_OPEN_SOURCES_GAP],
   },
   {
     name: "two references",
@@ -223,7 +265,9 @@ describe("evidence requirements", () => {
 
   it("lets an initiative's open sources replace the call, never the reference", () => {
     const checks = evidence([OPEN_SOURCES, OPEN_SOURCES_REGISTRY]);
-    expect(evidenceGaps(INITIATIVE, checks, DEFAULT_VERIFICATION_POLICY)).toEqual([NO_REFERENCE]);
+    expect(evidenceGaps(INITIATIVE, checks, DEFAULT_VERIFICATION_POLICY)).toEqual([
+      NO_REFERENCE_OR_RECORD,
+    ]);
     expect(
       meetsEvidenceRequirements(
         INITIATIVE,
@@ -373,6 +417,46 @@ describe("approval gaps: the verified data per form", () => {
     }
   });
 
+  it("approves an initiative on open sources and an ongoing-work record, no reference (owner, 2026-11-24)", () => {
+    for (const premises of [FOSTER_HOMES, AT_ADDRESS]) {
+      expect(
+        approvalGaps(
+          { legalEntity: INITIATIVE, premises },
+          evidence([OPEN_SOURCES, ONGOING_WORK]),
+          DEFAULT_VERIFICATION_POLICY,
+        ),
+      ).toEqual([]);
+    }
+  });
+
+  it("blocks an initiative on open sources alone with the reference-or-record line", () => {
+    expect(
+      approvalGaps(
+        { legalEntity: INITIATIVE, premises: AT_ADDRESS },
+        evidence([OPEN_SOURCES]),
+        DEFAULT_VERIFICATION_POLICY,
+      ),
+    ).toEqual([
+      {
+        on: "evidence",
+        rule: "any_of",
+        kinds: ["reference_contact", "ongoing_work_record"],
+        minimum: 1,
+        provided: 0,
+      },
+    ]);
+  });
+
+  it("keeps the registered forms' lines as they were: a record stands in for nothing there", () => {
+    expect(DEFAULT_VERIFICATION_POLICY.requirementsByLegalEntity.registered_ngo).toEqual([
+      { rule: "registry_entry", minimum: 1 },
+      { rule: "any_of", kinds: ["site_visit", "open_sources_review"], minimum: 1 },
+    ]);
+    expect(DEFAULT_VERIFICATION_POLICY.requirementsByLegalEntity.sole_proprietor).toEqual(
+      DEFAULT_VERIFICATION_POLICY.requirementsByLegalEntity.registered_ngo,
+    );
+  });
+
   it("blocks an initiative in foster homes without a reference on the evidence", () => {
     expect(
       approvalGaps(
@@ -380,7 +464,7 @@ describe("approval gaps: the verified data per form", () => {
         evidence([OPEN_SOURCES]),
         DEFAULT_VERIFICATION_POLICY,
       ),
-    ).toEqual([{ on: "evidence", ...NO_REFERENCE }]);
+    ).toEqual([{ on: "evidence", ...NO_REFERENCE_OR_RECORD }]);
   });
 
   it("follows a missing address with the evidence gaps of the known legal form", () => {

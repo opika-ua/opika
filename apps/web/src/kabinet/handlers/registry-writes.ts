@@ -10,6 +10,7 @@ import {
   donationOnSuspension,
   donationUrlProblemOf,
   type EvidenceGap,
+  type EvidenceInputResult,
   type EvidenceItemInput,
   type ExactAddress,
   earlyListingOf,
@@ -317,10 +318,7 @@ export function acceptEvidence(
   | { kind: "ok"; evidence: VerificationEvidence }
   | {
       kind: "refused";
-      reason:
-        | "site_visit_in_future"
-        | "open_sources_check_in_future"
-        | "document_not_supported_yet";
+      reason: Exclude<EvidenceInputResult, { kind: "ok" }>["kind"] | "document_not_supported_yet";
     } {
   const carriesDocument = inputs.some(
     (input) =>
