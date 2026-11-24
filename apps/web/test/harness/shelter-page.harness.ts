@@ -13,7 +13,8 @@
 import { createDatabase } from "@opika/db";
 import { shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
-import { expect, type Page, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./csp-watch";
 import { openRoute } from "./harness";
 import { DETAIL_DESKTOP } from "./viewports";
 

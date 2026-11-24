@@ -6,7 +6,7 @@
  * links back to the city page.
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./csp-watch";
 import { openRoute } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
 

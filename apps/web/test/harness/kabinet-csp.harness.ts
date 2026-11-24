@@ -1,25 +1,21 @@
 /**
  * Audit B1 (owner, 2026-11-24: "CSP: yes, nonce-based, /kabinet/* first"), against real servers:
  * every /kabinet page enforces a script policy with a fresh nonce that Next stamps on its own
- * scripts; an inline script without it is blocked; public pages keep today's headers, no nonce.
- * The zero-violation check on every kabinet flow is `csp-watch.ts`, imported by those specs.
+ * scripts; an inline script without it is blocked. Public pages run the same policy report-only
+ * (`public-csp.harness.ts`). The zero-violation check on every kabinet flow is `csp-watch.ts`,
+ * imported by those specs.
  *
  * On the sign-in server (`sign-in-server.ts`): on the main one every /kabinet page is a 404.
  */
-import { createHash } from "node:crypto";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { type APIResponse, expect, type Page, test } from "@playwright/test";
-import { Window } from "happy-dom";
+import { directivesOf, SITE_WIDE_CSP, scriptsOf, sha256, valuesOf } from "./csp-inspect";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.94";
 test.use({ extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR }, trace: "off" });
 
 const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harness"));
-
-/** The site-wide enforced policy (audit F5), on every response, the kabinet's included. */
-const SITE_WIDE_CSP =
-  "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'";
 
 /**
  * Pages that render without a session; dummy tokens give the links' error cards. The confirm page
@@ -33,24 +29,6 @@ const KABINET_PAGES = [
   `/kabinet/vkhid/pidtverdzhennia?token=${"A".repeat(32)}`,
 ];
 
-const PUBLIC_PAGES = ["/tvaryny", "/prytulkam", "/pro", "/zberezheni"];
-
-const valuesOf = (response: APIResponse, name: string): string[] =>
-  response
-    .headersArray()
-    .filter((header) => header.name.toLowerCase() === name)
-    .map((header) => header.value);
-
-/** The directives of a policy, by name. */
-function directivesOf(policy: string): Map<string, string[]> {
-  const map = new Map<string, string[]>();
-  for (const part of policy.split(";")) {
-    const [name, ...sources] = part.trim().split(/\s+/);
-    if (name) map.set(name, sources);
-  }
-  return map;
-}
-
 /** The kabinet's own policy: the one CSP value with a nonce. */
 function kabinetPolicyOf(response: APIResponse, what: string): { policy: string; nonce: string } {
   const withNonce = valuesOf(response, "content-security-policy").filter((value) =>
@@ -61,30 +39,6 @@ function kabinetPolicyOf(response: APIResponse, what: string): { policy: string;
   const nonce = /'nonce-([A-Za-z0-9+/=]+)'/.exec(policy)?.[1] ?? "";
   return { policy, nonce };
 }
-
-/** Every `<script>` in a document, as an HTML parser reads it; nothing in it runs or loads. */
-function scriptsOf(html: string) {
-  const window = new Window({
-    settings: {
-      disableJavaScriptEvaluation: true,
-      disableJavaScriptFileLoading: true,
-      disableCSSFileLoading: true,
-    },
-  });
-  try {
-    const document = new window.DOMParser().parseFromString(html, "text/html");
-    return [...document.querySelectorAll("script")].map((script) => ({
-      nonce: script.getAttribute("nonce"),
-      src: script.getAttribute("src"),
-      body: script.textContent ?? "",
-    }));
-  } finally {
-    void window.happyDOM.close();
-  }
-}
-
-const sha256 = (text: string) =>
-  `'sha256-${createHash("sha256").update(text, "utf8").digest("base64")}'`;
 
 test.describe("kabinet CSP (audit B1)", () => {
   let server: SignInServer | undefined;
@@ -231,25 +185,6 @@ test.describe("kabinet CSP (audit B1)", () => {
     for (const path of ["/kabinetx", "/kabinet-x", "/api/kabinet/x"]) {
       const response = await request.get(`${origin()}${path}`, { maxRedirects: 0 });
       expect(valuesOf(response, "content-security-policy"), path).toEqual([SITE_WIDE_CSP]);
-    }
-  });
-});
-
-test.describe("public pages keep today's headers (audit B1)", () => {
-  test("one enforced policy, the site-wide one, and no nonce anywhere in the page", async ({
-    request,
-  }) => {
-    for (const path of PUBLIC_PAGES) {
-      const response = await request.get(path, { maxRedirects: 0 });
-      expect(response.status(), path).toBe(200);
-      expect(valuesOf(response, "content-security-policy"), path).toEqual([SITE_WIDE_CSP]);
-      const reportOnly = valuesOf(response, "content-security-policy-report-only");
-      expect(reportOnly, path).toHaveLength(1);
-      expect(directivesOf(reportOnly[0] ?? "").get("script-src"), path).toEqual([
-        "'self'",
-        "'unsafe-inline'",
-      ]);
-      expect(await response.text(), path).not.toContain("nonce=");
     }
   });
 });

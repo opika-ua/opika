@@ -55,9 +55,11 @@ addresses in tracked files (placeholders: `ep-PRODUCTION`, `<owner email>`, `<re
 
 ## Later
 
-- Enforce a strict `script-src` on the public pages: hash-based, so static caching survives, as a separate
-  proposal (owner, 2026-11-24). /kabinet enforces a nonce-based policy since audit B1
-  (`kabinetContentSecurityPolicy` in `apps/web/src/security-headers.ts`, sent by `proxy.ts`).
+- Enforce a strict `script-src` on the public pages. Hashes cannot cover Next's inline Flight scripts, so it
+  is the kabinet's nonce policy (owner, 2026-11-24, D1; public pages stay dynamic, D2). /kabinet enforces it
+  since audit B1 (`nonceContentSecurityPolicy` in `apps/web/src/security-headers.ts`, sent by `proxy.ts`).
+  Public pages run it report-only for a 7-day trial (D3), then a second PR enforces it once no violation
+  from our own scripts remains. `/rate-limited` keeps the site-wide policy (D5).
 - Before enforcing a stricter `script-src`: if Safari/iOS coverage of CSP violations is needed, revisit our own
   collector (option B: `/api/csp-report`, dropping the User-Agent before forwarding), since today only Chromium
   reports (owner, 2026-11-16).

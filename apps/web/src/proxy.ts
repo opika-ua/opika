@@ -11,7 +11,14 @@ import {
   kabinetPageLoadVerdict,
 } from "./kabinet/page-limit";
 import { isTokenPage, TOKEN_PAGE_HEADERS } from "./kabinet/token-pages";
-import { kabinetContentSecurityPolicy, newCspNonce } from "./security-headers";
+import { securityReportUrlOf } from "./observability/dsn";
+import {
+  CSP_HEADER_OF,
+  type CspMode,
+  isCspReportingPath,
+  newCspNonce,
+  nonceContentSecurityPolicy,
+} from "./security-headers";
 
 /**
  * The one place in this app that sees a request before any page renders or any
@@ -99,8 +106,10 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
     }
   }
   const response = isKabinetPagePath(request.nextUrl.pathname)
-    ? withKabinetPolicy(request)
-    : NextResponse.next();
+    ? withNoncePolicy(request, "enforce")
+    : isPublicDocumentPath(request.nextUrl.pathname)
+      ? withNoncePolicy(request, "report")
+      : NextResponse.next();
   // A sign-in page whose URL carries a credential (a reset link's token, an invitation link's) is
   // never cached. Its Referrer-Policy comes from next.config alone (`kabinet/token-pages.ts`).
   if (isTokenPage(request.nextUrl)) {
@@ -111,23 +120,47 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
 }
 
 /**
- * Audit B1: a /kabinet page gets an enforced CSP with a fresh nonce. Next takes the nonce from the
- * request's own CSP header and stamps its scripts with it; the browser enforces the response's.
+ * Audit B1: a /kabinet page enforces a CSP with a fresh nonce; a public page reports against the same
+ * policy (the trial, owner 2026-11-24, D3). Next takes the nonce from the request's CSP header, either
+ * mode, and stamps its scripts with it; the browser applies the response's.
  */
-function withKabinetPolicy(request: NextRequest): NextResponse {
-  const policy = kabinetContentSecurityPolicy({
+function withNoncePolicy(request: NextRequest, mode: CspMode): NextResponse {
+  const reportTo =
+    mode === "report" &&
+    isCspReportingPath(request.nextUrl.pathname) &&
+    securityReportUrlOf(process.env.NEXT_PUBLIC_SENTRY_DSN) !== null;
+  const policy = nonceContentSecurityPolicy({
     photoBaseUrl: process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
     development: process.env.NODE_ENV === "development",
     nonce: newCspNonce(),
+    mode,
+    reportTo,
   });
   const headers = new Headers(request.headers);
-  headers.set(CSP_HEADER, policy);
+  // Next prefers an enforced request header to a report-only one: a client's own must not pick the nonce.
+  for (const name of Object.values(CSP_HEADER_OF)) headers.delete(name);
+  headers.set(CSP_HEADER_OF[mode], policy);
   const response = NextResponse.next({ request: { headers } });
-  response.headers.set(CSP_HEADER, policy);
+  response.headers.set(CSP_HEADER_OF[mode], policy);
   return response;
 }
 
-const CSP_HEADER = "content-security-policy";
+/**
+ * A public path that can answer with an HTML document. Not an API, a file or a metadata image, and
+ * not `/rate-limited`, which re-serves a static screen whose scripts carry no nonce (owner, D5).
+ */
+export function isPublicDocumentPath(pathname: string): boolean {
+  if (NON_DOCUMENT_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+    return false;
+  }
+  return !FILE_NAME.test(pathname) && !METADATA_IMAGE.test(pathname);
+}
+
+const NON_DOCUMENT_PREFIXES = ["/api", "/_next", "/rate-limited"] as const;
+/** A last segment with an extension: `/robots.txt`, `/icon1.png`, `/email/…`, `/brand-v3/…`. */
+const FILE_NAME = /\.[^/]*$/;
+/** As the matcher's metadata entry: `opengraph-image` and the like, with a hash or an id after. */
+const METADATA_IMAGE = /\/(?:opengraph-image|twitter-image|icon|apple-icon)[^/]*(?:\/[^/]+)?$/;
 
 /**
  * A request a person's browser makes to show a page: a GET or HEAD, or a form POST the browser

@@ -1,6 +1,6 @@
 /**
- * Audit B1: the kabinet specs import `test` from here, so every page they open, in any context
- * they make, fails its test on a CSP violation (enforced or report-only). The browser logs each
+ * Audit B1: the kabinet specs and the public flows (the CSP trial) import `test` from here, so every
+ * page they open, in any context they make, fails its test on a CSP violation (enforced or report-only). The browser logs each
  * violation to the console; the listener also catches the `securitypolicyviolation` event.
  */
 import { type BrowserContext, test as base, expect } from "@playwright/test";
