@@ -428,8 +428,9 @@ export const en = {
   noMatch: {
     heading: "Nobody matches these filters right now.",
     reassurance: "This isn't a search error.",
-    freshOnlyHeading: "There are no cards updated in the last 30 days right now.",
-    freshOnlyLine: "Switch to “New” to see everyone.",
+    freshOnlyHeading: "Nobody here right now.",
+    freshOnlyLine:
+      "“Waiting” shows only cards updated in the last 30 days. Switch to “New” to see everyone.",
     removeDimension: "Remove “{dimension}” ({animalWord})",
     showAllCities: "Show every city ({animalWord})",
     showAllRegions: "Show every region ({animalWord})",

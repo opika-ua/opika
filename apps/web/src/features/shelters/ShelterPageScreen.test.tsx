@@ -326,10 +326,12 @@ describe("the shelter page under «Зачекались» (it leaves stale cards
     expect(screen.getByTestId("gallery-no-match")).toBeTruthy();
     expect(screen.queryByTestId("shelter-no-animals")).toBeNull();
     expect(screen.queryByTestId("no-match-reset")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Зараз тут нікого немає." })).toBeTruthy();
     expect(
-      screen.getByRole("heading", { name: "Зараз немає карток, оновлених за останні 30 днів." }),
+      screen.getByText(
+        "У «Зачекались» – лише картки, оновлені за останні 30 днів. Перемкніть на «Нові», щоб побачити всіх.",
+      ),
     ).toBeTruthy();
-    expect(screen.getByText("Перемкніть на «Нові», щоб побачити всіх.")).toBeTruthy();
   });
 
   it("with its only card stale: the sort stays, so «Нові» leads back to the card", () => {

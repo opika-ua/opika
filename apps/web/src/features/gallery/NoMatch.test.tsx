@@ -159,8 +159,9 @@ describe("NoMatch: an empty registry versus filters that exclude everything", ()
 });
 
 /** Owner-approved copy (2026-11-24), transcribed from his message, not read from the catalogue. */
-const FRESH_ONLY_HEADING = "Зараз немає карток, оновлених за останні 30 днів.";
-const FRESH_ONLY_LINE = "Перемкніть на «Нові», щоб побачити всіх.";
+const FRESH_ONLY_HEADING = "Зараз тут нікого немає.";
+const FRESH_ONLY_LINE =
+  "У «Зачекались» – лише картки, оновлені за останні 30 днів. Перемкніть на «Нові», щоб побачити всіх.";
 
 describe("NoMatch: an empty «Зачекались» with no filter", () => {
   it("on the gallery says no card is fresh and points to «Нові», with no reset that changes nothing", () => {
@@ -193,7 +194,8 @@ describe("NoMatch: an empty «Зачекались» with no filter", () => {
     expect(screen.getByText(FRESH_ONLY_LINE)).toBeTruthy();
   });
 
-  it("names «Нові» exactly as the sort toggle labels it", () => {
+  it("names «Зачекались» and «Нові» exactly as the sort toggle labels them", () => {
+    expect(FRESH_ONLY_LINE).toContain(`«${uk.filters.sortLongestWaitingShort}»`);
     expect(FRESH_ONLY_LINE).toContain(`«${uk.filters.sortFreshestShort}»`);
   });
 
@@ -201,11 +203,11 @@ describe("NoMatch: an empty «Зачекались» with no filter", () => {
   it("says 30 days because a card turns stale after 30", () => {
     expect(DEFAULT_FRESHNESS_POLICY.agingMaxDays).toBe(30);
     for (const text of [
-      uk.noMatch.freshOnlyHeading,
+      uk.noMatch.freshOnlyLine,
       uk.forShelters.whatHappensToAnimals,
       uk.kabinet.animalList.orderNote,
     ]) {
-      expect(text).toContain("оновлених за останні 30 днів");
+      expect(text).toMatch(/оновлен(?:і|их) за останні 30 днів/);
     }
   });
 
