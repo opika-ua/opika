@@ -155,17 +155,11 @@ function policyDirectives(
 /** Enforced on /kabinet (audit B1); report-only on public pages for the trial (owner, 2026-11-24, D3). */
 export type CspMode = "enforce" | "report";
 
-/** The response header a policy in each mode travels in. */
+/** The header a policy in each mode travels in, on the request Next reads and on the response. */
 export const CSP_HEADER_OF: Readonly<Record<CspMode, string>> = {
   enforce: "content-security-policy",
   report: "content-security-policy-report-only",
 };
-
-/**
- * The request header Next reads the nonce from, in both modes: on Vercel a report-only one left the
- * public pages' scripts without a nonce (#589). It is internal and never reaches the browser.
- */
-export const NONCE_REQUEST_HEADER = CSP_HEADER_OF.enforce;
 
 /**
  * The nonce policy (audit B1), a fresh nonce per request (`proxy.ts`): enforced on /kabinet, report-only
