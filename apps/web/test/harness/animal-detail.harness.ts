@@ -29,7 +29,7 @@ import { createDatabase } from "@opika/db";
 import { animals, shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { citySlugOf } from "@opika/domain";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./csp-watch";
 import { expectReachableByTab, openRoute } from "./harness";
 import { DETAIL_DESKTOP, DETAIL_PHONE } from "./viewports";
 

@@ -7,9 +7,12 @@ import { SAVED_PREPAINT_SCRIPT } from "./features/chrome/saved-prepaint";
 import { STRIP_TOKEN_FROM_ADDRESS_BAR } from "./kabinet/strip-token-script";
 import { securityReportUrlOf } from "./observability/dsn";
 import {
+  CSP_HEADER_OF,
+  type CspMode,
+  isCspReportingPath,
   KABINET_REFERRER_POLICY,
-  kabinetContentSecurityPolicy,
   newCspNonce,
+  nonceContentSecurityPolicy,
   securityHeaders,
 } from "./security-headers";
 
@@ -114,11 +117,23 @@ describe("securityHeaders", () => {
   });
 });
 
-/** Audit B1 (owner, 2026-11-24): the enforced /kabinet policy `proxy.ts` sends. */
-describe("kabinetContentSecurityPolicy", () => {
+/**
+ * Audit B1 (owner, 2026-11-24): the nonce policy `proxy.ts` sends, enforced on /kabinet and
+ * report-only on public pages (the trial, D3).
+ */
+describe("nonceContentSecurityPolicy", () => {
   const NONCE = "AAECAwQFBgcICQoLDA0ODw==";
-  const kabinet = (development: boolean) =>
-    directivesOf(kabinetContentSecurityPolicy({ photoBaseUrl: PHOTOS, development, nonce: NONCE }));
+  const policyOf = (development: boolean, mode: CspMode, reportTo = false) =>
+    directivesOf(
+      nonceContentSecurityPolicy({
+        photoBaseUrl: PHOTOS,
+        development,
+        nonce: NONCE,
+        mode,
+        reportTo,
+      }),
+    );
+  const kabinet = (development: boolean) => policyOf(development, "enforce");
 
   // Hashes the same constants the code does, so it passes by construction; the drift guard is
   // `kabinet-csp.harness.ts`, which checks every served inline script body against the policy.
@@ -156,6 +171,31 @@ describe("kabinetContentSecurityPolicy", () => {
       reportOnly.delete("script-src");
       expect(policy).toEqual(reportOnly);
     }
+  });
+
+  it("in report mode is the same policy without frame-ancestors, which report-only ignores", () => {
+    for (const development of [false, true]) {
+      const report = policyOf(development, "report");
+      const enforced = kabinet(development);
+      expect(report.has("frame-ancestors")).toBe(false);
+      enforced.delete("frame-ancestors");
+      expect(report).toEqual(enforced);
+    }
+  });
+
+  it("names the report group only when asked, and never a report-uri", () => {
+    expect(policyOf(false, "report", true).get("report-to")).toEqual(["csp-endpoint"]);
+    for (const mode of ["enforce", "report"] as const) {
+      expect(policyOf(false, mode).has("report-to"), mode).toBe(false);
+      expect(policyOf(false, mode, true).has("report-uri"), mode).toBe(false);
+    }
+  });
+
+  it("travels in the enforced header or the report-only one, both of which Next reads the nonce from", () => {
+    expect(CSP_HEADER_OF).toEqual({
+      enforce: "content-security-policy",
+      report: "content-security-policy-report-only",
+    });
   });
 
   it("keeps every directive the site-wide enforced policy has", () => {
@@ -243,6 +283,8 @@ const REPORTING = [
   "/prytulkam?gclid=x",
   "/zberezheni",
   "/zberezheni?sort=new",
+  "/polityka-konfidentsiinosti",
+  "/polityka-konfidentsiinosti?utm_source=x",
 ];
 
 /** The kabinet, token pages, routes nobody listed (a future one included) and look-alikes. */
@@ -260,6 +302,7 @@ const NOT_REPORTING = [
   "/prytulkam/x",
   "/zberezheni/x",
   "/tvaryny-x",
+  "/polityka-konfidentsiinosti/x",
   "/api/rpc/animals/cardsByIds",
   "/rate-limited",
 ];
@@ -320,6 +363,15 @@ describe("next.config.ts headers(), as Next sends them", () => {
         // Directive names are case-insensitive to a browser, so the check is too.
         expect((headers.get(key) ?? "").toLowerCase(), `${url} ${key}`).not.toContain("report-uri");
       }
+    }
+  });
+
+  // The proxy's nonce policy names its report group by this predicate; next.config's rules send the endpoint.
+  it("isCspReportingPath agrees with next.config on every listed and unlisted path", async () => {
+    const sent = await headersUnder(DSN, true);
+    for (const url of [...REPORTING, ...NOT_REPORTING]) {
+      const { pathname } = new URL(url, "https://opika.example");
+      expect(isCspReportingPath(pathname), url).toBe(sent(url).has("reporting-endpoints"));
     }
   });
 

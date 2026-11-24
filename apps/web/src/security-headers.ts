@@ -6,7 +6,7 @@ import { securityReportUrlOf } from "./observability/dsn";
 /**
  * Audit F5: the browser security headers on every response (`next.config.ts`). The owner's enforced
  * set is pinned in the test; the rest stays report-only on public pages. /kabinet enforces it all, with
- * a nonce (audit B1, `kabinetContentSecurityPolicy`).
+ * a nonce (audit B1); public pages trial the same policy report-only (`nonceContentSecurityPolicy`).
  */
 export type SecurityHeader = { key: string; value: string };
 export type HeaderRule = { source: string; headers: SecurityHeader[] };
@@ -63,9 +63,24 @@ export const CSP_REPORTING_SOURCES = [
   "/pro",
   "/prytulkam",
   "/zberezheni",
+  "/polityka-konfidentsiinosti",
 ] as const;
 
 const CSP_REPORT_GROUP = "csp-endpoint";
+
+/**
+ * Whether a path is on that allowlist, for the proxy's nonce policy: the same sources, read as
+ * next.config reads them (`/:path*` is the path itself and anything below it).
+ */
+export function isCspReportingPath(pathname: string): boolean {
+  return CSP_REPORTING_SOURCES.some((source) => {
+    if (!source.endsWith(ANY_SUB_PATH)) return pathname === source;
+    const base = source.slice(0, -ANY_SUB_PATH.length);
+    return pathname === base || pathname.startsWith(`${base}/`);
+  });
+}
+
+const ANY_SUB_PATH = "/:path*";
 
 /**
  * The report-only policy plus `report-to` on the allowlisted pages, replacing the site-wide value there.
@@ -101,8 +116,8 @@ const joined = (directives: readonly Directive[]): string =>
   directives.map((d) => d.join(" ")).join("; ");
 
 /**
- * No nonce (Next inlines its scripts; a nonce means rendering every page per request), so its value is
- * in what it shuts out: other origins. No `frame-ancestors`: browsers ignore it in report-only.
+ * The site-wide fallback, with no nonce: what a response the proxy gives no nonce policy keeps (an
+ * API answer, a file, `/rate-limited`). No `frame-ancestors`: browsers ignore it in report-only.
  */
 function reportOnlyPolicy(options: SecurityHeaderOptions): string {
   const scriptSrc: Directive = [
@@ -137,24 +152,37 @@ function policyDirectives(
   ];
 }
 
+/** Enforced on /kabinet (audit B1); report-only on public pages for the trial (owner, 2026-11-24, D3). */
+export type CspMode = "enforce" | "report";
+
+/** The header a policy in each mode travels in, on the request Next reads and on the response. */
+export const CSP_HEADER_OF: Readonly<Record<CspMode, string>> = {
+  enforce: "content-security-policy",
+  report: "content-security-policy-report-only",
+};
+
 /**
- * Audit B1 (owner, 2026-11-24): the enforced /kabinet policy, a fresh nonce per request (`proxy.ts`).
- * The root layout's inline script goes by its hash, so that layout never reads the request and public
- * pages stay static. `'self'` is only for browsers without `'strict-dynamic'`.
+ * The nonce policy (audit B1), a fresh nonce per request (`proxy.ts`): enforced on /kabinet, report-only
+ * on public pages. The root layout's inline script goes by its hash, so that layout never reads the
+ * request. `'self'` is only for browsers without `'strict-dynamic'`.
  */
-export function kabinetContentSecurityPolicy(
-  options: SecurityHeaderOptions & { nonce: string },
+export function nonceContentSecurityPolicy(
+  options: SecurityHeaderOptions & { nonce: string; mode: CspMode; reportTo: boolean },
 ): string {
   const scriptSrc: Directive = [
     "script-src",
     "'self'",
     `'nonce-${options.nonce}'`,
     "'strict-dynamic'",
-    ...KABINET_INLINE_SCRIPT_HASHES,
+    ...INLINE_SCRIPT_HASHES,
     // React's dev build rebuilds server error stacks with eval; production never does (Next's CSP guide).
     ...(options.development ? ["'unsafe-eval'"] : []),
   ];
-  return joined([...policyDirectives(options, scriptSrc), ["frame-ancestors", "'none'"]]);
+  // A report-only frame-ancestors is ignored and logs a console warning, so only enforce carries it.
+  const modeDirectives: Directive[] =
+    options.mode === "enforce" ? [["frame-ancestors", "'none'"]] : [];
+  const reporting: Directive[] = options.reportTo ? [["report-to", CSP_REPORT_GROUP]] : [];
+  return joined([...policyDirectives(options, scriptSrc), ...modeDirectives, ...reporting]);
 }
 
 /** A CSP hash source for an inline script's exact text. */
@@ -162,10 +190,10 @@ const scriptHashSource = (script: string): string =>
   `'sha256-${createHash("sha256").update(script, "utf8").digest("base64")}'`;
 
 /**
- * The inline scripts a kabinet response carries without a nonce: the root layout's pre-paint one, and
- * the token strip on the email-link pages, which are route handlers writing their own HTML.
+ * The inline scripts a response carries without a nonce: the root layout's pre-paint one, and the
+ * kabinet's token strip on the email-link pages, which are route handlers writing their own HTML.
  */
-const KABINET_INLINE_SCRIPT_HASHES: readonly string[] = [
+const INLINE_SCRIPT_HASHES: readonly string[] = [
   scriptHashSource(SAVED_PREPAINT_SCRIPT),
   scriptHashSource(STRIP_TOKEN_FROM_ADDRESS_BAR),
 ];
