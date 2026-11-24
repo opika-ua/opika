@@ -33,6 +33,19 @@ describe("LinkedText", () => {
     ]);
   });
 
+  it("shows an http, lookalike or IP address as plain text, with no link", () => {
+    const value =
+      "Збір: http://monobank.ua/jar, https://xn--mnobank-3ya.ua/jar, https://192.0.2.10/pay.";
+    const { container } = render(
+      <p>
+        <LinkedText text={value} />
+      </p>,
+    );
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(container.querySelector("a")).toBeNull();
+    expect(container.querySelector("p")?.textContent).toBe(value);
+  });
+
   it("shows javascript: and <script> as the text they are, with no link and no element", () => {
     const value = "javascript:alert(1) <script>alert(1)</script> <a href=x>y</a>";
     const { container } = render(

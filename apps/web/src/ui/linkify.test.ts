@@ -45,19 +45,57 @@ describe("linkParts", () => {
     expect(linkParts(`сайт${FIV}Дякуємо`)).toEqual([text(0, "сайт"), link(4), text(37, "Дякуємо")]);
   });
 
-  it("links two URLs in one paragraph, http as well as https", () => {
-    expect(linkParts("Фото: https://a.org/1, відео: http://b.org/2.")).toEqual([
+  it("links two https URLs in one paragraph", () => {
+    expect(linkParts("Фото: https://a.org/1, відео: https://b.org/2.")).toEqual([
       text(0, "Фото: "),
       link(6, "https://a.org/1", "a.org/1"),
       text(21, ", відео: "),
-      link(30, "http://b.org/2", "b.org/2"),
-      text(44, "."),
+      link(30, "https://b.org/2", "b.org/2"),
+      text(45, "."),
+    ]);
+  });
+
+  // Audit 2026-11-24 (A-L2): the donation links' host rule. What fails it is shown as written.
+  it("keeps http, a lookalike host, an IP address and a user name as text, whole", () => {
+    for (const value of [
+      "http://b.org/2",
+      "HTTP://monobank.ua/jar",
+      "https://xn--mnobank-3ya.ua/jar",
+      "https://monobank.xn--j1amh/jar",
+      "https://XN--80ak6aa92e.com/",
+      "https://192.0.2.10/pay",
+      "https://0x7f.1/pay",
+      "https://2130706433/pay",
+      "https://[2001:db8::1]/pay",
+      "https://monobank.ua@other.example/pay",
+      "https://user:pass@monobank.ua/jar",
+    ]) {
+      expect(linkParts(value), value).toEqual([text(0, value)]);
+    }
+  });
+
+  it("keeps a refused address as text in a sentence and still links a real host beside it", () => {
+    expect(linkParts("Збір: http://monobank.ua/jar або https://send.monobank.ua/jar/1.")).toEqual([
+      text(0, "Збір: http://monobank.ua/jar або "),
+      link(33, "https://send.monobank.ua/jar/1", "send.monobank.ua/jar/1"),
+      text(63, "."),
+    ]);
+  });
+
+  it("links a real host with a port, a query and a fragment, as donation links allow", () => {
+    expect(linkParts("https://shelter.example:8443/pay?amount=100#jar")).toEqual([
+      link(
+        0,
+        "https://shelter.example:8443/pay?amount=100#jar",
+        "shelter.example:8443/pay?amount=100#jar",
+      ),
     ]);
   });
 
   it("keeps javascript:, data: and a bare domain as text", () => {
     for (const value of [
       "javascript:alert(1)",
+      "JavaScript:void(0)",
       "data:text/html,<b>hi</b>",
       "hatul-madan.org/blogs/fiv",
     ]) {
