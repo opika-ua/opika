@@ -12,7 +12,7 @@ const SENTENCE_PUNCTUATION = ".,;:!?'";
 
 /**
  * Splits shelter-written text into plain runs and https links to a real host. An http, IP,
- * single-label or lookalike address stays text (`isLiveLinkUrl`), and nothing else
+ * single-label, lookalike or explicit-port address stays text (`isLiveLinkUrl`), and nothing else
  * becomes a link (no javascript:, data:, bare domains); markup is never parsed, so it stays text.
  */
 export function linkParts(text: string): TextPart[] {

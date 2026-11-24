@@ -1,9 +1,16 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { AnimalIdSchema, type PhotoFraming } from "@opika/domain";
 import realSharp, { type SharpOptions } from "sharp";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { cutPhotoVariants } from "./crop-photo";
 import { generateVariants } from "./generate-variants";
 import { encodePhotoSource } from "./photo-source";
 import { prepareUploadedPhoto, UPLOAD_PIXEL_LIMIT } from "./prepare-uploaded-photo";
+import type { ImageStorageClient } from "./r2-client";
+import { ONBOARDING_PIXEL_LIMIT } from "./resolve-local-photo";
+import { uploadAnimalPhoto } from "./upload-animal-photo";
 import { IMAGE_VARIANTS, PHOTO_FORMATS } from "./variants";
 
 /**
@@ -94,4 +101,51 @@ describe("UPLOAD_PIXEL_LIMIT", () => {
       expect(options?.limitInputPixels, `decode ${i + 1}`).toBe(UPLOAD_PIXEL_LIMIT);
     });
   });
+});
+
+// #587 review: with `decode = {}` in uploadAnimalPhoto, nothing else went red.
+describe("ONBOARDING_PIXEL_LIMIT", () => {
+  const dir = mkdtempSync(join(tmpdir(), "opika-onboarding-limit-"));
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  const storage: ImageStorageClient = {
+    async put() {},
+    async get() {
+      throw new Error("the onboarding upload never reads");
+    },
+  };
+  const ids = {
+    photoId: "b1000000-0000-4000-8000-000000000001",
+    sourceId: "c2000000-0000-4000-8000-000000000002",
+  };
+
+  it.each<PhotoFraming>([
+    { kind: "attention" },
+    { kind: "frame", frame: { x: 0.25, y: 0.1, w: 0.5, h: 750 / 900 } },
+  ])(
+    "reaches every decode of the onboarding CLI's upload ($kind); only the header read lifts it",
+    async (framing) => {
+      const path = join(dir, `photo-${framing.kind}.png`);
+      writeFileSync(path, await solid(1200, 900));
+      given.options.length = 0;
+
+      await uploadAnimalPhoto(
+        storage,
+        path,
+        AnimalIdSchema.parse("a0000000-0000-4000-8000-000000000000"),
+        ids,
+        { width: 1200, height: 900 },
+        framing,
+      );
+
+      const [headerRead, ...decodes] = given.options;
+      expect(headerRead).toEqual({ limitInputPixels: false });
+      // The source's encode, then generateVariants or generateFramedVariants with every cut.
+      expect(decodes.length).toBeGreaterThan(IMAGE_VARIANT_COUNT * PHOTO_FORMATS.length);
+      decodes.forEach((options, i) => {
+        expect(options?.limitInputPixels, `decode ${i + 1} of ${decodes.length}`).toBe(
+          ONBOARDING_PIXEL_LIMIT,
+        );
+      });
+    },
+  );
 });

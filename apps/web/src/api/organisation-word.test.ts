@@ -79,7 +79,12 @@ async function seed(form: Form, verification: ShelterVerification = VERIFIED) {
             earlyListingSince: new Date(NOW.getTime() - 86_400_000),
           };
   await shelterRepo(h.db).insert(shelter);
-  const animal = makeAnimal({ shelterId: shelter.id, name: "Ластівка" });
+  const animal = makeAnimal({
+    shelterId: shelter.id,
+    name: "Ластівка",
+    species: "cat",
+    description: { uk: "Дуже лагідна кицька", en: null },
+  });
   await animalRepo(h.db).insert(animal, city.id);
   return { shelter, animal };
 }
