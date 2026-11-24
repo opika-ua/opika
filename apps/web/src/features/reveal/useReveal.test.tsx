@@ -81,7 +81,12 @@ describe("useReveal's error reason", () => {
 
     const { result } = renderHook(() => useReveal());
     act(() => {
-      result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+      result.current.open({
+        animalId: ANIMAL_A,
+        animalName: "Мурчик",
+        sex: "male",
+        cityName: null,
+      });
     });
 
     await waitFor(() =>
@@ -94,7 +99,12 @@ describe("useReveal's error reason", () => {
 
     const { result } = renderHook(() => useReveal());
     act(() => {
-      result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+      result.current.open({
+        animalId: ANIMAL_A,
+        animalName: "Мурчик",
+        sex: "male",
+        cityName: null,
+      });
     });
 
     await waitFor(() =>
@@ -107,7 +117,12 @@ describe("useReveal's error reason", () => {
 
     const { result } = renderHook(() => useReveal());
     act(() => {
-      result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+      result.current.open({
+        animalId: ANIMAL_A,
+        animalName: "Мурчик",
+        sex: "male",
+        cityName: null,
+      });
     });
 
     await waitFor(() =>
@@ -120,7 +135,12 @@ describe("useReveal's error reason", () => {
 
     const { result } = renderHook(() => useReveal());
     act(() => {
-      result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+      result.current.open({
+        animalId: ANIMAL_A,
+        animalName: "Мурчик",
+        sex: "male",
+        cityName: null,
+      });
     });
 
     await waitFor(() =>
@@ -133,7 +153,12 @@ describe("useReveal's error reason", () => {
 
     const { result } = renderHook(() => useReveal());
     act(() => {
-      result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+      result.current.open({
+        animalId: ANIMAL_A,
+        animalName: "Мурчик",
+        sex: "male",
+        cityName: null,
+      });
     });
 
     await waitFor(() =>
@@ -154,7 +179,12 @@ describe("useReveal's error reason", () => {
     bootstrap.mockRejectedValueOnce(new ORPCError("TOO_MANY_REQUESTS"));
     const first = renderHook(() => useReveal());
     act(() => {
-      first.result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+      first.result.current.open({
+        animalId: ANIMAL_A,
+        animalName: "Мурчик",
+        sex: "male",
+        cityName: null,
+      });
     });
     await waitFor(() =>
       expect(first.result.current.state).toMatchObject({
@@ -167,7 +197,12 @@ describe("useReveal's error reason", () => {
     revealCall.mockRejectedValueOnce(new ORPCError("TOO_MANY_REQUESTS"));
     const second = renderHook(() => useReveal());
     act(() => {
-      second.result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+      second.result.current.open({
+        animalId: ANIMAL_A,
+        animalName: "Мурчик",
+        sex: "male",
+        cityName: null,
+      });
     });
     await waitFor(() =>
       expect(second.result.current.state).toMatchObject({
@@ -191,7 +226,12 @@ describe("useReveal's error reason", () => {
 
     const { result } = renderHook(() => useReveal());
     act(() => {
-      result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+      result.current.open({
+        animalId: ANIMAL_A,
+        animalName: "Мурчик",
+        sex: "male",
+        cityName: null,
+      });
     });
 
     await waitFor(() =>
@@ -225,13 +265,18 @@ describe("useReveal's generation guard", () => {
     const { result } = renderHook(() => useReveal());
 
     act(() => {
-      result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+      result.current.open({
+        animalId: ANIMAL_A,
+        animalName: "Мурчик",
+        sex: "male",
+        cityName: null,
+      });
     });
     await settle();
     expect(revealCall).toHaveBeenCalledTimes(1);
 
     act(() => {
-      result.current.open({ animalId: ANIMAL_B, animalName: "Барон", cityName: null });
+      result.current.open({ animalId: ANIMAL_B, animalName: "Барон", sex: "male", cityName: null });
     });
     await settle();
     expect(result.current.state).toMatchObject({ kind: "open", animalName: "Барон" });
@@ -257,13 +302,18 @@ describe("useReveal's generation guard", () => {
     const { result } = renderHook(() => useReveal());
 
     act(() => {
-      result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+      result.current.open({
+        animalId: ANIMAL_A,
+        animalName: "Мурчик",
+        sex: "male",
+        cityName: null,
+      });
     });
     await settle();
     expect(revealCall).toHaveBeenCalledTimes(1);
 
     act(() => {
-      result.current.open({ animalId: ANIMAL_B, animalName: "Барон", cityName: null });
+      result.current.open({ animalId: ANIMAL_B, animalName: "Барон", sex: "male", cityName: null });
     });
     await settle();
     expect(result.current.state).toMatchObject({ kind: "open", animalName: "Барон" });
@@ -290,13 +340,18 @@ describe("useReveal's generation guard", () => {
     const { result } = renderHook(() => useReveal());
 
     act(() => {
-      result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+      result.current.open({
+        animalId: ANIMAL_A,
+        animalName: "Мурчик",
+        sex: "male",
+        cityName: null,
+      });
     });
     await settle();
     expect(bootstrap).toHaveBeenCalledTimes(1);
 
     act(() => {
-      result.current.open({ animalId: ANIMAL_B, animalName: "Барон", cityName: null });
+      result.current.open({ animalId: ANIMAL_B, animalName: "Барон", sex: "male", cityName: null });
     });
     await settle();
     expect(result.current.state).toMatchObject({ kind: "open", animalName: "Барон" });
@@ -319,7 +374,12 @@ describe("useReveal's generation guard", () => {
     const { result } = renderHook(() => useReveal());
 
     act(() => {
-      result.current.open({ animalId: ANIMAL_A, animalName: "Мурчик", cityName: null });
+      result.current.open({
+        animalId: ANIMAL_A,
+        animalName: "Мурчик",
+        sex: "male",
+        cityName: null,
+      });
     });
     await settle();
     expect(result.current.state.kind).toBe("loading");

@@ -334,6 +334,34 @@ test.describe("/tvaryny/[animalId] contact reveal – before, after, and close",
     await expect(shelterLine.first()).toBeVisible();
   });
 
+  test("a phone shows the suggested first message below the contact rows, naming this card, with its copy button", async ({
+    page,
+  }) => {
+    await openFirstAnimalDetail(page, DETAIL_PHONE);
+    const path = new URL(page.url()).pathname;
+    await page.getByTestId("reveal-trigger").click();
+
+    const block = page.getByRole("region", { name: "Можна почати з такого повідомлення:" });
+    await expect(block).toBeVisible();
+    await expect(page.getByTestId("reveal-first-message-text")).toContainText(
+      `https://opika.org.ua${path}.`,
+    );
+    const copy = page.getByRole("button", { name: "Копіювати повідомлення" });
+    await copy.scrollIntoViewIfNeeded();
+    await expect(copy).toBeVisible();
+    const lastRowBelowBlock = await page.evaluate(() => {
+      const rows = document.querySelectorAll('[data-testid="reveal-contact-row"]');
+      const last = rows[rows.length - 1];
+      const block = document.querySelector('[data-testid="reveal-first-message"]');
+      return (
+        !!last &&
+        !!block &&
+        !!(last.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING)
+      );
+    });
+    expect(lastRowBelowBlock, "the message block follows the last contact row").toBe(true);
+  });
+
   test("focus moves to the dialog's own heading on open", async ({ page }) => {
     await openFirstAnimalDetail(page, DETAIL_DESKTOP);
     await page.getByTestId("reveal-trigger").click();
