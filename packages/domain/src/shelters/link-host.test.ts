@@ -57,12 +57,11 @@ describe("linkHostProblemOf: the one host rule for donation links and shelter te
     expect(isLiveLinkUrl(url)).toBe(false);
   });
 
-  // Owner, 2026-11-24: the port rule is for donation links; linkify is unchanged.
-  it.each(PORT)("port, still a link in shelter text: %s", (url) => {
+  it.each(PORT)("port, refused in shelter text too: %s", (url) => {
     expect(linkHostProblemOf(url)).toBe("port");
     expect(linkAddressProblemOf(url)).toBe("port");
     expect(donationUrlProblemOf(url)).toBe("port");
-    expect(isLiveLinkUrl(url)).toBe(true);
+    expect(isLiveLinkUrl(url)).toBe(false);
   });
 
   it.each([
@@ -89,7 +88,7 @@ describe("isLiveLinkUrl", () => {
     "https://send.monobank.ua/jar/abc",
     "https://hatul-madan.org/blogs/fiv",
     "HTTPS://Example.org/A",
-    "https://shelter.example:8443/pay?amount=100#jar",
+    "https://shelter.example/pay?amount=100#jar",
   ])("a real host over https is a link: %s", (url) => {
     expect(isLiveLinkUrl(url)).toBe(true);
   });
@@ -100,6 +99,9 @@ describe("isLiveLinkUrl", () => {
     "https://0x7f.1/pay",
     "https://2130706433/pay",
     "https://[2001:db8::1]/pay",
+    "https://shelter.example:8443/pay",
+    "https://shelter.example:443/pay",
+    "https://shelter.example:/pay",
     "javascript:alert(1)",
     "data:text/html,<b>hi</b>",
     "ftp://example.org/",

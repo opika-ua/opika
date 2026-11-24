@@ -99,13 +99,25 @@ describe("linkParts", () => {
     ]);
   });
 
-  it("links a real host with a port, a query and a fragment, as donation links allow", () => {
-    expect(linkParts("https://shelter.example:8443/pay?amount=100#jar")).toEqual([
-      link(
-        0,
-        "https://shelter.example:8443/pay?amount=100#jar",
-        "shelter.example:8443/pay?amount=100#jar",
-      ),
+  it("links a real host with a query and a fragment", () => {
+    expect(linkParts("https://shelter.example/pay?amount=100#jar")).toEqual([
+      link(0, "https://shelter.example/pay?amount=100#jar", "shelter.example/pay?amount=100#jar"),
+    ]);
+  });
+
+  // Owner, 2026-11-24: the donation links' port rule reaches shelter text; the parser drops
+  // `:443` and an empty port, so those must stay text rather than link without them.
+  it("keeps an address with an explicit port as text, the default and an empty one included", () => {
+    for (const value of [
+      "https://shelter.example:8443/pay?amount=100#jar",
+      "https://send.monobank.ua:443/jar/abc",
+      "https://send.monobank.ua:/jar/abc",
+      "HTTPS://SEND.MONOBANK.UA:8080",
+    ]) {
+      expect(linkParts(value), value).toEqual([text(0, value)]);
+    }
+    expect(linkParts("Збір: https://send.monobank.ua:443/jar, дякуємо")).toEqual([
+      text(0, "Збір: https://send.monobank.ua:443/jar, дякуємо"),
     ]);
   });
 

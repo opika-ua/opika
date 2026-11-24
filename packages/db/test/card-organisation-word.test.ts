@@ -6,11 +6,14 @@ import {
   NO_FILTERS,
   type Shelter,
 } from "@opika/domain";
+import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { animalRepo } from "../src/repos/animal-repo";
+import { cardShelterColumns } from "../src/repos/card-places";
 import { cityRepo } from "../src/repos/city-repo";
 import { galleryRepo } from "../src/repos/gallery-repo";
 import { shelterRepo } from "../src/repos/shelter-repo";
+import { shelters } from "../src/schema/shelters";
 import { makeAnimal, makeCity, makeShelter, setupTestDatabase } from "../src/test-utils/index";
 
 /**
@@ -95,6 +98,16 @@ describe("the card query's organisation word", () => {
       rows.map((row) => [row.animal.id as string, row.shelter?.organisationWord]),
     );
     for (const [key, word] of EXPECTED) expect(byAnimal.get(ids[key])).toBe(word);
+  });
+
+  // `->'kind'` would pass the rows above too: both drivers parse a jsonb string, but SQL that
+  // compares the column, or a driver that doesn't parse, would see it JSON-quoted.
+  it("reads the form as text, not jsonb", async () => {
+    const rows = await db
+      .select({ type: sql<string>`pg_typeof(${cardShelterColumns.legalEntityKind})::text` })
+      .from(shelters)
+      .limit(1);
+    expect(rows.map((row) => row.type)).toEqual(["text"]);
   });
 
   it("listCards names each listed shelter's word, and no other legal field", async () => {
