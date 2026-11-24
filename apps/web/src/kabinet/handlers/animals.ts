@@ -59,6 +59,7 @@ import {
   type ShelterActor,
   type ShelterId,
   type SpayNeuterStatus,
+  staleCutoff,
   type Temperament,
   transitionListing,
   UNDO_WINDOW_MS,
@@ -507,8 +508,7 @@ export type KabinetAnimalListResult = {
  * call stale (`ageDays > agingMaxDays`), derived from the same policy so the
  * two can't disagree.
  */
-export const staleBefore = (now: Date): Date =>
-  new Date(now.getTime() - (DEFAULT_FRESHNESS_POLICY.agingMaxDays + 1) * 24 * 60 * 60 * 1000);
+export const staleBefore = (now: Date): Date => staleCutoff(now, DEFAULT_FRESHNESS_POLICY);
 
 /** The repository's filter for a K2 one: «Показати ці N» is the strip's own cut-off, taken now. */
 const repoFilterOf = (filter: KabinetAnimalListFilter, now: Date): KabinetAnimalFilter =>

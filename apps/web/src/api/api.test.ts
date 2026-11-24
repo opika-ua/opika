@@ -592,11 +592,12 @@ describe("gallery.list", () => {
     const middling = makeAnimal({
       shelterId: shelter.id,
       name: "Середній",
-      lastUpdatedAt: daysBefore(40),
+      lastUpdatedAt: daysBefore(20),
       listing: {
         kind: "published",
+        // Not stale (30 days or less), so «Зачекались» lists it too.
         publishedAt: daysBefore(60),
-        confirmedAt: daysBefore(40),
+        confirmedAt: daysBefore(20),
         undoable: null,
       },
     });
@@ -687,10 +688,12 @@ describe("gallery.list", () => {
       { filters: NO_FILTERS, sort: "longest_waiting" },
       { now: NOW },
     );
+    // Nine days on: every card has aged a band (scores would move), none has gone stale, which
+    // would take it out of «Зачекались» by rule rather than by re-ranking.
     const later = await h.call(
       "gallery.list",
       { filters: NO_FILTERS, sort: "longest_waiting" },
-      { now: new Date(NOW.getTime() + 45 * 86_400_000) },
+      { now: new Date(NOW.getTime() + 9 * 86_400_000) },
     );
 
     const ids = (res: { body: unknown }) =>

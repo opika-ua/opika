@@ -46,6 +46,7 @@ import {
   buildFeedPredicate,
   buildFilterPredicate,
   buildScopePredicate,
+  buildSortPredicate,
   listedShelterCondition,
 } from "./feed-predicate";
 import { rowToCity, rowToDiscoverableAnimal } from "./mappers";
@@ -399,16 +400,19 @@ export function galleryRepo(db: Database) {
      *
      * Each column reuses `buildFilterPredicate` over a filter set with one
      * dimension relaxed, so a relaxation count and the list it is offering to
-     * expand can never be computed from different rules.
+     * expand can never be computed from different rules. `sort` is required
+     * because it narrows the list (`buildSortPredicate`), so it narrows the scan.
      */
     async relaxationCounts(opts: {
       filters: FeedFilters;
+      sort: GallerySort;
       now: Date;
       scope?: GalleryScope;
     }): Promise<GalleryRelaxationCounts> {
       const base = and(
         ...buildDiscoverabilityPredicate(opts.now),
         ...buildScopePredicate(opts.scope ?? EVERYONE_SCOPE),
+        ...buildSortPredicate(opts.sort, opts.now),
       );
       const currentFilter = and(...buildFilterPredicate(opts.filters, opts.now)) ?? sql`TRUE`;
 
@@ -469,16 +473,19 @@ export function galleryRepo(db: Database) {
      * over the groups. A typed `.select()`, never a raw `db.execute()`, for the
      * driver reason `relaxationCounts` gives. `scope` narrows the counted rows as `list`'s does
      * (the same `buildScopePredicate`); optional here, unlike in `list`: everyone is the default,
-     * as in the contract.
+     * as in the contract. `sort` is required: its clause (`buildSortPredicate`) joins every count,
+     * but not the grouped scan, so the city options and `hasPage` stay the same under either sort.
      */
     async facetCounts(opts: {
       filters: FeedFilters;
+      sort: GallerySort;
       now: Date;
       scope?: GalleryScope;
     }): Promise<GalleryFacetCounts> {
       const counted: Record<string, SQL.Aliased<number>> = {};
+      const sortClause = buildSortPredicate(opts.sort, opts.now);
       const countWhere = (alias: `n_${string}`, filters: FeedFilters) => {
-        const where = and(...buildFilterPredicate(filters, opts.now)) ?? sql`TRUE`;
+        const where = and(...buildFilterPredicate(filters, opts.now), ...sortClause) ?? sql`TRUE`;
         counted[alias] = sql<number>`count(*) FILTER (WHERE ${where})`.mapWith(Number).as(alias);
       };
       countWhere("n_loc", relaxDimension(relaxDimension(opts.filters, "cities"), "regions"));
@@ -574,6 +581,7 @@ export function galleryRepo(db: Database) {
       const where = and(
         ...buildFeedPredicate(opts.filters, opts.now),
         ...buildScopePredicate(opts.scope),
+        ...buildSortPredicate(opts.sort, opts.now),
       );
 
       const [prev, next] = await Promise.all([
@@ -599,6 +607,7 @@ function pageParts(opts: PageOptions): { where: SQL | undefined; ordering: SQL[]
   const conditions = [
     ...buildFeedPredicate(opts.filters, opts.now),
     ...buildScopePredicate(opts.scope),
+    ...buildSortPredicate(opts.sort, opts.now),
   ];
   return { where: and(...conditions), ordering: orderingFor(opts.sort) };
 }

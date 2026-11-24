@@ -48,15 +48,16 @@ export function ShelterPageScreen({
   cityNames,
   animalCities,
   query,
+  listedTotal,
   filterUi,
   kabinetSignedIn = false,
 }: ShelterPageView & { kabinetSignedIn?: boolean }) {
   const animalsHeadingId = useId();
   const about = shownAboutText(shelter.description);
   const year = String(shelter.createdAt.getFullYear());
-  // With filters on, the heading is the shelter's whole count and the filtered one has its own line.
+  // The heading is the shelter's whole count; with filters on, the filtered one has its own line.
   const animalsCountText = fillTemplate(uk.shelterPage.animalsHeading, {
-    count: String(filterUi?.total ?? animals.totalMatching),
+    count: String(listedTotal),
   });
   const withLong = (short: string, long: string) => `${short}. ${long}`;
   const { filters } = query;
@@ -199,7 +200,7 @@ export function ShelterPageScreen({
             <PauseNotice reason={shelter.availability.reason} />
             <p className="text-body text-ink-2">{uk.pause.shelterNotListed}</p>
           </div>
-        ) : animals.totalMatching === 0 && filterUi === null ? (
+        ) : listedTotal === 0 ? (
           <div
             data-testid="shelter-no-animals"
             className="relative mt-8 flex flex-col items-center gap-3 rounded-card border-2 border-dashed border-line px-4 py-8 text-center"
@@ -223,7 +224,7 @@ export function ShelterPageScreen({
             {filterUi === null ? (
               <div className="flex flex-wrap items-center justify-between gap-4">
                 {heading}
-                {animals.totalMatching > 1 && sortToggle}
+                {listedTotal > 1 && sortToggle}
               </div>
             ) : (
               <GalleryControlBlock
@@ -306,12 +307,13 @@ export function ShelterPageScreen({
               </>
             )}
 
-            {animals.totalMatching === 0 && filterUi !== null ? (
+            {animals.totalMatching === 0 ? (
+              // A filter matched nothing, or «Зачекались» found no card that isn't stale.
               <NoMatch
                 filters={filters}
                 sort={query.sort}
                 citySlugs={EMPTY_CITY_SLUGS}
-                relaxations={filterUi.relaxations}
+                relaxations={filterUi?.relaxations ?? []}
                 basePath={basePath}
               />
             ) : (

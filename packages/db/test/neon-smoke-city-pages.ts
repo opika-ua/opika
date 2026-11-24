@@ -86,7 +86,7 @@ export async function runCityPagesSmoke(db: Database): Promise<Outcome[]> {
   await animalIn(mixed, early, { species: "dog", lastUpdatedAt: daysBefore(1) });
 
   const pagesOf = async (cityIds: readonly CityId[]) => gallery.cityPages({ now: NOW, cityIds });
-  const facet = await gallery.facetCounts({ filters: NO_FILTERS, now: NOW });
+  const facet = await gallery.facetCounts({ sort: "freshest", filters: NO_FILTERS, now: NOW });
   const facetEntry = (cityId: CityId) => facet.cities.find((entry) => entry.cityId === cityId);
 
   const fostered = await pagesOf([home, foster]);

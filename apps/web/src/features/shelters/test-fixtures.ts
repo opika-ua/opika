@@ -64,15 +64,18 @@ export function makeListOutput(cards: FeedCardView[], page = 1, totalPages = 1):
 }
 
 export function makeShelterPageView(overrides: Partial<ShelterPageView> = {}): ShelterPageView {
+  const animals = overrides.animals ?? makeListOutput([makeCardView(1), makeCardView(2)]);
   return {
     shelter: makeShelterPageShelter(),
     cityName: "Бровари",
     cityPlace: "м. Бровари",
-    animals: makeListOutput([makeCardView(1), makeCardView(2)]),
+    animals,
     listedSpecies: ["dog"],
     cityNames: new Map([[CITY_ID as never, "Бровари"]]),
     animalCities: [],
     query: { sort: "freshest", page: 1, filters: NO_FILTERS },
+    // The freshest sort, unfiltered: the list's total is the shelter's.
+    listedTotal: animals.totalMatching,
     filterUi: null,
     ...overrides,
   };

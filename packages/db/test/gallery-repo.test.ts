@@ -734,11 +734,16 @@ describe("galleryRepo.relaxationCounts", () => {
     };
 
     const scoped = await galleryRepo(db).relaxationCounts({
+      sort: "freshest",
       filters,
       now: NOW,
       scope: { kind: "shelter", shelterId: mine.id },
     });
-    const everyone = await galleryRepo(db).relaxationCounts({ filters, now: NOW });
+    const everyone = await galleryRepo(db).relaxationCounts({
+      sort: "freshest",
+      filters,
+      now: NOW,
+    });
 
     expect(scoped.current).toBe(1);
     expect(scoped.relaxations).toEqual([{ dimension: "species", additional: 1 }]);
@@ -791,6 +796,7 @@ describe("galleryRepo.relaxationCounts", () => {
     await animalRepo(db).insertMany(entries);
 
     const counts = await galleryRepo(db).relaxationCounts({
+      sort: "freshest",
       filters: {
         regions: { kind: "any" },
         cities: { kind: "oneOf", values: [kyiv.id] },
@@ -844,6 +850,7 @@ describe("galleryRepo.relaxationCounts", () => {
     ]);
 
     const counts = await galleryRepo(neonHttpRawShape).relaxationCounts({
+      sort: "freshest",
       filters: { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } },
       now: NOW,
     });
@@ -857,7 +864,11 @@ describe("galleryRepo.relaxationCounts", () => {
     const shelter = await makeShelterInCity(city.id);
     await seedPermutedOrderings(shelter.id, city.id, 3);
 
-    const counts = await galleryRepo(db).relaxationCounts({ filters: NO_FILTERS, now: NOW });
+    const counts = await galleryRepo(db).relaxationCounts({
+      sort: "freshest",
+      filters: NO_FILTERS,
+      now: NOW,
+    });
 
     expect(counts.current).toBe(3);
     expect(counts.relaxations).toEqual([]);
@@ -880,6 +891,7 @@ describe("galleryRepo.relaxationCounts", () => {
     ]);
 
     const counts = await galleryRepo(db).relaxationCounts({
+      sort: "freshest",
       filters: { ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } },
       now: NOW,
     });
@@ -962,6 +974,7 @@ describe("galleryRepo.facetCounts", () => {
     const { kyiv, lviv } = await seedFacetCorpus();
 
     const counts = await galleryRepo(db).facetCounts({
+      sort: "freshest",
       filters: {
         ...NO_FILTERS,
         cities: { kind: "oneOf", values: [kyiv.id] },
@@ -995,7 +1008,7 @@ describe("galleryRepo.facetCounts", () => {
       ages: { kind: "any" },
       sexes: { kind: "oneOf", values: ["male"] },
     };
-    const counts = await galleryRepo(db).facetCounts({ filters, now: NOW });
+    const counts = await galleryRepo(db).facetCounts({ sort: "freshest", filters, now: NOW });
 
     const listTotal = async (narrowed: FeedFilters) =>
       (
@@ -1038,6 +1051,7 @@ describe("galleryRepo.facetCounts", () => {
     const { kyiv, odesa } = await seedFacetCorpus();
 
     const counts = await galleryRepo(db).facetCounts({
+      sort: "freshest",
       filters: { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } },
       now: NOW,
     });
@@ -1069,7 +1083,11 @@ describe("galleryRepo.facetCounts", () => {
     await shelterRepo(db).insert(pending);
     await animalRepo(db).insert(makeAnimal({ shelterId: pending.id, size: "small" }), kyiv.id);
 
-    const counts = await galleryRepo(db).facetCounts({ filters: NO_FILTERS, now: NOW });
+    const counts = await galleryRepo(db).facetCounts({
+      sort: "freshest",
+      filters: NO_FILTERS,
+      now: NOW,
+    });
 
     // Kyiv has four discoverable animals, one draft and one published at a
     // pending shelter.
@@ -1111,8 +1129,13 @@ describe("galleryRepo.facetCounts", () => {
     await shelterRepo(db).insert(pending);
     await animalRepo(db).insert(makeAnimal({ shelterId: pending.id, size: "small" }), kyiv.id);
 
-    const everyone = await galleryRepo(db).facetCounts({ filters: NO_FILTERS, now: NOW });
+    const everyone = await galleryRepo(db).facetCounts({
+      sort: "freshest",
+      filters: NO_FILTERS,
+      now: NOW,
+    });
     const scoped = await galleryRepo(db).facetCounts({
+      sort: "freshest",
       filters: NO_FILTERS,
       now: NOW,
       scope: { kind: "shelter", shelterId: other.id },
@@ -1128,6 +1151,7 @@ describe("galleryRepo.facetCounts", () => {
     expect(cityCounts(scoped)).toEqual(new Map([[kyiv.id, 1]]));
 
     const unlisted = await galleryRepo(db).facetCounts({
+      sort: "freshest",
       filters: NO_FILTERS,
       now: NOW,
       scope: { kind: "shelter", shelterId: pending.id },
@@ -1194,7 +1218,11 @@ describe("a declared range", () => {
   it("the facet counts equal what the list finds, today and two years on", async () => {
     await seedRanges();
     for (const now of [NOW, TWO_YEARS_ON]) {
-      const counts = await galleryRepo(db).facetCounts({ filters: NO_FILTERS, now });
+      const counts = await galleryRepo(db).facetCounts({
+        sort: "freshest",
+        filters: NO_FILTERS,
+        now,
+      });
       for (const age of ["baby", "young", "adult", "senior"] as const) {
         expect(counts.ages[age], `${age} at ${now.toISOString()}`).toBe(
           (await namesAged(age, now)).length,
@@ -1511,10 +1539,11 @@ describe("a paused shelter's animals stay out of every gallery surface", () => {
     expect(list.totalMatching).toBe(1);
     expect(list.totalShelters).toBe(1);
 
-    const counts = await gallery.facetCounts({ filters: NO_FILTERS, now: NOW });
+    const counts = await gallery.facetCounts({ sort: "freshest", filters: NO_FILTERS, now: NOW });
     expect(counts.cities.reduce((sum, entry) => sum + entry.count, 0)).toBe(1);
 
     const relaxed = await gallery.relaxationCounts({
+      sort: "freshest",
       filters: { ...NO_FILTERS, cities: { kind: "oneOf", values: [city.id] } },
       scope: { kind: "shelter", shelterId: closed.id },
       now: NOW,
@@ -1534,5 +1563,242 @@ describe("a paused shelter's animals stay out of every gallery surface", () => {
 
     const sitemap = await gallery.sitemapRows({ now: NOW });
     expect(sitemap.map((row) => row.id)).toEqual([shown.id]);
+  });
+});
+/**
+ * «Зачекались» lists only cards that aren't stale (owner, 2026-11-24): confirmed within the
+ * domain's `agingMaxDays`, on `freshnessOf`'s own boundary (31 whole days is stale). The freshest
+ * sort lists every card. Every count beside a list takes the sort's clause too, so none names a
+ * card that list hides.
+ */
+describe("«Зачекались» leaves stale cards out, and so does every count beside it", () => {
+  const MS_PER_DAY = 86_400_000;
+  // Name, confirmed this many ms before NOW, published this many days before NOW, species.
+  const CORPUS = [
+    ["Свіжий", 1 * MS_PER_DAY, 100, "dog"],
+    ["Тридцять днів", 30 * MS_PER_DAY, 90, "cat"],
+    ["Майже стара", 31 * MS_PER_DAY - 1, 80, "dog"],
+    ["Тридцять один день", 31 * MS_PER_DAY, 200, "cat"],
+    ["Давній", 90 * MS_PER_DAY, 150, "dog"],
+  ] as const;
+  const NOT_STALE = ["Свіжий", "Тридцять днів", "Майже стара"];
+
+  async function seedAges(shelterId: ShelterId, cityId: CityId) {
+    const animals = CORPUS.map(([name, confirmedMsAgo, publishedDaysAgo, species]) =>
+      makeAnimal({
+        shelterId,
+        name,
+        species,
+        listing: {
+          kind: "published",
+          publishedAt: daysBefore(publishedDaysAgo),
+          confirmedAt: new Date(NOW.getTime() - confirmedMsAgo),
+          undoable: null,
+        },
+      }),
+    );
+    await animalRepo(db).insertMany(animals.map((animal) => ({ animal, cityId })));
+    return animals;
+  }
+
+  const listAll = (sort: GallerySort, filters: FeedFilters, scope: GalleryScope = EVERYONE_SCOPE) =>
+    galleryRepo(db).list({ filters, scope, sort, page: 1, pageSize: 50, now: NOW });
+
+  it("a card 31 days old is absent under «Зачекались» and present under the default sort; 30 days is present", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = await makeShelterInCity(city.id);
+    await seedAges(shelter.id, city.id);
+
+    const waiting = await listAll("longest_waiting", NO_FILTERS);
+    const freshest = await listAll("freshest", NO_FILTERS);
+
+    // Longest wait first: published 100, 90 and 80 days ago.
+    expect(waiting.items.map((a) => a.name)).toEqual(NOT_STALE);
+    expect(freshest.items.map((a) => a.name)).toEqual([
+      "Свіжий",
+      "Тридцять днів",
+      "Майже стара",
+      "Тридцять один день",
+      "Давній",
+    ]);
+    expect(waiting.totalMatching).toBe(3);
+    expect(freshest.totalMatching).toBe(5);
+  });
+
+  it("totals, pages, facet and relaxation counts and neighbours agree with the list, under both sorts", async () => {
+    const city = makeCity();
+    const otherCity = makeCity();
+    await cityRepo(db).insert(city);
+    await cityRepo(db).insert(otherCity);
+    const shelter = await makeShelterInCity(city.id);
+    const other = await makeShelterInCity(otherCity.id, "Інший притулок");
+    await seedAges(shelter.id, city.id);
+    await seedAges(other.id, otherCity.id);
+    const gallery = galleryRepo(db);
+    const CATS: FeedFilters = { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } };
+
+    for (const sort of ["freshest", "longest_waiting"] as const) {
+      const perShelter = sort === "freshest" ? CORPUS.length : NOT_STALE.length;
+      const all = await listAll(sort, NO_FILTERS);
+      expect(all.totalMatching, sort).toBe(perShelter * 2);
+      expect(all.items, sort).toHaveLength(perShelter * 2);
+      expect(all.totalShelters, sort).toBe(2);
+
+      // Paged at 2: the page count is drawn from the same total, and the pages hold exactly the list.
+      const pages = Math.ceil(all.totalMatching / 2);
+      const paged: string[] = [];
+      for (let page = 1; page <= pages; page++) {
+        const result = await gallery.list({
+          filters: NO_FILTERS,
+          scope: EVERYONE_SCOPE,
+          sort,
+          page,
+          pageSize: 2,
+          now: NOW,
+        });
+        expect(result.totalPages, sort).toBe(pages);
+        paged.push(...result.items.map((a) => a.id));
+      }
+      expect(paged, sort).toEqual(all.items.map((a) => a.id));
+
+      // Facets: each option's count is what the list finds with that option chosen alone.
+      const facets = await gallery.facetCounts({ filters: NO_FILTERS, sort, now: NOW });
+      const cats = await listAll(sort, CATS);
+      const dogs = await listAll(sort, {
+        ...NO_FILTERS,
+        species: { kind: "oneOf", values: ["dog"] },
+      });
+      expect(facets.species, sort).toEqual({ dog: dogs.totalMatching, cat: cats.totalMatching });
+      const inCity = await listAll(sort, {
+        ...NO_FILTERS,
+        cities: { kind: "oneOf", values: [city.id] },
+      });
+      expect(facets.cities.find((c) => c.cityId === city.id)?.count, sort).toBe(
+        inCity.totalMatching,
+      );
+      // The sort changes the option counts, never which cities are offered or have a page.
+      expect(facets.cities.map((c) => `${c.cityId}:${c.hasPage}`).sort(), sort).toEqual(
+        [`${city.id}:true`, `${otherCity.id}:true`].sort(),
+      );
+
+      // Relaxation: the current count is the list's, the gain is what dropping the filter adds.
+      const relaxed = await gallery.relaxationCounts({ filters: CATS, sort, now: NOW });
+      expect(relaxed.current, sort).toBe(cats.totalMatching);
+      expect(relaxed.relaxations, sort).toEqual([
+        { dimension: "species", additional: all.totalMatching - cats.totalMatching },
+      ]);
+
+      // Neighbours: walking `next` from the first card visits the list's cards in its order.
+      const ids = all.items.map((a) => a.id);
+      const walked: string[] = [];
+      for (let at: AnimalId | undefined = ids[0]; at !== undefined; ) {
+        walked.push(at);
+        const { next }: { next: { id: AnimalId } | null } = await gallery.neighbours({
+          animalId: at,
+          filters: NO_FILTERS,
+          scope: EVERYONE_SCOPE,
+          sort,
+          now: NOW,
+        });
+        at = next?.id;
+      }
+      expect(walked, sort).toEqual(ids);
+      const last = ids.at(-1);
+      if (!last) throw new Error("empty list");
+      const end = await gallery.neighbours({
+        animalId: last,
+        filters: NO_FILTERS,
+        scope: EVERYONE_SCOPE,
+        sort,
+        now: NOW,
+      });
+      expect(end.next, sort).toBeNull();
+      expect(end.prev?.id, sort).toBe(ids.at(-2));
+      // Both ends: the stale cards wait longest, so under «Зачекались» they would sit before the first.
+      const first = ids[0];
+      if (!first) throw new Error("empty list");
+      const start = await gallery.neighbours({
+        animalId: first,
+        filters: NO_FILTERS,
+        scope: EVERYONE_SCOPE,
+        sort,
+        now: NOW,
+      });
+      expect(start.prev, sort).toBeNull();
+    }
+  });
+
+  it("a shelter's own list, counts and neighbours leave its stale cards out under «Зачекались»", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = await makeShelterInCity(city.id);
+    const animals = await seedAges(shelter.id, city.id);
+    const scope: GalleryScope = { kind: "shelter", shelterId: shelter.id };
+    const gallery = galleryRepo(db);
+
+    const waiting = await listAll("longest_waiting", NO_FILTERS, scope);
+    expect(waiting.items.map((a) => a.name)).toEqual(NOT_STALE);
+    const facets = await gallery.facetCounts({
+      filters: NO_FILTERS,
+      sort: "longest_waiting",
+      scope,
+      now: NOW,
+    });
+    expect(facets.species.dog + facets.species.cat).toBe(3);
+    const whole = await gallery.facetCounts({
+      filters: NO_FILTERS,
+      sort: "freshest",
+      scope,
+      now: NOW,
+    });
+    expect(whole.species.dog + whole.species.cat).toBe(5);
+
+    // A stale card opened by its link still seeks from its own place, among the cards listed.
+    const stale = animals.find((a) => a.name === "Тридцять один день");
+    if (!stale) throw new Error("fixture missing");
+    const around = await gallery.neighbours({
+      animalId: stale.id,
+      filters: NO_FILTERS,
+      scope,
+      sort: "longest_waiting",
+      now: NOW,
+    });
+    expect(around.prev).toBeNull();
+    expect(around.next?.name).toBe("Свіжий");
+  });
+
+  it("with every card stale, «Зачекались» is an empty result whose counts are zero, while the city options stay", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const shelter = await makeShelterInCity(city.id);
+    await animalRepo(db).insertMany(
+      [40, 60].map((days) => ({
+        animal: makeAnimal({
+          shelterId: shelter.id,
+          listing: {
+            kind: "published",
+            publishedAt: daysBefore(days + 10),
+            confirmedAt: daysBefore(days),
+            undoable: null,
+          },
+        }),
+        cityId: city.id,
+      })),
+    );
+    const gallery = galleryRepo(db);
+
+    const waiting = await listAll("longest_waiting", NO_FILTERS);
+    expect(waiting.totalMatching).toBe(0);
+    expect(waiting.totalPages).toBe(0);
+    const facets = await gallery.facetCounts({
+      filters: NO_FILTERS,
+      sort: "longest_waiting",
+      now: NOW,
+    });
+    expect(facets.species).toEqual({ dog: 0, cat: 0 });
+    expect(facets.cities.map((c) => [c.cityId, c.count, c.hasPage])).toEqual([[city.id, 0, true]]);
+    const freshest = await listAll("freshest", NO_FILTERS);
+    expect(freshest.totalMatching).toBe(2);
   });
 });
