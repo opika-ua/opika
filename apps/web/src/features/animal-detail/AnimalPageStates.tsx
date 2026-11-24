@@ -10,8 +10,9 @@ import { Text } from "../../ui/Text";
  * that still works, so it says the same three things inside the dialog and
  * leaves ✕ to get back.
  *
- * - `not_found`: the 404's own copy (an animal adopted, withdrawn or paused
- *   between the gallery's render and the click, DR1-S4-T6).
+ * - `not_found`: the 404's own copy (an animal withdrawn or paused between
+ *   the gallery's render and the click, DR1-S4-T6, or adopted over 90 days
+ *   ago; a recent adoption shows the page's «Уже вдома» state instead).
  * - `rate_limited` (RL-F1): his sentence, and nothing about the card.
  * - `failed`: the gallery's error copy, whose body («Ваші фільтри
  *   збережені») is true here: the gallery behind is untouched.

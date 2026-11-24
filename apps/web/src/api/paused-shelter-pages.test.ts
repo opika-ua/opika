@@ -93,6 +93,7 @@ async function bootstrap(): Promise<{ cookie: string; adopterId: never }> {
   return { cookie, adopterId: adopter.id as never };
 }
 
+type Listed = { animal: { availability: unknown } };
 const code = (res: { body: unknown }) => (res.body as Record<string, unknown>).code;
 
 describe("a paused shelter's pages stay reachable", () => {
@@ -139,7 +140,7 @@ describe("a paused shelter's pages stay reachable", () => {
     const { animal } = await seed("paused");
     const res = await h.call("animals.byId", { animalId: animal.id });
     expect(res.status).toBe(200);
-    expect((res.body as { availability: unknown }).availability).toEqual({ kind: "paused" });
+    expect((res.body as Listed).animal.availability).toEqual({ kind: "paused" });
     expect(res.raw).not.toContain(NOTE);
   });
 
@@ -165,7 +166,7 @@ describe("a paused shelter's pages stay reachable", () => {
   it("an open shelter's animal reads availability open", async () => {
     const { animal } = await seed("verified");
     const res = await h.call("animals.byId", { animalId: animal.id });
-    expect((res.body as { availability: unknown }).availability).toEqual({ kind: "open" });
+    expect((res.body as Listed).animal.availability).toEqual({ kind: "open" });
   });
 });
 

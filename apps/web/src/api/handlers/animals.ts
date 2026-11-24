@@ -1,16 +1,17 @@
 import type {
-  AnimalDetailView,
   AnimalsByIdInputSchema,
   AnimalsCardsByIdsInputSchema,
   AnimalsCardsByIdsOutputSchema,
   AnimalsNeighboursInputSchema,
   AnimalsNeighboursOutputSchema,
   apiErrors,
+  PublicAnimalPage,
 } from "@opika/contracts";
 import { animalRepo, galleryRepo } from "@opika/db/repos";
 import {
   ageBucketOf,
   ageSpanOf,
+  homeFoundPageOf,
   isDiscoverableAnimal,
   isListedAnimal,
   primaryPhoto,
@@ -41,16 +42,32 @@ export async function animalsById(
   input: AnimalsInput,
   context: AppContext,
   errors: AnimalsByIdErrors,
-): Promise<AnimalDetailView> {
+): Promise<PublicAnimalPage> {
   // The animal and its shelter in one statement: the detail page's first (and only) wait.
   const found = await animalRepo(context.db).findWithShelterById(input.animalId, context.now);
   const animal = found?.animal;
   const shelter = found?.shelter;
+  if (!animal) throw errors.NOT_FOUND();
 
   // The guard narrows to a `DiscoverableAnimal` (F-B1): listed, so every
   // listing fact below is non-null by type, and a draft is NOT_FOUND here
   // before any of it is read.
-  if (!animal || !isDiscoverableAnimal(animal)) {
+  if (!isDiscoverableAnimal(animal)) {
+    // «Уже вдома» (owner, 2026-11-24): a recent adoption of a card that was once public, under a
+    // shelter that is open now. Anything else is the same NOT_FOUND as an unknown id.
+    if (
+      homeFoundPageOf(animal.listing, context.now) === "show" &&
+      animal.everServedAt !== null &&
+      shelter?.availability === "open"
+    ) {
+      return {
+        kind: "home_found",
+        name: animal.name,
+        species: animal.species,
+        primaryPhoto: primaryPhoto(animal),
+        shelterName: shelter.displayName,
+      };
+    }
     throw errors.NOT_FOUND();
   }
 
@@ -65,36 +82,39 @@ export async function animalsById(
   }
 
   return {
-    id: animal.id,
-    name: animal.name,
-    species: animal.species,
-    sex: animal.sex,
-    size: animal.size,
-    coatLength: animal.coatLength,
-    publicLocation: animal.publicLocation && cityOnlyLocationOf(animal.publicLocation),
-    description: animal.description,
-    photos: animal.photos,
-    vaccination: animal.vaccination,
-    spayNeuter: animal.spayNeuter,
-    documentReadiness: animal.documentReadiness,
-    temperament: animal.temperament,
-    colour: animal.colour,
-    medicalNotes: animal.medicalNotes,
-    ageBucket: ageBucketOf(animal.age, context.now),
-    ageSpan: ageSpanOf(animal.age, context.now),
-    freshness: listingFreshness(animal.listing, context.now),
-    listingKind: discoverableListingKind(animal.listing),
-    shelter: {
-      id: shelter.id,
-      displayName: shelter.displayName,
-      logo: shelter.logo,
-      publicLocation: cityOnlyLocationOf(shelter.publicLocation),
-      // Not reachable as "unverified": the guard above refuses an unreachable shelter, and a
-      // paused one is `verified` in the trust sense.
-      verification:
-        shelter.verification === "listed_before_verification" ? shelter.verification : "verified",
+    kind: "listed",
+    animal: {
+      id: animal.id,
+      name: animal.name,
+      species: animal.species,
+      sex: animal.sex,
+      size: animal.size,
+      coatLength: animal.coatLength,
+      publicLocation: animal.publicLocation && cityOnlyLocationOf(animal.publicLocation),
+      description: animal.description,
+      photos: animal.photos,
+      vaccination: animal.vaccination,
+      spayNeuter: animal.spayNeuter,
+      documentReadiness: animal.documentReadiness,
+      temperament: animal.temperament,
+      colour: animal.colour,
+      medicalNotes: animal.medicalNotes,
+      ageBucket: ageBucketOf(animal.age, context.now),
+      ageSpan: ageSpanOf(animal.age, context.now),
+      freshness: listingFreshness(animal.listing, context.now),
+      listingKind: discoverableListingKind(animal.listing),
+      shelter: {
+        id: shelter.id,
+        displayName: shelter.displayName,
+        logo: shelter.logo,
+        publicLocation: cityOnlyLocationOf(shelter.publicLocation),
+        // Not reachable as "unverified": the guard above refuses an unreachable shelter, and a
+        // paused one is `verified` in the trust sense.
+        verification:
+          shelter.verification === "listed_before_verification" ? shelter.verification : "verified",
+      },
+      availability: { kind: shelter.availability === "paused" ? "paused" : "open" },
     },
-    availability: { kind: shelter.availability === "paused" ? "paused" : "open" },
   };
 }
 

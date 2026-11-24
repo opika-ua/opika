@@ -178,6 +178,15 @@ const EXPECTED_EMBEDDINGS: ReadonlyArray<Anchor & { kind: Kind; why: string }> =
       "FeedCardViewSchema's own extend() field - same as kabinet/views.ts's coverPhoto: a " +
       "per-request projection of animals.photos, not storage.",
   },
+  {
+    file: "contracts/src/views/animal.ts",
+    symbol: "HomeFoundAnimalViewSchema",
+    text: "primaryPhoto: AnimalPhotoSchema.nullable(),",
+    kind: "view",
+    why:
+      "HomeFoundAnimalViewSchema (an adopted animal's «Уже вдома» page, 90 days) - the same " +
+      "per-request projection of animals.photos as FeedCardViewSchema's, not storage.",
+  },
 ];
 
 const EXPECTED_PICKED_PHOTOS: ReadonlyArray<Anchor & { kind: Kind; why: string }> = [

@@ -506,6 +506,15 @@ export const ukPublic = {
       action: "Усі тварини",
     },
     /**
+     * An adopted animal's page for 90 days after the adoption, instead of the 404 (owner-approved
+     * 2026-11-24, both strings). No gendered verb: «знайшла» agrees with «тварина». The link
+     * reuses `notFound.action`.
+     */
+    homeFound: {
+      title: "{name} уже вдома",
+      body: "Ця тварина вже знайшла родину. Інші ще чекають на свій дім.",
+    },
+    /**
      * RL-F1: the animal page (and the gallery's overlay of it) when the
      * visitor's request was refused for rate, not answered. Oleksii's text,
      * verbatim (2026-10-20): "using the existing «Забагато запитів. Спробуйте

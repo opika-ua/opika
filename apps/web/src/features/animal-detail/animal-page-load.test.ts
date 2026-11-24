@@ -1,7 +1,13 @@
 import { ORPCError } from "@orpc/server";
 import { describe, expect, it, vi } from "vitest";
 import { loadAnimalPage } from "./animal-page-load";
-import { ANIMAL_ID, CITY_LABEL, makeDetailAnimal, stubAnimalPageClient } from "./test-fixtures";
+import {
+  ANIMAL_ID,
+  CITY_LABEL,
+  makeDetailAnimal,
+  makeHomeFoundView,
+  stubAnimalPageClient,
+} from "./test-fixtures";
 
 /**
  * The one loader behind the animal page and the gallery's overlay
@@ -66,6 +72,16 @@ describe("loadAnimalPage", () => {
     vi.mocked(client.shelters.byId).mockRejectedValueOnce(new ORPCError("NOT_FOUND"));
     vi.mocked(client.cities.byIds).mockRejectedValueOnce(new Error("connection terminated"));
     expect(await loadAnimalPage(ANIMAL_ID, client)).toEqual({ kind: "not_found" });
+  });
+
+  it("a home-found answer is that state, with no shelter or city read", async () => {
+    const { client } = stubAnimalPageClient({ kind: "home_found" });
+    expect(await loadAnimalPage(ANIMAL_ID, client)).toEqual({
+      kind: "home_found",
+      view: makeHomeFoundView(),
+    });
+    expect(client.shelters.byId).not.toHaveBeenCalled();
+    expect(client.cities.byIds).not.toHaveBeenCalled();
   });
 
   it("a malformed id is not found, without asking the server", async () => {

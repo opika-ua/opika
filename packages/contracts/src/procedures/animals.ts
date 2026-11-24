@@ -9,7 +9,7 @@ import {
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 import { apiErrors } from "../errors";
-import { AnimalDetailViewSchema, FeedCardViewSchema } from "../views/animal";
+import { FeedCardViewSchema, PublicAnimalPageSchema } from "../views/animal";
 import { ContactRevealViewSchema } from "../views/reveal";
 import { CityLabelViewSchema } from "../views/shelter";
 
@@ -19,7 +19,7 @@ export const AnimalsByIdInputSchema = z.object({
 
 export const animalsByIdContract = oc
   .input(AnimalsByIdInputSchema)
-  .output(AnimalDetailViewSchema)
+  .output(PublicAnimalPageSchema)
   .errors({
     NOT_FOUND: apiErrors.NOT_FOUND,
     RATE_LIMITED: apiErrors.RATE_LIMITED,

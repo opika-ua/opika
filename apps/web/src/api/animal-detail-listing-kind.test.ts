@@ -24,6 +24,7 @@ async function seed(animals: ReturnType<typeof makeAnimal>[]) {
 }
 
 const AT = new Date("2026-10-01T00:00:00.000Z");
+type Listed = { kind: string; animal: { listingKind: string } };
 
 describe("animals.byId carries the listing kind and nothing else of the listing", () => {
   it("a published animal answers published, a reserved one reserved", async () => {
@@ -44,8 +45,9 @@ describe("animals.byId carries the listing kind and nothing else of the listing"
     const b = await h.call("animals.byId", { animalId: reserved.id });
     expect(a.status).toBe(200);
     expect(b.status).toBe(200);
-    expect((a.body as { listingKind: string }).listingKind).toBe("published");
-    expect((b.body as { listingKind: string }).listingKind).toBe("reserved");
+    expect((a.body as Listed).kind).toBe("listed");
+    expect((a.body as Listed).animal.listingKind).toBe("published");
+    expect((b.body as Listed).animal.listingKind).toBe("reserved");
   });
 
   it("never serialises the reservation's timestamps or the listing object", async () => {
@@ -64,6 +66,7 @@ describe("animals.byId carries the listing kind and nothing else of the listing"
     expect(json).not.toContain("2026-09-17");
     expect(json).not.toContain("2026-08-03");
     expect(res.body).not.toHaveProperty("listing");
+    expect((res.body as Listed).animal).not.toHaveProperty("listing");
   });
 
   it("a draft is still NOT_FOUND (a non-public kind is unreachable here)", async () => {
