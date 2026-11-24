@@ -1,6 +1,6 @@
 "use client";
 
-import type { AnimalId, AnimalSex } from "@opika/domain";
+import type { AnimalId, AnimalSex, OrganisationWord } from "@opika/domain";
 import { ukPublic as uk } from "@opika/i18n/public";
 import { useCallback, useRef } from "react";
 import { Button } from "../../ui/Button";
@@ -13,6 +13,8 @@ interface RevealFlowProps {
   sex: AnimalSex;
   cityName: string | null;
   cityLabel?: string | null | undefined;
+  /** The error dialogs' noun; an answered reveal carries its own. */
+  organisationWord: OrganisationWord;
 }
 
 /**
@@ -45,7 +47,14 @@ interface RevealFlowProps {
  * "Написати притулку" to `uk.detail.giveHome`.
  * The dialog it opens, `secondaryAction` included, is untouched.
  */
-export function RevealFlow({ animalId, animalName, sex, cityName, cityLabel }: RevealFlowProps) {
+export function RevealFlow({
+  animalId,
+  animalName,
+  sex,
+  cityName,
+  cityLabel,
+  organisationWord,
+}: RevealFlowProps) {
   const { state, open, close: closeReveal } = useReveal();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -83,6 +92,7 @@ export function RevealFlow({ animalId, animalName, sex, cityName, cityLabel }: R
           state={state}
           onClose={close}
           onRetry={openThisAnimal}
+          organisationWord={organisationWord}
           secondaryAction={{ label: uk.reveal.backToFeed, onClick: close }}
         />
       )}

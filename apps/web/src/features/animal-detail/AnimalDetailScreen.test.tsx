@@ -47,6 +47,7 @@ function makeAnimal(overrides: Partial<AnimalDetailView> = {}): AnimalDetailView
       logo: null,
       publicLocation: { cityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" as never },
       verification: "verified",
+      organisationWord: "shelter",
     },
     ...overrides,
   };
@@ -63,6 +64,7 @@ function makeShelter(overrides: Partial<PublicShelterView> = {}): PublicShelterV
     createdAt: new Date("2023-01-01T00:00:00.000Z"),
     verification: "verified",
     availability: { kind: "open" },
+    organisationWord: "shelter",
     ...overrides,
   };
 }

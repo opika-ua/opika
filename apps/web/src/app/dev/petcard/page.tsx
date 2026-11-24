@@ -144,7 +144,7 @@ export default function PetCardCasesPage() {
                 {c.story}
               </Text>
             </div>
-            <MedicalStatus rows={c.rows} notes={c.notes} />
+            <MedicalStatus rows={c.rows} notes={c.notes} organisationWord="shelter" />
           </div>
         </section>
       ))}

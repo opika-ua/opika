@@ -5,7 +5,7 @@ import {
   NO_FILTERS,
   pluralizeUk,
 } from "@opika/domain";
-import { fillTemplate, uk } from "@opika/i18n";
+import { fillTemplate, forOrganisation, uk } from "@opika/i18n";
 import Image from "next/image";
 import { useId } from "react";
 import { WORDMARK } from "../../brand";
@@ -61,6 +61,7 @@ export function ShelterPageScreen({
   const animalsHeadingId = useId();
   const about = shownAboutText(shelter.description);
   const year = String(shelter.createdAt.getFullYear());
+  const word = shelter.organisationWord;
   // The heading is the shelter's whole count; with filters on, the filtered one has its own line.
   const animalsCountText = fillTemplate(uk.shelterPage.animalsHeading, {
     count: String(listedTotal),
@@ -171,10 +172,15 @@ export function ShelterPageScreen({
                 {shelter.verification === "verified" ? (
                   <span data-testid="shelter-verified-badge">
                     <span aria-hidden="true">✓ </span>
-                    {fillTemplate(uk.detail.shelterVerifiedYears, { site: WORDMARK, year })}
+                    {fillTemplate(forOrganisation(uk.detail.shelterVerifiedYears, word), {
+                      site: WORDMARK,
+                      year,
+                    })}
                   </span>
                 ) : shelter.verification === "listed_before_verification" ? (
-                  <span data-testid="shelter-under-review">{uk.underReview.shelter}</span>
+                  <span data-testid="shelter-under-review">
+                    {forOrganisation(uk.underReview.shelter, word)}
+                  </span>
                 ) : (
                   fillTemplate(uk.shelterPage.sinceYear, { year })
                 )}
@@ -188,7 +194,7 @@ export function ShelterPageScreen({
                   className={cx(buttonClass("secondary"), "w-fit")}
                 >
                   <span>
-                    {uk.detail.donateShelter}{" "}
+                    {forOrganisation(uk.detail.donateShelter, word)}{" "}
                     <span className="text-ink-2">· {donationHost(shelter.donation)} ↗</span>
                   </span>
                 </a>
@@ -197,14 +203,16 @@ export function ShelterPageScreen({
           </div>
         </div>
 
-        <ShelterAboutSection text={about} />
+        <ShelterAboutSection text={about} organisationWord={word} />
 
         {shelter.availability.kind === "paused" ? (
           // The gallery list is empty for a paused shelter by design; say why instead of claiming
           // it has no animals, and offer no filters.
           <div data-testid="shelter-paused" className="flex flex-col gap-4">
-            <PauseNotice reason={shelter.availability.reason} />
-            <p className="text-body text-ink-2">{uk.pause.shelterNotListed}</p>
+            <PauseNotice reason={shelter.availability.reason} organisationWord={word} />
+            <p className="text-body text-ink-2">
+              {forOrganisation(uk.pause.shelterNotListed, word)}
+            </p>
           </div>
         ) : listedTotal === 0 ? (
           <div

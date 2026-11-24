@@ -142,7 +142,7 @@ describe("SavedPageScreen", () => {
     toggleSavedAnimal(id, new Date());
     cardsByIds.mockResolvedValue({
       cityLabels: [],
-      items: [{ kind: "paused", animalId: id, name: "Рижик" }],
+      items: [{ kind: "paused", animalId: id, name: "Рижик", organisationWord: "shelter" }],
     });
 
     render(<SavedPageScreen />);
@@ -156,6 +156,24 @@ describe("SavedPageScreen", () => {
       `/tvaryny/${id}`,
     );
     expect(screen.queryByTestId("saved-unavailable")).toBeNull();
+  });
+
+  it("row 15: an initiative's paused item says «ініціатива»", async () => {
+    const id = "00000005-0000-4000-8000-000000000000";
+    toggleSavedAnimal(id, new Date());
+    cardsByIds.mockResolvedValue({
+      cityLabels: [],
+      items: [{ kind: "paused", animalId: id, name: "Ластівка", organisationWord: "initiative" }],
+    });
+
+    render(<SavedPageScreen />);
+
+    expect(
+      await screen.findByText(
+        "Ластівка зараз не показується в галереї: ініціатива тимчасово не приймає звернень.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/притулок тимчасово/)).toBeNull();
   });
 
   it("drops an item with no name at all - nothing honest to show, and no copy to invent (S8-D2)", async () => {

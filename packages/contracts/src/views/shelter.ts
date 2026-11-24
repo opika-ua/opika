@@ -1,5 +1,6 @@
 import {
   CitySchema,
+  OrganisationWordSchema,
   PUBLIC_LISTING_LABELS,
   RegionIdSchema,
   RegionSchema,
@@ -50,6 +51,8 @@ export const PublicShelterViewSchema = ShelterSchema.pick({
   verification: VerificationBadgeSchema,
   // A paused shelter is still `verified` in the trust sense; this says whether it is taking requests.
   availability: ShelterAvailabilitySchema,
+  // Derived from the legal form on the server (`organisationWordOf`); nothing else of it is sent.
+  organisationWord: OrganisationWordSchema,
 });
 export type PublicShelterView = z.infer<typeof PublicShelterViewSchema>;
 
@@ -65,6 +68,7 @@ export const ShelterSummaryViewSchema = ShelterSchema.pick({
 }).extend({
   publicLocation: PublicCityLocationViewSchema,
   verification: VerificationBadgeSchema,
+  organisationWord: OrganisationWordSchema,
 });
 export type ShelterSummaryView = z.infer<typeof ShelterSummaryViewSchema>;
 

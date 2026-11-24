@@ -145,7 +145,7 @@ export function DonationSection({
             tone="sunken"
             className="flex flex-wrap items-center justify-between gap-2 text-label text-ink"
           >
-            <span>{uk.detail.donateShelter}</span>
+            <span>{uk.detail.donateShelter.shelter}</span>
             <span className="break-all text-ink-2">
               {fillTemplate(t.donation.previewHost, { host: previewHost })}
             </span>

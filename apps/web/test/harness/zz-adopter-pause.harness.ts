@@ -19,7 +19,8 @@ import { type SignInServer, startSignInServer } from "./sign-in-server";
 const FORWARDED_FOR = "198.51.100.71";
 test.use({ extraHTTPHeaders: { "x-forwarded-for": FORWARDED_FOR }, trace: "off" });
 
-const NOTICE = "Притулок тимчасово не приймає нових звернень";
+// The fixture is an unregistered initiative, so the pages say «Ініціатива» (owner, 2026-11-24).
+const NOTICE = "Ініціатива тимчасово не приймає нових звернень";
 
 test("pause and resume, seen by an adopter", async ({ browser }) => {
   test.setTimeout(180_000);
@@ -64,7 +65,7 @@ test("pause and resume, seen by an adopter", async ({ browser }) => {
     await page.goto(`/prytulky/${fixture.shelterId}`);
     await expect(page.getByText(NOTICE)).toBeVisible();
     await expect(
-      page.getByText("Тварини з цього притулку зараз не показуються в галереї."),
+      page.getByText("Тварини цієї ініціативи зараз не показуються в галереї."),
     ).toBeVisible();
     await expect(page.getByTestId("animal-card")).toHaveCount(0);
     expect(await galleryCount()).toBe(listed - 1);

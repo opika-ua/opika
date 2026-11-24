@@ -1,11 +1,12 @@
 import type { AnimalDetailView, PublicShelterView } from "@opika/contracts";
-import { donationHost, hasAnyDocumentEvidence, textIn } from "@opika/domain";
+import { donationHost, hasAnyDocumentEvidence, type OrganisationWord, textIn } from "@opika/domain";
 import {
   ageSpanLabel,
   ageWordFor,
   animalFactsParts,
   colourChipLabel,
   fillTemplate,
+  forOrganisation,
   sexWordFor,
   sizeWordFor,
   temperamentLabelFor,
@@ -113,13 +114,13 @@ export function AnimalDetailScreen({
 }
 
 /**
- * Registered names usually already open with the word («Притулок «Добрі лапи»»), and the template
- * adds it again; such a name is its own label (it also keeps the visible text inside the name).
+ * Registered names usually already open with the word («Притулок «Добрі лапи»», «Ініціатива …»), and
+ * the template adds it again; such a name is its own label (it also keeps the visible text inside the name).
  */
-export function shelterRowLabel(displayName: string): string {
-  return /^притулок(\s|$)/iu.test(displayName.trim())
+export function shelterRowLabel(displayName: string, word: OrganisationWord): string {
+  return /^(притулок|ініціатива)(\s|$)/iu.test(displayName.trim())
     ? displayName
-    : fillTemplate(uk.detail.shelterRowLink, { name: displayName });
+    : fillTemplate(forOrganisation(uk.detail.shelterRowLink, word), { name: displayName });
 }
 
 /** The animal itself, with no page chrome: shared by the full page and the gallery overlay. */
@@ -133,6 +134,7 @@ export function AnimalDetailContent({
     animal.documentReadiness.kind === "tracked" && hasAnyDocumentEvidence(animal.documentReadiness);
   const customTemperament = animal.temperament.find((entry) => entry.kind === "custom");
   const slots = STRIP_SLOTS[stripLayoutFor(animal.photos.length)];
+  const word = shelter.organisationWord;
 
   return (
     <div
@@ -164,6 +166,7 @@ export function AnimalDetailContent({
                 sex={animal.sex}
                 cityName={cityPlace}
                 cityLabel={cityName}
+                organisationWord={word}
               />
             )}
             <ShareButton animalId={animal.id} animalName={animal.name} />
@@ -175,6 +178,7 @@ export function AnimalDetailContent({
           <div className="desktop:col-span-8">
             <PauseNotice
               reason={shelter.availability.kind === "paused" ? shelter.availability.reason : null}
+              organisationWord={word}
             />
           </div>
         )}
@@ -206,7 +210,7 @@ export function AnimalDetailContent({
             <Link
               href={shelterPagePath(shelter.id)}
               prefetch={false}
-              aria-label={shelterRowLabel(shelter.displayName)}
+              aria-label={shelterRowLabel(shelter.displayName, word)}
               className="inline-flex min-h-target min-w-0 items-center gap-3 rounded-field focus-ring"
             >
               {shelter.logo === null ? (
@@ -244,7 +248,11 @@ export function AnimalDetailContent({
           </div>
           {/* No dot before it: the outline sets it apart, and when it wraps no dot is left at a line's end. */}
           {shelter.donation && (
-            <SupportLink url={shelter.donation.url} host={donationHost(shelter.donation)} />
+            <SupportLink
+              url={shelter.donation.url}
+              host={donationHost(shelter.donation)}
+              label={forOrganisation(uk.detail.donateShelter, word)}
+            />
           )}
         </div>
       </div>
@@ -252,7 +260,12 @@ export function AnimalDetailContent({
       {/* The body: photos, «Про мене», the story and the health block, placed by photo count
           (`strip-layout.ts`). Below desktop it dissolves into the phone's single column. */}
       <div className={`max-desktop:contents ${SHEET_GRID} desktop:gap-y-12 ${slots.body}`}>
-        <DetailPhotoGallery photos={animal.photos} altFallback={animal.name} slot={slots.photos} />
+        <DetailPhotoGallery
+          photos={animal.photos}
+          altFallback={animal.name}
+          slot={slots.photos}
+          organisationWord={word}
+        />
 
         <div
           data-columns={slots.about.columns}
@@ -320,6 +333,7 @@ export function AnimalDetailContent({
             <MedicalStatus
               rows={[vaccinationRow(animal.vaccination), spayNeuterRow(animal.spayNeuter)]}
               notes={animal.medicalNotes === null ? null : textIn(animal.medicalNotes, "uk")}
+              organisationWord={word}
             />
           </div>
         </div>
@@ -340,7 +354,7 @@ function MetaDot() {
  * visible before the tap (owner, 2026-11-12: plain text after the pill, wrapping below it when the
  * line is full; the pill itself never wraps or stretches).
  */
-function SupportLink({ url, host }: { url: string; host: string }) {
+function SupportLink({ url, host, label }: { url: string; host: string; label: string }) {
   return (
     <a
       href={url}
@@ -350,7 +364,7 @@ function SupportLink({ url, host }: { url: string; host: string }) {
       className="inline-flex min-h-target w-fit max-w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-field focus-ring"
     >
       <span className={`${buttonLookClass("secondary")} whitespace-nowrap`}>
-        {uk.detail.donateShelter}
+        {label}
         <span aria-hidden="true">↗</span>
       </span>
       <Text as="span" look="hint" className="break-all">

@@ -28,3 +28,15 @@ export const ShelterLegalEntitySchema = z.discriminatedUnion("kind", [
   }),
 ]);
 export type ShelterLegalEntity = z.infer<typeof ShelterLegalEntitySchema>;
+
+/**
+ * The noun public pages use for the organisation (owner, 2026-11-24): an unregistered group is an
+ * «ініціатива», not a «притулок». A form not chosen yet keeps «притулок» (D1). The only legal fact
+ * that leaves the server.
+ */
+export const ORGANISATION_WORDS = ["shelter", "initiative"] as const;
+export const OrganisationWordSchema = z.enum(ORGANISATION_WORDS);
+export type OrganisationWord = z.infer<typeof OrganisationWordSchema>;
+
+export const organisationWordOf = (kind: ShelterLegalEntity["kind"] | null): OrganisationWord =>
+  kind === "unregistered_initiative" ? "initiative" : "shelter";

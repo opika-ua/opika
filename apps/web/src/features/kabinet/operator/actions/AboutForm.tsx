@@ -115,7 +115,7 @@ export function AboutForm() {
         <form noValidate onSubmit={save} className="flex flex-col gap-4">
           <TextArea
             id={id}
-            label={uk.shelterPage.aboutHeading}
+            label={uk.shelterPage.aboutHeading.shelter}
             hint={t.create.descriptionHint}
             value={text}
             onChange={(event) => {

@@ -1,9 +1,14 @@
 "use client";
 
 import type { ContactRevealView } from "@opika/contracts";
-import type { AnimalId, AnimalSex, ContactChannel } from "@opika/domain";
+import type { AnimalId, AnimalSex, ContactChannel, OrganisationWord } from "@opika/domain";
 import { isCanonicalFacebookUrl, revealChannels } from "@opika/domain/core";
-import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
+import {
+  type ByOrganisation,
+  fillTemplate,
+  forOrganisation,
+  ukPublic as uk,
+} from "@opika/i18n/public";
 import { useId, useState } from "react";
 import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
@@ -217,6 +222,8 @@ interface ContactRevealDialogProps {
   state: DialogState;
   onClose: () => void;
   onRetry: () => void;
+  /** The page's shelter word, for the error states (no reveal to read it from). */
+  organisationWord: OrganisationWord;
   /**
    * The text button at the bottom, optional. The animal page passes one; it only closes the
    * dialog, like the ✕.
@@ -238,10 +245,18 @@ export function ContactRevealDialog({
   state,
   onClose,
   onRetry,
+  organisationWord,
   secondaryAction,
 }: ContactRevealDialogProps) {
   if (state.kind === "error") {
-    return <RevealError reason={state.reason} onClose={onClose} onRetry={onRetry} />;
+    return (
+      <RevealError
+        reason={state.reason}
+        organisationWord={organisationWord}
+        onClose={onClose}
+        onRetry={onRetry}
+      />
+    );
   }
   return (
     <RevealContent
@@ -268,25 +283,29 @@ export function ContactRevealDialog({
  */
 function RevealError({
   reason,
+  organisationWord,
   onClose,
   onRetry,
 }: {
   reason: RevealErrorReason;
+  organisationWord: OrganisationWord;
   onClose: () => void;
   onRetry: () => void;
 }) {
   const copy = reason === "tooManyRequests" ? THROTTLED_COPY : uk.errors[reason];
+  const text = (value: string | ByOrganisation) =>
+    typeof value === "string" ? value : forOrganisation(value, organisationWord);
   return (
     <Modal
       open
       onClose={onClose}
-      title={copy.title}
+      title={text(copy.title)}
       closeLabel={uk.preview.close}
       dialogTestId="reveal-dialog"
       closeTestId="reveal-close"
     >
       {"eyebrow" in copy && <span className="text-caption text-ink-2">{copy.eyebrow}</span>}
-      {"body" in copy && <span className="text-body text-ink-2">{copy.body}</span>}
+      {"body" in copy && <span className="text-body text-ink-2">{text(copy.body)}</span>}
       {"action" in copy && (
         <Button size="lg" onClick={onRetry} data-testid="reveal-retry">
           {copy.action}
@@ -340,8 +359,8 @@ function RevealContent({
     <Modal
       open
       onClose={onClose}
-      title={uk.reveal.title}
-      description={uk.reveal.subtitle}
+      title={forOrganisation(uk.reveal.title, reveal.organisationWord)}
+      description={forOrganisation(uk.reveal.subtitle, reveal.organisationWord)}
       closeLabel={uk.preview.close}
       dialogTestId="reveal-dialog"
       closeTestId="reveal-close"
@@ -372,7 +391,7 @@ function RevealContent({
     >
       {reveal.shelterListing === "listed_before_verification" && (
         <p data-testid="reveal-under-review" className="text-body text-ink">
-          {uk.underReview.revealNotice}
+          {forOrganisation(uk.underReview.revealNotice, reveal.organisationWord)}
         </p>
       )}
       <ul className="flex flex-col gap-3">

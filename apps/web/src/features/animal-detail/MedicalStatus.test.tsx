@@ -13,7 +13,9 @@ const ROWS = [
 
 describe("MedicalStatus definition list", () => {
   it("holds only dt/dd, or div-wrapped dt/dd pairs, directly inside the dl", () => {
-    const { container } = render(<MedicalStatus rows={ROWS} notes={null} />);
+    const { container } = render(
+      <MedicalStatus rows={ROWS} notes={null} organisationWord="shelter" />,
+    );
     const dl = container.querySelector("dl") as HTMLElement;
     for (const child of Array.from(dl.children)) {
       expect(["DT", "DD", "DIV"]).toContain(child.tagName);

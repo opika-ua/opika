@@ -5,6 +5,7 @@ import {
   FeedFiltersSchema,
   GalleryScopeSchema,
   GallerySortSchema,
+  OrganisationWordSchema,
 } from "@opika/domain";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
@@ -73,11 +74,12 @@ export const SavedCardResultSchema = z.discriminatedUnion("kind", [
     name: z.string().nullable(),
   }),
   // A paused shelter's animal: not in the gallery, but its page is reachable. Always named
-  // (only an ever-served animal gets here); no reason, the page explains.
+  // (only an ever-served animal gets here); no reason, the page explains. The word picks the line's noun.
   z.object({
     kind: z.literal("paused"),
     animalId: AnimalIdSchema,
     name: z.string(),
+    organisationWord: OrganisationWordSchema,
   }),
 ]);
 

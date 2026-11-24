@@ -1,9 +1,12 @@
 import {
   type City,
   CitySlugSchema,
+  type OrganisationWord,
+  organisationWordOf,
   type PublicListingLabel,
   publicListingBasisOfColumns,
   type Shelter,
+  type ShelterLegalEntity,
   type VerificationStatus,
 } from "@opika/domain";
 import { type SQL, sql } from "drizzle-orm";
@@ -14,13 +17,14 @@ import { shelters } from "../schema/shelters";
 /**
  * The shelter and city a public card names, read in the same statement as the animal (a JOIN) so
  * a page does not pay a round trip per lookup. Only the columns the public views are built from:
- * never the exact address, contact, legal entity or verification evidence, which also keeps the
- * repeated per-row copy small.
+ * never the exact address, contact, legal entity (its `kind` only, for the word) or verification
+ * evidence, which also keeps the repeated per-row copy small.
  */
 export type CardShelter = Pick<Shelter, "id" | "displayName" | "logo" | "publicLocation"> & {
   readonly verification: PublicListingLabel | "unverified";
   /** From the status already selected: `paused` for a pause only, `unreachable` for the rest. */
   readonly availability: "open" | "paused" | "unreachable";
+  readonly organisationWord: OrganisationWord;
 };
 
 /** The city fields of a public label (`cityLabelOf`), nothing else: no centroid, KATOTTG or search keys. */
@@ -40,6 +44,7 @@ export const cardShelterColumns = {
   publicLocation: shelters.publicLocation,
   status: shelters.verificationStatus,
   earlyListingSince: shelters.earlyListingSince,
+  legalEntityKind: sql<string | null>`${shelters.legalEntity}->>'kind'`,
 };
 
 export const cardCityColumns = {
@@ -59,6 +64,7 @@ type CardShelterRow = {
   publicLocation: Shelter["publicLocation"];
   status: string;
   earlyListingSince: Date | null;
+  legalEntityKind: string | null;
 };
 
 /**
@@ -80,6 +86,7 @@ export function toCardShelter(row: CardShelterRow, now: Date): CardShelter {
     verification: listing === "not_listed" ? "unverified" : listing,
     availability:
       listing !== "not_listed" ? "open" : row.status === "paused" ? "paused" : "unreachable",
+    organisationWord: organisationWordOf(row.legalEntityKind as ShelterLegalEntity["kind"] | null),
   };
 }
 

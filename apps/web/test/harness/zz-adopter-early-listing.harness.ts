@@ -73,7 +73,8 @@ test("early listing: evidence minimum, label, revoke, re-allow with a note", asy
     expect((await pub.goto(animalPath))?.status()).toBe(200);
     await expect(pub.getByText("На перевірці", { exact: true })).toBeVisible();
     await pub.goto(`/prytulky/${fixture.shelterId}`);
-    await expect(pub.getByText("Притулок на перевірці")).toBeVisible();
+    // The fixture is an unregistered initiative, so the page says «Ініціатива» (owner, 2026-11-24).
+    await expect(pub.getByText("Ініціатива на перевірці")).toBeVisible();
 
     await page.getByRole("button", { name: "Зняти дозвіл" }).click();
     await expect(page.getByRole("button", { name: ALLOW })).toBeVisible();

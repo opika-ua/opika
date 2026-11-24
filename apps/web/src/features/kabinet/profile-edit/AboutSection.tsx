@@ -105,10 +105,10 @@ export function AboutSection({
   const counter = uk.kabinet.animalForm.description;
 
   return (
-    <FormSection id="about" title={uk.shelterPage.aboutHeading}>
+    <FormSection id="about" title={uk.shelterPage.aboutHeading.shelter}>
       <TextArea
         id={fieldId}
-        label={uk.shelterPage.aboutHeading}
+        label={uk.shelterPage.aboutHeading.shelter}
         value={text}
         onChange={(event) => {
           setText(event.target.value);

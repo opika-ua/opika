@@ -56,14 +56,16 @@ describe("spayNeuterRow", () => {
 describe("source lines", () => {
   it("all shelter rows: one shared line", () => {
     const rows = [vaccinationRow(declared("confirmed")), spayNeuterRow(declared("unknown"))];
-    expect(sharedSource(rows)).toBe("За даними притулку");
+    expect(sharedSource(rows, "shelter")).toBe("За даними притулку");
   });
 
   it("any registry row: no shared line, each row names its own", () => {
     const rows = [vaccinationRow(registry), spayNeuterRow(declared("confirmed"))];
-    expect(sharedSource(rows)).toBeNull();
-    expect(rowSource(rows[0] as (typeof rows)[number])).toBe("За даними державного реєстру тварин");
-    expect(rowSource(rows[1] as (typeof rows)[number])).toBe("За даними притулку");
+    expect(sharedSource(rows, "shelter")).toBeNull();
+    expect(rowSource(rows[0] as (typeof rows)[number], "shelter")).toBe(
+      "За даними державного реєстру тварин",
+    );
+    expect(rowSource(rows[1] as (typeof rows)[number], "shelter")).toBe("За даними притулку");
   });
 });
 
@@ -79,6 +81,6 @@ describe("literal strings match i18n", () => {
     expect(uk.medical.vaccination).toBe("Комплексне щеплення");
     expect(uk.medical.spayNeuter).toBe("Стерилізація");
     expect(uk.medical.registry).toBe("За даними державного реєстру тварин");
-    expect(uk.medical.sourceShelter).toBe("За даними притулку");
+    expect(uk.medical.sourceShelter.shelter).toBe("За даними притулку");
   });
 });

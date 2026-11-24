@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeDetailAnimal, makeDetailShelter } from "../../../features/animal-detail/test-fixtures";
 import { SITE_IS_PUBLICLY_DISCOVERABLE } from "../../../seo-flags";
 import { animalMetadataOf } from "./page";
@@ -36,5 +36,31 @@ describe("animal page metadata", () => {
 
   it("the description does not mention the pause (previews stay stable)", () => {
     expect(String(animalMetadataOf(view(true)).description)).not.toMatch(/пауз|не приймає/);
+  });
+});
+
+/** Row 4 (owner, 2026-11-24): the early-listed preview line follows the organisation word. */
+describe("the under-review link preview, once real shelters exist", () => {
+  afterEach(() => {
+    vi.doUnmock("../../../seo-flags");
+    vi.resetModules();
+  });
+
+  it.each([
+    ["shelter", "Тварина з притулку, який ще проходить перевірку."],
+    ["initiative", "Тварина від ініціативи, яка ще проходить перевірку."],
+  ] as const)("%s: %s", async (word, line) => {
+    vi.resetModules();
+    vi.doMock("../../../seo-flags", async (original) => ({
+      ...(await original<typeof import("../../../seo-flags")>()),
+      REGISTRY_HAS_NO_REAL_SHELTERS: false,
+    }));
+    const { animalMetadataOf: metadataOf } = await import("./page");
+    const early = view(false);
+    early.view.shelter = makeDetailShelter({
+      verification: "listed_before_verification",
+      organisationWord: word,
+    });
+    expect(metadataOf(early).description).toBe(line);
   });
 });

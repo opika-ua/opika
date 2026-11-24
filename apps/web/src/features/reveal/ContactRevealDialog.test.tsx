@@ -12,6 +12,7 @@ const reveal: ContactRevealView = {
   animalId: ANIMAL_ID,
   revealedAt: new Date("2026-08-08T10:00:00Z"),
   shelterListing: "verified",
+  organisationWord: "shelter",
   shelterContact: {
     source: "current",
     displayName: "Притулок «Домівка»",
@@ -33,6 +34,7 @@ const ENCODED_MALE = encodeURIComponent(MESSAGE_MALE);
 const renderOpen = (view: ContactRevealView, names = { animal: "Мурчик", city: "Бровари" }) =>
   render(
     <ContactRevealDialog
+      organisationWord="shelter"
       state={{
         kind: "open",
         animalId: ANIMAL_ID,
@@ -114,6 +116,7 @@ describe("the ✕ is named «Закрити», never «Не зараз»", () =>
   it("in the error dialog", () => {
     render(
       <ContactRevealDialog
+        organisationWord="shelter"
         state={{
           kind: "error",
           reason: "loadFailed",
@@ -497,6 +500,7 @@ describe("«Повернутися до картки»", () => {
     const onClick = vi.fn();
     const { unmount } = render(
       <ContactRevealDialog
+        organisationWord="shelter"
         state={{
           kind: "open",
           animalId: ANIMAL_ID,
@@ -522,6 +526,7 @@ describe("the error dialog for a paused shelter", () => {
   it("says the notice and offers no retry", () => {
     render(
       <ContactRevealDialog
+        organisationWord="shelter"
         state={{
           kind: "error",
           reason: "shelterPaused",
@@ -578,6 +583,7 @@ describe("the suggested first message", () => {
   it("picks the pronoun by sex", () => {
     render(
       <ContactRevealDialog
+        organisationWord="shelter"
         state={{
           kind: "open",
           animalId: ANIMAL_ID,

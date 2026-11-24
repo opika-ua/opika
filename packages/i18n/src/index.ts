@@ -11,6 +11,7 @@ export { colourChipLabel, colourFilterLabel } from "./colour-labels";
 export { pendingCopyKeys, pendingCopyPaths } from "./copy-status";
 export { en } from "./messages/en";
 export { COPY_PENDING, R4_2_ANALYTICS_SENTENCE, uk, ukPublic } from "./messages/uk";
+export { type ByOrganisation, forOrganisation } from "./organisation-word";
 export {
   hromadaShort,
   isOwnRegion,

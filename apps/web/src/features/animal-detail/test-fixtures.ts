@@ -51,6 +51,7 @@ export function makeDetailAnimal(overrides: Partial<AnimalDetailView> = {}): Ani
       logo: null,
       publicLocation: { cityId: CITY_ID as never },
       verification: "verified",
+      organisationWord: "shelter",
     },
     ...overrides,
   };
@@ -80,6 +81,7 @@ export function makeDetailShelter(overrides: Partial<PublicShelterView> = {}): P
     createdAt: new Date("2023-01-01T00:00:00.000Z"),
     verification: "verified",
     availability: { kind: "open" },
+    organisationWord: "shelter",
     ...overrides,
   };
 }

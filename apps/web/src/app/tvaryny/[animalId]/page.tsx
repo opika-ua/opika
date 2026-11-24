@@ -1,6 +1,6 @@
 import type { AnimalDetailView } from "@opika/contracts";
 import { animalNoun, textIn } from "@opika/domain";
-import { fillTemplate, uk } from "@opika/i18n";
+import { fillTemplate, forOrganisation, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
@@ -123,7 +123,7 @@ export function animalMetadataOf(load: AnimalPageLoad): Metadata {
     ? uk.demo.bannerNotice
     : listedEarly
       ? // A link preview must not suggest a verified shelter (N14).
-        uk.underReview.sharePreview
+        forOrganisation(uk.underReview.sharePreview, shelter.organisationWord)
       : own.description;
   const seo = seoMetadata(own.title, description, "segment");
   return {

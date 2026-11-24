@@ -70,6 +70,7 @@ export async function galleryList(
       logo: shelter.logo,
       publicLocation: cityOnlyLocationOf(shelter.publicLocation),
       verification: shelter.verification,
+      organisationWord: shelter.organisationWord,
     },
   }));
 

@@ -2,7 +2,7 @@
 
 import type { AnimalId } from "@opika/domain";
 import { DEFAULT_GALLERY_SORT, NO_FILTERS } from "@opika/domain/core";
-import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
+import { fillTemplate, forOrganisation, ukPublic as uk } from "@opika/i18n/public";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { LinkButton } from "../../ui/Button";
 import { cx } from "../../ui/cx";
@@ -243,7 +243,9 @@ function SavedCardsBody({ intro }: SavedCardsProps) {
                 ) : item.kind === "paused" ? (
                   <div data-testid="saved-paused">
                     <Panel className="flex flex-col items-start gap-3 pr-14 text-body text-ink-2">
-                      {fillTemplate(uk.likes.paused, { name: item.name })}
+                      {fillTemplate(forOrganisation(uk.likes.paused, item.organisationWord), {
+                        name: item.name,
+                      })}
                       <LinkButton href={`/tvaryny/${item.animalId}`} variant="ghost">
                         {uk.likes.openPausedPage}
                       </LinkButton>
