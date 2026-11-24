@@ -1055,6 +1055,7 @@ describe("reveal views carry the shelter's current contacts, labelled (K4-B4, K4
         "animalId",
         "animalSnapshot",
         "id",
+        "organisationWord",
         "revealedAt",
         "shelterAtFirstReveal",
         "shelterContact",
