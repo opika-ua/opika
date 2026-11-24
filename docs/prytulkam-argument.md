@@ -117,9 +117,11 @@ Must establish: a person checks, and here is what checking is.
 - An unregistered volunteer group - most groups - is **not excluded**. It has a
   video call or is checked in open sources, and gives one independent reference who can
   confirm the group is real and does what it says (2026-11-19, (a′)).
-- The video call is remote; nobody has to travel. If the connection can't carry
-  video, a phone call plus a short video of the premises filmed the same day
-  counts.
+- The video call is remote; nobody has to travel. (The older "phone call plus a
+  short video of the premises" fallback is gone: open sources stand in for the
+  call since 2026-11-19.) An initiative whose animals live in foster homes has
+  no premises to show: the operator records that instead of an address, and no
+  carer's address is ever stored (2026-11-24).
 - (Changed 2026-11-10, owner decision: before, a registered organisation also
   needed a bank record in its name and a reference, and a volunteer group two
   references. The live text now reads «Зареєстрована організація показує ЄДРПОУ

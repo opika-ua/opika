@@ -74,8 +74,13 @@ Moved verbatim from CLAUDE.md in DS PR 5. Settled decisions (M1, M4, gallery con
    than a registration) + any-of(`site_visit`, `open_sources_review`); unregistered initiative =
    any-of(`site_visit`, `open_sources_review`) + 1 reference. No form needs the call
    unconditionally; (a′) is approval's rule only. Early listing needs any one of open sources (registry
-   part or not), a call or a reference, for any form. `approvalGaps` still asks for the legal entity and the exact
-   address before any evidence (0024).
+   part or not), a call or a reference, for any form. `approvalGaps` asks for the verified data before any evidence.
+   2026-11-24, owner decision (initiative gate, D1-D5): per form, on `legal_entity.kind` (no new column).
+   No form is `legal_form`; a registered NGO or ФОП needs an address (`exact_address`); an unregistered
+   initiative records its premises, an address or foster homes (`premises`: the `ShelterPremises` union,
+   column `shelters.premises`, 0033). Foster homes are an initiative's only and store no address; leaving
+   the initiative form while in them is `PREMISES_NEEDS_ADDRESS`; recorded premises of either kind lock
+   the shelter's own city change.
 7. **`RejectionReason` and `SuspensionReason` are separate code lists**
    (+ optional free-text note). A shelter is rejected for reasons about its
    application and suspended for reasons about its conduct; one merged enum

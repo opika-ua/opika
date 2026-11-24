@@ -98,6 +98,7 @@ import { runRoundTripsSmoke } from "./neon-smoke-round-trips";
 import { runSearchSmoke } from "./neon-smoke-search";
 import { runSelfRegistrationSmoke } from "./neon-smoke-self-registration";
 import { runShelterAboutSmoke } from "./neon-smoke-shelter-about";
+import { runPremisesSmoke } from "./neon-smoke-premises";
 import { runVerifiedDataSmoke } from "./neon-smoke-verified-data";
 
 /**
@@ -2737,6 +2738,7 @@ async function main(): Promise<void> {
     ...(await runEarlyListingSmoke(database)),
     ...(await runDonationSmoke(database)),
     ...(await runVerifiedDataSmoke(database)),
+    ...(await runPremisesSmoke(database)),
     ...(await runNotificationSendsSmoke(database)),
     ...(await runShelterAboutSmoke(database)),
     ...(await runNotificationRecipientsSmoke(database)),

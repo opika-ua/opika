@@ -223,6 +223,14 @@ describe("ShelterProfile (K4, read-only)", () => {
     expect(screen.queryByText(t.edrpou, { selector: "dt" })).toBeNull();
   });
 
+  it("shows an initiative in foster homes as «Немає: тварини на перетримках» next to the address", () => {
+    renderProfile({
+      legalEntity: { kind: "unregistered_initiative", contactPersonName: "Олена Коваль" },
+      premises: { kind: "foster_homes" },
+    });
+    expect(rowValue(t.address)).toBe("Немає: тварини на перетримках");
+  });
+
   it.each([
     ["pending", { status: "pending", since: new Date("2025-03-14T10:00:00Z") }],
     ["under_review", { status: "under_review", since: new Date("2025-03-14T10:00:00Z") }],
