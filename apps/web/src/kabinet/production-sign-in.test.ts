@@ -243,7 +243,7 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   profileTabs: 5,
 
-  profileEdit: 95,
+  profileEdit: 96,
 
   listingStatus: 5,
 

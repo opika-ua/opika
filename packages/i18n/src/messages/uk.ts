@@ -803,6 +803,9 @@ export const uk = {
       /** The shelter's name and city (§4). `{email}` is the operator's address (owner, 2026-11-18). */
       identity: {
         cityLocked: "Ваша адреса вже перевірена, тому місто змінюю я. Напишіть мені на {email}.",
+        /** The same refusal for an initiative in foster homes, which has no address (owner-approved, 2026-11-24). */
+        cityLockedFosterHomes:
+          "Місто вже перевірене, тому змінюю його я. Напишіть мені на {email}.",
       },
       saveBar: {
         unsaved: "Є незбережені зміни",

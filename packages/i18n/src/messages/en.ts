@@ -923,6 +923,8 @@ export const en = {
       identity: {
         cityLocked:
           "Your address is already verified, so I change the city. Write to me at {email}.",
+        cityLockedFosterHomes:
+          "The city is already verified, so I change it. Write to me at {email}.",
       },
       saveBar: {
         unsaved: "You have unsaved changes",
