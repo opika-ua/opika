@@ -189,9 +189,9 @@ describe("registry.donation.* compare-and-set on the version (RG-Q12)", () => {
   it("approve declares DONATION_LINK_REFUSED 422, naming the problem", () => {
     const refused = internals("registry.donation.approve").errorMap.DONATION_LINK_REFUSED;
     expect(refused?.status).toBe(422);
-    expect(
-      apiErrors.DONATION_LINK_REFUSED.data.safeParse({ problem: "checkout_session" }).success,
-    ).toBe(true);
+    for (const problem of ["checkout_session", "ip_host", "port"]) {
+      expect(apiErrors.DONATION_LINK_REFUSED.data.safeParse({ problem }).success).toBe(true);
+    }
   });
 });
 
@@ -228,6 +228,20 @@ describe("shelter.profile.proposeDonation", () => {
     expect(input()?.safeParse({ url: "http://send.monobank.ua/jar/x" }).success).toBe(false);
     const session = "https://www.liqpay.ua/uk/checkout/card/checkout_1700000000000_TestToken42";
     expect(input()?.safeParse({ url: session }).success).toBe(false);
+  });
+
+  // Owner, 2026-11-24: IP hosts and explicit ports, the problem named in the issue.
+  it.each([
+    ["https://192.0.2.10/jar/x", "donation_ip_host"],
+    ["https://[2001:db8::1]/jar/x", "donation_ip_host"],
+    ["https://send.monobank.ua:8443/jar/x", "donation_port"],
+    ["https://send.monobank.ua:443/jar/x", "donation_port"],
+  ])("refuses %s with %s", (url, message) => {
+    const parsed = input()?.safeParse({ url }) as
+      | { success: boolean; error?: { issues: { message: string }[] } }
+      | undefined;
+    expect(parsed?.success).toBe(false);
+    expect(parsed?.error?.issues.map((issue) => issue.message)).toEqual([message]);
   });
 });
 

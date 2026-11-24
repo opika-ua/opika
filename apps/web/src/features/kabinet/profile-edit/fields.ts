@@ -180,12 +180,15 @@ export function linkProblem(raw: string): "httpsOnly" | "notAUrl" | null {
 const DONATION_FIELD_ERRORS = {
   userinfo: "donationUserinfo",
   idn: "donationIdn",
+  ip_host: "donationIpHost",
+  port: "donationIpHost",
   checkout_session: "donationCheckoutSession",
 } as const satisfies Record<DonationUrlProblem, string>;
 
 /**
- * `linkProblem` plus the rules only a donation link has (userinfo, IDN hosts, a LiqPay checkout
- * session), from the same domain function the server applies, so the form refuses what the API would.
+ * `linkProblem` plus the rules only a donation link has (userinfo, IDN, IP hosts, ports, a LiqPay
+ * checkout session), from the same domain function the server applies, so the form refuses what
+ * the API would.
  */
 export function donationLinkProblem(
   raw: string,

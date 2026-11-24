@@ -498,6 +498,19 @@ describe("shelter.profile", () => {
     expect(result.body.pendingDonation?.link).toEqual({ url, provider: "liqpay" });
   });
 
+  // Owner, 2026-11-24: an IP host or an explicit port is refused at the contract, nothing written.
+  it.each([
+    ["https://192.0.2.10/jar/abc", "donation_ip_host"],
+    ["https://[2001:db8::1]/jar/abc", "donation_ip_host"],
+    ["https://send.monobank.ua:8443/jar/abc", "donation_port"],
+    ["https://send.monobank.ua:443/jar/abc", "donation_port"],
+  ])("proposeDonation refuses %s (%s) and writes nothing", async (url, code) => {
+    const result = await call("shelter.profile.proposeDonation", { url });
+    expect(result.status).toBe(400);
+    expect(JSON.stringify(result.body)).toContain(code);
+    expect(await kabinetShelterRepo(db).historyOf(shelter.id)).toEqual([]);
+  });
+
   it("cancelDonationProposal clears it; with nothing pending it records nothing", async () => {
     await call("shelter.profile.proposeDonation", { url: "https://example.org/give" });
     expect(

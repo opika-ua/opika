@@ -90,6 +90,25 @@ describe("donation decision", () => {
     });
   });
 
+  // Owner, 2026-11-24 (option B): a proposal stored before the rule; one line for IP and port.
+  describe("an IP host or an explicit port", () => {
+    const LINE = "Вкажіть звичайне посилання з назвою сайту – без IP-адреси й номера порту.";
+
+    it.each(["https://192.0.2.10/jar", "https://send.monobank.ua:8443/jar"])(
+      "%s is not offered for approval and says why",
+      (url) => {
+        renderWithActions(<DonationDecision />, {
+          view: registryView({
+            donation: LIVE as never,
+            pendingDonation: proposal({ url, provider: "other" }),
+          }),
+        });
+        expect(screen.queryByRole("button", { name: "Схвалити" })).toBeNull();
+        expect(screen.getByText(LINE)).toBeTruthy();
+      },
+    );
+  });
+
   it("no live link: nothing to remove", () => {
     renderWithActions(<DonationDecision />, { view: registryView({ donation: null }) });
     expect(screen.queryByRole("button")).toBeNull();

@@ -1212,6 +1212,54 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
     expect(`${result.stdout}${result.stderr}`).not.toContain("secret");
   });
 
+  /** Owner, 2026-11-24: donation-links:audit-hosts takes the same --expect as db:migrate. */
+  const auditWith = (url: string, args: readonly string[]) =>
+    spawnSync(
+      "npx",
+      ["tsx", "--import", "./test/no-network.mjs", "src/tools/audit-donation-hosts.ts", ...args],
+      {
+        cwd: PKG,
+        encoding: "utf8",
+        shell: process.platform === "win32",
+        env: {
+          ...INHERITED_ENV,
+          DATABASE_URL: url,
+          PROD_NEON_ENDPOINT: PROD_ENDPOINT,
+          PROD_GUARD_ENV_FILE: NO_ENV_FILE,
+        },
+        timeout: SPAWN_TIMEOUT_MS,
+      },
+    );
+
+  it.each([
+    ["a Neon target with no --expect", CHILD_BRANCH, [], "pass --expect ep-…"],
+    [
+      "production with --prod but the wrong --expect",
+      PROD_DIRECT,
+      ["--prod", "--expect", "ep-other-hill-d4e5f6"],
+      "the target's Neon endpoint is not --expect",
+    ],
+    ["a local target given --expect", LOCAL, ["--expect", PROD_ENDPOINT], "the target is local"],
+    ["any other argument", CHILD_BRANCH, ["--commit"], "it takes only --prod and --expect"],
+  ] as const)("donation-links:audit-hosts refuses %s, printing no target", (_c, url, args, why) => {
+    const result = auditWith(url, args);
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain(why);
+    expect(result.stdout).not.toContain("Target:");
+    expect(`${result.stdout}${result.stderr}`).not.toContain("secret");
+  });
+
+  it("donation-links:audit-hosts with --prod and the matching --expect prints the target, then reads (the network disabled)", () => {
+    const result = auditWith(PROD_DIRECT, ["--prod", "--expect", PROD_ENDPOINT]);
+    expect(result.stdout.split(/\r?\n/)[0]).toBe(
+      "Target: Neon endpoint ep-quiet-lake-a1b2c3 (ep-quiet-lake-a1b2c3.eu-central-1.aws.neon.tech)",
+    );
+    expect(result.stderr).toContain("WARNING: reading PRODUCTION (--prod given).");
+    expect(result.stderr).toContain("network disabled by test/no-network.mjs");
+    expect(result.status, result.stderr).toBe(1);
+    expect(`${result.stdout}${result.stderr}`).not.toContain("secret");
+  });
+
   /** PG-F3 through the real CLI: the old drizzle-kit routes are refused before the guard or any connection. */
   it.each([
     ["--config", ["--config=elsewhere.ts"], {}, "--config"],
@@ -1250,6 +1298,8 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
     ["onboard:shelter", "src/onboard-shelter.ts", ["does-not-matter.json"]],
     // Read-only, but it reads every exact address, so it takes --prod too (RG-Q10).
     ["location:verify", "src/verify-locations.ts", []],
+    // Read-only, counts and ids only, but it reads every shelter's donation links (owner, 2026-11-24).
+    ["donation-links:audit-hosts", "src/tools/audit-donation-hosts.ts", []],
     ["admin:bootstrap", "src/admin.ts", ["bootstrap", "oleksii@example.org"]],
     ["admin:grant", "src/admin.ts", ["grant", "oleksii@example.org"]],
     ["admin:revoke", "src/admin.ts", ["revoke", "oleksii@example.org"]],

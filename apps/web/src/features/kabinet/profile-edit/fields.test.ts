@@ -8,6 +8,7 @@ import {
   type ContactsForm,
   contactOfForm,
   contactsFormOf,
+  donationLinkProblem,
   linkProblem,
   MAX_OTHER_ROWS,
   NEW_OTHER_KINDS,
@@ -202,6 +203,19 @@ describe("linkProblem", () => {
     ["просто текст", "notAUrl"],
   ])("%s → %s", (value, expected) => {
     expect(linkProblem(value)).toBe(expected);
+  });
+});
+
+// Owner, 2026-11-24 (option B): one message for an IP host and for a port.
+describe("donationLinkProblem: IP hosts and ports", () => {
+  it.each([
+    ["https://192.0.2.10/jar", "donationIpHost"],
+    ["https://[2001:db8::1]/jar", "donationIpHost"],
+    ["https://send.monobank.ua:8443/jar/abc", "donationIpHost"],
+    ["https://send.monobank.ua:443/jar/abc", "donationIpHost"],
+    ["https://send.monobank.ua/jar/abc", null],
+  ])("%s → %s", (value, expected) => {
+    expect(donationLinkProblem(value)).toBe(expected);
   });
 });
 
