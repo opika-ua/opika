@@ -5,7 +5,6 @@ import {
   instantOfCalendarDate,
   ONGOING_WORK_DOCUMENT_KINDS,
   type OngoingWorkDocumentKind,
-  ongoingWorkMonthsAt,
   type ReferenceRelationship,
 } from "@opika/domain";
 import { uk } from "@opika/i18n";
@@ -30,6 +29,7 @@ import {
   type EvidenceRowErrors,
   emptyEvidenceRow,
   type OngoingWorkDocumentRow,
+  ongoingWorkMonthChoices,
   REFERENCE_CHANNEL_KINDS,
   REFERENCE_RELATIONSHIPS,
 } from "./evidence-rows";
@@ -404,7 +404,7 @@ function EvidenceCard({
 /**
  * An initiative's ongoing work (owner, 2026-11-24): each document's kind, month and issuer, never
  * the document. A new empty slot follows the last typed one (`documentSlots`); a slot left empty
- * is not sent. Only the months a record accepts are offered (`ongoingWorkMonthsAt`).
+ * is not sent. Only the months a record accepts are offered (`ongoingWorkMonthChoices`).
  */
 function OngoingWorkFields({
   id,
@@ -421,7 +421,7 @@ function OngoingWorkFields({
 }) {
   const t = uk.kabinet.operator.evidence;
   const ow = t.ongoingWork;
-  const months = ongoingWorkMonthsAt(instantOfCalendarDate(today));
+  const months = ongoingWorkMonthChoices(row.onFile, instantOfCalendarDate(today));
   const slots = documentSlots(row.documents);
   const setDocument = (index: number, change: Partial<OngoingWorkDocumentRow>) =>
     patch({

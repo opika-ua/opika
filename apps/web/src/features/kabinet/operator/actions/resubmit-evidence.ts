@@ -70,13 +70,15 @@ const rowOf = (item: EvidenceItem, id: string): EvidenceRow | null => {
         notes: item.notes,
         checkedOn: dateValue(kyivCalendarDateOf(item.checkedAt)),
       };
-    // As a visit: sent back unchanged, the record keeps who recorded it and when.
+    // As a visit: sent back unchanged, the record keeps who recorded it and when, and its months
+    // are not checked again (D3 (a)).
     case "ongoing_work_record":
       return {
         id,
         kind: item.kind,
         documents: item.documents.map(({ kind, month, issuer }) => ({ kind, month, issuer })),
         notes: item.notes,
+        onFile: { documents: item.documents, notes: item.notes },
       };
     // The applicant's own link: kept on file, not re-entered in the operator's form.
     case "public_link":

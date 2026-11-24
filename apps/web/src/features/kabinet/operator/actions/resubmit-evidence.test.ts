@@ -3,13 +3,14 @@ import {
   type ContactChannel,
   type EvidenceItem,
   ModeratorIdSchema,
+  ongoingWorkRefusalOf,
   toVerificationEvidence,
   type VerificationEvidence,
 } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import { withEvidenceOnFile } from "../../../../kabinet/handlers/evidence-on-file";
-import { evidenceOfRows } from "../evidence-editor/evidence-rows";
+import { evidenceOfRows, ongoingWorkMonthChoices } from "../evidence-editor/evidence-rows";
 import { resubmitRowsOf } from "./resubmit-evidence";
 
 /**
@@ -72,12 +73,17 @@ const sentBackUnedited = (items: readonly EvidenceItem[]) => {
     throw new Error(`the editor refused its own prefill: ${JSON.stringify(checked.errors)}`);
   }
   const parsed = resubmitInput.parse({ shelterId: SHELTER, evidence: checked.items });
-  const rebuilt = toVerificationEvidence(parsed.evidence, {
-    recordedBy: RESUBMITTER,
-    recordedAt: RECORDED,
-  });
+  // As `registryResubmit`: an ongoing-work record's months are checked after the carry-over.
+  const rebuilt = toVerificationEvidence(
+    parsed.evidence,
+    { recordedBy: RESUBMITTER, recordedAt: RECORDED },
+    "by_caller",
+  );
   if (rebuilt.kind !== "ok") throw new Error(`the domain refused the prefill: ${rebuilt.kind}`);
-  return { sent: checked.items, resubmitted: withEvidenceOnFile(onFile, rebuilt.evidence) };
+  const resubmitted = withEvidenceOnFile(onFile, rebuilt.evidence);
+  const refusal = ongoingWorkRefusalOf(resubmitted.items);
+  if (refusal !== null) throw new Error(`the domain refused the prefill: ${refusal.kind}`);
+  return { sent: checked.items, resubmitted };
 };
 
 describe("resubmit prefill", () => {
@@ -249,6 +255,43 @@ describe("resubmit prefill", () => {
     // Nothing sent carries a key, so `acceptEvidence` can't refuse the resubmit for one.
     expect(JSON.stringify(sent)).not.toContain("evidence/");
     expect(resubmitted.items).toEqual(withKey);
+  });
+
+  /** Owner, 2026-11-24, verbatim: "#573 D3: (a), age counted when the record is made." */
+  describe("an ongoing-work record made 13 months ago (D3 (a))", () => {
+    const RECORD: EvidenceItem = {
+      kind: "ongoing_work_record",
+      documents: [
+        { kind: "vet_receipt", month: "2025-09", issuer: "Ветклініка «Айболить»" },
+        { kind: "food_purchase", month: "2025-10", issuer: "Зоомагазин «Лапа»" },
+      ],
+      notes: "Чеки показали в месенджері",
+      checkedAt: new Date("2025-10-15T10:00:00Z"),
+      checkedBy: RECORDER,
+    };
+
+    it("sent back unedited, the editor offers its months and the record comes back whole", () => {
+      const [row] = resubmitRowsOf(evidence([RECORD]));
+      if (row?.kind !== "ongoing_work_record") throw new Error("no card");
+      expect(ongoingWorkMonthChoices(row.onFile, RECORDED)).toEqual(
+        expect.arrayContaining(["2025-09", "2025-10"]),
+      );
+      expect(ongoingWorkMonthChoices(null, RECORDED)).not.toContain("2025-09");
+      expect(sentBackUnedited([RECORD]).resubmitted).toEqual({
+        items: [RECORD],
+        submittedAt: RECORDED,
+      });
+    });
+
+    it("edited, the editor checks its months again, as the server does", () => {
+      const [row] = resubmitRowsOf(evidence([RECORD]));
+      if (row?.kind !== "ongoing_work_record") throw new Error("no card");
+      const checked = evidenceOfRows([{ ...row, notes: "Чеки і виписка" }], RECORDED);
+      expect(checked).toEqual({
+        kind: "invalid",
+        errors: { "on-file-0": { "documents.1.month": "ongoingWorkMonths" } },
+      });
+    });
   });
 
   it("an empty list stays empty", () => {

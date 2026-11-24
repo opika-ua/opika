@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { ModeratorIdSchema } from "../../primitives/ids";
 import { EvidenceItemSchema } from "./evidence";
-import { EvidenceItemInputSchema, toVerificationEvidence } from "./evidence-input";
 import {
+  EvidenceItemInputSchema,
+  ongoingWorkRefusalOf,
+  toVerificationEvidence,
+} from "./evidence-input";
+import {
+  ONGOING_WORK_ISSUER_MAX_LENGTH,
   ONGOING_WORK_MAX_DOCUMENTS,
   type OngoingWorkDocument,
   ongoingWorkMonthsAt,
@@ -50,7 +55,7 @@ describe("an ongoing-work record: two different months (owner, 2026-11-24)", () 
     ]);
   });
 
-  it("refuses a stored record from one month, so none can be saved past the write path", () => {
+  it("the stored schema states two months too, though the write path is the guard", () => {
     const stored = {
       ...record([receipt("2026-10"), receipt("2026-10")]),
       checkedAt: NOW,
@@ -97,6 +102,44 @@ describe("an ongoing-work record: no future month, none older than 12 months (D3
   });
 });
 
+/** Owner, 2026-11-24, verbatim: "#573 D3: (a), age counted when the record is made." */
+describe("an ongoing-work record's age counts when it is made (D3 (a))", () => {
+  const madeAt = (checkedAt: Date, documents: readonly OngoingWorkDocument[]) => ({
+    ...record(documents),
+    checkedAt,
+    checkedBy: OPERATOR,
+  });
+
+  it("checks each record at its own checkedAt, never at a later now", () => {
+    // Made in October 2025, months 13 and 14 back by now: fine when it was made.
+    const old = madeAt(new Date("2025-10-15T10:00:00.000Z"), [
+      receipt("2025-09"),
+      receipt("2025-10"),
+    ]);
+    expect(ongoingWorkRefusalOf([old])).toBe(null);
+    // The same months stamped now, as a new or edited record is: refused.
+    expect(ongoingWorkRefusalOf([old, { ...old, checkedAt: NOW }])).toEqual({
+      kind: "ongoing_work_month_too_old",
+      month: "2025-09",
+    });
+    expect(ongoingWorkRefusalOf([madeAt(NOW, [receipt("2026-11")])])).toEqual({
+      kind: "ongoing_work_too_few_months",
+    });
+  });
+
+  it("leaves the months to the caller when asked, and checks them on recording by default", () => {
+    const tooOld = [
+      EvidenceItemInputSchema.parse(record([receipt("2025-09"), receipt("2025-10")])),
+    ];
+    expect(toVerificationEvidence(tooOld, BY).kind).toBe("ongoing_work_month_too_old");
+    const left = toVerificationEvidence(tooOld, BY, "by_caller");
+    expect(left.kind).toBe("ok");
+    if (left.kind !== "ok") return;
+    // Stamped now, so the caller's own check refuses it unless it is put back from file.
+    expect(ongoingWorkRefusalOf(left.evidence.items)?.kind).toBe("ongoing_work_month_too_old");
+  });
+});
+
 describe("an ongoing-work record's input", () => {
   it("requires the issuer", () => {
     expect(
@@ -107,6 +150,22 @@ describe("an ongoing-work record's input", () => {
     expect(
       EvidenceItemInputSchema.safeParse(record([receipt("2026-09"), noIssuer as never])).success,
     ).toBe(false);
+  });
+
+  it("caps the issuer at the same length on input and in the stored schema", () => {
+    const at = (length: number) =>
+      record([receipt("2026-09"), receipt("2026-10", "a".repeat(length))]);
+    const stored = (length: number) => ({ ...at(length), checkedAt: NOW, checkedBy: OPERATOR });
+    expect(EvidenceItemInputSchema.safeParse(at(ONGOING_WORK_ISSUER_MAX_LENGTH)).success).toBe(
+      true,
+    );
+    expect(EvidenceItemInputSchema.safeParse(at(ONGOING_WORK_ISSUER_MAX_LENGTH + 1)).success).toBe(
+      false,
+    );
+    expect(EvidenceItemSchema.safeParse(stored(ONGOING_WORK_ISSUER_MAX_LENGTH)).success).toBe(true);
+    expect(EvidenceItemSchema.safeParse(stored(ONGOING_WORK_ISSUER_MAX_LENGTH + 1)).success).toBe(
+      false,
+    );
   });
 
   it("takes only a YYYY-MM month and the four document kinds", () => {

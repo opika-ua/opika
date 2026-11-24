@@ -207,6 +207,21 @@ describe("buildShelter: an initiative on documented ongoing work (2026-11-24)", 
       /at least two different months/,
     );
   });
+
+  it("refuses a month after this one, naming it", () => {
+    expect(() => buildShelter(withRecord(["2026-09", "2026-10"]), now, SECRET_A)).toThrow(
+      /ongoing_work_record month 2026-10 is after this month/,
+    );
+  });
+
+  it("refuses a month more than 12 back, naming it, and takes the one exactly 12 back", () => {
+    expect(() => buildShelter(withRecord(["2025-08", "2026-09"]), now, SECRET_A)).toThrow(
+      /ongoing_work_record month 2025-08 is more than 12 months back/,
+    );
+    expect(
+      buildShelter(withRecord(["2025-09", "2026-09"]), now, SECRET_A).verification.status,
+    ).toBe("verified");
+  });
 });
 
 describe("buildShelter's evidence requirement", () => {
