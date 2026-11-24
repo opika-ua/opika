@@ -1,0 +1,10 @@
+# gitleaks v8.21.2 findings reviewed 2026-11-24 (owner): synthetic fixtures in tests, no real secret.
+de0eb4fa73323a99ec0d550e003a6dc59e64b703:apps/web/src/security-headers.test.ts:generic-api-key:108
+34295a0b4c3b8dc607063890b8fcea448161e9ab:packages/db/test/auth-reset-link-repo.test.ts:generic-api-key:80
+73565d437f2948975538be1fe4e3c6d429230ec3:apps/web/src/api/per-ip-budgets.test.ts:stripe-access-token:61
+1df3c88c0819a54c0c7173f26ed5356fe44ca0a1:apps/web/src/kabinet/r2-cleanup-cron.test.ts:generic-api-key:26
+d72d3f0eee357061e96b89756c0cc4ab4829b3d8:apps/web/src/kabinet/auth-log.test.ts:generic-api-key:33
+d72d3f0eee357061e96b89756c0cc4ab4829b3d8:apps/web/src/kabinet/clean-query-errors.test.ts:generic-api-key:66
+097a1b8fc4e50db247e2588e9a1ccaab35829924:apps/web/src/kabinet/email-provider.test.ts:generic-api-key:445
+bacf30984897aff53174e05462896d78be8ad167:apps/web/src/kabinet/email-provider.test.ts:generic-api-key:290
+e26093378ffe493d269fe9fe471d07d786ce3843:apps/web/src/kabinet/auth-cleanup.test.ts:generic-api-key:25
