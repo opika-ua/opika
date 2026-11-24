@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PeekableRateLimiter } from "./rate-limit";
+import { retryAfterSecondsOf } from "./retry-after";
 
 /**
  * With the shared store unreachable, each limiter answers by its own explicit `onUnavailable`
@@ -12,12 +14,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * is charged before any session is read, so it stays `deny` and its callers ask it through
  * `attemptOf`, letting a validated session through (`page-limit`, `rpc-route`, `auth` tests).
  * Sign-in, reset, invite and registration stay `deny`.
+ *
+ * 2026-11-24 (audit A-L1): the Sentry tunnel needs no login, so in an outage it keeps its limit,
+ * counted per instance in memory (`in-memory`), instead of failing open.
  */
 // `health` is in memory since 2026-11-20 (owner): it has no store to lose.
 const ALLOW = [
   "api",
   "adopter-mint",
-  "monitoring",
   "monitoring-test",
   "reveal-ip",
   "kabinet-user",
@@ -29,6 +33,7 @@ const ALLOW = [
   "kabinet-crop-attempt-day",
   "kabinet-city-search-user",
 ];
+const IN_MEMORY = ["monitoring"];
 const DENY = [
   "kabinet-sign-in-address",
   "kabinet-sign-in-ip",
@@ -96,9 +101,10 @@ describe("limiter fail modes with the store unreachable", () => {
 
   it("guard: every limiter has an explicit mode, and the set is exactly the two tables", async () => {
     const registered = await loadAllLimiters();
-    expect([...registered.keys()].sort()).toEqual([...ALLOW, ...DENY].sort());
+    expect([...registered.keys()].sort()).toEqual([...ALLOW, ...IN_MEMORY, ...DENY].sort());
     for (const [name, { onUnavailable }] of registered) {
-      expect(onUnavailable, name).toBe(ALLOW.includes(name) ? "allow" : "deny");
+      const mode = ALLOW.includes(name) ? "allow" : IN_MEMORY.includes(name) ? "in-memory" : "deny";
+      expect(onUnavailable, name).toBe(mode);
     }
   });
 
@@ -148,7 +154,7 @@ describe("limiter fail modes with the store unreachable", () => {
       );
     });
 
-    it.each(ALLOW)(
+    it.each([...ALLOW, ...IN_MEMORY])(
       "%s still refuses when a healthy store says the limit is spent",
       async (name) => {
         const registered = await loadAllLimiters();
@@ -163,7 +169,36 @@ describe("limiter fail modes with the store unreachable", () => {
       expect(await registered.get(name)?.limiter.check("k", new Date())).toBe(false);
     });
 
-    it.each([...ALLOW, ...DENY])(
+    it.each(IN_MEMORY)(
+      "%s keeps its own limit per instance: N calls pass, the next is refused, logged",
+      async (name) => {
+        const registered = await loadAllLimiters();
+        const limiter = registered.get(name)?.limiter;
+        if (limiter === undefined) throw new Error(name);
+        fail();
+        warn.mockClear();
+        vi.setSystemTime(Date.now() + 61_000 * (ALLOW.length + 1));
+        const now = new Date();
+        const answers: boolean[] = [];
+        for (let i = 0; i < 20; i++) answers.push(await limiter.check("k", now));
+        expect(answers).toEqual(Array(20).fill(true));
+        const later = new Date(now.getTime() + 20_000);
+        expect(await limiter.check("k", later)).toBe(false);
+        // Per key: another address still has its own budget.
+        expect(await limiter.check("other", later)).toBe(true);
+        // From the fallback's own window: the first call leaves it 40 s later.
+        expect(retryAfterSecondsOf(limiter, "k", later)).toBe(40);
+        // Asked without spending, the same per-instance count answers.
+        const peek = limiter as PeekableRateLimiter;
+        expect(await peek.wouldAllow("k", later)).toBe(false);
+        expect(await peek.wouldAllow("fresh", later)).toBe(true);
+        expect(warn).toHaveBeenCalledWith(
+          expect.objectContaining({ event: "rate_limiter_unreachable" }),
+        );
+      },
+    );
+
+    it.each([...ALLOW, ...IN_MEMORY, ...DENY])(
       "%s tells an unreachable store apart from a refusal when asked through attemptOf",
       async (name) => {
         const registered = await loadAllLimiters();
@@ -189,7 +224,7 @@ describe("limiter fail modes with the store unreachable", () => {
     const registered = await loadAllLimiters();
     const { attemptOf } = await import("./limit-outcome");
     limitMock.mockResolvedValue({ success: false, reset: Date.now() + 1_000 });
-    for (const name of [...ALLOW, ...DENY]) {
+    for (const name of [...ALLOW, ...IN_MEMORY, ...DENY]) {
       const limiter = registered.get(name)?.limiter;
       if (limiter === undefined) throw new Error(name);
       expect(await attemptOf(limiter, "k", new Date()), name).toBe("refused");

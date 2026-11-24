@@ -3,12 +3,16 @@ import { handleMonitoringTunnel } from "../../../api/monitoring-tunnel";
 import { sharedRateLimiter } from "../../../api/rate-limit";
 import { ipRateLimitKey } from "../../../api/rate-limit-key";
 
-/** Its own budget, apart from the page and API ones: an error loop in one browser must not spend them. */
+/**
+ * Its own budget, apart from the page and API ones: an error loop in one browser must not spend them.
+ * No login guards this route, so an Upstash outage falls back to the same budget per instance, not
+ * to none (audit 2026-11-24, A-L1).
+ */
 const limiter = sharedRateLimiter({
   name: "monitoring",
   windowMs: 60_000,
   maxRequests: 20,
-  onUnavailable: "allow",
+  onUnavailable: "in-memory",
 });
 
 /**
