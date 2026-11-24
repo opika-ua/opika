@@ -427,6 +427,16 @@ describe("OnboardInputSchema's text rules", () => {
     ]);
     expect(donation("https://send.monobank.ua/jar/TestJar42", "monobank_jar").success).toBe(true);
   });
+
+  it.each([
+    ["https://192.0.2.10/jar/TestJar42", "donation_ip_host"],
+    ["https://[2001:db8::1]/jar/TestJar42", "donation_ip_host"],
+    ["https://send.monobank.ua:8443/jar/TestJar42", "donation_port"],
+  ])("refuses %s as the donation link (%s)", (url, message) => {
+    const refused = parse({ donation: { url, provider: "other" } });
+    expect(refused.success).toBe(false);
+    expect(refused.error?.issues.map((issue) => issue.message)).toEqual([message]);
+  });
 });
 
 /** Owner, 2026-11-12: the operator's create path takes a range too, as K3 now asks. */

@@ -32,10 +32,17 @@ export type DonationLink = z.infer<typeof DonationLinkSchema>;
  * Why a link a shelter would not mind showing is still not ours to send people to. Applied to a
  * new proposal and again when the operator approves one, never to stored live links
  * (`DonationLinkSchema` stays lenient so old rows parse).
- * `userinfo` and `idn`: the host rule shared with shelter-written text (`linkHostProblemOf`).
+ * `userinfo`, `idn`, `ip_host` and `port`: the shared host rule (`linkHostProblemOf`); shelter text
+ * keeps `port`, donation links refuse it too (owner, 2026-11-24).
  * `checkout_session`: a LiqPay checkout session, a one-time payment page that stops working.
  */
-export const DONATION_URL_PROBLEMS = ["userinfo", "idn", "checkout_session"] as const;
+export const DONATION_URL_PROBLEMS = [
+  "userinfo",
+  "idn",
+  "ip_host",
+  "port",
+  "checkout_session",
+] as const;
 export type DonationUrlProblem = (typeof DONATION_URL_PROBLEMS)[number];
 
 /** `checkout_<timestamp>_<token>`: the path segment of a LiqPay checkout session (seen 2026-11-12). */

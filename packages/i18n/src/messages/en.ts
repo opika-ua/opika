@@ -995,6 +995,8 @@ export const en = {
           "Addresses with Cyrillic letters (or starting with «xn--») are not accepted. Use a fundraising page on a service with a Latin address, such as monobank.",
         donationCheckoutSession:
           "This is a one-time payment page; it will stop working. Add a permanent link: the fundraising page on your website or a monobank jar.",
+        donationIpHost:
+          "Enter an ordinary link with the site's name – no IP address or port number.",
         notAUrl: "That doesn't look like a link.",
         instagramFormat:
           "An Instagram username: up to 30 Latin letters, digits, dots or underscores. A profile link works too.",
@@ -1679,6 +1681,8 @@ export const en = {
           idn: "Can't be approved: the site address has Cyrillic letters or «xn--».",
           checkout_session:
             "Can't be approved: this is a one-time LiqPay payment page; it will stop working.",
+          ip_host: "Enter an ordinary link with the site's name – no IP address or port number.",
+          port: "Enter an ordinary link with the site's name – no IP address or port number.",
         },
         removeDialog: {
           title: "Remove the fundraising link of «{shelter}»?",

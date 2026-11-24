@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { ShelterAdminIdSchema } from "../primitives/ids";
 import {
+  DonationLinkSchema,
   DonationProposalUrlSchema,
   donationProviderOf,
   donationUrlProblemOf,
   PendingDonationSchema,
 } from "./donation";
+import { publicDonationOf } from "./public-donation";
 
 describe("donationProviderOf", () => {
   it.each([
@@ -56,11 +58,25 @@ describe("PendingDonationSchema", () => {
 describe("donationUrlProblemOf", () => {
   it.each([
     ["https://send.monobank.ua/jar/abc"],
-    ["https://pay.example.org:8443/domivka?a=b@c"],
+    ["https://pay.example.org/domivka?a=b@c"],
     ["https://example.org/path@still-path"],
   ])("accepts %s", (url) => {
     expect(donationUrlProblemOf(url)).toBeNull();
     expect(DonationProposalUrlSchema.safeParse(url).success).toBe(true);
+  });
+
+  // Owner, 2026-11-24 (option B): an IP host or an explicit port, with the problem named.
+  it.each([
+    ["https://192.0.2.10/jar", "ip_host"],
+    ["https://0x7f.1/jar", "ip_host"],
+    ["https://[2001:db8::1]/jar", "ip_host"],
+    ["https://pay.example.org:8443/domivka?a=b@c", "port"],
+    ["https://send.monobank.ua:443/jar/abc", "port"],
+  ])("refuses %s as %s, with the code the form and the API read", (url, problem) => {
+    expect(donationUrlProblemOf(url)).toBe(problem);
+    const parsed = DonationProposalUrlSchema.safeParse(url);
+    expect(parsed.success).toBe(false);
+    expect(parsed.error?.issues.map((issue) => issue.message)).toEqual([`donation_${problem}`]);
   });
 
   it.each([
@@ -110,6 +126,17 @@ describe("donationUrlProblemOf", () => {
     expect(donationUrlProblemOf(url)).toBeNull();
     expect(DonationProposalUrlSchema.safeParse(url).success).toBe(true);
   });
+
+  // New writes only (owner, 2026-11-24): a link stored before the rule still parses and shows.
+  it.each(["https://192.0.2.10/jar", "https://send.monobank.ua:8443/jar"])(
+    "a stored live link %s still parses and is still shown",
+    (url) => {
+      const link = DonationLinkSchema.parse({ url, provider: "other" });
+      expect(publicDonationOf({ donation: link, verification: { status: "verified" } })).toEqual(
+        link,
+      );
+    },
+  );
 
   it("does not take a non-ASCII path or query for a host", () => {
     expect(donationUrlProblemOf("https://example.org/притулок")).toBeNull();

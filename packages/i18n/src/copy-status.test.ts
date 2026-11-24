@@ -416,6 +416,9 @@ describe("kabinet K4 copy (final, 2026-10-17)", () => {
     // Owner-approved 2026-11-12 (LiqPay checkout sessions: PR #487's copy table).
     "profileEdit.errors.donationCheckoutSession":
       "Це одноразова сторінка оплати, вона перестане працювати. Додайте постійне посилання: сторінку збору на вашому сайті або банку в monobank.",
+    // Owner-approved 2026-11-24 (donation links: IP host or port, option B).
+    "profileEdit.errors.donationIpHost":
+      "Вкажіть звичайне посилання з назвою сайту – без IP-адреси й номера порту.",
     // Owner-approved 2026-11-10 (contact kinds Instagram and Facebook; facebookFormat with his «в» fix).
     "profileEdit.errors.instagramFormat":
       "Нікнейм в Instagram: до 30 латинських літер, цифр, крапок або підкреслень. Можна вставити посилання на профіль.",
@@ -1093,6 +1096,13 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
     "operator.donation.cannotApprove.checkout_session":
       "Схвалити не можна: це одноразова сторінка оплати LiqPay, вона перестане працювати.",
   };
+  /** Owner-approved 2026-11-24 (donation links: IP host or port, option B; one string for both). */
+  const DONATION_IP_HOST_COPY: Record<string, string> = {
+    "operator.donation.cannotApprove.ip_host":
+      "Вкажіть звичайне посилання з назвою сайту – без IP-адреси й номера порту.",
+    "operator.donation.cannotApprove.port":
+      "Вкажіть звичайне посилання з назвою сайту – без IP-адреси й номера порту.",
+  };
   /** Owner-approved 2026-11-06 (donation link safety: copy table N1–N14, N18, and the approvals file). */
   const DONATION_SAFETY_OPERATOR_COPY: Record<string, string> = {
     "operator.history.donation_removed": "Посилання на збір прибрано: {host}. {code}. {note}",
@@ -1228,6 +1238,7 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
         ...Object.keys(SELF_REGISTRATION_OPERATOR_COPY),
         ...Object.keys(DONATION_SAFETY_OPERATOR_COPY),
         ...Object.keys(LIQPAY_SESSION_OPERATOR_COPY),
+        ...Object.keys(DONATION_IP_HOST_COPY),
         ...Object.keys(VERIFIED_DATA_EDIT_COPY),
         ...Object.keys(MINIMAL_CREATE_COPY).filter((path) => path.startsWith("operator.")),
         ...Object.keys(WEEKLY_REMINDER_OPERATOR_COPY),
@@ -1307,6 +1318,10 @@ describe("kabinet R-UI copy (final, 2026-10-17)", () => {
       expect(valueAt(path)).toBe(text);
     },
   );
+
+  it.each(Object.entries(DONATION_IP_HOST_COPY))("%s is the owner-approved text", (path, text) => {
+    expect(valueAt(path)).toBe(text);
+  });
 
   it("the initiative hint's English text is the owner's, with his apostrophe (U+2019)", () => {
     expect(en.kabinet.operator.donation.approveHintInitiative).toBe(
@@ -1895,8 +1910,8 @@ describe("his K4 strings use U+02BC only (K4-B4, answer 3)", () => {
     // 74 since PR 6 deleted errors.notAvailable (P6-Q8); 72 since DR1 deleted
     // voice.nameStaysHint, voice.insertName and voice.previewNoAnimals and added
     // errors.nameTokenGone; 84 since pet card PR 3b added the twelve-key
-    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms); 98 since the donation safety copy added six; 100 with the Instagram and Facebook errors; 102 with the form field; 103 with the channel cap's message; 94 since the shelter description replaced the sentence editor (five error messages and six voice strings went, aboutTooLong and about.hint came); 95 with the LiqPay checkout-session error; 96 with identity.cityLocked; 97 with identity.cityLockedFosterHomes.
-    expect(k4.length).toBe(97);
+    // logo.* section (his final text, 2026-10-27); 92 since save bar A added four strings (the plural one has three forms); 98 since the donation safety copy added six; 100 with the Instagram and Facebook errors; 102 with the form field; 103 with the channel cap's message; 94 since the shelter description replaced the sentence editor (five error messages and six voice strings went, aboutTooLong and about.hint came); 95 with the LiqPay checkout-session error; 96 with identity.cityLocked; 97 with identity.cityLockedFosterHomes; 98 with the donation IP-host/port error.
+    expect(k4.length).toBe(98);
     expect(uk.kabinet.profileEdit.contacts.atLeastOne).toContain(String.fromCodePoint(0x2bc));
   });
 });

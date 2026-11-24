@@ -2284,6 +2284,25 @@ describe("registry.donation.approve / reject (N20)", () => {
     expect(reject.body.pendingDonation).toBeNull();
   });
 
+  // Owner, 2026-11-24: a proposal stored before the IP/port rule is refused on approval, kept as is.
+  it.each([
+    ["https://192.0.2.10/jar", "ip_host"],
+    ["https://send.monobank.ua:8443/jar", "port"],
+  ])("refuses to approve %s (%s) and changes nothing", async (url, problem) => {
+    const link = { url, provider: donationProviderOf(url) };
+    const s = await shelter({ pendingDonation: { ...pending(), link } });
+    const approve = await call("registry.donation.approve", {
+      shelterId: s.id,
+      expectedVersion: 0,
+    });
+    expect(approve.status).toBe(422);
+    expect(approve.body).toMatchObject({ code: "DONATION_LINK_REFUSED", data: { problem } });
+    const after = await reload(s.id);
+    expect(after.donation).toBeNull();
+    expect(after.pendingDonation?.link).toEqual(link);
+    expect(after.version).toBe(0);
+  });
+
   it("approves a LiqPay page that is not a checkout session", async () => {
     const page = "https://www.liqpay.ua/uk/checkout/domivka";
     const link = { url: page, provider: donationProviderOf(page) };

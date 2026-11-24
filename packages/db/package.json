@@ -29,6 +29,7 @@
     "test-db:reset": "tsx src/test-utils/reset-test-database.ts",
     "db:check-hashes": "tsx src/check-migration-hashes.ts",
     "location:verify": "tsx src/verify-locations.ts",
+    "donation-links:audit-hosts": "tsx src/tools/audit-donation-hosts.ts",
     "demo:remove": "tsx src/demo-remove.ts",
     "db:full-reset": "tsx src/full-reset.ts",
     "everServed:backfill": "tsx src/backfill-ever-served-at.ts",

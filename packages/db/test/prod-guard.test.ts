@@ -1250,6 +1250,8 @@ describe("every writing CLI runs the guard first", { timeout: SPAWN_TEST_TIMEOUT
     ["onboard:shelter", "src/onboard-shelter.ts", ["does-not-matter.json"]],
     // Read-only, but it reads every exact address, so it takes --prod too (RG-Q10).
     ["location:verify", "src/verify-locations.ts", []],
+    // Read-only, counts and ids only, but it reads every shelter's donation links (owner, 2026-11-24).
+    ["donation-links:audit-hosts", "src/tools/audit-donation-hosts.ts", []],
     ["admin:bootstrap", "src/admin.ts", ["bootstrap", "oleksii@example.org"]],
     ["admin:grant", "src/admin.ts", ["grant", "oleksii@example.org"]],
     ["admin:revoke", "src/admin.ts", ["revoke", "oleksii@example.org"]],

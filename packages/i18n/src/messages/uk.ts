@@ -878,6 +878,8 @@ export const uk = {
         /** A LiqPay checkout session (`checkout_session`); owner-approved 2026-11-12. */
         donationCheckoutSession:
           "Це одноразова сторінка оплати, вона перестане працювати. Додайте постійне посилання: сторінку збору на вашому сайті або банку в monobank.",
+        /** An IP host or an explicit port (`ip_host`, `port`); owner-approved 2026-11-24 (option B). */
+        donationIpHost: "Вкажіть звичайне посилання з назвою сайту – без IP-адреси й номера порту.",
         /** Owner-approved 2026-11 with the shelter description. `{max}` is 1,500 (`integer.format`). */
         aboutTooLong: "Текст довший за {max} символів. Скоротіть його, щоб зберегти.",
       },
@@ -1910,6 +1912,9 @@ export const uk = {
           idn: "Схвалити не можна: в адресі сайту є кириличні літери або «xn--».",
           checkout_session:
             "Схвалити не можна: це одноразова сторінка оплати LiqPay, вона перестане працювати.",
+          /** The shelter's approved sentence (option B, 2026-11-24); no operator variant was asked. */
+          ip_host: "Вкажіть звичайне посилання з назвою сайту – без IP-адреси й номера порту.",
+          port: "Вкажіть звичайне посилання з назвою сайту – без IP-адреси й номера порту.",
         },
         removeDialog: {
           title: "Прибрати посилання на збір «{shelter}»?",
