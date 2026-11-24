@@ -6,7 +6,8 @@
  * Its own `x-forwarded-for`, as every sibling gives: `proxy.ts`'s per-IP limiter is app-wide.
  */
 
-import { expect, type Page, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./csp-watch";
 import { noSidewaysScroll, openRoute, servedAnimalIds } from "./harness";
 import type { Viewport } from "./viewports";
 

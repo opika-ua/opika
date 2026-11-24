@@ -5,7 +5,7 @@
  * Own `x-forwarded-for` (TEST-NET-2 .71).
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./csp-watch";
 import {
   adopterContext,
   createFixture,

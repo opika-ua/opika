@@ -16,8 +16,9 @@ import { kabinetInvitationRepo, kabinetShelterRepo } from "@opika/db/repos";
 import { authMember, authUser, cities, superAdmins } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { type ModeratorId, publicLocationOf, type Shelter, type ShelterId } from "@opika/domain";
-import { type Browser, type BrowserContext, expect, type Page, test } from "@playwright/test";
+import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { HARNESS_LOCATION_HMAC_SECRET } from "../harness-env";
+import { expect, test } from "./csp-watch";
 import { openAccountMenu } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 

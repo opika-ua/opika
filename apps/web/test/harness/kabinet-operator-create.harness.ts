@@ -22,8 +22,9 @@ import { randomUUID } from "node:crypto";
 import { createDatabase } from "@opika/db";
 import { authUser, cities, superAdmins } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
-import { type BrowserContext, expect, test } from "@playwright/test";
+import type { BrowserContext } from "@playwright/test";
 import { HARNESS_LOCATION_HMAC_SECRET } from "../harness-env";
+import { expect, test } from "./csp-watch";
 import { fillDateField } from "./harness";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 

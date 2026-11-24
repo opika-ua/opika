@@ -7,7 +7,7 @@
  * cannot be observed in a browser (`post-flip-noindex.test.ts` covers it). Named zz-* to run last (see fictional-shelter.ts). Own `x-forwarded-for` (.72).
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./csp-watch";
 import {
   adopterContext,
   createFixture,

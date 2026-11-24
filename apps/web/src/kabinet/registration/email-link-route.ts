@@ -10,7 +10,8 @@ import { fillTemplate, uk } from "@opika/i18n";
 import { OPERATOR_CONTACT } from "../../brand";
 import { SHELTER_HOME } from "../../features/kabinet/routes";
 import type { KabinetAuthAvailability } from "../auth-route";
-import { CONFIRM_HEADERS, isSameOriginPost, STRIP_TOKEN_FROM_ADDRESS_BAR } from "../confirm-route";
+import { CONFIRM_HEADERS, isSameOriginPost } from "../confirm-route";
+import { STRIP_TOKEN_FROM_ADDRESS_BAR } from "../strip-token-script";
 import {
   hashRegistrationToken,
   REGISTRATION_LINK_PATHS,

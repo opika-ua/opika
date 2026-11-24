@@ -12,7 +12,8 @@ import { animalRepo } from "@opika/db/repos";
 import { cities } from "@opika/db/schema";
 import { makeAnimal } from "@opika/db/test";
 import type { ShelterId } from "@opika/domain";
-import { expect, type Locator, test } from "@playwright/test";
+import type { Locator } from "@playwright/test";
+import { expect, test } from "./csp-watch";
 import {
   adopterContext,
   createFixture,

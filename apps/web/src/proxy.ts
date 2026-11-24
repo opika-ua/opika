@@ -11,6 +11,7 @@ import {
   kabinetPageLoadVerdict,
 } from "./kabinet/page-limit";
 import { isTokenPage, TOKEN_PAGE_HEADERS } from "./kabinet/token-pages";
+import { kabinetContentSecurityPolicy, newCspNonce } from "./security-headers";
 
 /**
  * The one place in this app that sees a request before any page renders or any
@@ -97,7 +98,9 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
           });
     }
   }
-  const response = NextResponse.next();
+  const response = isKabinetPagePath(request.nextUrl.pathname)
+    ? withKabinetPolicy(request)
+    : NextResponse.next();
   // A sign-in page whose URL carries a credential (a reset link's token, an invitation link's) is
   // never cached. Its Referrer-Policy comes from next.config alone (`kabinet/token-pages.ts`).
   if (isTokenPage(request.nextUrl)) {
@@ -106,6 +109,25 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
   }
   return response;
 }
+
+/**
+ * Audit B1: a /kabinet page gets an enforced CSP with a fresh nonce. Next takes the nonce from the
+ * request's own CSP header and stamps its scripts with it; the browser enforces the response's.
+ */
+function withKabinetPolicy(request: NextRequest): NextResponse {
+  const policy = kabinetContentSecurityPolicy({
+    photoBaseUrl: process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
+    development: process.env.NODE_ENV === "development",
+    nonce: newCspNonce(),
+  });
+  const headers = new Headers(request.headers);
+  headers.set(CSP_HEADER, policy);
+  const response = NextResponse.next({ request: { headers } });
+  response.headers.set(CSP_HEADER, policy);
+  return response;
+}
+
+const CSP_HEADER = "content-security-policy";
 
 /**
  * A request a person's browser makes to show a page: a GET or HEAD, or a form POST the browser

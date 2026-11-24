@@ -49,11 +49,15 @@ addresses in tracked files (placeholders: `ep-PRODUCTION`, `<owner email>`, `<re
   harness spec `kabinet-entry.harness.ts` checks the real entry points. Separate root layouts replace both:
   [#510](https://github.com/opika-ua/opika/issues/510). Kabinet links to public pages stay client
   navigations: a public page running inside the kabinet document sends no CSP reports and uses
-  `strict-origin`, the safe direction.
+  `strict-origin`, the safe direction. Since audit B1 the full document load into /kabinet is also what
+  gives the kabinet its enforced nonce policy, and a public page inside the kabinet document runs under
+  that policy (`kabinet-csp.harness.ts` opens the gallery and an animal page there).
 
 ## Later
 
-- Enforce CSP with nonces once report-only data is clean (post-launch).
+- Enforce a strict `script-src` on the public pages: hash-based, so static caching survives, as a separate
+  proposal (owner, 2026-11-24). /kabinet enforces a nonce-based policy since audit B1
+  (`kabinetContentSecurityPolicy` in `apps/web/src/security-headers.ts`, sent by `proxy.ts`).
 - Before enforcing a stricter `script-src`: if Safari/iOS coverage of CSP violations is needed, revisit our own
   collector (option B: `/api/csp-report`, dropping the User-Agent before forwarding), since today only Chromium
   reports (owner, 2026-11-16).

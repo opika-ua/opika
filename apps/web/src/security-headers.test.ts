@@ -1,8 +1,17 @@
+import { createHash } from "node:crypto";
 import { checkCustomRoutes } from "next/dist/lib/load-custom-routes";
+import { getScriptNonceFromHeader } from "next/dist/server/app-render/get-script-nonce-from-header";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { sentOn } from "../test/next-headers";
+import { SAVED_PREPAINT_SCRIPT } from "./features/chrome/saved-prepaint";
+import { STRIP_TOKEN_FROM_ADDRESS_BAR } from "./kabinet/strip-token-script";
 import { securityReportUrlOf } from "./observability/dsn";
-import { KABINET_REFERRER_POLICY, securityHeaders } from "./security-headers";
+import {
+  KABINET_REFERRER_POLICY,
+  kabinetContentSecurityPolicy,
+  newCspNonce,
+  securityHeaders,
+} from "./security-headers";
 
 /**
  * Audit F5, the owner's scope: the enforced headers (nosniff; CSP frame-ancestors, object-src,
@@ -101,6 +110,71 @@ describe("securityHeaders", () => {
         ),
       );
       expect(policy.get("img-src"), String(photoBaseUrl)).toEqual(["'self'", "data:"]);
+    }
+  });
+});
+
+/** Audit B1 (owner, 2026-11-24): the enforced /kabinet policy `proxy.ts` sends. */
+describe("kabinetContentSecurityPolicy", () => {
+  const NONCE = "AAECAwQFBgcICQoLDA0ODw==";
+  const kabinet = (development: boolean) =>
+    directivesOf(kabinetContentSecurityPolicy({ photoBaseUrl: PHOTOS, development, nonce: NONCE }));
+
+  // Hashes the same constants the code does, so it passes by construction; the drift guard is
+  // `kabinet-csp.harness.ts`, which checks every served inline script body against the policy.
+  it("lets scripts in by the nonce, two inline scripts' hashes and strict-dynamic only", () => {
+    const sha256 = (script: string) =>
+      `'sha256-${createHash("sha256").update(script).digest("base64")}'`;
+    expect(kabinet(false).get("script-src")).toEqual([
+      "'self'",
+      `'nonce-${NONCE}'`,
+      "'strict-dynamic'",
+      sha256(SAVED_PREPAINT_SCRIPT),
+      sha256(STRIP_TOKEN_FROM_ADDRESS_BAR),
+    ]);
+  });
+
+  it("allows eval in `next dev` only, and never inline scripts", () => {
+    expect(kabinet(true).get("script-src")).toContain("'unsafe-eval'");
+    for (const development of [false, true]) {
+      expect(kabinet(development).get("script-src")).not.toContain("'unsafe-inline'");
+    }
+  });
+
+  it("is the report-only policy with its script rule replaced and frame-ancestors added", () => {
+    for (const development of [false, true]) {
+      const reportOnly = directivesOf(
+        headerValue(
+          securityHeaders({ photoBaseUrl: PHOTOS, development }),
+          "Content-Security-Policy-Report-Only",
+        ),
+      );
+      const policy = kabinet(development);
+      expect(policy.get("frame-ancestors")).toEqual(["'none'"]);
+      policy.delete("frame-ancestors");
+      policy.delete("script-src");
+      reportOnly.delete("script-src");
+      expect(policy).toEqual(reportOnly);
+    }
+  });
+
+  it("keeps every directive the site-wide enforced policy has", () => {
+    const enforced = directivesOf(
+      headerValue(
+        securityHeaders({ photoBaseUrl: PHOTOS, development: false }),
+        "Content-Security-Policy",
+      ),
+    );
+    const policy = kabinet(false);
+    for (const [name, sources] of enforced) expect(policy.get(name), name).toEqual(sources);
+  });
+
+  it("draws 128-bit nonces Next can read, never the same twice", () => {
+    const nonces = new Set(Array.from({ length: 50 }, newCspNonce));
+    expect(nonces.size).toBe(50);
+    for (const nonce of nonces) {
+      expect(nonce).toMatch(/^[A-Za-z0-9+/]{22}==$/);
+      expect(getScriptNonceFromHeader(`script-src 'nonce-${nonce}'`)).toBe(nonce);
     }
   });
 });

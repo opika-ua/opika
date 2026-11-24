@@ -18,8 +18,9 @@ import {
   type Shelter,
   type ShelterId,
 } from "@opika/domain";
-import { type BrowserContext, expect, test } from "@playwright/test";
+import type { BrowserContext } from "@playwright/test";
 import { HARNESS_LOCATION_HMAC_SECRET } from "../harness-env";
+import { expect, test } from "./csp-watch";
 import { type SignInServer, startSignInServer } from "./sign-in-server";
 
 const FORWARDED_FOR = "198.51.100.78";
