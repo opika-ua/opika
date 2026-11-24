@@ -605,7 +605,12 @@ function duration(ms: number): string {
 
 describe("the auth clean-up cron's Healthchecks check-in", () => {
   const HC = "https://hc.example/ping/slug";
-  const callWith = (db2: () => never | typeof db, pings: string[], cronSecret = SECRET) =>
+  const callWith = (
+    db2: () => never | typeof db,
+    pings: string[],
+    cronSecret = SECRET,
+    logs: string[] = [],
+  ) =>
     handleAuthCleanup(
       new Request("https://opika.example/api/cron/auth-cleanup", {
         headers: { authorization: `Bearer ${SECRET}` },
@@ -614,7 +619,7 @@ describe("the auth clean-up cron's Healthchecks check-in", () => {
         cronSecret,
         db: db2 as () => typeof db,
         now: NOW,
-        log: () => {},
+        log: (line) => logs.push(line),
         healthcheckUrl: HC,
         fetchImpl: (async (url: string) => {
           pings.push(url);
@@ -629,13 +634,33 @@ describe("the auth clean-up cron's Healthchecks check-in", () => {
     expect(pings).toEqual([HC]);
   });
 
-  it("pings /fail and throws when the run's steps fail", async () => {
+  it("pings /fail and throws when the run's steps fail, naming every failed step", async () => {
     const pings: string[] = [];
-    await expect(
-      callWith(() => {
+    const logs: string[] = [];
+    const everyStep = [
+      "auth_expiry",
+      "invited_users",
+      "adopter_sessions",
+      "reveals",
+      "orphaned_adopters",
+      "notification_sends",
+    ];
+    const failure = await callWith(
+      () => {
         throw new Error("db down");
-      }, pings),
-    ).rejects.toThrow("auth clean-up steps failed: auth_expiry, invited_users");
+      },
+      pings,
+      SECRET,
+      logs,
+    ).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    expect(failure).toBeInstanceOf(AggregateError);
+    expect((failure as AggregateError).message).toBe(
+      `auth clean-up steps failed: ${everyStep.join(", ")}`,
+    );
+    expect(logs.map((line) => JSON.parse(line).failedSteps)).toEqual([everyStep]);
     expect(pings).toEqual([`${HC}/fail`]);
   });
 });

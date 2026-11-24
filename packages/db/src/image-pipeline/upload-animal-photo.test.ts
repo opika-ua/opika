@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { AnimalIdSchema, type PhotoFraming } from "@opika/domain";
 import sharp from "sharp";
 import { afterAll, describe, expect, it } from "vitest";
+import { animatedWebp, pngClaiming } from "../test-utils/photo-fixtures";
 import type { ImageStorageClient } from "./r2-client";
 import { type PhotoVariants, storePhoto, uploadAnimalPhoto } from "./upload-animal-photo";
 import { IMAGE_VARIANTS } from "./variants";
@@ -186,6 +187,66 @@ describe("uploadAnimalPhoto", () => {
       ),
     ).rejects.toThrow(/too_small/);
     expect(puts).toEqual([]);
+  });
+});
+
+/** Option (a), owner 2026-11-24: the kabinet's frame check, plus a looser 50 MP limit, from the header. */
+describe("uploadAnimalPhoto's header checks", () => {
+  const fileOf = (name: string, bytes: Buffer) => {
+    const path = join(dir, name);
+    writeFileSync(path, bytes);
+    return path;
+  };
+
+  it("refuses an animated image before anything is stored", async () => {
+    const path = fileOf("animated.webp", await animatedWebp(3));
+    const { client, puts } = fakeR2Client();
+    await expect(
+      uploadAnimalPhoto(client, path, ANIMAL_ID, IDS, DIMENSIONS, ATTENTION),
+    ).rejects.toThrow(/animated or has several pages/);
+    expect(puts).toEqual([]);
+  });
+
+  it("refuses 50 MP + 1 (3561 × 14041) from its header, before anything is stored", async () => {
+    const path = fileOf("over.png", pngClaiming(3561, 14_041));
+    const { client, puts } = fakeR2Client();
+    await expect(
+      uploadAnimalPhoto(client, path, ANIMAL_ID, IDS, DIMENSIONS, ATTENTION),
+    ).rejects.toThrow(/over 50 megapixels \(3561 × 14041\)/);
+    expect(puts).toEqual([]);
+  });
+
+  it("lets exactly 50 MP past the header check: the same garbage then fails to decode", async () => {
+    const path = fileOf("at-limit.png", pngClaiming(5000, 10_000));
+    const { client } = fakeR2Client();
+    const failure = await uploadAnimalPhoto(
+      client,
+      path,
+      ANIMAL_ID,
+      IDS,
+      DIMENSIONS,
+      ATTENTION,
+    ).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    expect(failure).toBeInstanceOf(Error);
+    expect(String(failure)).not.toMatch(/megapixels|several pages/);
+  });
+
+  it("accepts a 24 MP camera photo (6000 × 4000) and scales its source to 2000 px", async () => {
+    const path = await syntheticFile(6000, 4000);
+    const { client, puts } = fakeR2Client();
+    const { source } = await uploadAnimalPhoto(
+      client,
+      path,
+      ANIMAL_ID,
+      IDS,
+      { width: 6000, height: 4000 },
+      ATTENTION,
+    );
+    expect([source.width, source.height]).toEqual([2000, 1333]);
+    expect(puts).toHaveLength(Object.keys(IMAGE_VARIANTS).length * 2 + 1);
   });
 });
 

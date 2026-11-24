@@ -254,7 +254,10 @@ This script takes any file sharp can decode. The kabinet is stricter: JPEG, PNG 
 (ask for a JPG). You don't supply width/height - the script reads the real file for its
 actual dimensions, both in dry run and `--commit`. A missing file or one
 sharp can't decode (wrong format, corrupted download) fails immediately,
-before anything is uploaded or written, with the file path in the error.
+before anything is uploaded or written, with the file path in the error. So
+does an animated or multi-page file (as in the kabinet) or one over 50
+megapixels (the kabinet allows 2000 × 2000; the script scales large originals
+down, so its limit is looser), both read from the header before any decode.
 
 Uploading only happens on `--commit` - the dry run validates that every
 photo file exists and is readable, and that its frame (if any) can be cut, and

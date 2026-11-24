@@ -1,3 +1,4 @@
+import { crc32 } from "node:zlib";
 import sharp from "sharp";
 
 /**
@@ -33,4 +34,43 @@ export async function imageFactsOf(
     format: meta.format,
     hasMetadata: meta.exif !== undefined || meta.xmp !== undefined || meta.iptc !== undefined,
   };
+}
+
+/** An animated WebP of `frames` small frames: its header reports `pages`, a still one none. */
+export async function animatedWebp(frames: number): Promise<Buffer> {
+  const pngs = await Promise.all(
+    Array.from({ length: frames }, (_, i) =>
+      sharp({
+        create: { width: 40, height: 30, channels: 3, background: { r: i * 60, g: 0, b: 0 } },
+      })
+        .png()
+        .toBuffer(),
+    ),
+  );
+  return sharp(pngs, { join: { animated: true } })
+    .webp()
+    .toBuffer();
+}
+
+/** A PNG whose header claims any size around a few bytes of garbage pixel data, so it can lie. */
+export function pngClaiming(width: number, height: number): Buffer {
+  const chunk = (type: string, data: Buffer) => {
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const typed = Buffer.concat([Buffer.from(type, "latin1"), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(typed));
+    return Buffer.concat([length, typed, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr.writeUInt8(8, 8); // bit depth
+  ihdr.writeUInt8(2, 9); // colour type: RGB
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", ihdr),
+    chunk("IDAT", Buffer.from([0x78, 0x9c, 0xde, 0xad, 0xbe, 0xef])),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
 }
