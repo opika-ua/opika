@@ -18,7 +18,7 @@
  */
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ShelterId } from "@opika/domain";
+import { maskEmailAddress, type ShelterId } from "@opika/domain";
 import { and, inArray, or, type SQL, sql } from "drizzle-orm";
 import postgres from "postgres";
 import { createDatabaseWithClient, type Database } from "./client";
@@ -121,12 +121,8 @@ export async function legacyInvitedShelters(db: Database): Promise<LegacyShelter
   });
 }
 
-/** «o***@example.org»: enough to recognise an address on the owner's list, no more. */
-export function maskEmail(email: string): string {
-  const at = email.lastIndexOf("@");
-  if (at <= 0) return "***";
-  return `${email.slice(0, 1)}***${email.slice(at)}`;
-}
+/** The site's one mask (D5), on the owner's list: enough to recognise an address, no more. */
+export const maskEmail = (email: string): string => maskEmailAddress(email);
 
 export type LegacyDeletion =
   | { kind: "deleted"; count: number; inviteesErased: number }

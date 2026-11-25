@@ -44,6 +44,13 @@ const samples: Record<RegistrationEmail["template"], RegistrationEmail> = {
     queueUrl: "https://opika.org.ua/kabinet/prytulky",
   },
   notification_cap_warning: { template: "notification_cap_warning", count: 240, cap: 300 },
+  login_email_changed: {
+    template: "login_email_changed",
+    shelterName: HOSTILE_NAME,
+    maskedEmail: "u•••9@example.org",
+    contact: "hello@example.org",
+    operatorName: "Олексій Колотенко",
+  },
 };
 
 describe("safeSubject (header injection, §11.3)", () => {
@@ -70,7 +77,7 @@ describe("registrationEmailFor", () => {
     });
   }
 
-  it.each(["application_confirm", "operator_new_application"] as const)(
+  it.each(["application_confirm", "operator_new_application", "login_email_changed"] as const)(
     "%s: the name in the body is escaped, not dropped",
     async (template) => {
       expect((await registrationEmailFor(samples[template], TO)).html).toContain("&lt;script&gt;");

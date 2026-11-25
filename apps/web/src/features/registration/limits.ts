@@ -1,5 +1,6 @@
 import { attemptOf } from "../../api/limit-outcome";
 import { type RateLimiter, sharedRateLimiter } from "../../api/rate-limit";
+import { retryAfterSecondsOf } from "../../api/retry-after";
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -70,6 +71,22 @@ export async function firstLimit(
     if (outcome === "unavailable") return { kind: "unavailable" };
   }
   return { kind: "ok" };
+}
+
+/** A budget's answer for a form: allowed, a limit reached with its wait, or a store that's down. */
+export type Allowance =
+  | { kind: "ok" }
+  | { kind: "limited"; retryAfterSeconds: number }
+  | { kind: "unavailable" };
+
+export async function allowanceOf(
+  limiters: readonly RateLimiter[],
+  key: string,
+  now: Date,
+): Promise<Allowance> {
+  const limit = await firstLimit(limiters, key, now);
+  if (limit.kind === "ok" || limit.kind === "unavailable") return limit;
+  return { kind: "limited", retryAfterSeconds: retryAfterSecondsOf(limit.by, key, now) };
 }
 
 /** Charges each limiter in order and answers the first that refuses (later ones aren't charged). */

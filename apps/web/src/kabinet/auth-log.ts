@@ -3,8 +3,8 @@ import {
   runWithEndpointContext,
   tryGetCurrentAuthEndpointContext,
 } from "@better-auth/core/context";
+import { maskEmailAddress } from "@opika/domain";
 import { APIError, isAPIError } from "better-auth/api";
-import { maskAddress } from "./email-senders";
 import { errorClassNameOf } from "./error-class-name";
 import { field, stringField } from "./fields";
 import { sqlStateOf } from "./sql-state";
@@ -51,13 +51,13 @@ const IDENTIFIER = /^(?:[a-z]+(?:_(?:[a-z]+|[0-9]+))+|[A-Z]+(?:_(?:[A-Z]+|[0-9]+
 const TOKEN_SHAPED = (run: string): boolean =>
   !IDENTIFIER.test(run) && (run.length >= 20 || (/[0-9]/.test(run) && /[A-Za-z]/.test(run)));
 
-/** An address masked as `maskAddress` does, decoded first if it came URL-encoded. */
+/** An address masked as `maskEmailAddress` does, decoded first if it came URL-encoded. */
 const maskedAddress = (raw: string): string => {
   const match = raw.replace(/＠/g, "@").replace(/%2540/gi, "%40");
   try {
-    return maskAddress(decodeURIComponent(match));
+    return maskEmailAddress(decodeURIComponent(match));
   } catch {
-    return maskAddress(match.replace(/%40/gi, "@"));
+    return maskEmailAddress(match.replace(/%40/gi, "@"));
   }
 };
 
@@ -82,7 +82,7 @@ const withoutQuery = (url: string) => url.replace(/[?#].*$/, "");
 /**
  * Text Better Auth composed for a log line, masked (PW1-F8): Drizzle's "params:" part cut off,
  * whatever its case (a failed query's message carries its parameters there, the address among
- * them), a URL's query dropped, an address reduced to `o•••@example.org` (`maskAddress`), also
+ * them), a URL's query dropped, an address reduced to `o•••@example.org` (`maskEmailAddress`), also
  * when URL-encoded, and anything token-shaped (`TOKEN_SHAPED`) replaced by «•••». Better Auth's own messages are fixed text; what this guards is a value
  * interpolated into one.
  */

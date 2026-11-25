@@ -3,11 +3,19 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { cityRepo } from "../src/repos/city-repo";
 import {
+  type LoginEmailChangeWrite,
   type RegistrationTokenPair,
   type SelfRegistrationWrite,
   selfRegistrationRepo,
 } from "../src/repos/self-registration-repo";
-import { authAccount, authMember, authOrganization, authUser } from "../src/schema/auth";
+import {
+  authAccount,
+  authMember,
+  authOrganization,
+  authSession,
+  authUser,
+  authVerification,
+} from "../src/schema/auth";
 import { registrationEmailTokens } from "../src/schema/registration-email-tokens";
 import { shelterHistory } from "../src/schema/shelter-history";
 import { shelters } from "../src/schema/shelters";
@@ -295,5 +303,191 @@ describe("the confirmation links", () => {
       status: "application",
     });
     expect(await selfRegistrationRepo(db).applicationOf(crypto.randomUUID())).toBeNull();
+  });
+});
+
+describe("selfRegistrationRepo.changeLoginEmail", () => {
+  const HASHED = "A".repeat(43);
+  const magicLinkValue = (email: string) =>
+    JSON.stringify({ type: "magic-link", email, name: "", attempt: 0 });
+
+  /** A registrant with two sessions, a used and an unused pair, a reset link and magic links. */
+  async function registrant(email = "olena@example.org") {
+    const input = registration(email, "old");
+    const repo = selfRegistrationRepo(db);
+    await repo.register(input);
+    await repo.issueTokens(input.userId, tokens("old2"));
+    await repo.useToken("not_me", "notme-old2", LATER);
+    const session = (id: string) => ({
+      id,
+      token: `token-${id}`,
+      userId: input.userId,
+      expiresAt: new Date(NOW.getTime() + DAY),
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    const here = crypto.randomUUID();
+    const elsewhere = crypto.randomUUID();
+    await db.insert(authSession).values([session(here), session(elsewhere)]);
+    const verification = (identifier: string, value: string) => ({
+      id: crypto.randomUUID(),
+      identifier,
+      value,
+      expiresAt: new Date(NOW.getTime() + DAY),
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db
+      .insert(authVerification)
+      .values([
+        verification(HASHED, input.userId),
+        verification(`magic-link:${"B".repeat(43)}`, magicLinkValue(email)),
+        verification("C".repeat(43), crypto.randomUUID()),
+        verification(`magic-link:${"D".repeat(43)}`, magicLinkValue("someone@example.org")),
+      ]);
+    return { input, here, elsewhere };
+  }
+
+  const change = (
+    of: Awaited<ReturnType<typeof registrant>>,
+    overrides: Partial<LoginEmailChangeWrite> = {},
+  ): LoginEmailChangeWrite => ({
+    userId: of.input.userId,
+    from: of.input.email,
+    to: "new-address@example.org",
+    passwordHash: "scrypt-hash-stand-in",
+    keepSessionId: of.here,
+    history: {
+      id: crypto.randomUUID(),
+      entry: {
+        kind: "login_email_changed",
+        at: LATER,
+        by: { kind: "self", shelterAdminId: of.input.userId as ShelterAdminId },
+      },
+    },
+    tokens: tokens("new", new Date(LATER.getTime() + 14 * DAY)),
+    now: LATER,
+    ...overrides,
+  });
+
+  async function snapshot(userId: string) {
+    const [user] = await db.select().from(authUser).where(eq(authUser.id, userId));
+    return {
+      email: user?.email,
+      lines: (await db.select().from(shelterHistory)).map((row) => row.kind).sort(),
+      tokens: (await db.select().from(registrationEmailTokens))
+        .map((row) => `${row.tokenHash}:${row.usedAt === null ? "unused" : "used"}`)
+        .sort(),
+      sessions: (await db.select().from(authSession)).map((row) => row.id).sort(),
+      verifications: (await db.select().from(authVerification)).length,
+    };
+  }
+
+  it("changes the address with every statement: line, links, sessions, reset and magic links", async () => {
+    const of = await registrant();
+    const write = change(of);
+    expect(await selfRegistrationRepo(db).changeLoginEmail(write)).toEqual({ kind: "changed" });
+
+    const after = await snapshot(of.input.userId);
+    expect(after.email).toBe("new-address@example.org");
+    expect(after.lines).toEqual(["login_email_changed", "shelter_registered"]);
+    // Every unused link of both purposes is gone; the used one stays; the new pair is live.
+    expect(after.tokens).toEqual(["confirm-new:unused", "notme-new:unused", "notme-old2:used"]);
+    expect(after.sessions).toEqual([of.here]);
+    // The reset link and the old address's magic link go; another user's rows stay.
+    const left = await db.select().from(authVerification);
+    expect(left.map((row) => row.identifier).sort()).toEqual([
+      "C".repeat(43),
+      `magic-link:${"D".repeat(43)}`,
+    ]);
+
+    const [line] = await db
+      .select()
+      .from(shelterHistory)
+      .where(eq(shelterHistory.id, write.history.id));
+    expect(line?.shelterId).toBe(of.input.shelter.id);
+    expect(JSON.stringify(line?.entry)).not.toContain("@");
+  });
+
+  it("an old link is unusable after the change, and the new one confirms", async () => {
+    const of = await registrant();
+    const repo = selfRegistrationRepo(db);
+    await repo.changeLoginEmail(change(of));
+    expect(await repo.confirmEmail("confirm-old", LATER)).toEqual({ kind: "unusable" });
+    expect(await repo.useToken("not_me", "notme-old", LATER)).toBe(false);
+    expect(await repo.confirmEmail("confirm-new", LATER)).toMatchObject({
+      kind: "confirmed",
+      application: { email: "new-address@example.org" },
+    });
+  });
+
+  it("the operator path keeps no session", async () => {
+    const of = await registrant();
+    await selfRegistrationRepo(db).changeLoginEmail(
+      change(of, { keepSessionId: null, passwordHash: null }),
+    );
+    expect((await snapshot(of.input.userId)).sessions).toEqual([]);
+  });
+
+  it("a verified address changes nothing and writes no line", async () => {
+    const of = await registrant();
+    await db.update(authUser).set({ emailVerified: true }).where(eq(authUser.id, of.input.userId));
+    const before = await snapshot(of.input.userId);
+    expect(await selfRegistrationRepo(db).changeLoginEmail(change(of))).toEqual({
+      kind: "not_needed",
+    });
+    expect(await snapshot(of.input.userId)).toEqual(before);
+  });
+
+  it("a decided application changes nothing", async () => {
+    const of = await registrant();
+    await db
+      .update(shelters)
+      .set({ verificationStatus: "pending" })
+      .where(eq(shelters.id, of.input.shelter.id));
+    const before = await snapshot(of.input.userId);
+    expect(await selfRegistrationRepo(db).changeLoginEmail(change(of))).toEqual({
+      kind: "not_needed",
+    });
+    expect(await snapshot(of.input.userId)).toEqual(before);
+  });
+
+  it("an address changed meanwhile changes nothing", async () => {
+    const of = await registrant();
+    const before = await snapshot(of.input.userId);
+    expect(
+      await selfRegistrationRepo(db).changeLoginEmail(change(of, { from: "stale@example.org" })),
+    ).toEqual({ kind: "not_needed" });
+    expect(await snapshot(of.input.userId)).toEqual(before);
+  });
+
+  it("a password changed since the verify (hash moved) changes nothing", async () => {
+    const of = await registrant();
+    await db
+      .update(authAccount)
+      .set({ password: "a-newer-hash" })
+      .where(eq(authAccount.userId, of.input.userId));
+    const before = await snapshot(of.input.userId);
+    expect(await selfRegistrationRepo(db).changeLoginEmail(change(of))).toEqual({
+      kind: "wrong_password",
+    });
+    expect(await snapshot(of.input.userId)).toEqual(before);
+  });
+
+  it("a taken address is email_taken from the unique index, and nothing is written", async () => {
+    const of = await registrant();
+    await selfRegistrationRepo(db).register(registration("new-address@example.org", "other"));
+    const before = await snapshot(of.input.userId);
+    expect(await selfRegistrationRepo(db).changeLoginEmail(change(of))).toEqual({
+      kind: "email_taken",
+    });
+    expect(await snapshot(of.input.userId)).toEqual(before);
+  });
+
+  it("credentialHashOf reads the password hash, or null without one", async () => {
+    const of = await registrant();
+    const repo = selfRegistrationRepo(db);
+    expect(await repo.credentialHashOf(of.input.userId)).toBe("scrypt-hash-stand-in");
+    expect(await repo.credentialHashOf(crypto.randomUUID())).toBeNull();
   });
 });

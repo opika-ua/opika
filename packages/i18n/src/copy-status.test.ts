@@ -220,7 +220,7 @@ describe("kabinet copy status (final, 2026-10-14; the over-limit notice 2026-10-
         "whatBeforeVerification",
       ],
       registry: ["tellPersonally"],
-      history: ["adminJoined", "adminJoinedErased", "premisesFosterHomes"],
+      history: ["adminJoined", "adminJoinedErased", "loginEmailChanged", "premisesFosterHomes"],
     });
   });
 

@@ -188,7 +188,7 @@ describe("legacyInvitedShelters", () => {
       "Operator-created shelters with an unaccepted invitation and no animals: 2",
     );
     expect(lines.join("\n")).not.toContain(`${a.invitationId?.slice(0, 6)}@`);
-    expect(maskEmail("olena@example.org")).toBe("o***@example.org");
+    expect(maskEmail("olena@example.org")).toBe("o•••a@example.org");
   });
 
   it("reading writes nothing", async () => {

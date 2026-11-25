@@ -20,6 +20,7 @@ export const EMAIL_TEMPLATES = [
   "invite",
   "password_reset",
   "password_changed",
+  "login_email_changed",
   "shelter_verified",
   "early_listing_allowed",
   "donation_approved",
@@ -55,6 +56,14 @@ export type EmailTemplateInput =
     }
   | { template: "password_reset"; url: string; ttlMinutes: number; operatorName: string }
   | { template: "password_changed"; contact: string; operatorName: string }
+  | {
+      /** To the old address after the login address changed: the new one masked, never in full. */
+      template: "login_email_changed";
+      shelterName: string;
+      maskedEmail: string;
+      contact: string;
+      operatorName: string;
+    }
   | { template: "shelter_verified"; shelterName: string; kabinetUrl: string; operatorName: string }
   | {
       template: "early_listing_allowed";
@@ -253,6 +262,28 @@ function shapeOf(input: EmailTemplateInput): Shape {
         blocks: [
           p(c.body),
           p(fillTemplate(c.notYou, { contact: input.contact, operator: input.operatorName })),
+        ],
+      };
+    }
+    case "login_email_changed": {
+      const c = email.loginEmailChanged;
+      return {
+        subject: c.subject,
+        lead: c.preheader,
+        recipient: "shelterAdmin",
+        blocks: [
+          p(
+            fillTemplate(c.body, {
+              shelterName: input.shelterName,
+              maskedEmail: input.maskedEmail,
+            }),
+          ),
+          p(
+            fillTemplate(email.passwordChanged.notYou, {
+              contact: input.contact,
+              operator: input.operatorName,
+            }),
+          ),
         ],
       };
     }

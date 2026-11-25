@@ -3,7 +3,13 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { inspect } from "node:util";
 import { createDatabase, type Database } from "@opika/db";
-import { cityRepo, kabinetActorRepo, kabinetInvitationRepo, shelterRepo } from "@opika/db/repos";
+import {
+  cityRepo,
+  kabinetActorRepo,
+  kabinetInvitationRepo,
+  selfRegistrationRepo,
+  shelterRepo,
+} from "@opika/db/repos";
 import {
   authAccount,
   authInvitation,
@@ -29,6 +35,7 @@ import {
 import {
   type ModeratorId,
   publicLocationOf,
+  type ShelterAdminId,
   type ShelterId,
   testOnlyLocationPolicy,
 } from "@opika/domain";
@@ -52,6 +59,11 @@ import { capturingSender } from "../src/kabinet/magic-link-sender";
 import { generousPasswordLimiters } from "../src/kabinet/password-limits";
 import { capturingPasswordMail } from "../src/kabinet/password-mail";
 import { kabinetIdentityOf } from "../src/kabinet/principal";
+import { changeLoginEmailWith } from "../src/kabinet/registration/change-login-email";
+import {
+  hashRegistrationToken,
+  newRegistrationToken,
+} from "../src/kabinet/registration/registration-links";
 import { handleKabinetRpc } from "../src/kabinet/rpc-route";
 import { roomyCitySearch } from "../src/kabinet/test-city-search";
 
@@ -119,6 +131,10 @@ import { roomyCitySearch } from "../src/kabinet/test-city-search";
  *      (`kabinetDbOver(db)`, the rule `kabinetDb()` applies to the served database): the principal and the
  *      password status for step 19's signed-in user, then a relational read Postgres refuses
  *      (`22P02`), which comes back cleaned: name and SQLSTATE, no message, parameters or SQL.
+ *   21-23. An unconfirmed registrant changes the login address (owner, 2026-11-25): signed in
+ *      with the password on two devices, the change from the first (our batch, Better Auth's
+ *      verify of the password). Then the new address signs in and the old one is refused, the
+ *      second device's get-session answers null, and the first still reads, now the new address.
  *
  * Nothing is sent anywhere: the magic link is captured in memory, never
  * printed. Refuses unless the target's compute is exactly `--expect`, and
@@ -1125,6 +1141,133 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
       refusedFacts.noText &&
       refusedFacts.noValues,
     `principal ${pagePrincipal}, password set ${pagePassword}; refused read ${refusedFacts.name} ${refusedFacts.code}, no message text ${refusedFacts.noText}, no values or SQL ${refusedFacts.noValues}`,
+  );
+
+  // 21-23. The login-email change, signed in with the password on two devices.
+  const registrantId = randomUUID();
+  const registrantPassword = `smoke-${randomUUID()}`;
+  const oldAddress = `auth-smoke-registrant-${tag}@example.invalid`;
+  const newAddress = `auth-smoke-registrant-new-${tag}@example.invalid`;
+  const applicationShelter = makeShelter({
+    id: randomUUID() as ShelterId,
+    displayName: `Auth smoke application ${tag}`,
+    publicLocation: { precision: "city", cityId: city.id, district: null },
+    verification: {
+      status: "application",
+      appliedAt: now,
+      evidence: {
+        items: [{ kind: "public_link", url: "https://www.instagram.com/auth_smoke/" }],
+        submittedAt: now,
+      },
+    },
+  });
+  const linkExpiry = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  await selfRegistrationRepo(db).register({
+    userId: registrantId,
+    email: oldAddress,
+    accountId: randomUUID(),
+    passwordHash: await (await auth.$context).password.hash(registrantPassword),
+    organizationId: randomUUID(),
+    memberId: randomUUID(),
+    shelter: { ...applicationShelter, legalEntity: null, premises: { kind: "not_recorded" } },
+    history: {
+      id: randomUUID(),
+      entry: {
+        kind: "shelter_registered",
+        at: now,
+        shelterAdminId: registrantId as ShelterAdminId,
+      },
+    },
+    tokens: [
+      {
+        tokenHash: hashRegistrationToken(newRegistrationToken()),
+        purpose: "confirm_email",
+        expiresAt: linkExpiry,
+      },
+      {
+        tokenHash: hashRegistrationToken(newRegistrationToken()),
+        purpose: "not_me",
+        expiresAt: linkExpiry,
+      },
+    ],
+    now,
+  });
+  const signInAs = async (address: string) => {
+    const result = await inviteCredentialsOf(auth, BASE, new Headers()).signIn(
+      address,
+      registrantPassword,
+    );
+    return result.kind === "signed_in"
+      ? result.setCookies.map((cookie) => cookie.split(";")[0]).join("; ")
+      : null;
+  };
+  const readSession = async (cookie: string) => {
+    const response = await auth.handler(
+      new Request(`${BASE}/api/auth/get-session`, { headers: { cookie, origin: BASE } }),
+    );
+    return (await response.json().catch(() => null)) as {
+      session?: { id?: string };
+      user?: { email?: string };
+    } | null;
+  };
+  const thisDevice = (await signInAs(oldAddress)) ?? "";
+  const otherDevice = (await signInAs(oldAddress)) ?? "";
+  const thisSessionId = (await readSession(thisDevice))?.session?.id ?? "";
+  let mailed = 0;
+  const changedTo = await changeLoginEmailWith(
+    {
+      enabled: true,
+      caller: { userId: registrantId, sessionId: thisSessionId },
+      now: new Date(),
+      allowUser: async () => ({ kind: "ok" }),
+      allowAddress: async () => ({ kind: "ok" }),
+      takeDailyMail: async () => true,
+      verifyPassword: async (hash, password) =>
+        (await auth.$context).password.verify({ hash, password }),
+      repo: selfRegistrationRepo(db),
+      newId: () => randomUUID(),
+      newToken: newRegistrationToken,
+      hashToken: hashRegistrationToken,
+      // Nothing is sent from a smoke: both emails are counted only.
+      sendConfirmation: async () => {
+        mailed += 1;
+        return "sent";
+      },
+      sendNotice: async () => {
+        mailed += 1;
+        return "sent";
+      },
+      schedule: (work) => {
+        scheduled.push(work());
+      },
+      log: () => undefined,
+    },
+    { email: newAddress, password: registrantPassword },
+  );
+  await Promise.all(scheduled);
+  const newSignIn = await signInAs(newAddress);
+  const oldSignIn = await signInAs(oldAddress);
+  check(
+    "login email change: the new address signs in, the old one is refused",
+    thisDevice !== "" &&
+      otherDevice !== "" &&
+      changedTo.kind === "changed" &&
+      mailed === 2 &&
+      newSignIn !== null &&
+      oldSignIn === null,
+    `change ${changedTo.kind}, emails counted ${mailed}, new address signs in ${newSignIn !== null}, old address refused ${oldSignIn === null}`,
+  );
+  const otherRead = await readSession(otherDevice);
+  check(
+    "login email change: the other device's session ends (get-session null)",
+    otherDevice !== "" && otherRead === null,
+    `other device session ${otherRead === null ? "ended" : "still live"}`,
+  );
+  const thisRead = await readSession(thisDevice);
+  check(
+    "login email change: the changing session stays and reads the new address",
+    thisRead?.session?.id === thisSessionId && thisRead.user?.email === newAddress,
+    `this device session kept ${thisRead?.session?.id === thisSessionId}, reads the new address ${thisRead?.user?.email === newAddress}`,
   );
   return out;
 }

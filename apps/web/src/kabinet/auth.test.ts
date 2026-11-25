@@ -283,7 +283,7 @@ describe("magic-link sign-in", () => {
     expect(answers[2]).toEqual(answers[0]);
     expect(delivered.map((email) => email.to)).toEqual(["known@example.org"]);
     expect(logged).toEqual([
-      "[kabinet] sign-in email to b•••@example.org not sent: blocked (unsubscribed)",
+      "[kabinet] sign-in email to b•••d@example.org not sent: blocked (unsubscribed)",
     ]);
   });
 

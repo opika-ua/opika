@@ -72,7 +72,7 @@ describe("invitePasswordLandingOf: the link's page", () => {
     expect(await invitePasswordLandingOf(token, { lookup, now: NOW })).toEqual({
       kind: "form",
       shelterName: "Притулок «Ліс»",
-      maskedEmail: "o•••@example.org",
+      maskedEmail: "o•••a@example.org",
     });
     for (const bad of ["", "short", `${token}x`, `${token.slice(0, 42)}=`]) {
       expect(await invitePasswordLandingOf(bad, { lookup, now: NOW })).toEqual({

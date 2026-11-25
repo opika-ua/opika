@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
 import type { InviteTokenRow } from "@opika/db/repos";
+import { maskEmailAddress } from "@opika/domain";
 import { attemptOf } from "../api/limit-outcome";
 import type { RateLimiter } from "../api/rate-limit";
 import { ipRateLimitKey } from "../api/rate-limit-key";
 import type { KabinetAuth } from "./auth";
-import { maskAddress } from "./email-senders";
 import { forwardedClientHeaders } from "./forwarded-client-headers";
 import type { AcceptInvitation } from "./invitation-accept";
 import { shelterPasswordVerdictOf } from "./password-checks";
@@ -90,7 +90,7 @@ export async function invitePasswordLandingOf(
   if (!INVITE_TOKEN.test(token)) return UNUSABLE;
   const state = invitePasswordStateOf(await deps.lookup(token), deps.now);
   return state.kind === "usable"
-    ? { kind: "form", shelterName: state.shelterName, maskedEmail: maskAddress(state.email) }
+    ? { kind: "form", shelterName: state.shelterName, maskedEmail: maskEmailAddress(state.email) }
     : UNUSABLE;
 }
 

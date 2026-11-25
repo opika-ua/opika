@@ -118,6 +118,11 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
     kind: "not_me_after_approval",
     at: new Date("2026-10-09T00:00:00.000Z"),
   },
+  login_email_changed: {
+    kind: "login_email_changed",
+    at: new Date("2026-10-09T00:00:00.000Z"),
+    by: { kind: "self", shelterAdminId: ADMIN.shelterAdminId },
+  },
   admin_invited: {
     kind: "admin_invited",
     at: new Date("2026-10-10T00:00:00.000Z"),
@@ -472,6 +477,7 @@ describe("historyEntryAt", () => {
         "2026-10-07",
         "2026-10-08",
         "2026-10-08",
+        "2026-10-09",
         "2026-10-09",
         "2026-10-09",
         "2026-10-09",

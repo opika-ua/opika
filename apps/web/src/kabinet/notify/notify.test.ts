@@ -240,7 +240,7 @@ describe("notifyAfterWrite: sent once, never throws", () => {
     expect(sent).toEqual([]);
     expect((await sendRows()).map((row) => row.status)).toEqual(["failed"]);
     expect(deps.logs).toHaveLength(1);
-    expect(deps.logs[0]).toContain("p•••@example.org");
+    expect(deps.logs[0]).toContain("p•••n@example.org");
     expect(deps.logs[0]).not.toContain("person@");
     expect(deps.logs[0]).toContain("approved");
   });

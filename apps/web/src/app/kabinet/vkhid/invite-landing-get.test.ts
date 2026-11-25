@@ -176,7 +176,7 @@ describe("the invitation link's GET (PW-2 Q1)", () => {
     const tree = await rendered(token);
     expect(tree).toContain('"fn:SetPasswordCard"');
     expect(tree).toContain('"shelterName":"Притулок «Ліс»"');
-    expect(tree).toContain('"maskedEmail":"o•••@example.org"');
+    expect(tree).toContain('"maskedEmail":"o•••a@example.org"');
     expect(tree).not.toContain("olena@example.org");
   });
 

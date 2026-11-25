@@ -66,7 +66,7 @@ describe("registrationViewerOf: who /prytulkam's card is for", () => {
     const { deps, getSession } = depsWith();
     expect(await registrationViewerOf(true, deps)).toEqual({
       kind: "shelter",
-      maskedEmail: "o•••@example.org",
+      maskedEmail: "o•••a@example.org",
     });
     expect(getSession).toHaveBeenCalledOnce();
     expect(getSession.mock.calls[0]?.[0]).toMatchObject({ query: { disableRefresh: true } });

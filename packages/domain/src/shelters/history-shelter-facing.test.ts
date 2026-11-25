@@ -118,6 +118,11 @@ const ENTRIES: Record<ShelterHistoryKind, ShelterHistoryEntry> = {
   shelter_created: { kind: "shelter_created", at: AT, moderatorId: MOD, via: "script" },
   shelter_registered: { kind: "shelter_registered", at: AT, shelterAdminId: ADMIN_ID },
   not_me_after_approval: { kind: "not_me_after_approval", at: AT },
+  login_email_changed: {
+    kind: "login_email_changed",
+    at: AT,
+    by: { kind: "operator", moderatorId: MOD, reason: "Заявник написав з іншої адреси" },
+  },
   admin_invited: { kind: "admin_invited", at: AT, moderatorId: MOD, email: "olena@example.org" },
   admin_invitation_resent: {
     kind: "admin_invitation_resent",
@@ -292,6 +297,24 @@ describe("shelterFacingHistoryOf", () => {
       .filter((entry) => shelterFacingHistoryOf(entry, OPERATOR) === null)
       .map((entry) => entry.kind);
     expect(hidden.sort()).toEqual([...OPERATOR_ONLY].sort());
+  });
+
+  /** D6: that the login address changed and who did it; no address, never the operator's reason. */
+  it("login_email_changed: the actor only, no reason and no address at any depth", () => {
+    const byOperator = facing(ENTRIES.login_email_changed, OPERATOR);
+    expect(byOperator).toEqual({
+      kind: "login_email_changed",
+      at: AT,
+      actor: { kind: "operator", displayName: OPERATOR },
+    });
+    expect(JSON.stringify(byOperator)).not.toContain("Заявник");
+    expect(keysAtAnyDepth(byOperator)).not.toContain("reason");
+    const bySelf = facing(
+      { kind: "login_email_changed", at: AT, by: { kind: "self", shelterAdminId: ADMIN_ID } },
+      OPERATOR,
+    );
+    expect(bySelf).toEqual({ kind: "login_email_changed", at: AT, actor: { kind: "shelter" } });
+    for (const item of [byOperator, bySelf]) expect(JSON.stringify(item)).not.toContain("@");
   });
 
   /**

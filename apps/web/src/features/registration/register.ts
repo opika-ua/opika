@@ -27,6 +27,7 @@ import {
   type RegistrationFormState,
   type RegistrationValues,
 } from "./form-state";
+import type { Allowance } from "./limits";
 
 /** The confirmation links are good for 14 days, the abandoned-application window (D8). */
 export const REGISTRATION_LINK_TTL_MS = 14 * 24 * 60 * 60 * 1000;
@@ -46,10 +47,7 @@ export type RegisteredApplication = {
 };
 
 /** A budget's answer: `unavailable` is a store that couldn't be asked (owner, 2026-11-20). */
-export type Allowance =
-  | { kind: "ok" }
-  | { kind: "limited"; retryAfterSeconds: number }
-  | { kind: "unavailable" };
+export type { Allowance } from "./limits";
 
 export type RegisterDeps = {
   now: Date;

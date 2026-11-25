@@ -109,6 +109,8 @@ export { type RevealBudget, type RevealInsertOutcome, revealRepo } from "./revea
 export {
   type ApplicationSummary,
   type EmailConfirmOutcome,
+  type LoginEmailChangeOutcome,
+  type LoginEmailChangeWrite,
   type RegistrantApplication,
   type RegistrationTokenPair,
   type RegistrationTokenPurpose,

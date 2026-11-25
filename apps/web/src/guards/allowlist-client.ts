@@ -117,6 +117,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/kabinet/password/NewPasswordFields.tsx": "two controlled password inputs",
   "features/kabinet/registration/ResendConfirmationButton.tsx":
     "resend press: pending state and the answer beside the button",
+  "features/kabinet/registration/ConfirmEmailActions.tsx":
+    "«Змінити пошту»: the form's open state, its fields and each answer",
   "features/kabinet/registration/EmailLinkCard.tsx":
     "email-link pages: useActionState for the button's answer, token strip",
   "features/kabinet/password/ResetPasswordCard.tsx": "reset form, token strip",

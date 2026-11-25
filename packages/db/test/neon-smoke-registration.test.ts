@@ -13,10 +13,10 @@ describe("runRegistrationSmoke against the local database", () => {
   });
   afterAll(async () => cleanup?.());
 
-  it("passes every check, and there are 11", async () => {
+  it("passes every check, and there are 19", async () => {
     const outcomes = await runRegistrationSmoke(db);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes).toHaveLength(11);
+    expect(outcomes).toHaveLength(19);
   });
 
   it("passes the same over a driver whose raw results are `{ rows }`", async () => {

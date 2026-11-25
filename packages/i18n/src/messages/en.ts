@@ -742,6 +742,18 @@ export const en = {
       confirmEmail:
         "Confirm your email – I sent a message to {email}. Without it I can't approve the shelter.",
       confirmEmailResend: "Send again",
+      changeEmail: {
+        action: "Change email",
+        title: "New sign-in email",
+        emailLabel: "Email",
+        hint: "The confirmation email goes to the new address. You will sign in with it from now on.",
+        submit: "Change and send the email",
+        done: "I sent an email to {email}.",
+        sameEmail: "That's the same address.",
+        unavailable: "Couldn't change the email right now. Try again in a few minutes.",
+        failed: "Couldn't change the email. Try again or write to me.",
+        sentFailed: "The email address changed, but the email didn't go out – press “Send again”.",
+      },
       approved: "The shelter is approved. You can publish animals now.",
       approvedNoContact: "The shelter is approved. To publish animals, add a contact.",
       approvedClose: "Close",
@@ -1548,6 +1560,11 @@ export const en = {
         expiry: `The link works once and expires in {minutes} min.`,
         notYou: `If you didn't make this request, just ignore this email: your password stays the same.\n{operator}`,
       },
+      loginEmailChanged: {
+        subject: "Shelter dashboard: sign-in email changed",
+        preheader: "Sign-in address changed",
+        body: "The sign-in address for the “{shelterName}” dashboard was changed to {maskedEmail}.",
+      },
       passwordChanged: {
         subject: `Shelter dashboard: password changed`,
         body: `The password to the shelter's dashboard for this address has just been changed. Other devices have been signed out.`,
@@ -1653,6 +1670,7 @@ export const en = {
       adminJoined: `{email} now has access to the dashboard`,
       adminJoinedErased: `Dashboard access opened: address deleted`,
       premisesFosterHomes: "Marked: the animals live in foster homes, no premises",
+      loginEmailChanged: "Sign-in email changed",
     },
     /** R-UI, the operator's screens: the English sense of uk.ts's final Ukrainian (2026-10-17). */
     operator: {

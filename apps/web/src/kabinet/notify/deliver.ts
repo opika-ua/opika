@@ -1,7 +1,8 @@
 import type { Database } from "@opika/db";
 import { type NotificationRecipient, notificationSendsRepo } from "@opika/db/repos";
+import { maskEmailAddress } from "@opika/domain";
 import { ProviderSendError } from "../email-provider";
-import { maskAddress, type ProviderMail, sendChecked } from "../email-senders";
+import { type ProviderMail, sendChecked } from "../email-senders";
 import { nearCapAt, sendNearCapAlarm } from "./cap-alarm";
 import { type ComposeContext, composeNotification } from "./compose";
 import { kyivDayStartOf } from "./day";
@@ -136,12 +137,12 @@ export async function sendClaimed(
       status = "sent";
     } else {
       deps.log(
-        `[kabinet] notification ${intent.kind} to ${maskAddress(recipient.email)} not sent: ${outcome.kind} (${outcome.reason})`,
+        `[kabinet] notification ${intent.kind} to ${maskEmailAddress(recipient.email)} not sent: ${outcome.kind} (${outcome.reason})`,
       );
     }
   } catch {
     deps.log(
-      `[kabinet] notification ${intent.kind} to ${maskAddress(recipient.email)} not sent: failed (compose_error)`,
+      `[kabinet] notification ${intent.kind} to ${maskEmailAddress(recipient.email)} not sent: failed (compose_error)`,
     );
   }
   const sends = notificationSendsRepo(deps.db);

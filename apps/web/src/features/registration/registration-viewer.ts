@@ -1,10 +1,10 @@
 import type { Database } from "@opika/db";
 import { kabinetActorRepo, type UserRole } from "@opika/db/repos";
+import { maskEmailAddress } from "@opika/domain";
 import { headers } from "next/headers";
 import type { KabinetAuth } from "../../kabinet/auth";
 import { kabinetAuthAvailability } from "../../kabinet/auth-route";
 import { withQueryErrorsCleaned } from "../../kabinet/clean-query-errors";
-import { maskAddress } from "../../kabinet/email-senders";
 import { kabinetDb } from "../../kabinet/kabinet-db";
 import { kabinetSessionUserOf } from "../../kabinet/principal";
 import { kabinetAuth } from "../../kabinet/runtime";
@@ -24,7 +24,7 @@ export function registrationViewerFrom(role: UserRole, email: string | null): Re
     case "super_admin":
       return { kind: "operator" };
     case "shelter_admin":
-      return { kind: "shelter", maskedEmail: email === null ? "•••" : maskAddress(email) };
+      return { kind: "shelter", maskedEmail: email === null ? "•••" : maskEmailAddress(email) };
     case "no_role":
     case "conflicting_roles":
       return { kind: "anonymous" };

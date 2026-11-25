@@ -1,10 +1,10 @@
 import type { Database } from "@opika/db";
 import { notificationSendsRepo } from "@opika/db/repos";
-import type { ApplicationRejectionReason, ShelterId } from "@opika/domain";
+import { type ApplicationRejectionReason, maskEmailAddress, type ShelterId } from "@opika/domain";
 import { fillTemplate, uk } from "@opika/i18n";
 import { emailBody } from "./email-message";
 import { type OutgoingEmail, ProviderSendError } from "./email-provider";
-import { maskAddress, type ProviderMail, sendChecked } from "./email-senders";
+import { type ProviderMail, sendChecked } from "./email-senders";
 import { safeSubject } from "./safe-subject";
 
 /**
@@ -16,6 +16,7 @@ export const REGISTRATION_EMAIL_TEMPLATES = [
   "application_confirm",
   "application_approved",
   "application_rejected",
+  "login_email_changed",
   "operator_new_application",
   "registration_cap_hit",
   "notification_cap_warning",
@@ -37,6 +38,14 @@ export type RegistrationEmail =
       reason: ApplicationRejectionReason;
       contactEmail: string;
       telegram: string;
+    }
+  | {
+      /** To the old address after the login address changed: the new one masked, never in full. */
+      template: "login_email_changed";
+      shelterName: string;
+      maskedEmail: string;
+      contact: string;
+      operatorName: string;
     }
   | {
       /** Operator only, plain: what the queue card shows, so hello@ can triage from the inbox. */
@@ -157,10 +166,12 @@ export async function sendTransactionalEmail(
     const outcome = await sendChecked(deps.mail, await registrationEmailFor(email, to));
     if (outcome.kind === "sent") status = "sent";
     else
-      deps.log(`[registration] ${email.template} to ${maskAddress(to)} not sent: ${outcome.kind}`);
+      deps.log(
+        `[registration] ${email.template} to ${maskEmailAddress(to)} not sent: ${outcome.kind}`,
+      );
   } catch (error) {
     if (error instanceof ProviderSendError && error.status === null) unanswered = true;
-    deps.log(`[registration] ${email.template} to ${maskAddress(to)} not sent: failed`);
+    deps.log(`[registration] ${email.template} to ${maskEmailAddress(to)} not sent: failed`);
   }
   if (unanswered) await sends.closeFailed(deps.now(), idempotencyKey);
   else await sends.mark(deps.now(), idempotencyKey, status);

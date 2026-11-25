@@ -87,7 +87,7 @@ function stillDue(reason: ApplicationDeletionReason, now: Date): SQL {
 }
 
 /** Better Auth's magic-link rows carry the address in a JSON value, never a user id. */
-const MAGIC_LINK_VALUE_PREFIX = '{"type":"magic-link",';
+export const MAGIC_LINK_VALUE_PREFIX = '{"type":"magic-link",';
 
 export type DueApplication = {
   shelterId: ShelterId;

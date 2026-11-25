@@ -129,8 +129,8 @@ test.describe("the invitation link sets a password (PW-2)", () => {
     expect(shown?.headers()["cache-control"] ?? "").toContain("no-store");
     expect(shown?.headers()["referrer-policy"]).toBe("strict-origin");
     await expect(page.getByRole("heading", { level: 1, name: "Створіть пароль" })).toBeVisible();
-    // The address, masked (`maskAddress`: first letter, •••, the domain), never in full.
-    await expect(page.getByText(/Адреса для входу: h•••@example\.test\./)).toBeVisible();
+    // The address, masked (`maskEmailAddress`: first and last letter, •••, the domain), never in full.
+    await expect(page.getByText(/Адреса для входу: h•••[0-9a-f]@example\.test\./)).toBeVisible();
     await expect(page.getByText(email)).toHaveCount(0);
     await expect.poll(() => page.url().includes("zaproshennia=")).toBe(false);
     expect(new URL(page.url()).pathname).toBe("/kabinet/vkhid");

@@ -231,7 +231,7 @@ describe("the password length counter, shared by the three forms", () => {
           <SetPasswordCard
             token={"A".repeat(43)}
             shelterName="Ліс"
-            maskedEmail="o•••@example.org"
+            maskedEmail="o•••a@example.org"
             accept={vi.fn(async (): Promise<SetPasswordOutcome> => ({ kind: "signed_in" }))}
             go={vi.fn()}
           />,

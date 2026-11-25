@@ -1,6 +1,7 @@
 import type { Database } from "@opika/db";
+import { maskEmailAddress } from "@opika/domain";
 import { after } from "next/server";
-import { maskAddress, type ProviderMail } from "../email-senders";
+import type { ProviderMail } from "../email-senders";
 import { kabinetDb } from "../kabinet-db";
 import { operatorDisplayName } from "../operator";
 import { notificationMailFor } from "../production-mail";
@@ -56,7 +57,7 @@ const consoleMail: ProviderMail = {
   sender: {
     async send(email) {
       // biome-ignore lint/suspicious/noConsole: development has no provider, so this line is the mail
-      console.info(`[kabinet] notification to ${maskAddress(email.to)}: ${email.subject}`);
+      console.info(`[kabinet] notification to ${maskEmailAddress(email.to)}: ${email.subject}`);
       return { status: 200, messageId: null };
     },
   },

@@ -32,6 +32,7 @@ import { capturingSender } from "../magic-link-sender";
 import { shelterPasswordVerdictOf } from "../password-checks";
 import { inMemoryDelayStore } from "../password-limits";
 import { capturingPasswordMail } from "../password-mail";
+import { type ChangeLoginEmailDeps, changeLoginEmailWith } from "./change-login-email";
 import { handleRegistrationLink, type RegistrationLinkDeps } from "./email-link-route";
 import { registrationLinkOutcomeOf } from "./email-link-runtime";
 import { hashRegistrationToken, newRegistrationToken } from "./registration-links";
@@ -39,6 +40,7 @@ import {
   confirmationDedupKey,
   type RegistrationMail,
   sendConfirmationEmail,
+  sendLoginEmailChangedNotice,
   sendOperatorNotification,
   takeDailyConfirmationMail,
 } from "./registration-mail";
@@ -621,5 +623,132 @@ describe("the email-link pages' action adapter", () => {
       status: 200,
     });
     expect(await everything()).toEqual(before);
+  });
+});
+
+describe("an unconfirmed registrant changes the login address (owner, 2026-11-25)", () => {
+  const NEW = "new-address@example.org";
+  const cookieOf = (setCookies: readonly string[]) =>
+    setCookies.map((cookie) => cookie.split(";")[0]).join("; ");
+
+  async function sessionIdOf(cookie: string): Promise<string> {
+    const session = await auth.api.getSession({ headers: new Headers({ cookie }) });
+    if (session === null) throw new Error("no session");
+    return session.session.id;
+  }
+
+  function changeDeps(userId: string, sessionId: string): ChangeLoginEmailDeps {
+    return {
+      enabled: true,
+      caller: { userId, sessionId },
+      now,
+      allowUser: async () => ({ kind: "ok" }),
+      allowAddress: async () => ({ kind: "ok" }),
+      takeDailyMail: async () => true,
+      verifyPassword: async (hash, password) =>
+        (await auth.$context).password.verify({ hash, password }),
+      repo: selfRegistrationRepo(db),
+      newId: () => crypto.randomUUID(),
+      newToken: newRegistrationToken,
+      hashToken: hashRegistrationToken,
+      sendConfirmation: (application, key) => sendConfirmationEmail(mail(), application, key),
+      sendNotice: (notice, key) => sendLoginEmailChangedNotice(mail(), notice, key),
+      schedule: () => undefined,
+      log: () => undefined,
+    };
+  }
+
+  /** Registered (this device), plus a second device signed in with the old address. */
+  async function twoDevices() {
+    const registered = await register();
+    const here = cookieOf(registered.cookies);
+    const other = await inviteCredentialsOf(auth, BASE, new Headers()).signIn(
+      "olena@example.org",
+      PASSWORD,
+    );
+    if (other.kind !== "signed_in") throw new Error("the second device did not sign in");
+    return { registered, here, elsewhere: cookieOf(other.setCookies) };
+  }
+
+  it("the old link is refused, the new one confirms, sign-in takes the new address only", async () => {
+    const { registered, here } = await twoDevices();
+    const scheduled: (() => Promise<void>)[] = [];
+    sent = [];
+    const result = await changeLoginEmailWith(
+      {
+        ...changeDeps(registered.userId, await sessionIdOf(here)),
+        schedule: (work) => {
+          scheduled.push(work);
+        },
+      },
+      { email: NEW, password: PASSWORD },
+    );
+    expect(result).toEqual({ kind: "changed", email: NEW, confirmation: "sent" });
+    for (const work of scheduled) await work();
+    expect(sent.map((email) => email.to)).toEqual([NEW, "olena@example.org"]);
+    const notice = sent[1];
+    expect(notice?.subject).toBe("Кабінет притулку: пошту для входу змінено");
+    expect(notice?.text).toContain("n•••s@example.org");
+    expect(notice?.text).not.toContain(NEW);
+
+    // The first email's link is dead; the new address's own link confirms.
+    expect((await post(CONFIRM, registered.confirmToken, BASE)).status).toBe(400);
+    expect((await post(NOT_ME, registered.notMeToken, BASE)).status).toBe(400);
+    const match = /\/kabinet\/zaiavka\/pidtverdyty\?token=([A-Za-z0-9_-]{43})/.exec(
+      sent[0]?.text ?? "",
+    );
+    expect(match?.[1]).toBeDefined();
+    expect((await post(CONFIRM, match?.[1] ?? "", BASE)).status).toBe(200);
+    const [user] = (await db.select().from(authUser)).filter((u) => u.id === registered.userId);
+    expect(user).toMatchObject({ email: NEW, emailVerified: true });
+
+    const credentials = inviteCredentialsOf(auth, BASE, new Headers());
+    expect((await credentials.signIn(NEW, PASSWORD)).kind).toBe("signed_in");
+    expect((await credentials.signIn("olena@example.org", PASSWORD)).kind).toBe("refused");
+  });
+
+  it("keeps this session and ends the other device's", async () => {
+    const { registered, here, elsewhere } = await twoDevices();
+    expect(
+      await changeLoginEmailWith(changeDeps(registered.userId, await sessionIdOf(here)), {
+        email: NEW,
+        password: PASSWORD,
+      }),
+    ).toMatchObject({ kind: "changed" });
+    const stays = await auth.api.getSession({ headers: new Headers({ cookie: here }) });
+    expect(stays?.user.email).toBe(NEW);
+    expect(await auth.api.getSession({ headers: new Headers({ cookie: elsewhere }) })).toBeNull();
+  });
+
+  it("a wrong password or a taken address changes nothing anywhere", async () => {
+    const { registered, here } = await twoDevices();
+    const sessionId = await sessionIdOf(here);
+    const before = await everything();
+    sent = [];
+    expect(
+      await changeLoginEmailWith(changeDeps(registered.userId, sessionId), {
+        email: NEW,
+        password: "не той пароль",
+      }),
+    ).toEqual({ kind: "wrong_password" });
+    expect(await everything()).toEqual(before);
+    await db.insert(authUser).values({
+      id: crypto.randomUUID(),
+      name: "Інша",
+      email: NEW,
+      emailVerified: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const withOther = await everything();
+    expect(
+      await changeLoginEmailWith(changeDeps(registered.userId, sessionId), {
+        email: NEW,
+        password: PASSWORD,
+      }),
+    ).toEqual({ kind: "email_taken" });
+    expect(await everything()).toEqual(withOther);
+    expect(withOther.users.length).toBe(before.users.length + 1);
+    expect(sent).toEqual([]);
   });
 });

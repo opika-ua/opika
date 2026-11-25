@@ -687,6 +687,7 @@ describe("every shelter-facing history variant carries exactly its listed keys (
     early_listing_revoked: ["kind", "at", "actor"],
     early_listing_lapsed: ["kind", "at"],
     shelter_created: ["kind", "at", "actor"],
+    login_email_changed: ["kind", "at", "actor"],
     admin_invited: ["kind", "at", "actor", "email"],
     admin_invitation_resent: ["kind", "at", "actor", "email"],
     admin_joined: ["kind", "at", "actor", "email"],
