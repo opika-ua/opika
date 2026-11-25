@@ -2202,7 +2202,7 @@ export const en = {
       stats:
         "The site collects basic visit statistics – how many people visit and how fast the pages load – with no advertising. For this I use Vercel Analytics, which sets no cookie.",
       errors:
-        "If something breaks on the site, only a technical description is sent to the error-tracking service Sentry (servers in the EU): the error type, the place in the code, the page address without parameters, the browser and the operating system. Contacts, email addresses, phone numbers, form contents and cookies are never sent there, and IP addresses are not stored.",
+        "If something breaks on the site, only a technical description is sent to the error-tracking service Sentry (servers in the EU): the error type, the place in the code, the page address without parameters, the browser and the operating system. Contacts, email addresses, phone numbers, form contents and cookies are never sent there, and IP addresses are not stored. If a photo can't be processed, also the file type, its size and its dimensions in pixels. I never receive the photo itself, its name or its location data.",
     },
     registration: {
       heading: "If you register a shelter",

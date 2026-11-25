@@ -1637,7 +1637,7 @@ describe("the privacy policy's text (owner-approved 2026-11-20)", () => {
     "visitors.stats":
       "Сайт збирає базову статистику відвідувань – скільки людей заходить і наскільки швидко працюють сторінки – без реклами. Для цього я використовую Vercel Analytics, який не ставить кукі.",
     "visitors.errors":
-      "Якщо на сайті стається збій, до сервісу відстеження помилок Sentry (сервери в ЄС) надсилається лише технічний опис: тип помилки, місце в коді, адреса сторінки без параметрів, браузер і система. Контакти, пошта, номери телефонів, вміст форм і кукі туди не потрапляють, а IP-адреси не зберігаються.",
+      "Якщо на сайті стається збій, до сервісу відстеження помилок Sentry (сервери в ЄС) надсилається лише технічний опис: тип помилки, місце в коді, адреса сторінки без параметрів, браузер і система. Контакти, пошта, номери телефонів, вміст форм і кукі туди не потрапляють, а IP-адреси не зберігаються. Якщо фото не вдалося обробити – ще тип файлу, його розмір і розміри в пікселях. Саме фото, його назву й дані про місце зйомки я не отримую.",
     "registration.heading": "Якщо ви реєструєте притулок",
     "registration.more":
       "Пароль зберігається лише як незворотний хеш. Підтверджену заявку я зберігаю, доки не ухвалю рішення. Якщо в листі ви натиснете «Це не я», ще не схвалену заявку буде видалено одразу; якщо її вже схвалено, я отримаю повідомлення й розберуся.",
@@ -1709,10 +1709,10 @@ describe("the privacy policy's text (owner-approved 2026-11-20)", () => {
     expect(all.join(" ")).not.toMatch(/Opika|hello@/);
   });
 
-  // H5 (Sentry): the owner's English sentence, exactly (2026-11-02).
+  // H5 (Sentry): the owner's English sentence, exactly (2026-11-02; photo sentence 2026-11-25).
   it("keeps his English Sentry sentence, word for word", () => {
     expect(en.privacy.visitors.errors).toBe(
-      "If something breaks on the site, only a technical description is sent to the error-tracking service Sentry (servers in the EU): the error type, the place in the code, the page address without parameters, the browser and the operating system. Contacts, email addresses, phone numbers, form contents and cookies are never sent there, and IP addresses are not stored.",
+      "If something breaks on the site, only a technical description is sent to the error-tracking service Sentry (servers in the EU): the error type, the place in the code, the page address without parameters, the browser and the operating system. Contacts, email addresses, phone numbers, form contents and cookies are never sent there, and IP addresses are not stored. If a photo can't be processed, also the file type, its size and its dimensions in pixels. I never receive the photo itself, its name or its location data.",
     );
   });
 });

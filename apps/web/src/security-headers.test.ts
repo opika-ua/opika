@@ -141,7 +141,7 @@ describe("kabinetContentSecurityPolicy", () => {
     }
   });
 
-  it("is the report-only policy with its script rule replaced and frame-ancestors added", () => {
+  it("is the report-only policy with its script rule replaced, blob: images and frame-ancestors added", () => {
     for (const development of [false, true]) {
       const reportOnly = directivesOf(
         headerValue(
@@ -151,11 +151,29 @@ describe("kabinetContentSecurityPolicy", () => {
       );
       const policy = kabinet(development);
       expect(policy.get("frame-ancestors")).toEqual(["'none'"]);
+      expect(policy.get("img-src")).toEqual([
+        "'self'",
+        "data:",
+        "blob:",
+        "https://cdn.opika.example",
+      ]);
       policy.delete("frame-ancestors");
       policy.delete("script-src");
+      policy.delete("img-src");
       reportOnly.delete("script-src");
+      reportOnly.delete("img-src");
       expect(policy).toEqual(reportOnly);
     }
+  });
+
+  it("allows blob: images in the kabinet only: public pages keep theirs", () => {
+    const publicPolicy = directivesOf(
+      headerValue(
+        securityHeaders({ photoBaseUrl: PHOTOS, development: false }),
+        "Content-Security-Policy-Report-Only",
+      ),
+    );
+    expect(publicPolicy.get("img-src")).not.toContain("blob:");
   });
 
   it("keeps every directive the site-wide enforced policy has", () => {

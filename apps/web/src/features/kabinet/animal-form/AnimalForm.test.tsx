@@ -1368,7 +1368,12 @@ describe("photos", () => {
     // A drop applies no accept filter, and Windows/iOS Safari can report an empty type.
     const user = userEvent.setup({ applyAccept: false });
     const client = renderForm(draft(), {
-      compress: (file) => compressPhoto(file, { decode: async () => null }),
+      compress: (file) =>
+        compressPhoto(file, {
+          decode: async () => {
+            throw new Error("no decoder");
+          },
+        }),
     });
     await user.upload(
       screen.getByTestId("photo-file-input"),

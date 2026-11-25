@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
-import { PhotoSection, refillOrder } from "./PhotoSection";
+import { PhotoSection, type PhotoSectionProps, refillOrder } from "./PhotoSection";
 
 // Real `animals/` keys (the crop needs one); next/image's own loader refuses them outside Next.
 vi.mock("next/image", () => ({
@@ -56,7 +56,18 @@ const three = () => view([key(1), key(2), key(3)]);
 
 type RemoveInput = { animalId: string; expectedPhotoKeys: string[]; storageKey: string };
 
-function setup(start: KabinetAnimalView = three(), editable = true) {
+const okJpeg: NonNullable<PhotoSectionProps["compress"]> = async () => ({
+  kind: "ok",
+  file: new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: "image/jpeg" }),
+  width: 1600,
+  height: 2000,
+});
+
+function setup(
+  start: KabinetAnimalView = three(),
+  editable = true,
+  photo: Pick<PhotoSectionProps, "compress" | "reportFailure"> = {},
+) {
   let current = start;
   // The fake server keeps the listing and answers with the photos it now holds.
   const holding = (keys: readonly string[]) => {
@@ -87,12 +98,8 @@ function setup(start: KabinetAnimalView = three(), editable = true) {
           setAnimal(fresh);
           return fresh;
         }}
-        compress={async () => ({
-          kind: "ok",
-          file: new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: "image/jpeg" }),
-          width: 1600,
-          height: 2000,
-        })}
+        compress={photo.compress ?? okJpeg}
+        {...(photo.reportFailure === undefined ? {} : { reportFailure: photo.reportFailure })}
       />
     );
   }
@@ -588,5 +595,49 @@ describe("refillOrder", () => {
     expect(refillOrder(["a", "b", "c", "d"], ["d", "a", "c"])).toEqual(["d", "b", "a", "c"]);
     expect(refillOrder(["a", "b", "new"], ["b", "a"])).toEqual(["b", "a", "new"]);
     expect(refillOrder(["a", "b"], ["gone", "b", "a"])).toEqual(["b", "a"]);
+  });
+});
+
+describe("a photo the device couldn't compress", () => {
+  const upload = () =>
+    fireEvent.change(screen.getByTestId("photo-file-input"), {
+      target: { files: [new File(["x"], "IMG_0001.jpg", { type: "image/jpeg" })] },
+    });
+
+  it("is reported once, with what compression said; nothing is sent", async () => {
+    const reportFailure = vi.fn();
+    const { calls } = setup(three(), true, {
+      compress: async () => ({ kind: "unreadable" }),
+      reportFailure,
+    });
+    upload();
+    expect(await screen.findByText("Цей файл не вдалося відкрити як фото.")).toBeTruthy();
+    expect(reportFailure).toHaveBeenCalledTimes(1);
+    expect(reportFailure).toHaveBeenCalledWith({ kind: "unreadable" }, "IMG_0001.jpg");
+    expect(calls.add).not.toHaveBeenCalled();
+  });
+
+  it("a compressor that throws is reported with what it threw", async () => {
+    const reportFailure = vi.fn();
+    const error = new Error("decoder crashed");
+    setup(three(), true, {
+      compress: async () => {
+        throw error;
+      },
+      reportFailure,
+    });
+    upload();
+    expect(await screen.findByText("Цей файл не вдалося відкрити як фото.")).toBeTruthy();
+    expect(reportFailure).toHaveBeenCalledTimes(1);
+    expect(reportFailure.mock.calls[0]?.[0]).toMatchObject({ kind: "threw", error });
+  });
+
+  it("a photo that compressed is not reported", async () => {
+    const reportFailure = vi.fn();
+    const { calls } = setup(three(), true, { reportFailure });
+    upload();
+    await settle();
+    expect(calls.add).toHaveBeenCalledTimes(1);
+    expect(reportFailure).not.toHaveBeenCalled();
   });
 });

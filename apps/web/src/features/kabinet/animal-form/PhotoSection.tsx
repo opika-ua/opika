@@ -31,6 +31,11 @@ import type { CropDialogProps } from "../photos/CropDialog";
 import { type CompressedPhoto, compressPhoto } from "../photos/compress-photo";
 import { cropImageOf } from "../photos/crop-geometry";
 import { lazyCropDialog, loadCropDialog } from "../photos/lazy-crop-dialog";
+import {
+  compressReporting,
+  type PhotoFailureReporter,
+  reportPhotoFailure,
+} from "../photos/report-photo-failure";
 import { cardsArePublic, type ShelterVisibility, uploadProgressText } from "./labels";
 import { usePhotoDrag } from "./use-photo-drag";
 
@@ -144,6 +149,7 @@ export type PhotoSectionProps = {
   /** Reads the animal again after a refused write; the fresh view, or null if that failed too. */
   reload: () => Promise<KabinetAnimalView | null>;
   compress?: (file: File) => Promise<CompressedPhoto>;
+  reportFailure?: PhotoFailureReporter;
 };
 
 /** Its own toast region: the undo belongs to this section and leaves with it. */
@@ -163,6 +169,7 @@ function PhotoManager({
   onView,
   reload,
   compress = compressPhoto,
+  reportFailure = reportPhotoFailure,
 }: PhotoSectionProps) {
   const { show } = useToast();
   const [uploads, setUploads] = useState<Upload[]>([]);
@@ -265,11 +272,7 @@ function PhotoManager({
   const send = useCallback(
     async (upload: Upload) => {
       patchUpload(upload.id, { kind: "preparing" });
-      // A decoder that throws rather than answering is, for the person, a
-      // file this device couldn't open.
-      const compressed = await compress(upload.file).catch(
-        (): CompressedPhoto => ({ kind: "unreadable" }),
-      );
+      const compressed = await compressReporting(compress, upload.file, reportFailure);
       if (compressed.kind !== "ok") {
         patchUpload(upload.id, {
           kind: "failed",
@@ -307,7 +310,7 @@ function PhotoManager({
         patchUpload(upload.id, { kind: "failed", ...uploadFailure(error) });
       }
     },
-    [animal.id, client, compress, onView],
+    [animal.id, client, compress, reportFailure, onView],
   );
 
   // One after another; a failed link never stops the ones queued behind it.

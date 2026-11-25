@@ -118,13 +118,20 @@ function reportOnlyPolicy(options: SecurityHeaderOptions): string {
 function policyDirectives(
   { photoBaseUrl, development }: SecurityHeaderOptions,
   scriptSrc: Directive,
+  extraImageSources: readonly string[] = [],
 ): Directive[] {
   const photoOrigin = originOf(photoBaseUrl);
   return [
     ["default-src", "'self'"],
     scriptSrc,
     ["style-src", "'self'", "'unsafe-inline'"],
-    ["img-src", "'self'", "data:", ...(photoOrigin === null ? [] : [photoOrigin])],
+    [
+      "img-src",
+      "'self'",
+      "data:",
+      ...extraImageSources,
+      ...(photoOrigin === null ? [] : [photoOrigin]),
+    ],
     ["font-src", "'self'"],
     ["connect-src", "'self'", ...(development ? [VERCEL_SCRIPT_CDN] : [])],
     ["media-src", "'self'"],
@@ -154,7 +161,11 @@ export function kabinetContentSecurityPolicy(
     // React's dev build rebuilds server error stacks with eval; production never does (Next's CSP guide).
     ...(options.development ? ["'unsafe-eval'"] : []),
   ];
-  return joined([...policyDirectives(options, scriptSrc), ["frame-ancestors", "'none'"]]);
+  // `blob:`: photo compression's last decode route loads the picked file into an <img> (iOS 16 WebKit).
+  return joined([
+    ...policyDirectives(options, scriptSrc, ["blob:"]),
+    ["frame-ancestors", "'none'"],
+  ]);
 }
 
 /** A CSP hash source for an inline script's exact text. */
