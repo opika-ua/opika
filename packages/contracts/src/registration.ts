@@ -128,7 +128,10 @@ export type RegistrationFailureReason = (typeof REGISTRATION_FAILURE_REASONS)[nu
  */
 export const LoginEmailChangeInputSchema = z.strictObject({
   email: z.string().trim().toLowerCase().max(254).pipe(z.email()),
-  password: z.string().min(1).max(PASSWORD_MAX_CHARACTERS * 4),
+  password: z
+    .string()
+    .min(1)
+    .max(PASSWORD_MAX_CHARACTERS * 4),
 });
 export type LoginEmailChangeInput = z.infer<typeof LoginEmailChangeInputSchema>;
 
