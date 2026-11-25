@@ -183,10 +183,11 @@ export function AnimalDetailContent({
           </div>
         )}
 
-        {/* The meta row: one dotted line from desktop; stacked on a phone. */}
+        {/* The meta row: stacked on a phone. From desktop the chips take their own line, so no dot
+            between them and the shelter is left at a line's end when the shelter wraps (2026-11-24). */}
         <div className="flex flex-col gap-4 desktop:col-span-8 desktop:flex-row desktop:flex-wrap desktop:items-center desktop:gap-x-3 desktop:gap-y-2">
           {/* Wraps the reserved chip below the freshness one when there is no room. */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 desktop:basis-full">
             <span data-testid="freshness-block" className="w-fit">
               <Chip kind="info">{freshnessLabel(animal.freshness)}</Chip>
             </span>
@@ -203,7 +204,6 @@ export function AnimalDetailContent({
               </span>
             )}
           </div>
-          <MetaDot />
           {/* Phone: the city on a line under the name, so the name has the width beside the logo
               (owner, 2026-11-13); desktop: one row. */}
           <div className="flex min-w-0 flex-col items-start gap-1 desktop:flex-row desktop:items-center desktop:gap-3">

@@ -55,9 +55,19 @@ addresses in tracked files (placeholders: `ep-PRODUCTION`, `<owner email>`, `<re
 
 ## Later
 
-- Enforce a strict `script-src` on the public pages: hash-based, so static caching survives, as a separate
-  proposal (owner, 2026-11-24). /kabinet enforces a nonce-based policy since audit B1
-  (`kabinetContentSecurityPolicy` in `apps/web/src/security-headers.ts`, sent by `proxy.ts`).
+- A strict `script-src` on the public pages: parked (owner, 2026-11-24, option (a)). /kabinet enforces a
+  nonce-based policy since audit B1 (`kabinetContentSecurityPolicy` in `apps/web/src/security-headers.ts`, sent by
+  `proxy.ts`). What we learned:
+  - #589 and #590 ran a report-only nonce trial on public pages. Production scripts carried 0 nonces, so #591
+    reverted it.
+  - The cause: Next 16's `resolve-routes.js` copies the proxy's own response headers onto the request after the
+    request override, so Next reads the nonce from the response's enforced CSP. Public pages keep next.config's
+    site-wide enforced header, which has no nonce, so their scripts get none.
+  - Hashes cannot work: the inline RSC payload script differs per page and per deploy.
+
+  Path forward, option (b): on public HTML, drop the enforced site-wide CSP and keep its rules another way,
+  `X-Frame-Options: DENY` for `frame-ancestors` plus a `<meta http-equiv>` CSP for `object-src`, `base-uri` and
+  `form-action`. Then run #589's report-only trial again. Revisit on the next Next upgrade or a quiet week.
 - Before enforcing a stricter `script-src`: if Safari/iOS coverage of CSP violations is needed, revisit our own
   collector (option B: `/api/csp-report`, dropping the User-Agent before forwarding), since today only Chromium
   reports (owner, 2026-11-16).

@@ -28,13 +28,16 @@ const IP_HOST = [
   "https://[2001:db8::1]/pay",
   "https://[2001:db8::1]:8443/pay",
 ];
-/** Any explicit port, the default one and an empty one included; the parser drops both of those. */
+/** Any explicit port, the default one and an empty one included; the parser drops both of those. A leading
+ * zero still means 443, and the parser strips a tab, so `:0443` and `4<TAB>43` stay refused too (#588 review). */
 const PORT = [
   "https://shelter.example:8443/pay?amount=100#jar",
   "https://send.monobank.ua:443/jar/abc",
   "https://send.monobank.ua:/jar/abc",
   "HTTPS://SEND.MONOBANK.UA:8080",
   "https:send.monobank.ua:8443/jar",
+  "https://send.monobank.ua:0443/jar/abc",
+  "https://send.monobank.ua:4	43/jar/abc",
 ];
 
 describe("linkHostProblemOf: the one host rule for donation links and shelter text", () => {
