@@ -1,7 +1,8 @@
+import { changeLoginEmail } from "../../../kabinet/registration/change-login-email-action";
 import { resendConfirmationEmail } from "../../../kabinet/registration/resend-confirmation-action";
-import { ResendConfirmationButton } from "./ResendConfirmationButton";
+import { ConfirmEmailActions } from "./ConfirmEmailActions";
 
-/** The resend button with its server action bound, for the «Підтвердіть email» banner. */
+/** The «Підтвердіть email» banner's actions with their server actions bound. */
 export function ResendConfirmation() {
-  return <ResendConfirmationButton action={resendConfirmationEmail} />;
+  return <ConfirmEmailActions resend={resendConfirmationEmail} change={changeLoginEmail} />;
 }

@@ -1,4 +1,5 @@
 import type { EmailSendOutcome } from "@opika/contracts";
+import { maskEmailAddress } from "@opika/domain";
 import { COPY_PENDING } from "@opika/i18n";
 import { invitationEmail, passwordChangedEmail } from "./email-message";
 import {
@@ -38,13 +39,6 @@ export type ProviderMail = {
   /** IN-Q5: in production an email still holding `[COPY PENDING]` text is refused, never sent. */
   refuseCopyPending: boolean;
 };
-
-/** `o•••@gmail.com`: enough for the operator to recognise, not enough to copy. */
-export function maskAddress(address: string): string {
-  const at = address.lastIndexOf("@");
-  if (at <= 0) return "•••";
-  return `${address[0]}•••${address.slice(at)}`;
-}
 
 /** Why a send went out unchecked, when it did: the sign-in log line names it. */
 type UncheckedWhy = Extract<BlockedStatus, { kind: "unknown" }>["why"];
@@ -131,7 +125,7 @@ function sendFailureLine(
     providerFailure === null
       ? ""
       : `, provider ${providerFailure.provider}, status ${providerFailure.status ?? "none"}`;
-  return `[kabinet] ${template} email to ${maskAddress(to)} not sent: ${outcome.kind} (${outcome.reason})${provider}`;
+  return `[kabinet] ${template} email to ${maskEmailAddress(to)} not sent: ${outcome.kind} (${outcome.reason})${provider}`;
 }
 
 /**
@@ -173,7 +167,7 @@ export function providerMagicLinkSender(
         // failed, or a provider filtering on a list we don't read
         // (`provider_suppresses`, Resend).
         options.log(
-          `[kabinet] sign-in email to ${maskAddress(email)} sent without a block-list check (${uncheckedWhy})`,
+          `[kabinet] sign-in email to ${maskEmailAddress(email)} sent without a block-list check (${uncheckedWhy})`,
         );
       }
     },

@@ -64,6 +64,43 @@ export const confirmationDedupKey = (userId: string, resendAt?: Date): string =>
     ? `application_confirm:${userHashOf(userId)}`
     : `application_confirm:${userHashOf(userId)}:${Math.floor(resendAt.getTime() / 60_000)}`;
 
+/**
+ * The new address's confirmation after a login-email change: its own key per change, so a resend
+ * pressed the same minute can't claim it as a duplicate (proposal §1).
+ */
+export const emailChangeConfirmationDedupKey = (userId: string, historyId: string): string =>
+  `application_confirm:${userHashOf(userId)}:email:${historyId}`;
+
+export const loginEmailChangedDedupKey = (historyId: string): string =>
+  `login_email_changed:${historyId}`;
+
+/** To the old address: the new one masked, never in full. Not counted against the daily cap. */
+export async function sendLoginEmailChangedNotice(
+  mail: RegistrationMail,
+  input: {
+    userId: string;
+    shelterId: ShelterId;
+    shelterName: string;
+    to: string;
+    maskedEmail: string;
+  },
+  dedupKey: string,
+): Promise<TransactionalSendResult> {
+  return sendTransactionalEmail(
+    mail.deps,
+    {
+      template: "login_email_changed",
+      shelterName: input.shelterName,
+      maskedEmail: input.maskedEmail,
+      contact: OPERATOR_CONTACT.email,
+      operatorName: mail.operatorName,
+    },
+    input.to,
+    dedupKey,
+    { shelterId: input.shelterId, recipientUserId: input.userId },
+  );
+}
+
 export async function sendConfirmationEmail(
   mail: RegistrationMail,
   input: {

@@ -257,7 +257,7 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   support: 6,
 
-  email: 84,
+  email: 87,
 
   signInCard: 1,
 
@@ -267,7 +267,7 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   confirm: 9,
 
-  history: 3,
+  history: 4,
 
   // +13: open sources (2026-11-19).
   // +13: «Видалити притулок» (2026-11-20).
@@ -278,7 +278,7 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
   animalHistoryLabels: 17,
 
   // Self-registration (2026-11-18): A3's banners and location lines, the operator's queue.
-  application: 14,
+  application: 24,
 
   location: 4,
 

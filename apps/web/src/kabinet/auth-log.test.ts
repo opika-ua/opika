@@ -204,7 +204,7 @@ describe("Better Auth's logger through the masking, every level", () => {
     expectNothingLeaked();
     expect(lines.map((line) => line.slice(0, line.indexOf(":")))).toEqual(["error", "warn"]);
     expect(lines[0]).toContain(
-      "[kabinet] Better Auth error: Invalid redirect URL: http://localhost:3000/kabinet for o•••@example.org · Error (42703) · [object]",
+      "[kabinet] Better Auth error: Invalid redirect URL: http://localhost:3000/kabinet for o•••a@example.org · Error (42703) · [object]",
     );
   });
 
@@ -228,7 +228,7 @@ describe("Better Auth's logger through the masking, every level", () => {
     logger.log("warn", `sent to ${ADDRESS}`);
     expect(lines).toEqual([
       "error: [kabinet] Better Auth error: Failed query: select 1 where token = '•••'",
-      "warn: [kabinet] Better Auth warn: sent to o•••@example.org",
+      "warn: [kabinet] Better Auth warn: sent to o•••a@example.org",
     ]);
   });
 });
@@ -284,7 +284,7 @@ describe("the review's notes on the masking (3, 4 and 5)", () => {
     expect(straddling).not.toContain("olena");
     expect(straddling).toContain("[truncated]");
     // Under the cap nothing changes.
-    expect(maskedLogText("sent to olena@example.org")).toBe("sent to o•••@example.org");
+    expect(maskedLogText("sent to olena@example.org")).toBe("sent to o•••a@example.org");
   });
 
   it("the domain takes combining marks and underscores; fullwidth @, double-encoded @ and %2E are masked", () => {
@@ -299,9 +299,9 @@ describe("the review's notes on the masking (3, 4 and 5)", () => {
     ]) {
       const out = maskedLogText(`to ${input} end`);
       expect(out, input).not.toContain("olena");
-      expect(out, input).toMatch(/^to o•••@\S+ end$/);
+      expect(out, input).toMatch(/^to o•••a@\S+ end$/);
     }
-    expect(maskedLogText(`to ${decomposed} end`)).toBe(`to o•••@${decomposed.split("@")[1]} end`);
+    expect(maskedLogText(`to ${decomposed} end`)).toBe(`to o•••a@${decomposed.split("@")[1]} end`);
   });
 
   it("masks every address in a line: to=&cc= pairs, comma lists, bcc, and a single one as before", () => {
@@ -311,7 +311,7 @@ describe("the review's notes on the masking (3, 4 and 5)", () => {
       return out;
     };
     expect(hidden("to=anna@example.org&cc=boris@example.org", "anna", "boris")).toBe(
-      "to=a•••@example.org&cc=b•••@example.org",
+      "to=a•••a@example.org&cc=b•••s@example.org",
     );
     expect(
       hidden(
@@ -320,7 +320,7 @@ describe("the review's notes on the masking (3, 4 and 5)", () => {
         "boris",
         "clara",
       ),
-    ).toBe("to=a•••@example.org&cc=b•••@example.org&bcc=c•••@example.org");
+    ).toBe("to=a•••a@example.org&cc=b•••s@example.org&bcc=c•••a@example.org");
     expect(
       hidden(
         "sent to anna@example.org,boris@example.org, clara@example.org|dmytro@example.org",
@@ -329,13 +329,13 @@ describe("the review's notes on the masking (3, 4 and 5)", () => {
         "clara",
         "dmytro",
       ),
-    ).toBe("sent to a•••@example.org,b•••@example.org, c•••@example.org|d•••@example.org");
-    expect(maskedLogText("sent to olena@example.org.")).toBe("sent to o•••@example.org.");
+    ).toBe("sent to a•••a@example.org,b•••s@example.org, c•••a@example.org|d•••o@example.org");
+    expect(maskedLogText("sent to olena@example.org.")).toBe("sent to o•••a@example.org.");
   });
 
   it("note 5: a URL-encoded address, a capitalised Params: and a short token are masked", () => {
     expect(maskedLogText("sent to olena%40example.org and OLENA%40Example.org")).toBe(
-      "sent to o•••@example.org and O•••@Example.org",
+      "sent to o•••a@example.org and O•••A@Example.org",
     );
     expect(maskedLogText(`Failed query: select 1\nParams: ${ADDRESS}`)).toBe(
       "Failed query: select 1",

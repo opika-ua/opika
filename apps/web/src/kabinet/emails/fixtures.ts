@@ -56,6 +56,13 @@ export const EMAIL_FIXTURES: {
     contact: OPERATOR_CONTACT.email,
     operatorName,
   },
+  login_email_changed: {
+    template: "login_email_changed",
+    shelterName,
+    maskedEmail: "u•••9@example.org",
+    contact: OPERATOR_CONTACT.email,
+    operatorName,
+  },
   shelter_verified: {
     template: "shelter_verified",
     shelterName,

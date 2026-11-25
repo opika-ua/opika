@@ -197,6 +197,14 @@ function lineOf(
         text: t.shelter_registered,
         actor: actorOf({ kind: "shelter_admin", shelterAdminId: entry.shelterAdminId }, people),
       };
+    case "login_email_changed":
+      return {
+        text: uk.kabinet.history.loginEmailChanged,
+        actor:
+          entry.by.kind === "self"
+            ? adminActor(entry.by.shelterAdminId, people)
+            : operatorActor(entry.by.moderatorId, people),
+      };
     case "not_me_after_approval":
       // Nobody known clicked it: whoever reads the registrant's mail.
       return { text: t.notMeAfterApproval, actor: null };

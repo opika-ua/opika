@@ -8,7 +8,6 @@ import {
   unsupportedBlockList,
 } from "./email-provider";
 import {
-  maskAddress,
   type ProviderMail,
   providerInvitationSender,
   providerMagicLinkSender,
@@ -136,14 +135,6 @@ describe("sendChecked", () => {
   });
 });
 
-describe("maskAddress", () => {
-  it("keeps the first character and the domain", () => {
-    expect(maskAddress("olena@gmail.com")).toBe("o•••@gmail.com");
-    expect(maskAddress("not-an-address")).toBe("•••");
-    expect(maskAddress("@x.org")).toBe("•••");
-  });
-});
-
 describe("providerMagicLinkSender", () => {
   const URL_WITH_TOKEN = "https://example.org/kabinet/vkhid/pidtverdzhennia?token=SECRET-TOKEN";
 
@@ -164,7 +155,7 @@ describe("providerMagicLinkSender", () => {
         email: "olena@example.org",
         url: URL_WITH_TOKEN,
       });
-      expect(lines).toEqual([`[kabinet] sign-in email to o•••@example.org not sent: ${expected}`]);
+      expect(lines).toEqual([`[kabinet] sign-in email to o•••a@example.org not sent: ${expected}`]);
       expect(lines.join("")).not.toContain("SECRET-TOKEN");
       expect(lines.join("")).not.toContain("olena@");
     }
@@ -182,7 +173,7 @@ describe("providerMagicLinkSender", () => {
       url: URL_WITH_TOKEN,
     });
     expect(lines).toEqual([
-      "[kabinet] sign-in email to o•••@example.org sent without a block-list check (provider_error)",
+      "[kabinet] sign-in email to o•••a@example.org sent without a block-list check (provider_error)",
     ]);
     expect(m.sent).toHaveLength(1);
   });
@@ -218,7 +209,7 @@ describe("providerMagicLinkSender", () => {
     ).send({ email: "olena@example.org", url: URL_WITH_TOKEN });
     expect(sent).toHaveLength(1);
     expect(lines).toEqual([
-      "[kabinet] sign-in email to o•••@example.org sent without a block-list check (provider_suppresses)",
+      "[kabinet] sign-in email to o•••a@example.org sent without a block-list check (provider_suppresses)",
     ]);
     expect(lines.join("")).not.toContain("SECRET-TOKEN");
     expect(lines.join("")).not.toContain("olena@");
@@ -290,7 +281,7 @@ describe("providerInvitationSender", () => {
     }).send(invitation);
     expect(outcome).toEqual({ kind: "failed", reason: "provider_error" });
     expect(lines).toEqual([
-      "[kabinet] invite email to o•••@example.org not sent: failed (provider_error), provider resend, status 500",
+      "[kabinet] invite email to o•••a@example.org not sent: failed (provider_error), provider resend, status 500",
     ]);
     const all = lines.join("\n");
     expect(all).not.toContain("olena@");
@@ -306,7 +297,7 @@ describe("providerInvitationSender", () => {
       log: (line) => lines.push(line),
     }).send(invitation);
     expect(lines).toEqual([
-      "[kabinet] invite email to o•••@example.org not sent: blocked (hard_bounce)",
+      "[kabinet] invite email to o•••a@example.org not sent: blocked (hard_bounce)",
     ]);
   });
 

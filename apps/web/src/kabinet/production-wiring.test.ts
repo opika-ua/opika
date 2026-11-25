@@ -269,7 +269,7 @@ describe("productionMailOf: each email through its own route (EM-T22, EM-T18)", 
       url: "https://example.org/kabinet/vkhid/pidtverdzhennia?token=secret-token",
     });
     expect(lines).toEqual([
-      "[kabinet] sign-in email to o•••@example.org not sent: failed (provider_error), provider resend, status 500",
+      "[kabinet] sign-in email to o•••a@example.org not sent: failed (provider_error), provider resend, status 500",
     ]);
   });
 
@@ -290,7 +290,7 @@ describe("productionMailOf: each email through its own route (EM-T22, EM-T18)", 
     });
     expect(outcome).toEqual({ kind: "failed", reason: "provider_error" });
     expect(lines).toEqual([
-      "[kabinet] invite email to o•••@example.org not sent: failed (provider_error), provider resend, status 401",
+      "[kabinet] invite email to o•••a@example.org not sent: failed (provider_error), provider resend, status 401",
     ]);
     expect(lines.join("")).not.toContain("secret-invite");
     expect(lines.join("")).not.toContain("resend-key-example");

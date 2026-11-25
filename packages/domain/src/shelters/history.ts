@@ -342,6 +342,23 @@ export const ShelterHistoryEntrySchema = z.discriminatedUnion("kind", [
     shelterAdminId: ShelterAdminIdSchema,
   }),
   /**
+   * The unconfirmed registrant's login address changed (owner, 2026-11-25): by the registrant with
+   * the password, or by the operator with a reason the shelter never sees. No address, either one
+   * (D6), so erasure has nothing to scrub here.
+   */
+  z.object({
+    kind: z.literal("login_email_changed"),
+    at: z.date(),
+    by: z.discriminatedUnion("kind", [
+      z.object({ kind: z.literal("self"), shelterAdminId: ShelterAdminIdSchema }),
+      z.object({
+        kind: z.literal("operator"),
+        moderatorId: ModeratorIdSchema,
+        reason: z.string().min(1).max(500),
+      }),
+    ]),
+  }),
+  /**
    * «Це не я» from the confirmation email after the operator approved (owner, 2026-11-18): nothing
    * is deleted, and the click is kept for the operator only. Who clicked is not known.
    */
@@ -468,6 +485,7 @@ export const historyEntryAt = (entry: ShelterHistoryEntry): Date => {
     case "freshness_reminder_changed":
     case "shelter_created":
     case "shelter_registered":
+    case "login_email_changed":
     case "not_me_after_approval":
     case "admin_invited":
     case "admin_invitation_resent":

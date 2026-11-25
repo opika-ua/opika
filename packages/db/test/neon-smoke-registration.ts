@@ -5,16 +5,24 @@ import {
   type ShelterHistoryEntry,
   shelterFacingHistoryOf,
 } from "@opika/domain";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import type { Database } from "../src/client";
 import { applicationDeletionRepo } from "../src/repos/application-deletion-repo";
 import { cityRepo } from "../src/repos/city-repo";
 import { notificationSendsRepo } from "../src/repos/notification-sends-repo";
 import {
+  type LoginEmailChangeWrite,
   type SelfRegistrationWrite,
   selfRegistrationRepo,
 } from "../src/repos/self-registration-repo";
-import { authAccount, authMember, authOrganization, authUser } from "../src/schema/auth";
+import {
+  authAccount,
+  authMember,
+  authOrganization,
+  authSession,
+  authUser,
+  authVerification,
+} from "../src/schema/auth";
 import { registrationEmailTokens } from "../src/schema/registration-email-tokens";
 import { shelterHistory } from "../src/schema/shelter-history";
 import { shelters } from "../src/schema/shelters";
@@ -29,7 +37,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /**
  * Self-registration's SQL on Neon's driver (Agent 1): the registration write as one batch and its
  * rollback, a taken address, the confirmation links (single use, bound to purpose and user),
- * «Це не я» before and after approval, and the alarm's once-a-day claim. The daily cap is a
+ * «Це не я» before and after approval, the alarm's once-a-day claim, and an unconfirmed
+ * registrant's login-email change (owner, 2026-11-25). The daily cap is a
  * shared-store (Upstash) counter, not the database, so it has no check here. Fresh fixtures
  * only; rows stay on the child branch.
  */
@@ -263,5 +272,190 @@ export async function runRegistrationSmoke(db: Database): Promise<Outcome[]> {
     claims.filter(Boolean).length === 1,
     JSON.stringify(claims),
   );
+  await loginEmailChangeSteps(db, check, registration, address);
   return out;
+}
+
+/** The login-email change's batch on neon-http (proposal §4): its five statements and its guards. */
+async function loginEmailChangeSteps(
+  db: Database,
+  check: (name: string, ok: boolean, detail: string) => void,
+  registration: (email: string) => SelfRegistrationWrite,
+  address: () => string,
+): Promise<void> {
+  const repo = selfRegistrationRepo(db);
+  // Better Auth's stored shape: 43 characters of base64url.
+  const hashed = () => randomUUID().replace(/-/g, "").padEnd(43, "x");
+  const magicLink = (email: string) => JSON.stringify({ type: "magic-link", email, attempt: 0 });
+  const verification = (identifier: string, value: string) => ({
+    id: randomUUID(),
+    identifier,
+    value,
+    expiresAt: new Date(LATER.getTime() + DAY_MS),
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  /** A registrant with two sessions, a reset link and a magic link for the old address. */
+  const registrant = async () => {
+    const input = registration(address());
+    await repo.register(input);
+    const session = () => {
+      const id = randomUUID();
+      return {
+        id,
+        token: `smoke-${id}`,
+        userId: input.userId,
+        expiresAt: new Date(LATER.getTime() + DAY_MS),
+        createdAt: NOW,
+        updatedAt: NOW,
+      };
+    };
+    const [here, elsewhere] = [session(), session()];
+    await db.insert(authSession).values([here, elsewhere]);
+    const reset = verification(hashed(), input.userId);
+    const oldLink = verification(`magic-link:${hashed()}`, magicLink(input.email));
+    await db.insert(authVerification).values([reset, oldLink]);
+    return { input, here: here.id, elsewhere: elsewhere.id, reset: reset.id, oldLink: oldLink.id };
+  };
+  const change = (
+    of: Awaited<ReturnType<typeof registrant>>,
+    to: string,
+    passwordHash = "smoke-hash",
+  ): LoginEmailChangeWrite => {
+    const seed = randomUUID();
+    return {
+      userId: of.input.userId,
+      from: of.input.email,
+      to,
+      passwordHash,
+      keepSessionId: of.here,
+      history: {
+        id: randomUUID(),
+        entry: {
+          kind: "login_email_changed",
+          at: LATER,
+          by: { kind: "self", shelterAdminId: of.input.userId as ShelterAdminId },
+        },
+      },
+      tokens: [
+        {
+          tokenHash: `smoke-confirm-${seed}`,
+          purpose: "confirm_email",
+          expiresAt: new Date(LATER.getTime() + 14 * DAY_MS),
+        },
+        {
+          tokenHash: `smoke-notme-${seed}`,
+          purpose: "not_me",
+          expiresAt: new Date(LATER.getTime() + 14 * DAY_MS),
+        },
+      ],
+      now: LATER,
+    };
+  };
+  /** What the change touches, for one registrant. */
+  const state = async (of: Awaited<ReturnType<typeof registrant>>) => {
+    const [user] = await db.select().from(authUser).where(eq(authUser.id, of.input.userId));
+    const lines = await db
+      .select()
+      .from(shelterHistory)
+      .where(eq(shelterHistory.shelterId, of.input.shelter.id));
+    const tokens = await db
+      .select()
+      .from(registrationEmailTokens)
+      .where(eq(registrationEmailTokens.userId, of.input.userId));
+    const sessions = await db
+      .select()
+      .from(authSession)
+      .where(eq(authSession.userId, of.input.userId));
+    // Only this run's two rows: a child branch holds production's magic links, addresses included.
+    const verifications = await db
+      .select({ id: authVerification.id })
+      .from(authVerification)
+      .where(inArray(authVerification.id, [of.reset, of.oldLink]));
+    return {
+      email: user?.email ?? null,
+      lines: lines.map((line) => line.kind).sort(),
+      tokens: tokens.map((token) => token.tokenHash).sort(),
+      sessions: sessions.map((session) => session.id).sort(),
+      verifications: verifications.length,
+    };
+  };
+  const same = (a: object, b: object) => JSON.stringify(a) === JSON.stringify(b);
+
+  const moving = await registrant();
+  const to = address();
+  const write = change(moving, to);
+  const changed = await repo.changeLoginEmail(write);
+  const after = await state(moving);
+  const [line] = await db
+    .select()
+    .from(shelterHistory)
+    .where(eq(shelterHistory.id, write.history.id));
+  check(
+    "login email: one batch changes the address and writes its line, with no address in it",
+    changed.kind === "changed" &&
+      after.email === to &&
+      same(after.lines, ["login_email_changed", "shelter_registered"]) &&
+      line !== undefined &&
+      !JSON.stringify(line.entry).includes("@"),
+    `${changed.kind}, ${after.email === to}, ${JSON.stringify(after.lines)}`,
+  );
+  check(
+    "login email: the old pair is deleted (both purposes) and the new pair written",
+    same(after.tokens, [write.tokens[0].tokenHash, write.tokens[1].tokenHash].sort()),
+    JSON.stringify(after.tokens),
+  );
+  check(
+    "login email: the current session stays, the other goes",
+    same(after.sessions, [moving.here]),
+    `${after.sessions.length} left, ${after.sessions.includes(moving.here) ? "current kept" : "current gone"}`,
+  );
+  check(
+    "login email: the reset link and the old address's magic link are gone",
+    after.verifications === 0,
+    `${after.verifications} left`,
+  );
+  check(
+    "login email: the old link is unusable and the new one confirms",
+    (await repo.confirmEmail(moving.input.tokens[0].tokenHash, LATER)).kind === "unusable" &&
+      (await repo.confirmEmail(write.tokens[0].tokenHash, LATER)).kind === "confirmed",
+    "old refused, new confirmed",
+  );
+
+  const verified = await registrant();
+  await db
+    .update(authUser)
+    .set({ emailVerified: true })
+    .where(eq(authUser.id, verified.input.userId));
+  const verifiedBefore = await state(verified);
+  const refused = await repo.changeLoginEmail(change(verified, address()));
+  check(
+    "login email: a verified address changes nothing and writes no line",
+    refused.kind === "not_needed" && same(await state(verified), verifiedBefore),
+    refused.kind,
+  );
+
+  const moved = await registrant();
+  await db
+    .update(authAccount)
+    .set({ password: "smoke-newer-hash" })
+    .where(eq(authAccount.userId, moved.input.userId));
+  const movedBefore = await state(moved);
+  const stale = await repo.changeLoginEmail(change(moved, address()));
+  check(
+    "login email: a password hash moved since the verify changes nothing",
+    stale.kind === "wrong_password" && same(await state(moved), movedBefore),
+    stale.kind,
+  );
+
+  const holder = registration(address());
+  await repo.register(holder);
+  const taking = await registrant();
+  const takingBefore = await state(taking);
+  const taken = await repo.changeLoginEmail(change(taking, holder.email));
+  check(
+    "login email: a taken address is email_taken from the unique index, and nothing is written",
+    taken.kind === "email_taken" && same(await state(taking), takingBefore),
+    taken.kind,
+  );
 }

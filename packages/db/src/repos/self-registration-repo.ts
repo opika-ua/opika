@@ -1,12 +1,22 @@
 import type { Shelter, ShelterHistoryEntry, ShelterId, VerificationStatus } from "@opika/domain";
-import { and, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, ne, or, sql } from "drizzle-orm";
 import { type Database, inOneTransaction } from "../client";
-import { authAccount, authMember, authOrganization, authUser } from "../schema/auth";
+import {
+  authAccount,
+  authMember,
+  authOrganization,
+  authSession,
+  authUser,
+  authVerification,
+} from "../schema/auth";
 import { cities } from "../schema/cities";
 import { registrationEmailTokens } from "../schema/registration-email-tokens";
 import { shelterHistory } from "../schema/shelter-history";
 import { shelters } from "../schema/shelters";
+import { MAGIC_LINK_VALUE_PREFIX } from "./application-deletion-repo";
+import { HASHED_IDENTIFIER } from "./auth-reset-link-repo";
 import { historyRowSelect } from "./history-sql";
+import { CREDENTIAL_PROVIDER_ID } from "./kabinet-actor-repo";
 import { rowToShelter, shelterToRow } from "./mappers";
 
 export type RegistrationTokenPurpose = "confirm_email" | "not_me";
@@ -63,6 +73,34 @@ export type ApplicationSummary = {
 export type EmailConfirmOutcome =
   | { kind: "confirmed"; userId: string; application: ApplicationSummary | null }
   | { kind: "unusable" };
+
+/** An unconfirmed registrant's new login address, as `changeLoginEmail` writes it (owner, 2026-11-25). */
+export type LoginEmailChangeWrite = {
+  userId: string;
+  /** The address read before the change: a compare-and-set, so a change in between wins. */
+  from: string;
+  /** Trimmed and lowercased, as sign-in keys it. */
+  to: string;
+  /**
+   * The credential hash the password was verified against, compared again in the write so a
+   * password change racing the verify refuses it. Null on the operator path (no password).
+   */
+  passwordHash: string | null;
+  /** The session that asked stays signed in; null ends every session of the user. */
+  keepSessionId: string | null;
+  history: { id: string; entry: Extract<ShelterHistoryEntry, { kind: "login_email_changed" }> };
+  /** The new address's links, written in the same transaction: it never stands without one. */
+  tokens: RegistrationTokenPair;
+  now: Date;
+};
+
+export type LoginEmailChangeOutcome =
+  | { kind: "changed" }
+  | { kind: "email_taken" }
+  /** Verified, decided or changed meanwhile: nothing to change any more. */
+  | { kind: "not_needed" }
+  /** The password changed between the verify and the write. */
+  | { kind: "wrong_password" };
 
 const EMAIL_INDEX = "auth_user_email_unique";
 
@@ -165,6 +203,126 @@ export function selfRegistrationRepo(db: Database) {
         throw error;
       }
       return { kind: "registered" };
+    },
+
+    /**
+     * The login address, its unused links, reset links, old-address magic links and every other
+     * session, in one transaction (proposal §4). The history line is the marker: each later
+     * statement acts only if it was written, so a refused change touches nothing.
+     */
+    async changeLoginEmail(input: LoginEmailChangeWrite): Promise<LoginEmailChangeOutcome> {
+      const { userId, from, to, now } = input;
+      const marked = sql`EXISTS (SELECT 1 FROM ${shelterHistory} WHERE ${shelterHistory.id} = ${input.history.id})`;
+      // Compare-and-set on the hash the password was verified against.
+      const passwordUnchanged =
+        input.passwordHash === null
+          ? sql`true`
+          : sql`EXISTS (SELECT 1 FROM ${authAccount} WHERE ${authAccount.userId} = ${userId} AND ${authAccount.providerId} = ${CREDENTIAL_PROVIDER_ID} AND ${authAccount.password} = ${input.passwordHash})`;
+      const tokenRows = input.tokens.map(
+        (token) =>
+          sql`(${token.tokenHash}, ${token.purpose}, ${token.expiresAt.toISOString()}::timestamptz)`,
+      );
+      const otherSessions =
+        input.keepSessionId === null
+          ? eq(authSession.userId, userId)
+          : and(eq(authSession.userId, userId), ne(authSession.id, input.keepSessionId));
+      // Better Auth's magic link keeps the address in a JSON value, never the user id.
+      const oldAddressMagicLink = sql`CASE WHEN starts_with(${authVerification.value}, ${MAGIC_LINK_VALUE_PREFIX}) THEN lower(${authVerification.value}::jsonb ->> 'email') END = lower(${from})`;
+      let marker: readonly unknown[];
+      try {
+        [marker] = await inOneTransaction(db, (tx) => {
+          const changed = tx.$with("changed").as(
+            tx
+              .update(authUser)
+              .set({ email: to, updatedAt: now })
+              .where(
+                and(
+                  eq(authUser.id, userId),
+                  eq(authUser.email, from),
+                  eq(authUser.emailVerified, false),
+                  sql`EXISTS (SELECT 1 FROM ${shelters} WHERE ${shelters.registrantUserId} = ${userId} AND ${shelters.registrationSource} = 'self_registration' AND ${shelters.verificationStatus} = 'application')`,
+                  passwordUnchanged,
+                ),
+              )
+              .returning({ id: authUser.id }),
+          );
+          return [
+            tx
+              .with(changed)
+              .insert(shelterHistory)
+              .select(
+                sql`SELECT ${historyRowSelect(input.history, sql`"s"."id"`)} FROM "changed" JOIN ${shelters} AS "s" ON "s"."registrant_user_id" = "changed"."id"`,
+              )
+              .returning({ id: shelterHistory.id }),
+            // Both purposes (D2): the old address's «Це не я» goes too.
+            tx
+              .delete(registrationEmailTokens)
+              .where(
+                and(
+                  eq(registrationEmailTokens.userId, userId),
+                  isNull(registrationEmailTokens.usedAt),
+                  marked,
+                ),
+              ),
+            tx
+              .insert(registrationEmailTokens)
+              .select(
+                sql`SELECT "v"."token_hash", ${userId}, "v"."purpose", "v"."expires_at", NULL FROM (VALUES ${sql.join(tokenRows, sql`, `)}) AS "v"("token_hash", "purpose", "expires_at") WHERE ${marked}`,
+              ),
+            tx.delete(authSession).where(and(otherSessions, marked)),
+            // D3: a reset link sent to the old mailbox would otherwise still set a password.
+            tx
+              .delete(authVerification)
+              .where(
+                and(
+                  marked,
+                  or(
+                    and(
+                      eq(authVerification.value, userId),
+                      sql`${authVerification.identifier} ~ ${HASHED_IDENTIFIER}`,
+                    ),
+                    oldAddressMagicLink,
+                  ),
+                ),
+              ),
+          ] as const;
+        });
+      } catch (error) {
+        // The address taken between the app's check and this write: as registration answers.
+        if (emailTaken(error)) return { kind: "email_taken" };
+        throw error;
+      }
+      if (marker.length === 1) return { kind: "changed" };
+
+      // Nothing written: tell why from what stands now.
+      const application = await repo.applicationOf(userId);
+      if (
+        application === null ||
+        application.emailVerified ||
+        application.status !== "application" ||
+        application.email !== from
+      ) {
+        return { kind: "not_needed" };
+      }
+      if (
+        input.passwordHash !== null &&
+        (await repo.credentialHashOf(userId)) !== input.passwordHash
+      ) {
+        return { kind: "wrong_password" };
+      }
+      return { kind: "not_needed" };
+    },
+
+    /** The user's password hash (Better Auth's credential account), or null without one. */
+    async credentialHashOf(userId: string): Promise<string | null> {
+      const [row] = await db
+        .select({ password: authAccount.password })
+        .from(authAccount)
+        .where(
+          and(eq(authAccount.userId, userId), eq(authAccount.providerId, CREDENTIAL_PROVIDER_ID)),
+        )
+        .limit(1);
+      return row?.password ?? null;
     },
 
     /** Whether the address (trimmed, lowercased) already has an account. A read only. */

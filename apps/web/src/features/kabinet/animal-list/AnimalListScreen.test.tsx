@@ -13,6 +13,10 @@ const resend = vi.hoisted(() => vi.fn(async () => ({ kind: "sent" as const })));
 vi.mock("../../../kabinet/registration/resend-confirmation-action", () => ({
   resendConfirmationEmail: resend,
 }));
+const change = vi.hoisted(() => vi.fn(async () => ({ kind: "not_needed" as const })));
+vi.mock("../../../kabinet/registration/change-login-email-action", () => ({
+  changeLoginEmail: change,
+}));
 
 /** The shelter's landing page: the banner and the pending note while cards are shown early (N13, B5). */
 
@@ -168,11 +172,19 @@ describe("a self-registered shelter's banners (spec §2, Q3, P0-1)", () => {
     expect(await screen.findByText("Перевірте пошту")).toBeTruthy();
   });
 
-  it("no resend button once the address is confirmed, nor in the support view", () => {
+  it("no resend or «Змінити пошту» once the address is confirmed, nor in the support view", () => {
     renderScreen(application("confirmed"), "admin", { email: "olena@example.org" });
     expect(screen.queryByRole("button", { name: "Надіслати ще раз" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Змінити пошту" })).toBeNull();
     renderScreen(application("unconfirmed"), "support", { email: "olena@example.org" });
     expect(screen.queryByRole("button", { name: "Надіслати ще раз" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Змінити пошту" })).toBeNull();
+  });
+
+  it("offers «Змінити пошту» beside the resend, with the confirm banner only", () => {
+    renderScreen(application("unconfirmed"), "admin", { email: "olena@example.org" });
+    const toggle = screen.getByRole("button", { name: "Змінити пошту" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("with SELF_REGISTRATION_ENABLED off there is no confirm banner and so no resend button", () => {

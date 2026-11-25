@@ -21,7 +21,7 @@ function renderWith(outcome: SetPasswordOutcome) {
     <SetPasswordCard
       token={TOKEN}
       shelterName="Притулок «Ліс»"
-      maskedEmail="o•••@example.org"
+      maskedEmail="o•••a@example.org"
       accept={accept}
       go={go}
     />,
@@ -45,7 +45,7 @@ describe("«Створіть пароль»", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Створіть пароль" })).toBeDefined();
     expect(
       screen.getByText(
-        "Пароль для кабінету притулку «Притулок «Ліс»». Адреса для входу: o•••@example.org.",
+        "Пароль для кабінету притулку «Притулок «Ліс»». Адреса для входу: o•••a@example.org.",
       ),
     ).toBeDefined();
     expect(field("Пароль").getAttribute("type")).toBe("password");

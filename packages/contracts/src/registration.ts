@@ -121,3 +121,33 @@ export const REGISTRATION_FAILURE_REASONS = [
   "sign_in_failed",
 ] as const;
 export type RegistrationFailureReason = (typeof REGISTRATION_FAILURE_REASONS)[number];
+
+/**
+ * An unconfirmed registrant changes the login address from the «Підтвердіть email» banner (owner,
+ * 2026-11-25). A server action, like registration, so the password never reaches an RPC log.
+ */
+export const LoginEmailChangeInputSchema = z.strictObject({
+  email: z.string().trim().toLowerCase().max(254).pipe(z.email()),
+  password: z
+    .string()
+    .min(1)
+    .max(PASSWORD_MAX_CHARACTERS * 4),
+});
+export type LoginEmailChangeInput = z.infer<typeof LoginEmailChangeInputSchema>;
+
+export type LoginEmailChangeField = "email" | "password";
+export type LoginEmailChangeFieldError = "required" | "email" | "same_email";
+
+export type LoginEmailChangeResult =
+  /** The write committed either way; `failed` is only the new address's confirmation email. */
+  | { kind: "changed"; email: string; confirmation: "sent" | "failed" }
+  | { kind: "invalid"; fields: Partial<Record<LoginEmailChangeField, LoginEmailChangeFieldError>> }
+  | { kind: "wrong_password" }
+  /** The same answer registration gives (`RegistrationResult`), so no new enumeration surface. */
+  | { kind: "email_taken" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "limiter_unavailable" }
+  | { kind: "daily_cap" }
+  /** Verified meanwhile, decided, a support view or the flag off: the banner goes on reload. */
+  | { kind: "not_needed" }
+  | { kind: "failed" };

@@ -18,7 +18,7 @@ describe("who sees the registration form (scenarios A1–A4)", () => {
         { kind: "shelter_admin", shelterAdminId: "a-1" as ShelterAdminId, shelterId },
         "olena@example.org",
       ),
-    ).toEqual({ kind: "shelter", maskedEmail: "o•••@example.org" });
+    ).toEqual({ kind: "shelter", maskedEmail: "o•••a@example.org" });
     expect(registrationViewerFrom({ kind: "super_admin", moderatorId }, "x@y.ua")).toEqual({
       kind: "operator",
     });
@@ -37,13 +37,13 @@ describe("/prytulkam for someone already signed in", () => {
       renderForSheltersPage(true, {
         selfRegistration: true,
         registrationCard: (
-          <RegistrationSignedIn viewer={{ kind: "shelter", maskedEmail: "o•••@example.org" }} />
+          <RegistrationSignedIn viewer={{ kind: "shelter", maskedEmail: "o•••a@example.org" }} />
         ),
       }),
     );
     expect(container.querySelector("form")).toBeNull();
     expect(container.querySelector('input[type="password"]')).toBeNull();
-    expect(screen.getByText("Ви вже увійшли як o•••@example.org.")).toBeTruthy();
+    expect(screen.getByText("Ви вже увійшли як o•••a@example.org.")).toBeTruthy();
     expect(screen.getByRole("link", { name: s.toKabinet }).getAttribute("href")).toBe("/kabinet");
     expect(screen.getByRole("button", { name: s.signOut })).toBeTruthy();
   });

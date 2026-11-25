@@ -16,7 +16,7 @@ describe("runAuthSmoke against the local database", () => {
   });
   afterAll(async () => cleanup?.());
 
-  it("passes every step: sign-in, verify, the accept, getSession, sign-out, PW-1's four, PW1-F1's two, PW1-F5's two, PW1-F6's one, PW1-F7's one, PW1-F8's one, PW-2's three and F8-F1's one", async () => {
+  it("passes every step: sign-in, verify, the accept, getSession, sign-out, PW-1's four, PW1-F1's two, PW1-F5's two, PW1-F6's one, PW1-F7's one, PW1-F8's one, PW-2's three, F8-F1's one and the login-email change's three", async () => {
     const outcomes = await runAuthSmoke(db);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
     expect(outcomes.map((o) => o.name)).toEqual([
@@ -40,8 +40,11 @@ describe("runAuthSmoke against the local database", () => {
       "invitation link refused for a password holder, an operator and a member (each EXISTS true over this driver; page and POST unusable)",
       "invitation POST marks the address verified before the password (a failure between leaves no password; a resend's link then signs in)",
       "kabinet page reads through the cleaned handle (the principal and the password status; a refused read cleaned, no message, parameters or SQL)",
+      "login email change: the new address signs in, the old one is refused",
+      "login email change: the other device's session ends (get-session null)",
+      "login email change: the changing session stays and reads the new address",
     ]);
-    expect(outcomes).toHaveLength(20);
+    expect(outcomes).toHaveLength(23);
   });
 
   it("prints no link, token or address in any line", async () => {

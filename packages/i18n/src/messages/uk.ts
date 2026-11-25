@@ -381,6 +381,23 @@ export const uk = {
       confirmEmail:
         "Підтвердіть email – я надіслав лист на {email}. Без цього я не зможу схвалити притулок.",
       confirmEmailResend: "Надіслати ще раз",
+      /**
+       * «Змінити пошту» beside the resend (owner-approved, 2026-11-25). The password field reuses
+       * `changePassword.currentLabel`; the refusals reuse registration's and the profile editor's.
+       */
+      changeEmail: {
+        action: "Змінити пошту",
+        title: "Нова пошта для входу",
+        emailLabel: "Електронна пошта",
+        hint: "Лист для підтвердження прийде на нову адресу. Входити в кабінет треба буде з неї.",
+        submit: "Змінити й надіслати лист",
+        done: "Я надіслав лист на {email}.",
+        sameEmail: "Це та сама адреса.",
+        unavailable: "Зараз не вдалося змінити пошту. Спробуйте за кілька хвилин.",
+        failed: "Не вдалося змінити пошту. Спробуйте ще раз або напишіть мені.",
+        /** Nested quotes inside «» are „“ (owner, 2026-11-25). */
+        sentFailed: "Пошту змінено, але лист не надіслався – натисніть „Надіслати ще раз“.",
+      },
       approved: "Притулок схвалено. Тепер можна публікувати тварин.",
       /** The same banner while the shelter has no adopter contact (owner-approved, 2026-11-19). */
       approvedNoContact: "Притулок схвалено. Щоб публікувати тварин, додайте контакт.",
@@ -1641,6 +1658,15 @@ export const uk = {
           "Якщо запит надіслали не ви, просто не зважайте на цей лист: пароль залишиться тим самим.\n{operator}",
       },
       /**
+       * To the old address after the login address changed (owner-approved, 2026-11-25): the new one
+       * masked. Then `passwordChanged.notYou`, reused.
+       */
+      loginEmailChanged: {
+        subject: "Кабінет притулку: пошту для входу змінено",
+        preheader: "Адресу для входу змінено",
+        body: "Адресу для входу в кабінет «{shelterName}» змінено на {maskedEmail}.",
+      },
+      /**
        * F2, the notice after a reset and after a change (his §9 answer 4, verbatim: "Yes:
        * «пароль змінено» after a change too."), his Ukrainian, verbatim. No link. `{contact}` is
        * the Reply-To address (`EMAIL_REPLY_TO`), filled from config.
@@ -1824,6 +1850,8 @@ export const uk = {
       adminJoinedErased: "Доступ до кабінету відкрито: адреса видалена",
       /** `premises_changed` to foster homes, operator and shelter views (owner-approved, 2026-11-24). */
       premisesFosterHomes: "Позначено: тварини на перетримках, без приміщення",
+      /** Operator and shelter views alike; no address and no reason (owner-approved, 2026-11-25). */
+      loginEmailChanged: "Змінено пошту для входу",
     },
     /**
      * R-UI · the operator's own screens (`docs/r-ui-copy-sheet.md`, keys and

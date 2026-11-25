@@ -59,6 +59,7 @@ const wired: Partial<Record<(typeof EMAIL_TEMPLATES)[number], () => Promise<Outg
     registrationEmailFor({ ...f.application_confirm, operatorName: OPERATOR }, TO),
   application_approved: () => registrationEmailFor(f.application_approved, TO),
   application_rejected: () => registrationEmailFor(f.application_rejected, TO),
+  login_email_changed: () => registrationEmailFor(f.login_email_changed, TO),
   sign_in: () =>
     captured((mail) =>
       providerMagicLinkSender(mail, { ttlMinutes: 15, operatorName: OPERATOR, log: () => {} }).send(

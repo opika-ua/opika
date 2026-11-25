@@ -102,6 +102,25 @@ export async function kabinetSessionPersonOf(
   return user === null ? null : personOf(user);
 }
 
+/**
+ * The signed-in user and the session's own id, read without refreshing: for an action that keeps
+ * this session and ends the user's others (the login-email change). Null for none or a lapsed one.
+ */
+export async function kabinetSessionIdsOf(
+  auth: KabinetAuth,
+  db: Database,
+  headers: Headers,
+  now: Date,
+): Promise<{ userId: string; sessionId: string } | null> {
+  const session = await sessionOf(auth, headers, false);
+  if (session === null) return null;
+  const userId = session.user.id;
+  const lapsed = await sessionHasLapsed(session.session, now, () =>
+    kabinetActorRepo(withQueryErrorsCleaned(db)).hasActiveOperatorGrant(userId),
+  );
+  return lapsed ? null : { userId, sessionId: session.session.id };
+}
+
 async function liveSessionUserOf(
   auth: KabinetAuth,
   db: Database,

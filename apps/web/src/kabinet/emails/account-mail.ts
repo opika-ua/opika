@@ -60,13 +60,20 @@ export function passwordResetEmail(input: {
 /** The registration emails the kit renders; the operator's three still go through `emailBody`. */
 export type KitRegistrationEmail = Extract<
   RegistrationEmail,
-  { template: "application_confirm" | "application_approved" | "application_rejected" }
+  {
+    template:
+      | "application_confirm"
+      | "application_approved"
+      | "application_rejected"
+      | "login_email_changed";
+  }
 >;
 
 const KIT_REGISTRATION_TEMPLATES: ReadonlySet<RegistrationEmail["template"]> = new Set([
   "application_confirm",
   "application_approved",
   "application_rejected",
+  "login_email_changed",
 ]);
 
 export const isKitRegistrationEmail = (email: RegistrationEmail): email is KitRegistrationEmail =>
@@ -90,6 +97,14 @@ const inputOf = (email: KitRegistrationEmail): EmailTemplateInput => {
         reason: email.reason,
         contactEmail: email.contactEmail,
         telegram: email.telegram,
+      };
+    case "login_email_changed":
+      return {
+        template: "login_email_changed",
+        shelterName: email.shelterName,
+        maskedEmail: email.maskedEmail,
+        contact: email.contact,
+        operatorName: email.operatorName,
       };
     /* v8 ignore next 4 -- exists so the compiler rejects an unhandled template; unreachable at runtime */
     default: {

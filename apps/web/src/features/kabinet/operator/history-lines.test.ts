@@ -167,6 +167,11 @@ const TABLE: [string, ShelterHistoryEntry, string][] = [
     "Притулок зареєстровано · Олена",
   ],
   [
+    "login_email_changed by the registrant: no address",
+    { kind: "login_email_changed", at: AT, by: { kind: "self", shelterAdminId: OLENA } },
+    "Змінено пошту для входу · Олена",
+  ],
+  [
     "not_me_after_approval: no actor, whoever reads the registrant's mail",
     { kind: "not_me_after_approval", at: AT },
     "Після схвалення в листі натиснули «Це не я». Можливо, адресу вказали без відома власника.",

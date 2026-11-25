@@ -15,7 +15,8 @@ description: Use for any Ukrainian or English user-facing text in Opika (labels,
 - **Never an em dash (U+2014).** Use an en dash (U+2013), spaced between clauses and unspaced in a range
   ("1–3"); a hyphen only inside words. A verbatim quote is exempt and stays character-exact.
   `no-em-en-dash.test.ts` guards catalogues, `brand.ts`, emails and metadata.
-- **Typography:** the apostrophe in Ukrainian words is U+02BC, quotation marks are «…».
+- **Typography:** the apostrophe in Ukrainian words is U+02BC, quotation marks are «…»; quotes nested
+  inside «» are „…“, e.g. «Пошту змінено, але лист не надіслався – натисніть „Надіслати ще раз“.»
 - **Dates, numbers, plurals:** native `Intl` only (formatters in `packages/domain`, four Ukrainian plural
   forms); never a hand-rolled month array or an `n === 1` branch.
 - **Voice and product rules:** freshness is

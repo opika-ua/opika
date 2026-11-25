@@ -159,6 +159,27 @@ describe("the subjects stay the approved ones", () => {
   });
 });
 
+describe("login_email_changed: the old-address notice (owner, 2026-11-25)", () => {
+  it("names the shelter and the new address masked, with no link, and «Якщо це не ви»", async () => {
+    const email = await registrationEmailFor(
+      {
+        template: "login_email_changed",
+        shelterName: "Лапа",
+        maskedEmail: "u•••9@example.org",
+        contact: "hello@example.org",
+        operatorName: "Олексій",
+      },
+      "old-address@example.org",
+    );
+    expect(email.to).toBe("old-address@example.org");
+    expect(email.subject).toBe("Кабінет притулку: пошту для входу змінено");
+    expect(email.text).toContain("Адресу для входу в кабінет «Лапа» змінено на u•••9@example.org.");
+    expect(email.text).toContain("Якщо це не ви – напишіть мені: hello@example.org");
+    expect(email.html).toContain("Адресу для входу змінено");
+    expect(hrefsOf(email.html).filter((href) => !href.startsWith("mailto:"))).toEqual([]);
+  });
+});
+
 describe("the kit keeps IN-E8", () => {
   it("refuses a link whose label reads as a URL, button or secondary link", async () => {
     const model = emailModelOf(EMAIL_FIXTURES.application_confirm);

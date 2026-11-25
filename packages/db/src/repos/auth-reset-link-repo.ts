@@ -10,7 +10,7 @@ import { authVerification } from "../schema/auth";
  * the storage-format pin in `apps/web/src/kabinet/password-flows.test.ts`
  * rather than silently matching nothing.
  */
-const HASHED_IDENTIFIER = "^[A-Za-z0-9_-]{43}$";
+export const HASHED_IDENTIFIER = "^[A-Za-z0-9_-]{43}$";
 
 /**
  * A shelter admin's reset links («Забули пароль?»), as Better Auth stores them
