@@ -407,18 +407,23 @@ describe("the layouts above a kabinet page set no referrer policy of their own",
   it.each([
     ["the root layout", () => import("./app/layout")],
     ["the kabinet layout", () => import("./app/kabinet/layout")],
-  ])("%s: its metadata has no referrer", async (_, load) => {
-    const layout: Record<string, unknown> = await load();
-    expect(layout.metadata).toBeDefined();
-    expect(layout.metadata).not.toHaveProperty("referrer");
-    if (typeof layout.generateMetadata === "function") {
-      const generated = await layout.generateMetadata(
-        { params: Promise.resolve({}) },
-        Promise.resolve({}),
-      );
-      expect(generated).not.toHaveProperty("referrer");
-    }
-  });
+  ])(
+    "%s: its metadata has no referrer",
+    async (_, load) => {
+      const layout: Record<string, unknown> = await load();
+      expect(layout.metadata).toBeDefined();
+      expect(layout.metadata).not.toHaveProperty("referrer");
+      if (typeof layout.generateMetadata === "function") {
+        const generated = await layout.generateMetadata(
+          { params: Promise.resolve({}) },
+          Promise.resolve({}),
+        );
+        expect(generated).not.toHaveProperty("referrer");
+      }
+    },
+    // A cold import of the kabinet layout's module graph can pass Vitest's 5 s default on a local machine.
+    30_000,
+  );
 });
 
 describe("the emails' versioned files", () => {

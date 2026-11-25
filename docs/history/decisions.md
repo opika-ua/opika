@@ -97,7 +97,10 @@ Moved verbatim from CLAUDE.md in DS PR 5. Settled decisions (M1, M4, gallery con
    is checked at its own `checkedAt` once the carry-over is done (`ongoingWorkRefusalOf`); approval
    never checks months. The guard is that write-path check, not the stored schema: `EvidenceItemSchema`
    (its two-months refinement, its issuer cap, the input's) never runs before a write; it runs only as
-   the output check of the operator's registry and history views, after the write has landed.
+   the output check of the operator's registry and history views, after the write has landed
+   (`RegistryShelterViewSchema` through `ShelterSchema.verification`, and `HistoryEntryViewSchema`
+   through `VerificationEventSchema`, both in `packages/contracts/src/kabinet/views.ts`; the
+   procedures' `.output(...)` in `procedures.ts` beside it).
 7. **`RejectionReason` and `SuspensionReason` are separate code lists**
    (+ optional free-text note). A shelter is rejected for reasons about its
    application and suspended for reasons about its conduct; one merged enum

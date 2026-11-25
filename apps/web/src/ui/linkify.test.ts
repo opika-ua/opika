@@ -113,6 +113,8 @@ describe("linkParts", () => {
       "https://send.monobank.ua:443/jar/abc",
       "https://send.monobank.ua:/jar/abc",
       "HTTPS://SEND.MONOBANK.UA:8080",
+      "https://send.monobank.ua:0443/jar/abc",
+      "https://send.monobank.ua:4	43/jar/abc",
     ]) {
       expect(linkParts(value), value).toEqual([text(0, value)]);
     }
