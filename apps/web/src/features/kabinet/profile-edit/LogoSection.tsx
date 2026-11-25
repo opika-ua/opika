@@ -14,6 +14,11 @@ import { InlineStatus } from "../../../ui/feedback";
 import { Text } from "../../../ui/Text";
 import { ShelterLogoAvatar } from "../../shelters/ShelterLogoAvatar";
 import { type CompressedPhoto, compressPhoto } from "../photos/compress-photo";
+import {
+  compressReporting,
+  type PhotoFailureReporter,
+  reportPhotoFailure,
+} from "../photos/report-photo-failure";
 
 const t = uk.kabinet.profileEdit.logo;
 const photoErrors = uk.kabinet.animalForm.photoErrors;
@@ -81,12 +86,14 @@ export function LogoSection({
   onView,
   client,
   compress = compressPhoto,
+  reportFailure = reportPhotoFailure,
 }: {
   logo: KabinetShelterView["logo"];
   displayName: string;
   onView: (view: KabinetShelterView) => void;
   client: Pick<KabinetProfileClient, "shelter">;
   compress?: (file: File) => Promise<CompressedPhoto>;
+  reportFailure?: PhotoFailureReporter;
 }) {
   const [state, setState] = useState<UploadState>({ kind: "idle" });
   const [status, setStatus] = useState("");
@@ -96,7 +103,7 @@ export function LogoSection({
     const file = files?.[0];
     if (!file) return;
     setState({ kind: "preparing" });
-    const compressed = await compress(file).catch((): CompressedPhoto => ({ kind: "unreadable" }));
+    const compressed = await compressReporting(compress, file, reportFailure);
     if (compressed.kind !== "ok") {
       setState({ kind: "failed", message: compressionMessage(compressed) });
       return;

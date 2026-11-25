@@ -1,6 +1,7 @@
 import type { KabinetShelterView } from "@opika/contracts";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { CompressedPhoto } from "../photos/compress-photo";
 import { LogoSection } from "./LogoSection";
 
 // A set logo renders a real next/image, through ShelterLogoAvatar. next/image's
@@ -64,5 +65,58 @@ describe("LogoSection", () => {
     await vi.waitFor(() => expect(remove).toHaveBeenCalledWith({}));
     await vi.waitFor(() => expect(onView).toHaveBeenCalledWith(nextView));
     await vi.waitFor(() => screen.getByText("Логотип прибрано."));
+  });
+
+  describe("a logo the device couldn't compress", () => {
+    const renderWith = (
+      compress: (file: File) => Promise<CompressedPhoto>,
+      reportFailure: () => void,
+    ) => {
+      const set = vi.fn().mockResolvedValue({ logo: null });
+      render(
+        <LogoSection
+          logo={null}
+          displayName="Лапа допомоги"
+          onView={() => {}}
+          client={{ shelter: { logo: { set, remove: vi.fn() } } } as never}
+          compress={compress}
+          reportFailure={reportFailure}
+        />,
+      );
+      fireEvent.change(screen.getByTestId("logo-file-input"), {
+        target: { files: [new File(["x"], "logo.png", { type: "image/png" })] },
+      });
+      return set;
+    };
+
+    it("is reported once, with what compression said; nothing is sent", async () => {
+      const reportFailure = vi.fn();
+      const set = renderWith(async () => ({ kind: "too_large" }), reportFailure);
+      await screen.findByText("Навіть після зменшення це фото завелике. Спробуйте інше.");
+      expect(reportFailure).toHaveBeenCalledTimes(1);
+      expect(reportFailure).toHaveBeenCalledWith({ kind: "too_large" }, "logo.png");
+      expect(set).not.toHaveBeenCalled();
+    });
+
+    it("a compressor that throws is reported with what it threw", async () => {
+      const reportFailure = vi.fn();
+      const error = new Error("decoder crashed");
+      renderWith(async () => {
+        throw error;
+      }, reportFailure);
+      await screen.findByText("Цей файл не вдалося відкрити як фото.");
+      expect(reportFailure).toHaveBeenCalledTimes(1);
+      expect(reportFailure.mock.calls[0]?.[0]).toMatchObject({ kind: "threw", error });
+    });
+
+    it("a logo that compressed is not reported", async () => {
+      const reportFailure = vi.fn();
+      const set = renderWith(
+        async () => ({ kind: "ok", file: new Blob(["j"]), width: 160, height: 160 }),
+        reportFailure,
+      );
+      await vi.waitFor(() => expect(set).toHaveBeenCalledTimes(1));
+      expect(reportFailure).not.toHaveBeenCalled();
+    });
   });
 });
