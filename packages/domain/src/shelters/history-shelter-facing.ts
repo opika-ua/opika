@@ -151,6 +151,8 @@ export const ShelterFacingHistoryItemSchema = z.discriminatedUnion("kind", [
   /** Nobody did it: the period ran out, so there is no actor. */
   z.object({ kind: z.literal("early_listing_lapsed"), at: z.date() }),
   z.object({ kind: z.literal("shelter_created"), ...base }),
+  /** Neither address nor the operator's reason (D6): only that it changed, and who did it. */
+  z.object({ kind: z.literal("login_email_changed"), ...base }),
   z.object({ kind: z.literal("admin_invited"), ...base, email: z.email() }),
   z.object({ kind: z.literal("admin_invitation_resent"), ...base, email: z.email() }),
   /** The email stored at join time (IN-Q14); the admin's and the invitation's ids stay operator-only. */
@@ -328,6 +330,12 @@ export function shelterFacingHistoryOf(
       };
     case "shelter_created":
       return { kind: "shelter_created", at: entry.at, actor: operator };
+    case "login_email_changed":
+      return {
+        kind: "login_email_changed",
+        at: entry.at,
+        actor: entry.by.kind === "self" ? { kind: "shelter" } : operator,
+      };
     case "admin_invited":
       return { kind: "admin_invited", at: entry.at, actor: operator, email: entry.email };
     case "admin_invitation_resent":
