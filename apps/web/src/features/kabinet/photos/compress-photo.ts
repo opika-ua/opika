@@ -165,10 +165,8 @@ async function headerOf(file: Blob): Promise<ImageHeader | null> {
 }
 
 /**
- * A big photo's bitmap is asked for at 2000 px, so the one kept is small
- * (Chromium still decodes at full size first). Only one dimension is given, so even a
- * browser that resizes before applying EXIF can't stretch it (it comes back up
- * to ~2667 px and `scaledSize` takes it to 2000 on the canvas).
+ * One dimension only: a browser that resizes before applying EXIF then can't stretch the
+ * photo, it just comes back up to ~2667 px and `scaledSize` takes it to 2000.
  */
 function bitmapResize(header: ImageHeader | null): BitmapResize | undefined {
   if (header === null) return undefined;
@@ -202,14 +200,14 @@ async function decoderTarget(
 }
 
 /**
- * Without its options a bitmap may come back un-rotated, so a turned photo
- * skips `bitmap_plain` rather than upload sideways; `<img>` always applies EXIF.
+ * Without its options a bitmap may come back un-rotated, so only a photo known to be upright
+ * tries `bitmap_plain`; a turned or unread one goes to `<img>`, which always applies EXIF.
  */
 function decodeRoutes(header: ImageHeader | null, decoder: boolean): readonly DecodeRoute[] {
   const routes: DecodeRoute[] =
-    header !== null && header.orientation !== 1
-      ? ["bitmap_options", "img_element"]
-      : ["bitmap_options", "bitmap_plain", "img_element"];
+    header !== null && header.orientation === 1
+      ? ["bitmap_options", "bitmap_plain", "img_element"]
+      : ["bitmap_options", "img_element"];
   return decoder ? ["image_decoder", ...routes] : routes;
 }
 
@@ -317,12 +315,8 @@ export async function compressPhoto(
 }
 
 /**
- * The browser's own decoder and canvas: `ImageDecoder` where there is one,
- * then `createImageBitmap` with `imageOrientation: "from-image"` (so a
- * portrait phone photo isn't drawn sideways), then without options, then an
- * `<img>`; drawn on an `OffscreenCanvas`, or a `<canvas>` where that fails.
- * Not unit-tested (happy-dom has no canvas); the logic above it is, through a
- * fake platform. Nothing here is newer than Safari 16 except the guarded `ImageDecoder`.
+ * Not unit-tested (happy-dom has no canvas); the logic above is, through a fake platform.
+ * Nothing here is newer than iOS 16 WebKit except the guarded `ImageDecoder`.
  */
 export function browserPlatform(): CompressionPlatform {
   return {
@@ -331,14 +325,17 @@ export function browserPlatform(): CompressionPlatform {
     },
     decode(file, route, resize) {
       if (route === "img_element") return decodeWithImg(file);
-      if (resize !== undefined && "mime" in resize) {
-        return route === "image_decoder"
-          ? decodeWithImageDecoder(file, resize)
-          : decodeWithBitmap(file, route, undefined);
+      if (route === "image_decoder") {
+        return decodeWithImageDecoder(
+          file,
+          resize !== undefined && "mime" in resize ? resize : undefined,
+        );
       }
-      return route === "image_decoder"
-        ? decodeWithImageDecoder(file, undefined)
-        : decodeWithBitmap(file, route, resize);
+      return decodeWithBitmap(
+        file,
+        route,
+        resize !== undefined && "mime" in resize ? undefined : resize,
+      );
     },
   };
 }

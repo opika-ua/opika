@@ -3,7 +3,7 @@
  * Pure and SDK-free, so the tunnel can run it without loading the SDK. The SDK's own collection is
  * already set to nothing (`options.ts`); this is the second layer for what still slips into a string.
  * The privacy policy's approved sentence (`privacy.visitors.errors`) depends on what is kept here: error type, place in code,
- * page address without parameters, browser and system - nothing else.
+ * page address without parameters, browser and system, and for a failed photo its type, size and pixel dimensions.
  */
 
 export const FILTERED = "[Filtered]";

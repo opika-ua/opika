@@ -209,10 +209,6 @@ describe("compressPhoto", () => {
             error: "InvalidStateError: The source image could not be decoded.",
           },
           {
-            step: "bitmap_plain",
-            error: "InvalidStateError: The source image could not be decoded.",
-          },
-          {
             step: "img_element",
             error: "InvalidStateError: The source image could not be decoded.",
           },
@@ -443,18 +439,17 @@ describe("compressPhoto: fallback routes", () => {
     expect(decodes.map((d) => d.route)).toEqual(ALL_DECODES);
   });
 
-  it("an unreadable header: bitmap_options with no resize, then the other routes", async () => {
+  it("an unreadable header: bitmap_options with no resize, then <img>, never an un-turned plain bitmap", async () => {
     const { platform, decodes } = fakePlatform({
       width: 4032,
       height: 3024,
-      failDecode: ["bitmap_options", "bitmap_plain"],
+      failDecode: ["bitmap_options"],
     });
     const junk = [0xff, 0xd8, ...Array.from({ length: 64 }, (_, i) => (i * 37) % 251)];
     const result = await compressPhoto(file(junk), platform);
     expect(result).toMatchObject({ kind: "ok", width: 2000, height: 1500 });
     expect(decodes).toEqual([
       { route: "bitmap_options", resize: undefined },
-      { route: "bitmap_plain", resize: undefined },
       { route: "img_element", resize: undefined },
     ]);
   });
