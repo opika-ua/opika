@@ -1658,11 +1658,6 @@ export const uk = {
           "Якщо запит надіслали не ви, просто не зважайте на цей лист: пароль залишиться тим самим.\n{operator}",
       },
       /**
-       * F2, the notice after a reset and after a change (his §9 answer 4, verbatim: "Yes:
-       * «пароль змінено» after a change too."), his Ukrainian, verbatim. No link. `{contact}` is
-       * the Reply-To address (`EMAIL_REPLY_TO`), filled from config.
-       */
-      /**
        * To the old address after the login address changed (owner-approved, 2026-11-25): the new one
        * masked. Then `passwordChanged.notYou`, reused.
        */
@@ -1671,6 +1666,11 @@ export const uk = {
         preheader: "Адресу для входу змінено",
         body: "Адресу для входу в кабінет «{shelterName}» змінено на {maskedEmail}.",
       },
+      /**
+       * F2, the notice after a reset and after a change (his §9 answer 4, verbatim: "Yes:
+       * «пароль змінено» after a change too."), his Ukrainian, verbatim. No link. `{contact}` is
+       * the Reply-To address (`EMAIL_REPLY_TO`), filled from config.
+       */
       passwordChanged: {
         subject: "Кабінет притулку: пароль змінено",
         body: "Пароль до кабінету притулку для цієї адреси щойно змінено. На інших пристроях виконано вихід.",

@@ -639,7 +639,6 @@ describe("an unconfirmed registrant changes the login address (owner, 2026-11-25
 
   function changeDeps(userId: string, sessionId: string): ChangeLoginEmailDeps {
     return {
-      enabled: true,
       caller: { userId, sessionId },
       now,
       allowUser: async () => ({ kind: "ok" }),

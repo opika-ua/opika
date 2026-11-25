@@ -57,7 +57,6 @@ export async function changeLoginEmail(input: {
   const repo = selfRegistrationRepo(db);
   return changeLoginEmailWith(
     {
-      enabled: true,
       caller,
       now,
       // The resend's own key: one budget for both (D7).

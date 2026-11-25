@@ -82,7 +82,7 @@ const withoutQuery = (url: string) => url.replace(/[?#].*$/, "");
 /**
  * Text Better Auth composed for a log line, masked (PW1-F8): Drizzle's "params:" part cut off,
  * whatever its case (a failed query's message carries its parameters there, the address among
- * them), a URL's query dropped, an address reduced to `o•••@example.org` (`maskEmailAddress`), also
+ * them), a URL's query dropped, an address reduced to `o•••a@example.org` (`maskEmailAddress`), also
  * when URL-encoded, and anything token-shaped (`TOKEN_SHAPED`) replaced by «•••». Better Auth's own messages are fixed text; what this guards is a value
  * interpolated into one.
  */

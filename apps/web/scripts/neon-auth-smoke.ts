@@ -1201,22 +1201,33 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
       ? result.setCookies.map((cookie) => cookie.split(";")[0]).join("; ")
       : null;
   };
-  const readSession = async (cookie: string) => {
+  type SessionRead =
+    | { kind: "session"; id: string | undefined; email: string | undefined }
+    | { kind: "signed_out" }
+    | { kind: "error"; status: number };
+  // A failed read is an error, never «signed out»: only a 200 with `null` is that answer.
+  const readSession = async (cookie: string): Promise<SessionRead> => {
     const response = await auth.handler(
       new Request(`${BASE}/api/auth/get-session`, { headers: { cookie, origin: BASE } }),
     );
-    return (await response.json().catch(() => null)) as {
-      session?: { id?: string };
-      user?: { email?: string };
-    } | null;
+    if (response.status !== 200) return { kind: "error", status: response.status };
+    let body: unknown;
+    try {
+      body = JSON.parse(await response.text());
+    } catch {
+      return { kind: "error", status: response.status };
+    }
+    if (body === null) return { kind: "signed_out" };
+    const read = body as { session?: { id?: string }; user?: { email?: string } };
+    return { kind: "session", id: read.session?.id, email: read.user?.email };
   };
+  const idOf = (read: SessionRead) => (read.kind === "session" ? read.id : undefined);
   const thisDevice = (await signInAs(oldAddress)) ?? "";
   const otherDevice = (await signInAs(oldAddress)) ?? "";
-  const thisSessionId = (await readSession(thisDevice))?.session?.id ?? "";
+  const thisSessionId = idOf(await readSession(thisDevice)) ?? "";
   let mailed = 0;
   const changedTo = await changeLoginEmailWith(
     {
-      enabled: true,
       caller: { userId: registrantId, sessionId: thisSessionId },
       now: new Date(),
       allowUser: async () => ({ kind: "ok" }),
@@ -1260,14 +1271,14 @@ export async function runAuthSmoke(db: Database): Promise<Outcome[]> {
   const otherRead = await readSession(otherDevice);
   check(
     "login email change: the other device's session ends (get-session null)",
-    otherDevice !== "" && otherRead === null,
-    `other device session ${otherRead === null ? "ended" : "still live"}`,
+    otherDevice !== "" && otherRead.kind === "signed_out",
+    `other device: ${otherRead.kind === "error" ? `error ${otherRead.status}` : otherRead.kind}`,
   );
   const thisRead = await readSession(thisDevice);
   check(
     "login email change: the changing session stays and reads the new address",
-    thisRead?.session?.id === thisSessionId && thisRead.user?.email === newAddress,
-    `this device session kept ${thisRead?.session?.id === thisSessionId}, reads the new address ${thisRead?.user?.email === newAddress}`,
+    thisRead.kind === "session" && thisRead.id === thisSessionId && thisRead.email === newAddress,
+    `this device: ${thisRead.kind === "error" ? `error ${thisRead.status}` : thisRead.kind}, session kept ${idOf(thisRead) === thisSessionId}, reads the new address ${thisRead.kind === "session" && thisRead.email === newAddress}`,
   );
   return out;
 }

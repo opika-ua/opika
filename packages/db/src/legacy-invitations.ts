@@ -121,9 +121,6 @@ export async function legacyInvitedShelters(db: Database): Promise<LegacyShelter
   });
 }
 
-/** The site's one mask (D5), on the owner's list: enough to recognise an address, no more. */
-export const maskEmail = (email: string): string => maskEmailAddress(email);
-
 export type LegacyDeletion =
   | { kind: "deleted"; count: number; inviteesErased: number }
   | { kind: "count_differs"; found: number; expected: number }
@@ -308,7 +305,7 @@ export function parseLegacyArgs(argv: readonly string[]): LegacyArgs {
 export function formatLegacyList(found: readonly LegacyShelter[]): string[] {
   const lines = found.map(
     (shelter) =>
-      `  ${shelter.name} | ${shelter.id} | ${shelter.invitedEmails.map(maskEmail).join(", ")}${shelter.hasSupportSession ? " | support session: kept, its shelter link nulled" : ""}`,
+      `  ${shelter.name} | ${shelter.id} | ${shelter.invitedEmails.map(maskEmailAddress).join(", ")}${shelter.hasSupportSession ? " | support session: kept, its shelter link nulled" : ""}`,
   );
   return [
     ...lines,

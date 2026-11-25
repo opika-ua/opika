@@ -39,7 +39,6 @@ function harness(
   const logs: string[] = [];
   let ids = 0;
   const deps: ChangeLoginEmailDeps = {
-    enabled: true,
     caller: { userId: "user-1", sessionId: "session-here" },
     now: NOW,
     allowUser: async () => {
@@ -197,7 +196,6 @@ describe("changeLoginEmailWith", () => {
     ["the operator has decided", { application: { ...APPLICATION, status: "pending" as const } }],
     ["the shelter isn't self-registered", { application: null }],
     ["it is a support view or nobody", { caller: null }],
-    ["the flag is off", { enabled: false }],
   ])("not_needed when %s, nothing charged or written", async (_why, overrides) => {
     const h = harness(overrides);
     expect(await h.run()).toEqual({ kind: "not_needed" });
@@ -253,10 +251,15 @@ describe("changeLoginEmailWith", () => {
   });
 
   it("logs reason codes only, never an address or the password", async () => {
-    const h = harness({ taken: true });
-    await h.run();
-    await harness().run({ email: NEW, password: "не той" });
-    expect(h.logs).toEqual(["email_taken"]);
-    for (const line of h.logs) expect(line).not.toMatch(/@|пароль/);
+    const taken = harness({ taken: true });
+    await taken.run();
+    const wrong = harness();
+    await wrong.run({ email: NEW, password: "не той" });
+    expect(taken.logs).toEqual(["email_taken"]);
+    expect(wrong.logs).toEqual(["wrong_password"]);
+    for (const line of [...taken.logs, ...wrong.logs]) {
+      expect(line).not.toContain("@");
+      expect(line).not.toContain("не той");
+    }
   });
 });

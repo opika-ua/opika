@@ -1,12 +1,11 @@
 import { randomUUID } from "node:crypto";
-import type { ShelterId } from "@opika/domain";
+import { maskEmailAddress, type ShelterId } from "@opika/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   deleteLegacyShelters,
   formatLegacyList,
   legacyInvitedShelters,
-  maskEmail,
   parseLegacyArgs,
 } from "../src/legacy-invitations";
 import { animalRepo } from "../src/repos/animal-repo";
@@ -182,13 +181,12 @@ describe("legacyInvitedShelters", () => {
     const { a } = await scene();
     const lines = formatLegacyList(await legacyInvitedShelters(db));
     expect(lines[0]).toBe(
-      `  Альфа | ${a.id} | ${maskEmail(`${a.invitationId?.slice(0, 6)}@example.org`)}`,
+      `  Альфа | ${a.id} | ${maskEmailAddress(`${a.invitationId?.slice(0, 6)}@example.org`)}`,
     );
     expect(lines.at(-1)).toBe(
       "Operator-created shelters with an unaccepted invitation and no animals: 2",
     );
     expect(lines.join("\n")).not.toContain(`${a.invitationId?.slice(0, 6)}@`);
-    expect(maskEmail("olena@example.org")).toBe("o•••a@example.org");
   });
 
   it("reading writes nothing", async () => {
@@ -256,7 +254,7 @@ describe("deleteLegacyShelters", () => {
     expect(found.find((s) => s.id === a.id)?.hasSupportSession).toBe(true);
     // The dry run says what --commit will do with it.
     expect(formatLegacyList(found)).toContain(
-      `  Альфа | ${a.id} | ${maskEmail(`${a.invitationId?.slice(0, 6)}@example.org`)} | support session: kept, its shelter link nulled`,
+      `  Альфа | ${a.id} | ${maskEmailAddress(`${a.invitationId?.slice(0, 6)}@example.org`)} | support session: kept, its shelter link nulled`,
     );
     expect(await deleteLegacyShelters(db, 2, NOW)).toEqual({
       kind: "deleted",

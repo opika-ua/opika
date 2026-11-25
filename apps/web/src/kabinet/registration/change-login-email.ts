@@ -16,7 +16,6 @@ import type { TransactionalSendResult } from "../registration-email";
 import { emailChangeConfirmationDedupKey, loginEmailChangedDedupKey } from "./registration-mail";
 
 export type ChangeLoginEmailDeps = {
-  enabled: boolean;
   /** The signed-in shelter admin and the session that asked; null for a support view or none. */
   caller: { userId: string; sessionId: string } | null;
   now: Date;
@@ -79,7 +78,7 @@ export async function changeLoginEmailWith(
   deps: ChangeLoginEmailDeps,
   raw: { email: unknown; password: unknown },
 ): Promise<LoginEmailChangeResult> {
-  if (!deps.enabled || deps.caller === null) return { kind: "not_needed" };
+  if (deps.caller === null) return { kind: "not_needed" };
   const { userId, sessionId } = deps.caller;
   const application = await deps.repo.applicationOf(userId);
   if (application === null || application.emailVerified || application.status !== "application") {

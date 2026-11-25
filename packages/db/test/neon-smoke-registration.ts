@@ -5,7 +5,7 @@ import {
   type ShelterHistoryEntry,
   shelterFacingHistoryOf,
 } from "@opika/domain";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import type { Database } from "../src/client";
 import { applicationDeletionRepo } from "../src/repos/application-deletion-repo";
 import { cityRepo } from "../src/repos/city-repo";
@@ -367,9 +367,11 @@ async function loginEmailChangeSteps(
       .select()
       .from(authSession)
       .where(eq(authSession.userId, of.input.userId));
-    const verifications = (await db.select().from(authVerification)).filter(
-      (row) => row.id === of.reset || row.id === of.oldLink,
-    );
+    // Only this run's two rows: a child branch holds production's magic links, addresses included.
+    const verifications = await db
+      .select({ id: authVerification.id })
+      .from(authVerification)
+      .where(inArray(authVerification.id, [of.reset, of.oldLink]));
     return {
       email: user?.email ?? null,
       lines: lines.map((line) => line.kind).sort(),
