@@ -20,7 +20,7 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 export default async function NotFound() {
   const copy = uk.siteNotFound;
   return (
-    <div className="flex min-h-dvh flex-col bg-page">
+    <div className="site-page bg-page">
       <SiteHeader kabinetSignedIn={await kabinetSessionCookiePresent()} />
       <Container as="main" className="flex flex-1 items-start justify-center py-8 desktop:py-14">
         <Panel padding="lg" className="flex w-full max-w-140 flex-col items-start gap-4">

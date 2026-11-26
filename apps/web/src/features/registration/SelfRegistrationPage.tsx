@@ -44,7 +44,7 @@ export function SelfRegistrationPage({
 }) {
   const p = uk.registration.page;
   return (
-    <div className="flex min-h-dvh flex-col bg-page">
+    <div className="site-page bg-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} current="forShelters" />
       <OpenAnchoredDetails />
       <Container

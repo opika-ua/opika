@@ -18,7 +18,7 @@ export function AuthPage({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="site-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} current="kabinet" />
       <Container
         as="main"
