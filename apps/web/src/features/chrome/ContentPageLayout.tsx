@@ -24,7 +24,7 @@ export function ContentPageLayout({
   children,
 }: ContentPageLayoutProps) {
   return (
-    <div className="flex min-h-dvh flex-col bg-page">
+    <div className="site-page bg-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} {...(current ? { current } : {})} />
 
       <Container as="main" className="flex-1 py-8 desktop:py-14">

@@ -23,7 +23,7 @@ import { SiteHeader } from "./SiteHeader";
  */
 export function RateLimitedScreen() {
   return (
-    <div className="flex min-h-dvh flex-col bg-page">
+    <div className="site-page bg-page">
       {/* A static page: no cookie read, so the visitor header (the cabinet link is a hint only). */}
       <SiteHeader kabinetSignedIn={false} />
       <Container as="main" className="flex flex-1 items-start justify-center py-8 desktop:py-14">

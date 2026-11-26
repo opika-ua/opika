@@ -17,7 +17,7 @@ interface SavedPageScreenProps {
  */
 export function SavedPageScreen({ kabinetSignedIn = false }: SavedPageScreenProps) {
   return (
-    <div className="min-h-dvh bg-page">
+    <div className="site-page bg-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} current="saved" />
 
       {/* At least a screen tall: the list fills in after hydration, and a footer in view would jump. */}

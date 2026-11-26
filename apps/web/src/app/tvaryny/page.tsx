@@ -285,7 +285,7 @@ export async function renderGallery(
     page.totalMatching === 0 && !anyFilterSet(filters) && sort !== "longest_waiting";
 
   return (
-    <div className="min-h-dvh bg-page">
+    <div className="site-page bg-page">
       {/*
         gallery-v3 (Figma `euz4JGfpToY31VJY7ppVj9`, node `58:1617`): the
         header is in the frame and is re-skinned in `SiteHeader.tsx` itself

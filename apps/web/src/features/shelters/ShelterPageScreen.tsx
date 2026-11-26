@@ -100,7 +100,7 @@ export function ShelterPageScreen({
   );
 
   return (
-    <div className="min-h-dvh bg-page">
+    <div className="site-page bg-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} />
 
       {/* The D-2 demo disclosure, visible in the body as on the gallery and the animal page. */}

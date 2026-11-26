@@ -297,6 +297,17 @@
 @utility nav-kabinet-row {
   @apply nav-kabinet-look flex w-full;
 }
+/* Every page that wears the footer: a column at least a screen tall whose block before the footer takes
+   the spare height, so on a short page the footer meets the viewport's bottom. No 100vh fallback: every
+   browserslist target has dvh, and the build drops one. */
+@utility site-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  & > :has(+ footer) {
+    flex-grow: 1;
+  }
+}
 /* The site footer (A2, on `ink`), one class per look for the same reason: it is in every public page.
    Lavender is `mascot-dog-light`, the nearest token to the design's; 15px is `text-chip` at 400, 19px
    `text-cta` at 600. On a phone the sections are full-width rows with hairlines. Its graphics are
