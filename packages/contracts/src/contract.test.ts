@@ -217,6 +217,7 @@ describe("gallery facet counts output", () => {
     sizes: { small: 1, medium: 1, large: 1 },
     sexes: { male: 2, female: 1, unknown: 0 },
     species: { dog: 2, cat: 1 },
+    indexableBySpecies: { dog: 12, cat: 0 },
   };
 
   // Public view: option ids, integers and a city label cross the wire, whatever the handler hands
@@ -251,5 +252,21 @@ describe("gallery facet counts output", () => {
       GalleryFacetCountsOutputSchema.safeParse({ ...counts, sexes: { ...counts.sexes, male: 1.5 } })
         .success,
     ).toBe(false);
+  });
+
+  // The species pages' threshold reads both counts, so neither may be absent (owner, 2026-11-27).
+  it("requires indexableBySpecies with a non-negative integer for every species", () => {
+    const parses = (indexableBySpecies: unknown) =>
+      GalleryFacetCountsOutputSchema.safeParse({ ...counts, indexableBySpecies }).success;
+    expect(parses({ dog: 12, cat: 0 })).toBe(true);
+    expect(parses({ dog: 12 })).toBe(false);
+    expect(parses({ cat: 0 })).toBe(false);
+    expect(parses({ dog: -1, cat: 0 })).toBe(false);
+    expect(parses({ dog: 12, cat: 0.5 })).toBe(false);
+    expect(parses({ dog: "12", cat: 0 })).toBe(false);
+    expect(parses(undefined)).toBe(false);
+    expect(parses(null)).toBe(false);
+    const { indexableBySpecies: _field, ...withoutField } = counts;
+    expect(GalleryFacetCountsOutputSchema.safeParse(withoutField).success).toBe(false);
   });
 });

@@ -147,6 +147,7 @@ export function makeFacetCounts(overrides: Partial<GalleryFacetCounts> = {}): Ga
     sizes: { small: 4, medium: 6, large: 3 },
     sexes: { male: 7, female: 6, unknown: 0 },
     species: { dog: 8, cat: 5 },
+    indexableBySpecies: { dog: 8, cat: 5 },
     ...overrides,
   };
 }
