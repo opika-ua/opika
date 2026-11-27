@@ -278,6 +278,15 @@ const EXPECTED_PICKED_LOGO: ReadonlyArray<Anchor & { kind: Kind; why: string }> 
       "pick above: a per-request projection, not storage.",
   },
   {
+    file: "contracts/src/procedures/shelters.ts",
+    symbol: "ListedShelterViewSchema",
+    text: "logo: true,",
+    kind: "view",
+    why:
+      "ListedShelterViewSchema (the /prytulky list) - the card view's logo again, a " +
+      "per-request projection of shelters.logo, not storage.",
+  },
+  {
     file: "contracts/src/kabinet/views.ts",
     symbol: "KabinetShelterViewSchema",
     text: "logo: true,",
