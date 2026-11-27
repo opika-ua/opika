@@ -28,6 +28,24 @@ function renderScreen(overrides: Parameters<typeof makeShelterPageView>[0] = {})
   );
 }
 
+describe("the shelter page's way up", () => {
+  it("leads to the shelters list, named «Притулки», when it exists", () => {
+    renderScreen({ sheltersIndexListed: true });
+    // The footer names «Притулки» too, so look inside the page body.
+    const link = within(screen.getByRole("main")).getByRole("link", { name: "Притулки" });
+    expect(link.getAttribute("href")).toBe("/prytulky");
+    expect(screen.getByTestId("shelter-back-link")).toBe(link);
+  });
+
+  it("falls back to the gallery when the list would be a 404", () => {
+    renderScreen({ sheltersIndexListed: false });
+    const link = screen.getByTestId("shelter-back-link");
+    expect(link.getAttribute("href")).toBe("/");
+    expect(link.textContent).toBe("← До списку");
+    expect(within(screen.getByRole("main")).queryByRole("link", { name: "Притулки" })).toBeNull();
+  });
+});
+
 describe("the shelter page", () => {
   it("names the shelter in its only h1, and gives its city only", () => {
     renderScreen();

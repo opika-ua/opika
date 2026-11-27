@@ -10,6 +10,7 @@ import {
   organizationJsonLd,
   serializeJsonLd,
   shelterBreadcrumbs,
+  shelterTrail,
   webSiteJsonLd,
 } from "./json-ld-builders";
 
@@ -113,11 +114,36 @@ describe("json-ld builders", () => {
     });
   });
 
-  it("points the last shelter crumb at the shelter page", () => {
-    const list = shelterBreadcrumbs("Шукають дім", { id: "s1", displayName: "Дім" }) as {
-      itemListElement: { item: string }[];
-    };
-    expect(list.itemListElement.at(-1)?.item).toBe(`${SITE_ORIGIN}/prytulky/s1`);
+  describe("the gallery > shelters > shelter trail", () => {
+    const shelter = { id: "s1", displayName: "Дім" };
+    type Item = { position: number; name: string; item: string };
+    const itemsOf = (list: JsonLdObject): Item[] =>
+      JSON.parse(serializeJsonLd(list)).itemListElement;
+
+    it.each([
+      {
+        case: "with the shelters list",
+        sheltersName: "Притулки" as string | null,
+        paths: ["/", "/prytulky", "/prytulky/s1"],
+        names: ["Шукають дім", "Притулки", "Дім"],
+      },
+      {
+        case: "without the shelters list (it would answer 404)",
+        sheltersName: null,
+        paths: ["/", "/prytulky/s1"],
+        names: ["Шукають дім", "Дім"],
+      },
+    ])("$case", ({ sheltersName, paths, names }) => {
+      const trail = shelterTrail("Шукають дім", sheltersName, shelter);
+      expect(trail.map((crumb) => crumb.path)).toEqual(paths);
+      expect(trail.map((crumb) => crumb.name)).toEqual(names);
+
+      const items = itemsOf(shelterBreadcrumbs("Шукають дім", sheltersName, shelter));
+      expect(items.map((i) => i.position)).toEqual(items.map((_, index) => index + 1));
+      expect(items.map((i) => i.item)).toEqual(paths.map((path) => `${SITE_ORIGIN}${path}`));
+      expect(items.map((i) => i.name)).toEqual(names);
+      for (const { item } of items) expect(item.startsWith("https://")).toBe(true);
+    });
   });
 
   it("escapes < so a name cannot close the script element", () => {

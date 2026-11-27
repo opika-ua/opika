@@ -1,5 +1,6 @@
 import { SITE_ORIGIN, WORDMARK, WORDMARK_CYRILLIC } from "../brand";
 import { GALLERY_PATH } from "../features/chrome/gallery-path";
+import { SHELTERS_INDEX_PATH } from "../features/shelters/shelters-index-path";
 import { LOGO_ICON } from "../pwa";
 
 export type JsonLdObject = Readonly<Record<string, unknown>>;
@@ -81,14 +82,28 @@ export function cityBreadcrumbs(galleryName: string, city: CityCrumb): JsonLdObj
   return breadcrumbListJsonLd(galleryTrail(galleryName, city, null));
 }
 
+/**
+ * The trail gallery > shelters > shelter. The gallery stays the root, as on the animal and city
+ * trails; the shelters level is left out (`sheltersName` null) when `/prytulky` would answer 404.
+ */
+export function shelterTrail(
+  galleryName: string,
+  sheltersName: string | null,
+  shelter: { readonly id: string; readonly displayName: string },
+): readonly Crumb[] {
+  return [
+    { name: galleryName, path: GALLERY_PATH },
+    ...(sheltersName === null ? [] : [{ name: sheltersName, path: SHELTERS_INDEX_PATH }]),
+    { name: shelter.displayName, path: `/prytulky/${shelter.id}` },
+  ];
+}
+
 export function shelterBreadcrumbs(
   galleryName: string,
+  sheltersName: string | null,
   shelter: { readonly id: string; readonly displayName: string },
 ): JsonLdObject {
-  return breadcrumbListJsonLd([
-    { name: galleryName, path: GALLERY_PATH },
-    { name: shelter.displayName, path: `/prytulky/${shelter.id}` },
-  ]);
+  return breadcrumbListJsonLd(shelterTrail(galleryName, sheltersName, shelter));
 }
 
 /** `<` escaped so a name containing `</script>` cannot end the script element early. */

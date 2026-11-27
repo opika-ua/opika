@@ -1,11 +1,12 @@
 import { type FeedFilters, NO_FILTERS } from "@opika/domain";
 import { describe, expect, it } from "vitest";
-import { loadShelterPage, SHELTER_FILTERS_ABOVE } from "./shelter-page-load";
+import { listedInSheltersIndex, loadShelterPage, SHELTER_FILTERS_ABOVE } from "./shelter-page-load";
 import {
   CITY_ID,
   makeCardView,
   makeFacetCounts,
   makeListOutput,
+  makeShelterPageShelter,
   SHELTER_ID,
   stubShelterPageClient,
 } from "./test-fixtures";
@@ -189,5 +190,50 @@ describe("the shelter page's city page (loader)", () => {
     const { client } = stubShelterPageClient({ kind: "answer" });
     const load = await loadShelterPage(SHELTER_ID, QUERY, client);
     expect(load.kind === "shelter" && load.view.cityPageSlug).toBeNull();
+  });
+});
+
+describe("whether /prytulky lists the shelter (loader)", () => {
+  const open = { kind: "open" } as const;
+  const paused = { kind: "paused", reason: "other" } as const;
+
+  it.each([
+    {
+      case: "verified, open, with animals",
+      verification: "verified",
+      availability: open,
+      total: 3,
+      listed: true,
+    },
+    {
+      case: "verified, open, with none",
+      verification: "verified",
+      availability: open,
+      total: 0,
+      listed: false,
+    },
+    {
+      case: "verified but paused",
+      verification: "verified",
+      availability: paused,
+      total: 3,
+      listed: false,
+    },
+    {
+      case: "listed before verification",
+      verification: "listed_before_verification",
+      availability: open,
+      total: 3,
+      listed: false,
+    },
+  ] as const)("$case", ({ verification, availability, total, listed }) => {
+    const shelter = makeShelterPageShelter({ verification, availability });
+    expect(listedInSheltersIndex(shelter, total)).toBe(listed);
+  });
+
+  it("is on the view the page is given", async () => {
+    const { client } = stubShelterPageClient({ kind: "answer" }, listOf(2));
+    const load = await loadShelterPage(SHELTER_ID, QUERY, client);
+    expect(load.kind === "shelter" && load.view.sheltersIndexListed).toBe(true);
   });
 });
