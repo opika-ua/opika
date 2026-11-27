@@ -179,6 +179,82 @@ describe("/prytulky: the shelters the sitemap names, grouped by city", () => {
   });
 });
 
+describe("shelters.listed, the procedure behind the page", () => {
+  it("leaves out a verified shelter with no listed animal; the endpoint and the page still answer", async () => {
+    const brovary = await seedCity("brovary", "Бровари");
+    const listed = await seedShelter(brovary, "Вигадані лапи");
+    const empty = await seedShelter(brovary, "Порожній притулок");
+    await animalRepo(h.db).insertMany([
+      { animal: makeAnimal({ shelterId: listed }), cityId: brovary },
+      // Not listed: a draft and an adopted animal give a shelter no place on the list.
+      { animal: makeAnimal({ shelterId: empty, listing: { kind: "draft" } }), cityId: brovary },
+      {
+        animal: makeAnimal({
+          shelterId: empty,
+          listing: { kind: "adopted", adoptedAt: new Date() },
+        }),
+        cityId: brovary,
+      },
+    ]);
+
+    const served = await h.call("shelters.listed", {}, { now: new Date() });
+    expect(served.status).toBe(200);
+    const body = served.body as { items: { id: string; listedAnimalCount: number }[] };
+    expect(body.items.map((item) => [item.id, item.listedAnimalCount])).toEqual([[listed, 1]]);
+
+    const result = await load();
+    if (result.kind !== "index") throw new Error(`expected the list, got ${result.kind}`);
+    render(<div>{renderSheltersIndex(result, false)}</div>);
+    expect(screen.getAllByTestId("shelter-index-row")).toHaveLength(1);
+    expect(screen.queryByText("Порожній притулок")).toBeNull();
+  });
+
+  it("with only an animal-less verified shelter, the page is a 404, not an error", async () => {
+    const brovary = await seedCity("brovary", "Бровари");
+    await seedShelter(brovary, "Порожній притулок");
+    const served = await h.call("shelters.listed", {}, { now: new Date() });
+    expect(served.status).toBe(200);
+    expect(served.body).toMatchObject({ items: [], cityLabels: [] });
+    expect(await load()).toEqual({ kind: "not_found" });
+  });
+
+  it("each item carries exactly the picked fields, and its location is the city only", async () => {
+    const brovary = await seedCity("brovary", "Бровари");
+    // The default fixture location: an exact address, fuzzed, with a district.
+    const shelter = makeShelter({
+      displayName: "Вигадані лапи",
+      premises: {
+        kind: "address",
+        address: {
+          line1: STREET,
+          line2: null,
+          postalCode: POSTCODE,
+          cityId: brovary,
+          district: { uk: "Вигаданий район", en: null },
+          coordinates: { lat: 50.45, lng: 30.52 },
+        },
+      },
+    });
+    await shelterRepo(h.db).insert(shelter);
+    await animalRepo(h.db).insert(makeAnimal({ shelterId: shelter.id }), brovary);
+
+    const served = await h.call("shelters.listed", {}, { now: new Date() });
+    const [item] = (served.body as { items: Record<string, unknown>[] }).items;
+    expect(Object.keys(item ?? {}).sort()).toEqual([
+      "createdAt",
+      "displayName",
+      "id",
+      "listedAnimalCount",
+      "logo",
+      "organisationWord",
+      "publicLocation",
+    ]);
+    expect(item?.["publicLocation"]).toEqual({ cityId: brovary });
+    expect(served.raw).not.toContain("Вигаданий район");
+    expect(served.raw).not.toContain(STREET);
+  });
+});
+
 describe("loadSheltersIndex's refusals", () => {
   const failing = (error: unknown): SheltersIndexClient => ({
     shelters: { listed: vi.fn(async () => Promise.reject(error)) },

@@ -1,5 +1,5 @@
 import type { ListedShelterView } from "@opika/contracts";
-import { CityIdSchema, MAX_GALLERY_NAVIGABLE_ROWS, ShelterIdSchema } from "@opika/domain";
+import { CityIdSchema, ShelterIdSchema } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import { listedCountsOf } from "../../api/handlers/shelters";
 import { BROVARY, BROVARY_LABEL, KYIV, KYIV_LABEL } from "../gallery/test-places";
@@ -14,9 +14,8 @@ const listed = (n: number, displayName: string, cityId = BROVARY): ListedShelter
   logo: null,
   createdAt: new Date("2025-03-01T00:00:00.000Z"),
   publicLocation: { cityId },
-  verification: "verified",
   organisationWord: "shelter",
-  listedAnimals: 1,
+  listedAnimalCount: 1,
 });
 
 describe("groupByCity: the shelters list's order (no ranking input, commitment 1)", () => {
@@ -47,8 +46,8 @@ describe("groupByCity: the shelters list's order (no ranking input, commitment 1
 });
 
 describe("listedCountsOf: each shelter's count from the sitemap's animal rows", () => {
-  it("counts each shelter's rows, exactly while the rows stay under the navigable bound", () => {
-    const { counts, exact } = listedCountsOf([
+  it("counts each shelter's rows", () => {
+    const counts = listedCountsOf([
       { shelterId: shelterId(1) },
       { shelterId: shelterId(2) },
       { shelterId: shelterId(1) },
@@ -57,14 +56,5 @@ describe("listedCountsOf: each shelter's count from the sitemap's animal rows", 
       [shelterId(1), 2],
       [shelterId(2), 1],
     ]);
-    expect(exact).toBe(true);
-  });
-
-  it("is not exact at the bound, where the rows may stop short of some animals", () => {
-    const rows = Array.from({ length: MAX_GALLERY_NAVIGABLE_ROWS }, () => ({
-      shelterId: shelterId(1),
-    }));
-    expect(listedCountsOf(rows).exact).toBe(false);
-    expect(listedCountsOf(rows.slice(1)).exact).toBe(true);
   });
 });

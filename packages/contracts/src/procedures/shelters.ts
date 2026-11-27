@@ -1,8 +1,7 @@
-import { OrganisationWordSchema, ShelterIdSchema, ShelterSchema } from "@opika/domain";
+import { ShelterIdSchema } from "@opika/domain";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 import { apiErrors } from "../errors";
-import { PublicCityLocationViewSchema } from "../views/location";
 import { CityLabelViewSchema, PublicShelterViewSchema } from "../views/shelter";
 
 export const SheltersByIdInputSchema = z.object({
@@ -28,24 +27,19 @@ export const sheltersByIdContract = oc
   });
 
 /**
- * One shelter of the shelters list, built with `pick` like every public view: no address, contact
- * or description. `verification` is a literal because the list is the sitemap's shelters, verified
- * ones only; `createdAt` is for the trust line's year.
+ * One shelter of the shelters list: the shelter page's own view, picked (no address, contact or
+ * description). Only verified shelters are listed, so the page renders the verified badge itself.
  */
-export const ListedShelterViewSchema = ShelterSchema.pick({
+export const ListedShelterViewSchema = PublicShelterViewSchema.pick({
   id: true,
   displayName: true,
   logo: true,
   createdAt: true,
+  publicLocation: true,
+  organisationWord: true,
 }).extend({
-  publicLocation: PublicCityLocationViewSchema,
-  verification: z.literal("verified"),
-  organisationWord: OrganisationWordSchema,
-  /**
-   * Its animals adopters can see now (never zero: a shelter is listed only with one); null when
-   * the server cannot count them exactly, and the page then shows no number.
-   */
-  listedAnimals: z.number().int().positive().nullable(),
+  // Built from the sitemap's animal rows, so a shelter enters only through a listed animal.
+  listedAnimalCount: z.number().int().positive(),
 });
 export type ListedShelterView = z.infer<typeof ListedShelterViewSchema>;
 

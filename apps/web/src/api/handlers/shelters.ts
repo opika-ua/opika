@@ -8,7 +8,6 @@ import type {
 import { galleryRepo, shelterRepo } from "@opika/db/repos";
 import {
   earlyListingOf,
-  MAX_GALLERY_NAVIGABLE_ROWS,
   organisationWordOf,
   publicDonationOf,
   publicListingBasisOf,
@@ -82,10 +81,10 @@ export async function sheltersListed(
   context: AppContext,
 ): Promise<z.infer<typeof SheltersListedOutputSchema>> {
   const rows = await galleryRepo(context.db).sitemapRows({ now: context.now });
-  const { counts, exact } = listedCountsOf(rows);
+  const counts = listedCountsOf(rows);
   const found = await shelterRepo(context.db).findByIds([...counts.keys()]);
   const items = found.flatMap((shelter): ListedShelterView[] =>
-    // Re-checked: a status can change between the two reads, and the type should say it.
+    // Re-checked: a status can change between the two reads.
     shelter.verification.status === "verified"
       ? [
           {
@@ -94,9 +93,8 @@ export async function sheltersListed(
             logo: shelter.logo,
             createdAt: shelter.createdAt,
             publicLocation: cityOnlyLocationOf(shelter.publicLocation),
-            verification: "verified",
             organisationWord: organisationWordOf(shelter.legalEntity?.kind ?? null),
-            listedAnimals: exact ? (counts.get(shelter.id) ?? null) : null,
+            listedAnimalCount: counts.get(shelter.id) ?? 0,
           },
         ]
       : [],
@@ -108,12 +106,11 @@ export async function sheltersListed(
   return { items, cityLabels };
 }
 
-/** Each shelter's rows; not `exact` at the navigable bound, where the rows may stop short. */
-export function listedCountsOf(rows: readonly { readonly shelterId: ShelterId }[]): {
-  counts: ReadonlyMap<ShelterId, number>;
-  exact: boolean;
-} {
+/** Each shelter's listed animals: its rows among the sitemap's animal rows. */
+export function listedCountsOf(
+  rows: readonly { readonly shelterId: ShelterId }[],
+): ReadonlyMap<ShelterId, number> {
   const counts = new Map<ShelterId, number>();
   for (const row of rows) counts.set(row.shelterId, (counts.get(row.shelterId) ?? 0) + 1);
-  return { counts, exact: rows.length < MAX_GALLERY_NAVIGABLE_ROWS };
+  return counts;
 }

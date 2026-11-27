@@ -84,11 +84,11 @@ function ShelterRow({ shelter }: { shelter: ListedShelterView }) {
           <span aria-hidden="true">✓ </span>
           {trust}
         </span>
-        {shelter.listedAnimals !== null && (
-          <span className="text-body text-ink-2">
-            {fillTemplate(uk.shelterPage.animalsHeading, { count: String(shelter.listedAnimals) })}
-          </span>
-        )}
+        <span className="text-body text-ink-2">
+          {fillTemplate(uk.shelterPage.animalsHeading, {
+            count: String(shelter.listedAnimalCount),
+          })}
+        </span>
       </span>
     </Link>
   );
