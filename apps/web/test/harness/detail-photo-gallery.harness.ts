@@ -104,6 +104,8 @@ test.describe("detail page photo gallery – keyboard reachability", () => {
     await page.getByRole("button", { name: "Наступні фото" }).click();
     const prev = page.getByRole("button", { name: "Попередні фото" });
     await expect(prev).toBeVisible();
-    await expectReachableByTab(page, { label: "photo-prev button", locator: prev });
+    // Focus is on «Наступні фото», so the way round to the earlier button passes the whole page
+    // below, including the same shelter's cards (four links): more than the default 25 presses.
+    await expectReachableByTab(page, { label: "photo-prev button", locator: prev }, 40);
   });
 });

@@ -63,7 +63,7 @@ const GALLERY_LIST_NOTE =
   "gallery.list (handler + repo) is one wave: the page SELECT joins each card's shelter and city (narrow public columns), and countShelters runs beside it. Only a page past the end or with no match adds a count wave.";
 
 const DETAIL_NOTE =
-  "loadAnimalPage: animals.byId is one statement (animal JOIN shelter); then shelters.byId (the page-only shelter fields), cities.byIds and cities.withPages (does the city have a landing page) run together (the card's city is known from the animal view). regions.list has no query. The shelter row is still read a second time for fields the animal view lacks; dropping that needs a contract change.";
+  "loadAnimalPage: animals.byId is one statement (animal JOIN shelter); then shelters.byId (the page-only shelter fields), cities.byIds and cities.withPages (does the city have a landing page) run together (the card's city is known from the animal view), beside the same shelter's other animals (gallery.list, shelter scope: its page select and shelter count, the block of up to four cards). regions.list has no query. The shelter row is still read a second time for fields the animal view lacks; dropping that needs a contract change.";
 
 export const ROUTES: Route[] = [
   {
@@ -108,7 +108,7 @@ export const ROUTES: Route[] = [
   {
     label: "/tvaryny/[animalId] (animal page)",
     reads:
-      "loadAnimalPage: animals.byId (animal JOIN shelter) -> shelters.byId || regions.list || cities.byIds || cities.withPages",
+      "loadAnimalPage: animals.byId (animal JOIN shelter) -> shelters.byId || regions.list || cities.byIds || cities.withPages || gallery.list (shelter scope)",
     needs: (p) => p.animalId !== null,
     run: (client, _db, pick) =>
       loadAnimalPage(pick.animalId as string, client as unknown as AnimalPageClient),

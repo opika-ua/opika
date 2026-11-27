@@ -117,7 +117,8 @@ test.describe("the gallery's animal overlay", () => {
       // What the animal page shows, because it is the animal page (his Q1).
       await expect(dialog.getByRole("heading", { level: 1, name })).toBeVisible();
       await expect(dialog.getByRole("button", { name: uk.detail.giveHome })).toBeVisible();
-      await expect(dialog.getByText(/^Оновлено /)).toBeVisible();
+      // The page's own freshness line; the same shelter's cards below carry theirs too.
+      await expect(dialog.getByTestId("freshness-block")).toBeVisible();
       // «Медичний стан» (pet card PR 5, A3) only renders a column when the shelter has
       // written a free-text note - no seeded animal has one yet (the field is new, no
       // backfill), so «Про мене» (always rendered) is the stand-in for "this is really
