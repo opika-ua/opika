@@ -15,6 +15,7 @@ import { Button, buttonClass, LinkButton } from "../../ui/Button";
 import { Icon } from "../../ui/Icon";
 import { useModalFocus } from "../controls/useModalFocus";
 import { useScrollingClass } from "../controls/useScrollingClass";
+import { OverlayHopContext } from "./overlay-hop";
 
 /**
  * The gallery's animal overlay (designer round 1 S4b, pet card PR 5): an intercepting route that
@@ -142,6 +143,13 @@ export function AnimalOverlay({
   const router = useRouter();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const close = useCallback(() => router.back(), [router]);
+  const hop = useCallback(
+    (href: string) => {
+      skipNextEntranceAnimation();
+      router.replace(href, { scroll: false });
+    },
+    [router],
+  );
   const scrollRef = useScrollingClass<HTMLDivElement>();
   const compact = usePhotoScrolledAway(scrollRef, label);
   const [shouldAnimate] = useState(() => !entranceSkipRequested());
@@ -181,7 +189,7 @@ export function AnimalOverlay({
         <div className={FRAME_ROW}>
           <div className={FRAME_CLIP}>
             <div ref={scrollRef} className={FRAME_SCROLL}>
-              {children}
+              <OverlayHopContext value={hop}>{children}</OverlayHopContext>
             </div>
           </div>
         </div>
