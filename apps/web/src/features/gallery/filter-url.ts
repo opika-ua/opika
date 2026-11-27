@@ -585,7 +585,7 @@ export function galleryPageHref(
  * without it, every card link would open an animal with no idea which
  * gallery it came from. Same param scheme as `galleryHref`/`galleryPageHref`
  * (reuses `filterAndSortParams`), just rooted at `/tvaryny/{id}` instead of
- * `/tvaryny`. No `page` param, for the same reason `galleryHref` carries
+ * the gallery (`/`). No `page` param, for the same reason `galleryHref` carries
  * none: opening one animal isn't "go to this result-set page."
  */
 export function animalPageHref(
