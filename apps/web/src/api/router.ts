@@ -8,7 +8,7 @@ import { regionsList } from "./handlers/regions";
 import { animalsReveal } from "./handlers/reveal";
 import { revealsListMine } from "./handlers/reveals-list";
 import { sessionBootstrap } from "./handlers/session";
-import { sheltersById } from "./handlers/shelters";
+import { sheltersById, sheltersListed } from "./handlers/shelters";
 
 /**
  * The oRPC router, implementing the contract from @opika/contracts.
@@ -69,5 +69,6 @@ export const router = impl.router({
     byId: impl.shelters.byId.handler(({ input, context, errors }) =>
       sheltersById(input, context, errors),
     ),
+    listed: impl.shelters.listed.handler(({ context }) => sheltersListed(context)),
   },
 });

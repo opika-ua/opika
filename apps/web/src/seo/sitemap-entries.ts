@@ -1,6 +1,7 @@
 import { GALLERY_PATH } from "../features/chrome/gallery-path";
 import { PRIVACY_PATH } from "../features/chrome/privacy-path";
 import { cityPagePath } from "../features/gallery/filter-url";
+import { SHELTERS_INDEX_PATH } from "../features/shelters/shelters-index-path";
 import { absoluteUrl } from "./json-ld-builders";
 
 export type SitemapEntry = { readonly url: string; readonly lastModified?: Date };
@@ -20,9 +21,11 @@ export type SitemapSource = {
 
 /**
  * Empty while the site is not discoverable: no source is read at all. Shelter
- * URLs come from the animals' cards (no listing of shelters exists), so a
- * shelter with no visible animal is absent. City pages follow the static
- * pages, ahead of the long tail of animals the URL limit could cut.
+ * URLs come from the animals' cards, so a shelter with no visible animal is
+ * absent. `/prytulky` lists exactly those shelters (`galleryRepo.listedShelters`,
+ * the same basis), so it answers 200 exactly when an animal is listed here.
+ * City pages follow the static pages, ahead of the long tail of animals the URL
+ * limit could cut.
  */
 export async function buildSitemapEntries(
   discoverable: boolean,
@@ -31,6 +34,7 @@ export async function buildSitemapEntries(
   if (!discoverable) return [];
   const [animals, cities] = await Promise.all([source.animals(), source.cities()]);
   const paths = new Set<string>(STATIC_SITEMAP_PATHS);
+  if (animals.length > 0) paths.add(SHELTERS_INDEX_PATH);
   const shelterPaths = new Set<string>();
   const animalPaths: string[] = [];
   for (const item of animals) {

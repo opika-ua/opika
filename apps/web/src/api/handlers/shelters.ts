@@ -1,15 +1,23 @@
-import type { apiErrors, PublicShelterView, SheltersByIdInputSchema } from "@opika/contracts";
-import { shelterRepo } from "@opika/db/repos";
+import type {
+  apiErrors,
+  ListedShelterView,
+  PublicShelterView,
+  SheltersByIdInputSchema,
+  SheltersListedOutputSchema,
+} from "@opika/contracts";
+import { galleryRepo, shelterRepo } from "@opika/db/repos";
 import {
   earlyListingOf,
   organisationWordOf,
   publicDonationOf,
   publicListingBasisOf,
+  type ShelterId,
   shelterAvailabilityOf,
 } from "@opika/domain";
 import type { ORPCErrorConstructorMap } from "@orpc/server";
 import type { z } from "zod";
 import type { AppContext } from "../context";
+import { cityLabelsFor } from "./city-labels";
 import { cityOnlyLocationOf } from "./public-location";
 
 type SheltersInput = z.infer<typeof SheltersByIdInputSchema>;
@@ -62,4 +70,47 @@ export async function sheltersById(
     availability,
     organisationWord: organisationWordOf(shelter.legalEntity?.kind ?? null),
   };
+}
+
+/**
+ * The shelters list (`/prytulky`) from existing reads only: the sitemap's animal rows (verified-only
+ * basis) name the shelters and give each one's count; one batch read of those shelters, projected
+ * field by field (never the address or contact), and one of their cities' labels.
+ */
+export async function sheltersListed(
+  context: AppContext,
+): Promise<z.infer<typeof SheltersListedOutputSchema>> {
+  const rows = await galleryRepo(context.db).sitemapRows({ now: context.now });
+  const counts = listedCountsOf(rows);
+  const found = await shelterRepo(context.db).findByIds([...counts.keys()]);
+  const items = found.flatMap((shelter): ListedShelterView[] =>
+    // Re-checked: a status can change between the two reads.
+    shelter.verification.status === "verified"
+      ? [
+          {
+            id: shelter.id,
+            displayName: shelter.displayName,
+            logo: shelter.logo,
+            createdAt: shelter.createdAt,
+            publicLocation: cityOnlyLocationOf(shelter.publicLocation),
+            organisationWord: organisationWordOf(shelter.legalEntity?.kind ?? null),
+            listedAnimalCount: counts.get(shelter.id) ?? 0,
+          },
+        ]
+      : [],
+  );
+  const cityLabels = await cityLabelsFor(
+    context.db,
+    items.map((item) => item.publicLocation.cityId),
+  );
+  return { items, cityLabels };
+}
+
+/** Each shelter's listed animals: its rows among the sitemap's animal rows. */
+export function listedCountsOf(
+  rows: readonly { readonly shelterId: ShelterId }[],
+): ReadonlyMap<ShelterId, number> {
+  const counts = new Map<ShelterId, number>();
+  for (const row of rows) counts.set(row.shelterId, (counts.get(row.shelterId) ?? 0) + 1);
+  return counts;
 }

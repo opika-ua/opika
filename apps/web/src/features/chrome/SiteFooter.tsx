@@ -2,6 +2,7 @@ import { fillTemplate, uk } from "@opika/i18n";
 import Link from "next/link";
 import { INSTAGRAM, OPERATOR_CONTACT, WORDMARK } from "../../brand";
 import { Container } from "../../ui/Container";
+import { SHELTERS_INDEX_PATH } from "../shelters/shelters-index-path";
 import { GALLERY_PATH } from "./gallery-path";
 import { PRIVACY_PATH } from "./privacy-path";
 
@@ -11,13 +12,14 @@ const INDEPENDENT = fillTemplate(uk.about.independent, { site: WORDMARK });
 interface FooterSection {
   readonly href: string;
   readonly label: string;
-  /** The gallery is charged to the visitor's per-IP budget (`proxy.ts`), so never prefetched. */
+  /** The gallery and the shelters list are charged to the per-IP budget (`proxy.ts`), so never prefetched. */
   readonly prefetch?: false;
 }
 
 /** In order; the privacy policy sits with the contacts, as a plain link (owner's A2 lists sections only). */
 const SECTIONS: readonly FooterSection[] = [
   { href: GALLERY_PATH, label: uk.nav.animals, prefetch: false },
+  { href: SHELTERS_INDEX_PATH, label: uk.sheltersIndex.footerLink, prefetch: false },
   { href: "/prytulkam", label: uk.nav.forShelters },
   { href: "/pro", label: uk.nav.about },
 ];

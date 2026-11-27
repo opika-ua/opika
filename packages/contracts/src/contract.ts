@@ -17,7 +17,7 @@ import {
 import { regionsListContract } from "./procedures/regions";
 import { revealsListMineContract } from "./procedures/reveals";
 import { sessionBootstrapContract } from "./procedures/session";
-import { sheltersByIdContract } from "./procedures/shelters";
+import { sheltersByIdContract, sheltersListedContract } from "./procedures/shelters";
 
 /**
  * The API surface, as data.
@@ -55,6 +55,7 @@ export const contract = {
   },
   shelters: {
     byId: sheltersByIdContract,
+    listed: sheltersListedContract,
   },
 } as const;
 

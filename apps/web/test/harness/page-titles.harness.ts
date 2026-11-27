@@ -38,6 +38,11 @@ test("the privacy policy's title is «Політика конфіденційн�
   expect(await page.title()).toBe(`Політика конфіденційності${EN_DASH_SEPARATOR}`);
 });
 
+test("/prytulky's title is the owner's, ending in « – перевірені вручну»", async ({ page }) => {
+  await openRoute(page, "/prytulky", DETAIL_DESKTOP);
+  expect(await page.title()).toBe("Притулки для тварин на Opika – перевірені вручну");
+});
+
 test("an animal page's title is SEO handoff B2's, dropping « – Opika» only past 60 characters", async ({
   page,
 }) => {

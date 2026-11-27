@@ -2,7 +2,7 @@ import { ShelterIdSchema } from "@opika/domain";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 import { apiErrors } from "../errors";
-import { PublicShelterViewSchema } from "../views/shelter";
+import { CityLabelViewSchema, PublicShelterViewSchema } from "../views/shelter";
 
 export const SheltersByIdInputSchema = z.object({
   shelterId: ShelterIdSchema,
@@ -23,5 +23,39 @@ export const sheltersByIdContract = oc
   .output(PublicShelterViewSchema)
   .errors({
     NOT_FOUND: apiErrors.NOT_FOUND,
+    RATE_LIMITED: apiErrors.RATE_LIMITED,
+  });
+
+/**
+ * One shelter of the shelters list: the shelter page's own view, picked (no address, contact or
+ * description). Only verified shelters are listed, so the page renders the verified badge itself.
+ */
+export const ListedShelterViewSchema = PublicShelterViewSchema.pick({
+  id: true,
+  displayName: true,
+  logo: true,
+  createdAt: true,
+  publicLocation: true,
+  organisationWord: true,
+}).extend({
+  // Built from the sitemap's animal rows, so a shelter enters only through a listed animal.
+  listedAnimalCount: z.number().int().positive(),
+});
+export type ListedShelterView = z.infer<typeof ListedShelterViewSchema>;
+
+/** The shelters by name, and the label of each one's own city, once each. */
+export const SheltersListedOutputSchema = z.object({
+  items: z.array(ListedShelterViewSchema).readonly(),
+  cityLabels: z.array(CityLabelViewSchema).readonly(),
+});
+
+/**
+ * Every shelter with an animal listed on the indexable (verified-only) basis: the shelters the
+ * sitemap names. An early-listed or paused shelter is not in it.
+ */
+export const sheltersListedContract = oc
+  .input(z.object({}))
+  .output(SheltersListedOutputSchema)
+  .errors({
     RATE_LIMITED: apiErrors.RATE_LIMITED,
   });

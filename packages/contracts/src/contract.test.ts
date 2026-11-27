@@ -42,6 +42,7 @@ describe("the contract surface", () => {
       "reveals.listMine",
       "session.bootstrap",
       "shelters.byId",
+      "shelters.listed",
     ]);
   });
 });
