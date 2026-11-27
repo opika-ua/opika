@@ -53,14 +53,24 @@ export const ANIMAL_PAGE_HTML_BUDGET_BYTES = 97_000;
 /**
  * The document without its chunk references: the `<script src>` tags and preloads, and the chunk
  * paths inside the flight data. They change with any shared-module edit, not with the page.
+ * Vercel serves chunks under `/_next/static/immutable/chunks/`, so both path shapes are stripped.
  */
 export const contentBytesOf = (html: string): number =>
   Buffer.byteLength(
     html
       .replace(/<script src="\/_next\/static\/[^"]*"[^>]*><\/script>/g, "")
       .replace(/<link rel="preload" as="script"[^>]*\/>/g, "")
-      .replace(/\/_next\/static\/chunks\/[\w.~-]+\.js/g, ""),
+      .replace(/\/_next\/static\/(?:immutable\/)?chunks\/[\w.~-]+\.js/g, ""),
   );
+
+test("the content measure strips chunk paths in both shapes, and nothing else", () => {
+  const plain = '["/_next/static/chunks/0a1b2c.js","/_next/static/chunks/x-9f~a.js"]';
+  const immutable = '["/_next/static/immutable/chunks/0a1b2c.js"]';
+  expect(contentBytesOf(plain)).toBe(Buffer.byteLength('["",""]'));
+  expect(contentBytesOf(immutable)).toBe(Buffer.byteLength('[""]'));
+  const page = '<p>Біляшик</p><img src="/_next/static/media/logo.svg">';
+  expect(contentBytesOf(page)).toBe(Buffer.byteLength(page));
+});
 
 const SENTENCE = "Лагідний, грайливий песик, який дуже любить прогулянки та людей. ";
 const textOf = (characters: number): string =>
