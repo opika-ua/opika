@@ -756,9 +756,9 @@ describe("galleryCanonicalPath (SEO B3, owner 2026-11-18; plain pages 2026-11-27
 
 describe("servedPageHref (owner, 2026-11-27)", () => {
   it("swaps in the served page and keeps every other param, in order, repeats included", () => {
-    expect(
-      servedPageHref("/", { vyd: "dog", stor: "99", misto: ["kyiv", "bucha"] }, 4),
-    ).toBe("/?vyd=dog&stor=4&misto=kyiv&misto=bucha");
+    expect(servedPageHref("/", { vyd: "dog", stor: "99", misto: ["kyiv", "bucha"] }, 4)).toBe(
+      "/?vyd=dog&stor=4&misto=kyiv&misto=bucha",
+    );
   });
 
   it("page 1 drops «stor»; nothing else left means no query at all", () => {
