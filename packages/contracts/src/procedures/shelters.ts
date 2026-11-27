@@ -1,8 +1,9 @@
-import { ShelterIdSchema } from "@opika/domain";
+import { OrganisationWordSchema, ShelterIdSchema, ShelterSchema } from "@opika/domain";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 import { apiErrors } from "../errors";
-import { PublicShelterViewSchema } from "../views/shelter";
+import { PublicCityLocationViewSchema } from "../views/location";
+import { CityLabelViewSchema, PublicShelterViewSchema } from "../views/shelter";
 
 export const SheltersByIdInputSchema = z.object({
   shelterId: ShelterIdSchema,
@@ -23,5 +24,44 @@ export const sheltersByIdContract = oc
   .output(PublicShelterViewSchema)
   .errors({
     NOT_FOUND: apiErrors.NOT_FOUND,
+    RATE_LIMITED: apiErrors.RATE_LIMITED,
+  });
+
+/**
+ * One shelter of the shelters list, built with `pick` like every public view: no address, contact
+ * or description. `verification` is a literal because the list is the sitemap's shelters, verified
+ * ones only; `createdAt` is for the trust line's year.
+ */
+export const ListedShelterViewSchema = ShelterSchema.pick({
+  id: true,
+  displayName: true,
+  logo: true,
+  createdAt: true,
+}).extend({
+  publicLocation: PublicCityLocationViewSchema,
+  verification: z.literal("verified"),
+  organisationWord: OrganisationWordSchema,
+  /**
+   * Its animals adopters can see now (never zero: a shelter is listed only with one); null when
+   * the server cannot count them exactly, and the page then shows no number.
+   */
+  listedAnimals: z.number().int().positive().nullable(),
+});
+export type ListedShelterView = z.infer<typeof ListedShelterViewSchema>;
+
+/** The shelters by name, and the label of each one's own city, once each. */
+export const SheltersListedOutputSchema = z.object({
+  items: z.array(ListedShelterViewSchema).readonly(),
+  cityLabels: z.array(CityLabelViewSchema).readonly(),
+});
+
+/**
+ * Every shelter with an animal listed on the indexable (verified-only) basis: the shelters the
+ * sitemap names. An early-listed or paused shelter is not in it.
+ */
+export const sheltersListedContract = oc
+  .input(z.object({}))
+  .output(SheltersListedOutputSchema)
+  .errors({
     RATE_LIMITED: apiErrors.RATE_LIMITED,
   });

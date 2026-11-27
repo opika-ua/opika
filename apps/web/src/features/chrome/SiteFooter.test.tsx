@@ -17,6 +17,7 @@ describe("SiteFooter (A2)", () => {
     expect(links).toEqual([
       ["Opika", "/"],
       ["Тварини", "/"],
+      ["Притулки", "/prytulky"],
       ["Для притулків", "/prytulkam"],
       ["Про проєкт", "/pro"],
       ["hello@opika.org.ua", "mailto:hello@opika.org.ua"],

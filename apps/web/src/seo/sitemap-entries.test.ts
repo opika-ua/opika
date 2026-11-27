@@ -51,6 +51,19 @@ describe("buildSitemapEntries", () => {
     expect(urls).toContain(`${SITE_ORIGIN}/polityka-konfidentsiinosti`);
   });
 
+  it("lists /prytulky only while a shelter is listed, i.e. while the page answers 200", async () => {
+    const urlsWith = async (animals: readonly { id: string; shelterId: string }[]) =>
+      (
+        await buildSitemapEntries(true, { animals: async () => animals, cities: async () => [] })
+      ).map((e) => e.url);
+    const index = `${SITE_ORIGIN}/prytulky`;
+    expect(await urlsWith([])).not.toContain(index);
+    const listed = await urlsWith([{ id: "a1", shelterId: "s1" }]);
+    expect(listed.filter((u) => u === index)).toHaveLength(1);
+    // With the static pages, ahead of the cities and the long tail the URL limit could cut.
+    expect(listed.indexOf(index)).toBeLessThan(listed.indexOf(`${SITE_ORIGIN}/prytulky/s1`));
+  });
+
   it("never exceeds the protocol limit", async () => {
     const items = Array.from({ length: SITEMAP_URL_LIMIT + 5 }, (_, i) => ({
       id: `a${i}`,

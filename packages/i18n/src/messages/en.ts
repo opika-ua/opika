@@ -2322,4 +2322,13 @@ export const en = {
         "I don't sell data, show no ads and don't track you on other sites. About shelters, I keep what verification and the dashboard need.",
     },
   },
+
+  // --- The shelters list (/prytulky) ---
+  sheltersIndex: {
+    heading: "Shelters and initiatives",
+    footerLink: "Shelters",
+    seoTitle: "Animal shelters on {site} – checked by hand",
+    seoDescription:
+      "Shelters and volunteer initiatives that have listed animals on {site}. I check each one by hand. You write to them directly.",
+  },
 } as const;

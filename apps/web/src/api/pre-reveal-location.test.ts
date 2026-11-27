@@ -113,6 +113,9 @@ describe("served pre-reveal responses carry the city only (EM-Q10)", () => {
       expectCityOnly("animals.byId", await h.call("animals.byId", { animalId: animal.id }));
     }
     expectCityOnly("shelters.byId", await h.call("shelters.byId", { shelterId: shelter.id }));
+    const listed = await h.call("shelters.listed", {});
+    expectCityOnly("shelters.listed", listed);
+    expect((listed.body as { items: unknown[] }).items).toHaveLength(1);
     // A city label names the settlement and its raion (as `raion`, an administrative area, not an
     // address) and nothing finer: the same scan holds it to the same key list as every other output.
     expectCityOnly("cities.byIds", await h.call("cities.byIds", { ids: [city.id] }));

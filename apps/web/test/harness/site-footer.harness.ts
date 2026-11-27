@@ -39,6 +39,7 @@ test("every public page ends with one footer", async ({ page }) => {
   for (const route of [
     "/",
     "/tvaryny/misto/brovary",
+    "/prytulky",
     animalPage,
     shelterPage as string,
     "/pro",
@@ -64,6 +65,7 @@ test("the footer's links lead to the site's pages, the email, Instagram and the 
   expect(links).toEqual([
     ["Opika", "/"],
     ["Тварини", "/"],
+    ["Притулки", "/prytulky"],
     ["Для притулків", "/prytulkam"],
     ["Про проєкт", "/pro"],
     ["hello@opika.org.ua", "mailto:hello@opika.org.ua"],
@@ -80,7 +82,7 @@ test("the footer's links lead to the site's pages, the email, Instagram and the 
 test("on a phone every footer link is a 48px target", async ({ page }) => {
   await openRoute(page, "/pro", PHONE, { readySelector: HEADER });
   const links = page.getByRole("contentinfo").getByRole("link");
-  await expect(links).toHaveCount(7);
+  await expect(links).toHaveCount(8);
   for (const link of await links.all()) await expectMinTargetHeight(link);
 });
 

@@ -50,6 +50,7 @@ import { router } from "./router";
  * `gallery.facetCounts` (the filter selectors' counts) is the same shape of
  * safe as `relaxationCounts`: filters-only input, read-only, no cookie.
  * `cities.withPages` (which cities have a landing page) too: city ids in, nothing written.
+ * `shelters.listed` (the `/prytulky` list) too: no input, public projections, nothing written.
  */
 const serverComponentRouter = {
   cities: {
@@ -64,7 +65,7 @@ const serverComponentRouter = {
     facetCounts: router.gallery.facetCounts,
   },
   animals: { byId: router.animals.byId, neighbours: router.animals.neighbours },
-  shelters: { byId: router.shelters.byId },
+  shelters: { byId: router.shelters.byId, listed: router.shelters.listed },
 } as const;
 
 /**

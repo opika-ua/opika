@@ -1139,4 +1139,15 @@ export const ukPublic = {
         "Зміни: додано латинську транслітерацію, ключі пошуку й адреси сторінок, апострофи приведено до єдиного вигляду, райони великих міст не включено.",
     },
   },
+
+  // --- The shelters list (/prytulky) ---
+  /** Owner-approved 2026-11-27 (SEO wave, lane C): verbatim; `{site}` is the wordmark. */
+  sheltersIndex: {
+    heading: "Притулки й ініціативи",
+    /** The site footer's link to the list. */
+    footerLink: "Притулки",
+    seoTitle: "Притулки для тварин на {site} – перевірені вручну",
+    seoDescription:
+      "Притулки й волонтерські ініціативи, які розмістили тварин на {site}. Кожну я перевіряю вручну. Пишете їм напряму.",
+  },
 } as const;
