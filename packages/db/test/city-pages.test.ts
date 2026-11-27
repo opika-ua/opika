@@ -311,3 +311,110 @@ describe("galleryRepo.facetCounts' indexableBySpecies: the species pages' thresh
     expect(scoped.indexableBySpecies).toEqual({ dog: 1, cat: 0 });
   });
 });
+
+describe("the two 'city has a page' rules agree: facetCounts' hasPage and cityPages (the sitemap)", () => {
+  const facets = (
+    filters: Parameters<ReturnType<typeof galleryRepo>["facetCounts"]>[0]["filters"] = NO_FILTERS,
+    extra: Partial<Parameters<ReturnType<typeof galleryRepo>["facetCounts"]>[0]> = {},
+  ) => galleryRepo(db).facetCounts({ sort: "freshest", filters, now: NOW, ...extra });
+  const withPage = (counts: Awaited<ReturnType<typeof facets>>) =>
+    counts.cities.filter((entry) => entry.hasPage).map((entry) => entry.cityId);
+  const sorted = (ids: readonly CityId[]) => [...ids].sort();
+
+  async function seed() {
+    const own = await city("own");
+    const fostered = await city("fostered");
+    const reservedOnly = await city("reserved-only");
+    const mixed = await city("mixed");
+    const earlyOnly = await city("early-only");
+    const pausedOnly = await city("paused-only");
+    const dead = await city("dead");
+    const verified = await shelterIn(own);
+    const early = await shelterIn(earlyOnly, {
+      verification: PENDING,
+      earlyListingSince: daysBefore(3),
+    });
+    const paused = await shelterIn(pausedOnly, { verification: PAUSED });
+    const reserved = {
+      kind: "reserved",
+      since: daysBefore(1),
+      publishedAt: daysBefore(10),
+      confirmedAt: daysBefore(10),
+      undoable: null,
+    } as const;
+    await animalRepo(db).insertMany([
+      { animal: makeAnimal({ shelterId: verified, species: "dog" }), cityId: own },
+      // Fostered away from the shelter's city: the page is the effective city's.
+      { animal: makeAnimal({ shelterId: verified, species: "cat" }), cityId: fostered },
+      { animal: makeAnimal({ shelterId: verified, listing: reserved }), cityId: reservedOnly },
+      { animal: makeAnimal({ shelterId: verified }), cityId: mixed },
+      { animal: makeAnimal({ shelterId: early }), cityId: mixed },
+      { animal: makeAnimal({ shelterId: early }), cityId: earlyOnly },
+      // An early-listed animal fostered into a city that already has a page.
+      { animal: makeAnimal({ shelterId: early }), cityId: own },
+      { animal: makeAnimal({ shelterId: paused }), cityId: pausedOnly },
+      {
+        animal: makeAnimal({ shelterId: verified, listing: { kind: "adopted", adoptedAt: NOW } }),
+        cityId: dead,
+      },
+      { animal: makeAnimal({ shelterId: verified, listing: { kind: "draft" } }), cityId: dead },
+      {
+        animal: makeAnimal({
+          shelterId: verified,
+          listing: {
+            kind: "withdrawn",
+            withdrawnAt: NOW,
+            reason: { code: "transferred", note: null },
+          },
+        }),
+        cityId: dead,
+      },
+    ]);
+    return { own, fostered, reservedOnly, mixed, earlyOnly, verified, early };
+  }
+
+  it("selects the same cities, and the edge cases land on the expected side", async () => {
+    const ids = await seed();
+    const fromSitemap = (await pages()).map((row) => row.cityId);
+    const fromFacets = withPage(await facets());
+
+    expect(sorted(fromFacets)).toEqual(sorted(fromSitemap));
+    // Guards the fixture: a vacuous pair of empty sets would also be equal.
+    expect(sorted(fromSitemap)).toEqual(
+      sorted([ids.own, ids.fostered, ids.reservedOnly, ids.mixed]),
+    );
+  });
+
+  it("hasPage does not move under a filter or the other sort", async () => {
+    await seed();
+    const baseline = sorted(withPage(await facets()));
+    const filtered = await facets({
+      ...NO_FILTERS,
+      species: { kind: "oneOf", values: ["cat"] },
+      ages: { kind: "oneOf", values: ["senior"] },
+    });
+    expect(sorted(withPage(filtered))).toEqual(baseline);
+    expect(sorted(withPage(await facets(NO_FILTERS, { sort: "longest_waiting" })))).toEqual(
+      baseline,
+    );
+  });
+
+  it("under a shelter scope hasPage is a subset of the sitemap's cities, empty for an early-listed shelter", async () => {
+    const ids = await seed();
+    const sitemap = (await pages()).map((row) => row.cityId);
+
+    const verifiedScope = withPage(
+      await facets(NO_FILTERS, { scope: { kind: "shelter", shelterId: ids.verified } }),
+    );
+    expect(sorted(verifiedScope)).toEqual(
+      sorted([ids.own, ids.fostered, ids.reservedOnly, ids.mixed]),
+    );
+    for (const cityId of verifiedScope) expect(sitemap).toContain(cityId);
+
+    const earlyScope = await facets(NO_FILTERS, {
+      scope: { kind: "shelter", shelterId: ids.early },
+    });
+    expect(earlyScope.cities.length).toBeGreaterThan(0);
+    expect(withPage(earlyScope)).toEqual([]);
+  });
+});

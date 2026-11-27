@@ -26,8 +26,8 @@ export type SitemapSource = {
 /**
  * Empty while the site is not discoverable: no source is read at all. Shelter
  * URLs come from the animals' cards, so a shelter with no visible animal is
- * absent. `/prytulky` lists exactly those shelters (`galleryRepo.listedShelters`,
- * the same basis), so it answers 200 exactly when an animal is listed here.
+ * absent. `/prytulky` (the `shelters.listed` procedure) is held to the same basis by
+ * `shelters-index-agreement.test.ts`, so it answers 200 exactly when an animal is listed here.
  * Species and city pages follow the static pages, ahead of the long tail of animals the URL
  * limit could cut; a species page has no lastmod (owner, 2026-11-27).
  */
