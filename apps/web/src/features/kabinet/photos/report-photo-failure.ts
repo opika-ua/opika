@@ -1,8 +1,10 @@
 import { CLIENT_DSN } from "../../../observability/dsn";
 import type { CompressedPhoto } from "./compress-photo";
+import type { PickedFile } from "./read-picked";
 
-/** A compression that gave no photo: the refusal it answered with, or what it threw. */
+/** A photo that never got to an upload: the file unreadable at pick time, or a compression refusal or throw. */
 export type PhotoFailure =
+  | Extract<PickedFile, { kind: "not_readable" }>
   | Exclude<CompressedPhoto, { kind: "ok" }>
   | { kind: "threw"; error: unknown; type: string; size: number };
 
@@ -45,22 +47,25 @@ export function photoFailureEvent(
 ): PhotoFailureEvent | null {
   if (failure.kind === "unsupported_format") return null;
   const errorText = (text: string) => clip(withoutName(text, fileName), MAX_ERROR_LENGTH);
-  if (failure.kind === "threw") {
+  if (failure.kind === "threw" || failure.kind === "not_readable") {
+    // Same issue in Sentry; the step tells a file the device withheld from one that failed to decode.
+    const [outcome, step] =
+      failure.kind === "threw" ? ["unreadable", "threw"] : ["not_readable", "read"];
     const type = clip(failure.type, MAX_TYPE_LENGTH) || "none";
     return {
       level: "warning",
       tags: {
-        "photo.outcome": "unreadable",
-        "photo.step": "threw",
+        "photo.outcome": outcome,
+        "photo.step": step,
         "photo.type": type,
         "photo.format": "none",
       },
       extra: {
-        attempts: [{ step: "threw", error: errorText(thrownText(failure.error)) }],
+        attempts: [{ step, error: errorText(thrownText(failure.error)) }],
         type,
         size: failure.size,
       },
-      fingerprint: ["photo", "unreadable", "threw", type, String(failure.size)],
+      fingerprint: ["photo", outcome, step, type, String(failure.size)],
     };
   }
   const d = failure.diagnostics;

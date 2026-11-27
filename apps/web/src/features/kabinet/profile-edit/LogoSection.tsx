@@ -14,6 +14,7 @@ import { InlineStatus } from "../../../ui/feedback";
 import { Text } from "../../../ui/Text";
 import { ShelterLogoAvatar } from "../../shelters/ShelterLogoAvatar";
 import { type CompressedPhoto, compressPhoto } from "../photos/compress-photo";
+import { readPicked } from "../photos/read-picked";
 import {
   compressReporting,
   type PhotoFailureReporter,
@@ -99,11 +100,19 @@ export function LogoSection({
   const [status, setStatus] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const choose = async (files: FileList | null) => {
-    const file = files?.[0];
+  const choose = async (input: HTMLInputElement) => {
+    const file = input.files?.[0];
     if (!file) return;
     setState({ kind: "preparing" });
-    const compressed = await compressReporting(compress, file, reportFailure);
+    const picked = await readPicked(file);
+    // Only now: iOS drops a picked file's temp copy when the input is reset (`read-picked.ts`).
+    input.value = "";
+    if (picked.kind === "not_readable") {
+      reportFailure(picked, file.name);
+      setState({ kind: "failed", message: photoErrors.notReadable });
+      return;
+    }
+    const compressed = await compressReporting(compress, picked.file, reportFailure);
     if (compressed.kind !== "ok") {
       setState({ kind: "failed", message: compressionMessage(compressed) });
       return;
@@ -163,10 +172,7 @@ export function LogoSection({
         accept="image/*"
         hidden
         data-testid="logo-file-input"
-        onChange={(event) => {
-          void choose(event.currentTarget.files);
-          event.currentTarget.value = "";
-        }}
+        onChange={(event) => void choose(event.currentTarget)}
       />
       {working ? <Text look="hint">{t.uploading}</Text> : null}
       {state.kind === "failed" ? <InlineStatus tone="error">{state.message}</InlineStatus> : null}

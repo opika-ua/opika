@@ -2109,6 +2109,9 @@ describe("kabinet K3 copy (final, 2026-10-17)", () => {
     // Replaced by his gap-9 wording (2026-11-10), verbatim.
     "kabinet.animalForm.photoErrors.unsupportedFormat": "Збережіть фото як JPEG або PNG",
     "kabinet.animalForm.photoErrors.unreadable": "Цей файл не вдалося відкрити як фото.",
+    // His, 2026-11-27 (Sentry 163896225): a picked file the device wouldn't hand over.
+    "kabinet.animalForm.photoErrors.notReadable":
+      "Не вдалося прочитати цей файл. Виберіть його ще раз або зробіть знімок екрана.",
     "kabinet.animalForm.photoErrors.tooLarge":
       "Навіть після зменшення це фото завелике. Спробуйте інше.",
     "kabinet.animalForm.photoErrors.rejected": "Сайт не може використати цей файл як фото.",

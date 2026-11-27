@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { KabinetAnimalClient } from "../../../api/kabinet-browser-client";
+import { tempFiles, watchReset, withheldFile } from "../photos/picked-fixtures";
 import { PhotoSection, type PhotoSectionProps, refillOrder } from "./PhotoSection";
 
 // Real `animals/` keys (the crop needs one); next/image's own loader refuses them outside Next.
@@ -639,5 +640,101 @@ describe("a photo the device couldn't compress", () => {
     await settle();
     expect(calls.add).toHaveBeenCalledTimes(1);
     expect(reportFailure).not.toHaveBeenCalled();
+  });
+});
+
+describe("a picked file the device won't hand over (Sentry 163896225)", () => {
+  it("says so, reports step «read», and never tries to decode it", async () => {
+    const reportFailure = vi.fn();
+    const compress = vi.fn(okJpeg);
+    const { calls } = setup(three(), true, { compress, reportFailure });
+    fireEvent.change(screen.getByTestId("photo-file-input"), {
+      target: { files: [withheldFile()] },
+    });
+    expect(
+      await screen.findByText(
+        "Не вдалося прочитати цей файл. Виберіть його ще раз або зробіть знімок екрана.",
+      ),
+    ).toBeTruthy();
+    expect(compress).not.toHaveBeenCalled();
+    expect(calls.add).not.toHaveBeenCalled();
+    expect(reportFailure).toHaveBeenCalledTimes(1);
+    expect(reportFailure.mock.calls[0]?.[0]).toMatchObject({
+      kind: "not_readable",
+      error: { name: "NotReadableError" },
+      type: "image/png",
+    });
+    expect(screen.queryByRole("button", { name: "Спробувати ще раз" })).toBeNull();
+  });
+
+  it("files queued behind the first still upload once the input is reset", async () => {
+    // The compressor reads what it is given, as the real one does, and only after the reset.
+    const compress = vi.fn(async (file: File) => {
+      await file.arrayBuffer();
+      return okJpeg(file);
+    });
+    const reportFailure = vi.fn();
+    const { calls } = setup(view([key(1)]), true, { compress, reportFailure });
+    const input = screen.getByTestId("photo-file-input") as HTMLInputElement;
+    const picked = tempFiles(["IMG_0001.jpg", "IMG_0002.jpg", "IMG_0003.jpg"]);
+    let reset = false;
+    watchReset(input, () => {
+      reset = true;
+      picked.drop();
+    });
+    fireEvent.change(input, { target: { files: picked.files } });
+    await settle();
+    expect(reset).toBe(true);
+    expect(compress).toHaveBeenCalledTimes(3);
+    expect(calls.add).toHaveBeenCalledTimes(3);
+    expect(reportFailure).not.toHaveBeenCalled();
+  });
+
+  it("two quick picks: the input waits for both reads, and the first pick goes first", async () => {
+    const order: string[] = [];
+    const compress = vi.fn(async (file: File) => {
+      await file.arrayBuffer();
+      order.push(file.name);
+      return okJpeg(file);
+    });
+    const { calls } = setup(view([key(1)]), true, { compress });
+    const input = screen.getByTestId("photo-file-input") as HTMLInputElement;
+    const picked = tempFiles(["IMG_0002.jpg"]);
+    const slow = picked.held("IMG_0001.jpg");
+    let resets = 0;
+    watchReset(input, () => {
+      resets += 1;
+      picked.drop();
+    });
+    fireEvent.change(input, { target: { files: [slow.file] } });
+    fireEvent.change(input, { target: { files: picked.files } });
+    await settle();
+    // The second pick is read; the first still isn't, so nothing is reset under it.
+    expect(resets).toBe(0);
+    slow.release();
+    await settle();
+    expect(resets).toBe(1);
+    expect(order).toEqual(["IMG_0001.jpg", "IMG_0002.jpg"]);
+    expect(calls.add).toHaveBeenCalledTimes(2);
+  });
+
+  it("«Спробувати ще раз» resends the in-memory copy, not the file the phone has dropped", async () => {
+    const compress = vi.fn(async (file: File) => {
+      await file.arrayBuffer();
+      return okJpeg(file);
+    });
+    const reportFailure = vi.fn();
+    const { calls } = setup(view([key(1)]), true, { compress, reportFailure });
+    calls.add.mockRejectedValueOnce(new Error("network"));
+    const input = screen.getByTestId("photo-file-input") as HTMLInputElement;
+    const picked = tempFiles(["IMG_0001.jpg"]);
+    watchReset(input, picked.drop);
+    fireEvent.change(input, { target: { files: picked.files } });
+    fireEvent.click(await screen.findByRole("button", { name: "Спробувати ще раз" }));
+    await settle();
+    expect(compress).toHaveBeenCalledTimes(2);
+    expect(calls.add).toHaveBeenCalledTimes(2);
+    expect(reportFailure).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Спробувати ще раз" })).toBeNull();
   });
 });

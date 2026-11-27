@@ -31,6 +31,7 @@ import type { CropDialogProps } from "../photos/CropDialog";
 import { type CompressedPhoto, compressPhoto } from "../photos/compress-photo";
 import { cropImageOf } from "../photos/crop-geometry";
 import { lazyCropDialog, loadCropDialog } from "../photos/lazy-crop-dialog";
+import { readPicked } from "../photos/read-picked";
 import {
   compressReporting,
   type PhotoFailureReporter,
@@ -196,6 +197,10 @@ function PhotoManager({
   const addTile = useRef<HTMLButtonElement>(null);
   const nextId = useRef(1);
   const queue = useRef<Promise<void>>(Promise.resolve());
+  // Picks still being copied into memory; the input is reset only when none is (`read-picked.ts`).
+  const reading = useRef(0);
+  // Picks go on the queue in the order they were made, whichever finishes reading first.
+  const picks = useRef<Promise<void>>(Promise.resolve());
   // A fresh lazy component per opening: `lazy` would keep a failed chunk load for good.
   const [cropping, setCropping] = useState<{
     key: string;
@@ -437,7 +442,7 @@ function PhotoManager({
     });
   };
 
-  const choose = (files: FileList | null) => {
+  const choose = async (files: FileList | null) => {
     if (files === null) return;
     const accepted = [...files].slice(0, Math.max(0, room));
     if (accepted.length === 0) return;
@@ -451,7 +456,29 @@ function PhotoManager({
       state: { kind: "preparing" } as const,
     }));
     setUploads((current) => [...current, ...added]);
-    for (const upload of added) enqueue(upload);
+    // Every file is copied before any waits its turn, and they go on the queue in picked order.
+    const reads = Promise.all(
+      added.map(async (upload) => ({ upload, read: await readPicked(upload.file) })),
+    );
+    const turn = picks.current.then(() => reads);
+    picks.current = turn.then(noop, noop);
+    const picked = await turn;
+    for (const { upload, read } of picked) {
+      if (read.kind === "not_readable") {
+        reportFailure(read, upload.file.name);
+        patchUpload(upload.id, {
+          kind: "failed",
+          message: t.photoErrors.notReadable,
+          retryable: false,
+        });
+        continue;
+      }
+      const copied = { ...upload, file: read.file };
+      setUploads((current) =>
+        current.map((item) => (item.id === upload.id ? { ...item, file: read.file } : item)),
+      );
+      enqueue(copied);
+    }
   };
 
   // A drag or Alt+arrow reorders the shown photos (`from`, `to` are shown slots); slot 0 is the
@@ -804,7 +831,7 @@ function PhotoManager({
               onDrop={(event) => {
                 event.preventDefault();
                 setDropTarget(false);
-                choose(event.dataTransfer.files);
+                void choose(event.dataTransfer.files);
               }}
               className={cx(
                 "flex aspect-4/5 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-card border-2 border-dashed p-3 text-center focus-ring",
@@ -868,8 +895,12 @@ function PhotoManager({
           hidden
           data-testid="photo-file-input"
           onChange={(event) => {
-            choose(event.currentTarget.files);
-            event.currentTarget.value = "";
+            const input = event.currentTarget;
+            reading.current += 1;
+            void choose(input.files).finally(() => {
+              reading.current -= 1;
+              if (reading.current === 0) input.value = "";
+            });
           }}
         />
       ) : null}
