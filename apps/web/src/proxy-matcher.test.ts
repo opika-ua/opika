@@ -51,7 +51,14 @@ describe("proxy matcher", () => {
     "next-router-prefetch": "1",
     "next-router-segment-prefetch": "/_tree",
   };
-  const DISCOVERY = ["/", "/tvaryny/some-animal", "/tvaryny/misto/kyiv", "/prytulky/x"];
+  const DISCOVERY = [
+    "/",
+    "/tvaryny/some-animal",
+    "/tvaryny/misto/kyiv",
+    "/tvaryny/vyd/sobaky",
+    "/tvaryny/vyd/koty",
+    "/prytulky/x",
+  ];
 
   it.each(DISCOVERY)("skips a router prefetch of %s, so it is never charged", async (path) =>
     expect(await matches(path, PREFETCH)).toBe(false),
@@ -69,6 +76,8 @@ describe("proxy matcher", () => {
   ])("still charges a discovery page for %s", async (_label, headers) => {
     expect(await matches("/", headers)).toBe(true);
     expect(await matches("/tvaryny/misto/kyiv", headers)).toBe(true);
+    expect(await matches("/tvaryny/vyd/sobaky", headers)).toBe(true);
+    expect(await matches("/tvaryny/vyd/koty", headers)).toBe(true);
   });
 
   // Review of #564, finding a: a route handler ignores the prefetch headers and answers in full.
@@ -102,6 +111,8 @@ describe("proxy matcher", () => {
     expect(await matches("/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc", headers)).toBe(true);
     expect(await matches("/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd", headers)).toBe(true);
     expect(await matches("/", headers)).toBe(true);
+    expect(await matches("/tvaryny/vyd/sobaky", headers)).toBe(true);
+    expect(await matches("/tvaryny/vyd/koty", headers)).toBe(true);
   });
 
   // A route handler under the discovery paths ignores the prefetch headers. Metadata files are

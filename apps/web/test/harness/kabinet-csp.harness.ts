@@ -218,7 +218,8 @@ test.describe("kabinet CSP (audit B1)", () => {
     await page.waitForLoadState("networkidle");
     await expectHydrated(page);
     // The gallery, then an animal page with its JSON-LD, both under the kabinet's policy.
-    await page.locator("a[href^='/tvaryny/']").first().click();
+    // An animal card, not the species switch's `/tvaryny/vyd/…` links ahead of it.
+    await page.locator("a[data-testid='animal-card']").first().click();
     await page.waitForURL((url) => /^\/tvaryny\/[0-9a-f-]{36}$/.test(url.pathname));
     await expect(page.locator("script[type='application/ld+json']").first()).toBeAttached();
     await page.waitForLoadState("networkidle");

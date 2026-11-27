@@ -1,7 +1,8 @@
 import type { CityLabelView, RegionView } from "@opika/contracts";
-import type { CityId, RegionId } from "@opika/domain";
+import type { AnimalSpecies, CityId, RegionId } from "@opika/domain";
 import type { CityTokenResolution } from "./city-tokens";
 import type { CitySlugsById, CityWithPage, PlaceIdsBySlug } from "./filter-url";
+import { speciesPageSlug } from "./species-pages";
 
 /**
  * Everything a gallery-shaped page knows about places, built from what it actually holds: the 27
@@ -12,7 +13,7 @@ import type { CitySlugsById, CityWithPage, PlaceIdsBySlug } from "./filter-url";
 export type PlaceBook = {
   /** Slug to id, for the URL parser and the filter form. Tokens that resolved are included. */
   readonly placeIds: PlaceIdsBySlug;
-  /** Id to slug, cities and oblasts both, for every link the page writes. */
+  /** Id to slug, cities and oblasts both (and the species with a page), for every link the page writes. */
   readonly slugs: CitySlugsById;
   readonly cities: ReadonlyMap<CityId, CityLabelView>;
   readonly regions: ReadonlyMap<RegionId, RegionView>;
@@ -25,6 +26,8 @@ export function placeBookOf(
   resolutions: readonly CityTokenResolution[] = [],
   /** Cities with a landing page (`cities.withPages`): their links go to that page. */
   cityPages: ReadonlySet<CityId> = new Set(),
+  /** Species with a landing page (`speciesWithPages`): a link to one alone goes to that page. */
+  speciesPages: ReadonlySet<AnimalSpecies> = new Set(),
 ): PlaceBook {
   const cities = new Map<CityId, CityLabelView>();
   for (const label of cityLabels) cities.set(label.id, label);
@@ -35,7 +38,10 @@ export function placeBookOf(
   // A former slug or a legacy id the URL used: it parses to the same city as the current slug.
   for (const { token, city } of resolutions) if (city) citiesBySlug.set(token, city.id);
 
-  const slugs = new Map<CityId | RegionId, string | CityWithPage>();
+  const slugs = new Map<CityId | RegionId | AnimalSpecies, string | CityWithPage>();
+  for (const species of speciesPages) {
+    slugs.set(species, { slug: speciesPageSlug(species), hasPage: true });
+  }
   for (const region of regions) slugs.set(region.id, region.slug);
   for (const label of cities.values()) {
     slugs.set(label.id, cityPages.has(label.id) ? { slug: label.slug, hasPage: true } : label.slug);

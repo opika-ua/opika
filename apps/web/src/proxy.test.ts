@@ -72,6 +72,19 @@ describe("proxy", () => {
       expect(last.status).toBe(429);
     });
 
+    it.each(["/tvaryny/vyd/sobaky", "/tvaryny/vyd/koty"])(
+      "429s a species page %s past the same per-IP limit",
+      async (path) => {
+        const { proxy } = await import("./proxy");
+        const load = () =>
+          proxy(request(`https://opika.example${path}`, { "x-forwarded-for": "9.9.9.11" }));
+        let last = await load();
+        for (let i = 0; i < 100; i++) last = await load();
+        expect(last.status).toBe(429);
+        expect(last.headers.get("x-middleware-rewrite")).toContain("/rate-limited");
+      },
+    );
+
     it("429s a shelter page past the same per-IP limit (designer round 1, S6)", async () => {
       const { proxy } = await import("./proxy");
       const load = () =>

@@ -2272,6 +2272,9 @@ export const en = {
     intro:
       "Animals from shelters and volunteers in {city}. Choose an animal and write directly – the contacts are on every card.",
   },
+  speciesPage: {
+    heading: "{species} looking for a home",
+  },
   /** Page titles and meta descriptions; see the Ukrainian catalogue. */
   seo: {
     titleWithSite: "{title} – {site}",
@@ -2316,6 +2319,11 @@ export const en = {
       title: "Adopt {species} from a shelter – {city}",
       description:
         "{species} for a good home from shelters and volunteers – {city}. Write directly, the contacts are on the card.",
+    },
+    species: {
+      title: "Adopt {species} from a shelter",
+      description:
+        "{species} from shelters and volunteers across Ukraine looking for a home. Choose a city and an age and write to the shelter directly.",
     },
     about: {
       title: "About {site} – a site where shelter animals look for a home",

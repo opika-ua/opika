@@ -258,7 +258,8 @@ describe("/?misto=: keeps working, its links lead to the city page when it exist
     expect(await canonicalOf({ misto: "brovary" })).toBe("/tvaryny/misto/brovary");
     expect(await canonicalOf({ misto: "bucha" })).toBe("/");
     expect(await canonicalOf({ misto: "brovary,bucha" })).toBe("/");
-    expect(await canonicalOf({ vyd: "dog", stor: "2" })).toBe("/");
+    // 25 dogs of a verified shelter: the dogs' page exists, so one species alone goes there.
+    expect(await canonicalOf({ vyd: "dog", stor: "2" })).toBe("/tvaryny/vyd/sobaky?stor=2");
     // The plain list's pages are each their own (a non-default sort: filter-url.test).
     expect(await canonicalOf({ stor: "2" })).toBe("/?stor=2");
     expect(await canonicalOf({})).toBe("/");

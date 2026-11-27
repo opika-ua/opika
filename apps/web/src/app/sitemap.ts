@@ -1,4 +1,5 @@
 import { galleryRepo } from "@opika/db/repos";
+import { DEFAULT_GALLERY_SORT, NO_FILTERS } from "@opika/domain";
 import type { MetadataRoute } from "next";
 import { getDb } from "../api/db";
 import { buildSitemapEntries } from "../seo/sitemap-entries";
@@ -12,6 +13,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries = await buildSitemapEntries(SITE_IS_PUBLICLY_DISCOVERABLE, {
     animals: () => galleryRepo(getDb()).sitemapRows({ now }),
     cities: () => galleryRepo(getDb()).cityPages({ now }),
+    speciesCounts: async () =>
+      (
+        await galleryRepo(getDb()).facetCounts({
+          filters: NO_FILTERS,
+          sort: DEFAULT_GALLERY_SORT,
+          now,
+        })
+      ).indexableBySpecies,
   });
   return entries.map((entry) => ({ ...entry }));
 }
