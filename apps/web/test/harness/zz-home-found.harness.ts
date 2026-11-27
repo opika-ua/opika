@@ -17,7 +17,7 @@ test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.140" } });
 const DAY = 86_400_000;
 
 async function galleryCount(page: Page): Promise<number> {
-  await page.goto("/tvaryny");
+  await page.goto("/");
   const text = await page
     .getByText(/Знайдено \d+/)
     .first()
@@ -69,7 +69,7 @@ test("an adoption under 90 days shows «Уже вдома»; past 90 days it is 
     page.getByText("Ця тварина вже знайшла родину. Інші ще чекають на свій дім."),
   ).toBeVisible();
   await expect(page.getByRole("img", { name: "Бурштин" })).toBeVisible();
-  await expect(page.getByTestId("home-found-action")).toHaveAttribute("href", "/tvaryny");
+  await expect(page.getByTestId("home-found-action")).toHaveAttribute("href", "/");
   await expect(page).toHaveTitle("Бурштин уже вдома – Opika");
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, follow");
   await expect(page.getByTestId("reveal-trigger")).toHaveCount(0);

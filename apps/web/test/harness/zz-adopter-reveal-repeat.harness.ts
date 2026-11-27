@@ -27,7 +27,7 @@ async function reveal(page: Page): Promise<string> {
 test("first reveal shows the contact; a repeat reveal of the same animal returns the same record", async ({
   page,
 }) => {
-  await page.goto("/tvaryny");
+  await page.goto("/");
   const card = page.locator("[data-testid='animal-card']").first();
   const href = await card.getAttribute("href");
   expect(href).not.toBeNull();

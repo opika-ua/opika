@@ -57,7 +57,7 @@ describe("the full page", () => {
     expect(screen.getByRole("heading", { level: 1, name: HIS_SENTENCE })).toBeTruthy();
     expect(screen.queryByText(new RegExp(NOT_FOUND_CLAIM))).toBeNull();
     expect(screen.queryByText(NOT_FOUND_TITLE)).toBeNull();
-    expect(screen.getByRole("link", { name: "Усі тварини" }).getAttribute("href")).toBe("/tvaryny");
+    expect(screen.getByRole("link", { name: "Усі тварини" }).getAttribute("href")).toBe("/");
   });
 
   it("RATE_LIMITED is kept out of search results", async () => {
@@ -187,7 +187,7 @@ describe("«Уже вдома»: an adoption under 90 days old", () => {
     expect(screen.getByRole("heading", { level: 1, name: HOME_FOUND_TITLE })).toBeTruthy();
     expect(screen.getByText(HOME_FOUND_BODY)).toBeTruthy();
     expect(screen.getByRole("img", { name: "Мурчик" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Усі тварини" }).getAttribute("href")).toBe("/tvaryny");
+    expect(screen.getByRole("link", { name: "Усі тварини" }).getAttribute("href")).toBe("/");
     expect(screen.getByRole("banner")).toBeTruthy();
     expect(screen.getByRole("contentinfo")).toBeTruthy();
     expect(screen.queryByTestId("reveal-trigger")).toBeNull();

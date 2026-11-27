@@ -11,7 +11,7 @@ import type { Viewport } from "./viewports";
 const WIDE: Viewport = { name: "1440x900 desktop", width: 1440, height: 900 };
 const CARD = "[data-testid='animal-card']";
 
-// One TEST-NET-1 address per repetition: `/tvaryny` is rate-limited per IP and `--repeat-each` loads it often.
+// One TEST-NET-1 address per repetition: `/` is rate-limited per IP and `--repeat-each` loads it often.
 test.beforeEach(({ page }, testInfo) => useClientAddressPerRepetition(page, testInfo));
 
 const scrollTo = (page: Page, y: number) => page.evaluate((top) => window.scrollTo(0, top), y);
@@ -26,7 +26,7 @@ async function docBox(page: Page, selector: string) {
 test("the Місто list follows its field on scroll, then closes when the field goes under the header", async ({
   page,
 }) => {
-  await openRoute(page, "/tvaryny", WIDE, { readySelector: CARD });
+  await openRoute(page, "/", WIDE, { readySelector: CARD });
   const field = page.getByRole("combobox", { name: "Місто" });
   await field.click();
   const list = page.getByRole("listbox", { name: "Місто" });
@@ -86,7 +86,7 @@ test("an InfoTip follows its «?» on scroll, then closes when the «?» leaves 
 test("a filter Popover (Вік) follows its field on scroll, then closes when the field goes under the header", async ({
   page,
 }) => {
-  await openRoute(page, "/tvaryny", WIDE, { readySelector: CARD });
+  await openRoute(page, "/", WIDE, { readySelector: CARD });
   const trigger = page.getByRole("button", { name: /^Вік:/ });
   await trigger.click();
   await expect(trigger).toHaveAttribute("aria-expanded", "true");

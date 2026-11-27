@@ -6,8 +6,8 @@ const DESCRIPTION =
   "Собаки й коти з притулків України шукають дім. Оберіть місто, вік і розмір та напишіть притулку напряму.";
 
 /** The canonical rule itself is `galleryCanonicalPath`'s (filter-url.test) and, over a database, `misto/[slug]/page.test.tsx`'s. */
-describe("/tvaryny's own metadata (SEO handoff B2)", () => {
-  const metadata = galleryMetadataOf("/tvaryny");
+describe("the gallery's own metadata (SEO handoff B2)", () => {
+  const metadata = galleryMetadataOf("/");
 
   it("title is the approved one, whole: the root template adds nothing", () => {
     expect(metadata.title).toEqual({ absolute: TITLE });
@@ -37,6 +37,6 @@ describe("/tvaryny's own metadata (SEO handoff B2)", () => {
     expect(galleryMetadataOf("/tvaryny/misto/kyiv?stor=2").alternates?.canonical).toBe(
       "/tvaryny/misto/kyiv?stor=2",
     );
-    expect(galleryCanonicalOf({ kind: "redirect", href: "/tvaryny?misto=kyiv" })).toBe("/tvaryny");
+    expect(galleryCanonicalOf({ kind: "redirect", href: "/?misto=kyiv" })).toBe("/");
   });
 });

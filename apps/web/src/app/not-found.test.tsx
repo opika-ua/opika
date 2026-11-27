@@ -15,9 +15,7 @@ describe("the root 404", () => {
     expect(
       within(main).getByRole("heading", { level: 1, name: "Такої сторінки немає." }),
     ).toBeTruthy();
-    expect(within(main).getByRole("link", { name: "На головну" }).getAttribute("href")).toBe(
-      "/tvaryny",
-    );
+    expect(within(main).getByRole("link", { name: "На головну" }).getAttribute("href")).toBe("/");
     const banner = screen.getByRole("banner");
     expect(within(banner).getByRole("link", { name: "Тварини" })).toBeTruthy();
   });

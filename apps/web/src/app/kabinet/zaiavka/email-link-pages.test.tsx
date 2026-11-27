@@ -88,9 +88,7 @@ describe("the public header on both link pages", () => {
     outcome.mockResolvedValue({ kind: "page", state: { kind: "expired" }, status: 400 });
     const { unmount } = render(await NotMeLinkPage({ searchParams }));
     const nav = screen.getByRole("navigation", { name: "Opika" });
-    expect(within(nav).getByRole("link", { name: uk.nav.animals }).getAttribute("href")).toBe(
-      "/tvaryny",
-    );
+    expect(within(nav).getByRole("link", { name: uk.nav.animals }).getAttribute("href")).toBe("/");
     expect(within(nav).getByRole("link", { name: uk.nav.forShelters }).getAttribute("href")).toBe(
       "/prytulkam",
     );

@@ -12,7 +12,7 @@ test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.97" } });
 const IMAGE_PRELOAD = /<link\b[^>]*\brel="preload"[^>]*\bas="image"[^>]*>/gi;
 
 test("only the LCP card photo is preloaded, and at high priority", async ({ request }) => {
-  const response = await request.get("/tvaryny");
+  const response = await request.get("/");
   expect(response.status()).toBe(200);
   const html = await response.text();
 

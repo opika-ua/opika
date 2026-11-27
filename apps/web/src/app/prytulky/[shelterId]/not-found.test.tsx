@@ -9,8 +9,6 @@ describe("the shelter 404", () => {
     expect(screen.getByRole("banner")).toBeTruthy();
     const main = screen.getByRole("main");
     expect(within(main).getByRole("heading", { level: 1 })).toBeTruthy();
-    expect(within(main).getByRole("link", { name: "Усі тварини" }).getAttribute("href")).toBe(
-      "/tvaryny",
-    );
+    expect(within(main).getByRole("link", { name: "Усі тварини" }).getAttribute("href")).toBe("/");
   });
 });

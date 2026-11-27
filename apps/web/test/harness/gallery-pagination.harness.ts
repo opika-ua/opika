@@ -18,7 +18,7 @@ import { openRoute } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
 
 /**
- * `proxy.ts` rate-limits `/tvaryny` at 100 req/min per IP, shared across
+ * `proxy.ts` rate-limits `/` at 100 req/min per IP, shared across
  * every harness file hitting it under the real local identity - see
  * `gallery-arrow-nav.harness.ts` for the full story and why this is
  * TEST-NET-2 (198.51.100.0/24) rather than the TEST-NET-3 block
@@ -29,7 +29,7 @@ import { DESKTOP, PHONE } from "./viewports";
 const SPOOFED_IP_HEADERS = { "x-forwarded-for": "198.51.100.24" };
 test.use({ extraHTTPHeaders: SPOOFED_IP_HEADERS });
 
-const ROUTE = "/tvaryny";
+const ROUTE = "/";
 const CARD = "[data-testid='animal-card']";
 const NAV = "[data-testid='gallery-pagination']";
 const NEXT = { name: "Далі →" };

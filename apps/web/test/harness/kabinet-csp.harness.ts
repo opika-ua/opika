@@ -33,7 +33,7 @@ const KABINET_PAGES = [
   `/kabinet/vkhid/pidtverdzhennia?token=${"A".repeat(32)}`,
 ];
 
-const PUBLIC_PAGES = ["/tvaryny", "/prytulkam", "/pro", "/zberezheni"];
+const PUBLIC_PAGES = ["/", "/prytulkam", "/pro", "/zberezheni"];
 
 const valuesOf = (response: APIResponse, name: string): string[] =>
   response
@@ -203,7 +203,7 @@ test.describe("kabinet CSP (audit B1)", () => {
       .getByRole("link", { name: "Тварини", exact: true })
       .first()
       .click();
-    await page.waitForURL((url) => url.pathname === "/tvaryny");
+    await page.waitForURL((url) => url.pathname === "/");
     expect(await page.evaluate(() => "__sameDocument" in window), "a client navigation").toBe(true);
   }
 

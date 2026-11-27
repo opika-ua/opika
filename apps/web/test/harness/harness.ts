@@ -212,7 +212,7 @@ export async function openAccountMenu(page: Page, ready: Locator): Promise<void>
 export async function servedAnimalIds(page: Page, count: number): Promise<string[]> {
   const ids: string[] = [];
   for (let pageNumber = 1; ids.length < count && pageNumber <= 20; pageNumber++) {
-    await page.goto(`/tvaryny?stor=${pageNumber}`, { waitUntil: "load" });
+    await page.goto(`/?stor=${pageNumber}`, { waitUntil: "load" });
     const found = await page
       .locator("[data-testid='animal-card']")
       .evaluateAll((cards) =>

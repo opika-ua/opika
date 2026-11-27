@@ -1043,7 +1043,7 @@ export const ukPublic = {
     /**
      * E5: not the mock's own frame - a real escape hatch, added after
      * finding the mock's filter rail wouldn't be one (see this key's own
-     * doc comment in error.tsx). A bare `/tvaryny` link, no params, is the
+     * doc comment in error.tsx). A bare gallery link (`/`), no params, is the
      * cheapest request this app can make - the one query most likely to
      * succeed when a filtered one just failed for a backend reason a
      * different filter combination wouldn't fix anyway.
@@ -1063,7 +1063,7 @@ export const ukPublic = {
    * recorded as composition rather than specification.
    */
   nav: {
-    /** Header option B, owner-approved 2026-11-01: the gallery link (`/tvaryny`). */
+    /** Header option B, owner-approved 2026-11-01: the gallery link (`/`). */
     animals: "Тварини",
     /** Owner-approved 2026-11-01: the saved button's accessible name; `{count}` is the real number, even above 99. */
     savedWithCount: "Збережені, {count}",

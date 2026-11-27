@@ -7,6 +7,7 @@ import { Heading } from "../../ui/Heading";
 import { Mascot } from "../../ui/Mascot";
 import { Panel } from "../../ui/Panel";
 import { Text } from "../../ui/Text";
+import { GALLERY_PATH } from "../chrome/gallery-path";
 import { SiteHeader } from "../chrome/SiteHeader";
 
 /**
@@ -78,7 +79,7 @@ export function LoadErrorScreen({
                   {retryLabel}
                 </Button>
                 <a
-                  href="/tvaryny"
+                  href={GALLERY_PATH}
                   data-testid={escapeTestId}
                   className={cx(buttonClass("ghost"), "underline")}
                 >

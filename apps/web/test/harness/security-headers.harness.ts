@@ -41,9 +41,9 @@ function expectSecurityHeaders(headers: Record<string, string>, what: string) {
 
 test.describe("security headers (audit F5)", () => {
   test("a page and an API answer both carry them", async ({ request }) => {
-    const page = await request.get("/tvaryny", { headers: IP_HEADERS });
+    const page = await request.get("/", { headers: IP_HEADERS });
     expect(page.status()).toBe(200);
-    expectSecurityHeaders(page.headers(), "GET /tvaryny");
+    expectSecurityHeaders(page.headers(), "GET /");
 
     const api = await request.post("/api/rpc/animals/cardsByIds", {
       headers: { ...IP_HEADERS, origin: ORIGIN },
@@ -89,7 +89,7 @@ test.describe("security headers (audit F5)", () => {
     expect(notFound.status()).toBe(404);
     expectEnforced(notFound.headers(), "the 404 page");
 
-    const gallery = await (await request.get("/tvaryny", { headers: IP_HEADERS })).text();
+    const gallery = await (await request.get("/", { headers: IP_HEADERS })).text();
     const asset = /\/_next\/static\/[^"'\s]+\.js/.exec(gallery)?.[0];
     expect(asset, "the gallery links a build asset").toBeDefined();
     const built = await request.get(asset ?? "", { headers: IP_HEADERS });
@@ -149,9 +149,9 @@ test.describe("security headers (audit F5)", () => {
   });
 
   test("the proxy's rate-limit rewrite on a gallery page carries them", async ({ request }) => {
-    const refused = await firstRefusal(request, "/tvaryny", 100, "198.51.100.68");
+    const refused = await firstRefusal(request, "/", 100, "198.51.100.68");
     expect(refused.headers()["retry-after"]).toBeDefined();
-    expectEnforced(refused.headers(), "the proxy's /tvaryny 429");
+    expectEnforced(refused.headers(), "the proxy's gallery 429");
   });
 
   /** Every value of a header on the response, duplicates included. */
@@ -176,7 +176,7 @@ test.describe("security headers (audit F5)", () => {
       const response = await request.get(path, { headers: IP_HEADERS, maxRedirects: 0 });
       expect(valuesOf(response, "referrer-policy"), path).toEqual(["strict-origin"]);
     }
-    for (const path of ["/tvaryny", "/prytulkam", "/zberezheni", "/pro"]) {
+    for (const path of ["/", "/prytulkam", "/zberezheni", "/pro"]) {
       const response = await request.get(path, { headers: IP_HEADERS, maxRedirects: 0 });
       expect(valuesOf(response, "referrer-policy"), path).toEqual([
         "strict-origin-when-cross-origin",
@@ -187,7 +187,7 @@ test.describe("security headers (audit F5)", () => {
   // The harness builds with no Sentry DSN (playwright.config.ts), so nothing may report anywhere.
   test("without a DSN no response names a CSP reporting endpoint", async ({ request }) => {
     for (const path of [
-      "/tvaryny",
+      "/",
       "/prytulkam",
       "/zberezheni",
       "/pro",
@@ -218,7 +218,7 @@ test.describe("security headers (audit F5)", () => {
   }
 
   // No exceptions: zod's eval probe is off in the browser (`src/instrumentation-client.ts`).
-  for (const path of ["/tvaryny", "/prytulkam", "/zberezheni", "/pro"]) {
+  for (const path of ["/", "/prytulkam", "/zberezheni", "/pro"]) {
     test(`the report-only policy reports nothing on ${path}`, async ({ page }) => {
       expect(await violationsOn(page, path)).toEqual([]);
     });

@@ -50,7 +50,7 @@ describe("json-ld builders", () => {
     };
     expect(list.itemListElement.map((i) => i.position)).toEqual([1, 2]);
     expect(list.itemListElement.map((i) => i.item)).toEqual([
-      `${SITE_ORIGIN}/tvaryny`,
+      `${SITE_ORIGIN}/`,
       `${SITE_ORIGIN}/tvaryny/a1`,
     ]);
     expect(list.itemListElement[1]?.name).toBe("Рекс");

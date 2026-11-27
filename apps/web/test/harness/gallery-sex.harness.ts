@@ -29,7 +29,7 @@ test.describe("/tvaryny sex filter", () => {
   test("the «Стать» selector: «Дівчинка» narrows the list, writes `stat=female`, and its own ✕ clears only it", async ({
     page,
   }) => {
-    await openRoute(page, "/tvaryny", DESKTOP, { readySelector: CARD });
+    await openRoute(page, "/", DESKTOP, { readySelector: CARD });
     const everyone = await foundCount(page);
 
     await page.getByRole("button", { name: "Стать: Стать" }).click();
@@ -50,7 +50,7 @@ test.describe("/tvaryny sex filter", () => {
   test("the sheet's «Стать» group: «Хлопчик» narrows the list and writes `stat=male`", async ({
     page,
   }) => {
-    await openRoute(page, "/tvaryny", PHONE, { readySelector: CARD });
+    await openRoute(page, "/", PHONE, { readySelector: CARD });
     const everyone = await foundCount(page);
 
     await page.getByTestId("filter-sheet-trigger").click();

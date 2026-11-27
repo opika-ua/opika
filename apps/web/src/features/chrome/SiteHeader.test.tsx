@@ -35,7 +35,7 @@ describe("SiteHeader", () => {
     render(<SiteHeader kabinetSignedIn={false} />);
 
     const link = screen.getByRole("link", { name: "Opika" });
-    expect(link.getAttribute("href")).toBe("/tvaryny");
+    expect(link.getAttribute("href")).toBe("/");
   });
 
   it("renders the wordmark as plain text, not a self-link, on the page it points at", () => {
@@ -54,9 +54,7 @@ describe("SiteHeader", () => {
   it("links «Тварини» to the gallery and marks the current entry with aria-current", () => {
     render(<SiteHeader kabinetSignedIn={false} current="about" />);
 
-    expect(screen.getByRole("link", { name: uk.nav.animals }).getAttribute("href")).toBe(
-      "/tvaryny",
-    );
+    expect(screen.getByRole("link", { name: uk.nav.animals }).getAttribute("href")).toBe("/");
     expect(screen.getByRole("link", { name: uk.nav.about }).getAttribute("aria-current")).toBe(
       "page",
     );
@@ -188,7 +186,7 @@ describe("SiteHeader", () => {
     const sheet = screen.getByTestId("nav-menu-sheet");
     const rows = Array.from(sheet.querySelectorAll("nav > a"));
     expect(rows.map((r) => r.getAttribute("href"))).toEqual([
-      "/tvaryny",
+      "/",
       "/prytulkam",
       "/pro",
       "/zberezheni",

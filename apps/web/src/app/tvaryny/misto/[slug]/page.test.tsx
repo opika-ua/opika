@@ -152,11 +152,11 @@ describe("a page past the last one (owner, 2026-11-27)", () => {
     const client = anonymousRouterClient(h.db);
     expect(await readGallery(client, { stor: "99" })).toEqual({
       kind: "redirect",
-      href: "/tvaryny?stor=2",
+      href: "/?stor=2",
     });
     expect(await readGallery(client, { vyd: "dog", stor: "99", utm: "x" })).toEqual({
       kind: "redirect",
-      href: "/tvaryny?vyd=dog&stor=2&utm=x",
+      href: "/?vyd=dog&stor=2&utm=x",
     });
     // The last page itself is served, not redirected.
     expect((await readGallery(client, { stor: "2" })).kind).toBe("reads");
@@ -166,7 +166,7 @@ describe("a page past the last one (owner, 2026-11-27)", () => {
     await twoPages();
     const client = anonymousRouterClient(h.db);
     await expect(renderGallery(client, { stor: "99" })).rejects.toMatchObject({
-      digest: expect.stringMatching(/^NEXT_REDIRECT;replace;\/tvaryny\?stor=2;308;/),
+      digest: expect.stringMatching(/^NEXT_REDIRECT;replace;\/\?stor=2;308;/),
     });
     const result = await load("brovary");
     if (result.kind !== "city") throw new Error(`expected the city, got ${result.kind}`);
@@ -220,7 +220,7 @@ describe("/tvaryny/misto/{slug}: the page body", () => {
   });
 });
 
-describe("/tvaryny?misto=: keeps working, its links lead to the city page when it exists", () => {
+describe("/?misto=: keeps working, its links lead to the city page when it exists", () => {
   it("renders the filtered gallery (no redirect), and its one-city links go to the city page", async () => {
     const brovary = await seedCity("brovary", "Бровари");
     const shelter = await seedShelter(brovary);
@@ -256,12 +256,12 @@ describe("/tvaryny?misto=: keeps working, its links lead to the city page when i
       "/tvaryny/misto/brovary?stor=2",
     );
     expect(await canonicalOf({ misto: "brovary" })).toBe("/tvaryny/misto/brovary");
-    expect(await canonicalOf({ misto: "bucha" })).toBe("/tvaryny");
-    expect(await canonicalOf({ misto: "brovary,bucha" })).toBe("/tvaryny");
-    expect(await canonicalOf({ vyd: "dog", stor: "2" })).toBe("/tvaryny");
+    expect(await canonicalOf({ misto: "bucha" })).toBe("/");
+    expect(await canonicalOf({ misto: "brovary,bucha" })).toBe("/");
+    expect(await canonicalOf({ vyd: "dog", stor: "2" })).toBe("/");
     // The plain list's pages are each their own (a non-default sort: filter-url.test).
-    expect(await canonicalOf({ stor: "2" })).toBe("/tvaryny?stor=2");
-    expect(await canonicalOf({})).toBe("/tvaryny");
+    expect(await canonicalOf({ stor: "2" })).toBe("/?stor=2");
+    expect(await canonicalOf({})).toBe("/");
   });
 
   it("a city whose only shelter is early-listed has no page, so its links keep «?misto=»", async () => {
@@ -276,7 +276,7 @@ describe("/tvaryny?misto=: keeps working, its links lead to the city page when i
     render(<WithMockRouter>{element}</WithMockRouter>);
 
     expect(screen.getAllByTestId("species-cat")[0]?.getAttribute("href")).toBe(
-      "/tvaryny?misto=bucha&vyd=cat",
+      "/?misto=bucha&vyd=cat",
     );
   });
 });

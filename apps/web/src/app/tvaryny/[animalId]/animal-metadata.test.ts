@@ -10,7 +10,7 @@ const view = (paused: boolean) => ({
     shelter: makeDetailShelter(),
     cityName: "Бровари",
     cityPlace: "м. Бровари",
-    backToGalleryHref: "/tvaryny",
+    backToGalleryHref: "/",
   },
 });
 

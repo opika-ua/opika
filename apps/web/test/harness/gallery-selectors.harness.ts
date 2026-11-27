@@ -34,7 +34,7 @@ test.describe("/tvaryny filter selectors", () => {
   test("the city field opens a list with counts, a row applies at once, Esc closes and keeps focus", async ({
     page,
   }) => {
-    await openRoute(page, "/tvaryny", DESKTOP, { readySelector: CARD });
+    await openRoute(page, "/", DESKTOP, { readySelector: CARD });
     const field = page.getByRole("combobox", { name: "Місто" });
 
     await field.click();
@@ -71,16 +71,16 @@ test.describe("/tvaryny filter selectors", () => {
   test("an option with nothing to find is disabled, but stays usable while chosen, to clear it", async ({
     page,
   }) => {
-    await openRoute(page, "/tvaryny?vyd=cat", DESKTOP, { readySelector: CARD });
+    await openRoute(page, "/?vyd=cat", DESKTOP, { readySelector: CARD });
     await page.getByRole("button", { name: "Розмір: Розмір" }).click();
     const large = page.getByRole("button", { name: "Великий, 0 тварин" });
     await expect(large).toHaveAttribute("aria-disabled", "true");
     await large.click({ force: true });
     // A press that did anything would flip the pill at once (the toggle is optimistic).
     await expect(large).toHaveAttribute("aria-pressed", "false");
-    await expect(page).toHaveURL(/\/tvaryny\?vyd=cat$/);
+    await expect(page).toHaveURL(/\/\?vyd=cat$/);
 
-    await openRoute(page, "/tvaryny?vyd=cat&rozmir=large", DESKTOP);
+    await openRoute(page, "/?vyd=cat&rozmir=large", DESKTOP);
     await page.getByRole("button", { name: "Розмір: Великий" }).click();
     const chosen = page.getByRole("button", { name: "Великий, 0 тварин" });
     await expect(chosen).toHaveAttribute("aria-pressed", "true");
@@ -91,7 +91,7 @@ test.describe("/tvaryny filter selectors", () => {
   });
 
   test("a press outside closes the panel", async ({ page }) => {
-    await openRoute(page, "/tvaryny", DESKTOP, { readySelector: CARD });
+    await openRoute(page, "/", DESKTOP, { readySelector: CARD });
     await page.getByRole("button", { name: "Вік: Вік" }).click();
     const group = page.getByRole("group", { name: "Вік" });
     await expect(group).toBeVisible();
@@ -103,7 +103,7 @@ test.describe("/tvaryny filter selectors", () => {
   test("the sheet carries the same groups with counts; a ticked pill finds what it promised", async ({
     page,
   }) => {
-    await openRoute(page, "/tvaryny", PHONE, { readySelector: CARD });
+    await openRoute(page, "/", PHONE, { readySelector: CARD });
     await page.getByTestId("filter-sheet-trigger").click();
     const sheet = page.getByTestId("filter-sheet");
     const size = sheet.getByRole("group", { name: "Розмір" });

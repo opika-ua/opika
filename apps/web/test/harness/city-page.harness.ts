@@ -10,7 +10,7 @@ import { expect, test } from "@playwright/test";
 import { openRoute } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
 
-// TEST-NET-2, a fixed address of its own: `proxy.ts` rate-limits `/tvaryny` pages per IP.
+// TEST-NET-2, a fixed address of its own: `proxy.ts` rate-limits `/` pages per IP.
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.131" } });
 
 const CITY_PAGE = "/tvaryny/misto/brovary";
@@ -52,8 +52,8 @@ test("a city with no page is a real 404, never an empty page", async ({ page }) 
 test("?misto= keeps working, no redirect, with the city page as its canonical", async ({
   page,
 }) => {
-  await openRoute(page, "/tvaryny?misto=brovary&stor=1", DESKTOP, { readySelector: CARD });
-  expect(new URL(page.url()).pathname).toBe("/tvaryny");
+  await openRoute(page, "/?misto=brovary&stor=1", DESKTOP, { readySelector: CARD });
+  expect(new URL(page.url()).pathname).toBe("/");
   await expect(page.locator(CANONICAL)).toHaveAttribute("href", /\/tvaryny\/misto\/brovary$/);
 });
 

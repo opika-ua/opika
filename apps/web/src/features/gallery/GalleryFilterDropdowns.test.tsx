@@ -147,7 +147,7 @@ describe("GalleryFilterDropdowns", () => {
       fireEvent.click(screen.getByRole("option", { name: "Ірпінь, 14 тварин" }));
     });
 
-    expect(router.replace).toHaveBeenCalledWith("/tvaryny?misto=irpin&rozmir=large", {
+    expect(router.replace).toHaveBeenCalledWith("/?misto=irpin&rozmir=large", {
       scroll: false,
     });
     expect(screen.getByRole("listbox", { name: "Місто" })).toBeTruthy();
@@ -170,7 +170,7 @@ describe("GalleryFilterDropdowns", () => {
     act(() => {
       fireEvent.click(chosen);
     });
-    expect(router.replace).toHaveBeenCalledWith("/tvaryny", { scroll: false });
+    expect(router.replace).toHaveBeenCalledWith("/", { scroll: false });
   });
 
   it("Escape closes it and returns focus to the trigger", async () => {
@@ -212,10 +212,10 @@ describe("GalleryFilterDropdowns", () => {
       sexes: { kind: "oneOf", values: ["male"] },
     });
     expect(screen.getByRole("link", { name: "Скинути Розмір" }).getAttribute("href")).toBe(
-      "/tvaryny?vik=young&stat=male",
+      "/?vik=young&stat=male",
     );
     expect(screen.getByRole("link", { name: "Скинути Вік" }).getAttribute("href")).toBe(
-      "/tvaryny?rozmir=large&stat=male",
+      "/?rozmir=large&stat=male",
     );
     expect(screen.queryByRole("link", { name: "Скинути Місто" })).toBeNull();
   });
@@ -223,8 +223,8 @@ describe("GalleryFilterDropdowns", () => {
   it("the species toggle writes vyd=cat for the cat segment, exclusively", async () => {
     await renderRow({ ...NO_FILTERS, species: { kind: "oneOf", values: ["dog"] } });
     expect(screen.getByTestId("species-dog").getAttribute("aria-current")).toBe("true");
-    expect(screen.getByTestId("species-cat").getAttribute("href")).toBe("/tvaryny?vyd=cat");
-    expect(screen.getByTestId("species-any").getAttribute("href")).toBe("/tvaryny");
+    expect(screen.getByTestId("species-cat").getAttribute("href")).toBe("/?vyd=cat");
+    expect(screen.getByTestId("species-any").getAttribute("href")).toBe("/");
   });
 
   it("the species toggle marks «Усі» active when no species is chosen, and only «Усі»", async () => {
@@ -268,7 +268,7 @@ describe("GalleryFilterDropdowns", () => {
       act(() => {
         fireEvent.click(screen.getByRole("option", { name: "Львівська, 5 тварин" }));
       });
-      expect(router.replace).toHaveBeenCalledWith("/tvaryny?obl=lvivska&rozmir=large", {
+      expect(router.replace).toHaveBeenCalledWith("/?obl=lvivska&rozmir=large", {
         scroll: false,
       });
     });
@@ -296,7 +296,7 @@ describe("GalleryFilterDropdowns", () => {
         fireEvent.click(screen.getByRole("option", { name: "Київська, 28 тварин" }));
       });
       // Brovary narrowed Kyiv oblast and goes with it; Lviv city (its oblast still chosen) stays.
-      expect(router.replace).toHaveBeenCalledWith("/tvaryny?obl=lvivska&misto=lviv", {
+      expect(router.replace).toHaveBeenCalledWith("/?obl=lvivska&misto=lviv", {
         scroll: false,
       });
     });
@@ -310,7 +310,7 @@ describe("GalleryFilterDropdowns", () => {
       act(() => {
         fireEvent.click(screen.getByRole("button", { name: "Скинути Область" }));
       });
-      expect(router.replace).toHaveBeenCalledWith("/tvaryny?rozmir=large", { scroll: false });
+      expect(router.replace).toHaveBeenCalledWith("/?rozmir=large", { scroll: false });
     });
   });
 });

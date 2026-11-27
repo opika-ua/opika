@@ -85,7 +85,7 @@ import { LoadErrorScreen } from "../../features/gallery/LoadErrorScreen";
  *
  * **NOT PLANNED, not deferred** - this is the wrong fix, not a postponed
  * one; a future phase shouldn't rebuild it. What actually helps, and
- * shipped instead: a plain link below to bare `/tvaryny` (`gallery-error-
+ * shipped instead: a plain link below to the bare gallery, `/` (`gallery-error-
  * show-all`), no query string. It resolves the one real case (a
  * pathological filter combination) by being the cheapest, most-likely-to-
  * succeed request this app can make, and degrades honestly on every other

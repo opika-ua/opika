@@ -98,7 +98,7 @@ describe("animalMetadataOf: one string for the page, Open Graph and Twitter", ()
         shelter: makeDetailShelter(),
         cityName: "Бровари",
         cityPlace: "м. Бровари",
-        backToGalleryHref: "/tvaryny",
+        backToGalleryHref: "/",
       },
     } as never);
     expect(metadata.title).toEqual({ absolute: "Мурчик – кіт шукає дім, Бровари – Opika" });

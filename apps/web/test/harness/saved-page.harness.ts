@@ -4,7 +4,7 @@
  * the gallery overlay, the saved page showing it after a reload (real
  * `localStorage`, which no component test can exercise), clicking a saved
  * card opening the full animal page - never an overlay, since `/zberezheni`
- * sits outside `/tvaryny`'s intercepting layout - and the batch endpoint's
+ * sits outside `app/tvaryny`'s intercepting layout - and the batch endpoint's
  * `Cache-Control: no-store`, which only a real network response carries.
  *
  * Its own `x-forwarded-for` (TEST-NET-2 .44), the same reasoning every
@@ -27,7 +27,7 @@ test.describe("saving an animal, from the gallery, shows up on the saved page", 
   test("gallery → card → overlay → save → /zberezheni shows it, as a link to the full page", async ({
     page,
   }) => {
-    await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
+    await openRoute(page, "/", DETAIL_DESKTOP, { readySelector: CARD });
     const card = page.locator(CARD).first();
     const name = (await card.getByTestId("card-name").textContent())?.trim() ?? "";
     expect(name.length, "the first card has a name").toBeGreaterThan(0);
@@ -51,7 +51,7 @@ test.describe("saving an animal, from the gallery, shows up on the saved page", 
 
     // The saved page is linked from the header, on the gallery - a real,
     // full navigation, never the intercepting route (`/zberezheni` sits
-    // outside `/tvaryny`, so S4's `(.)[animalId]` cannot match it).
+    // outside `app/tvaryny`, so S4's `(.)[animalId]` cannot match it).
     await page.getByTestId("nav-saved").click();
     await page.waitForURL("**/zberezheni");
 
@@ -69,7 +69,7 @@ test.describe("saving an animal, from the gallery, shows up on the saved page", 
   });
 
   test("a reload keeps the save – real localStorage, not component state", async ({ page }) => {
-    await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
+    await openRoute(page, "/", DETAIL_DESKTOP, { readySelector: CARD });
     await page.locator(CARD).first().click();
     const saveButton = page.locator(SAVE_BUTTON);
     await saveButton.waitFor({ state: "visible" });
@@ -89,7 +89,7 @@ test.describe("saving an animal, from the gallery, shows up on the saved page", 
 
 test.describe("the saved page's batch read", () => {
   test("its response carries Cache-Control: no-store", async ({ page }) => {
-    await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
+    await openRoute(page, "/", DETAIL_DESKTOP, { readySelector: CARD });
     await page.locator(CARD).first().click();
     await page.locator(SAVE_BUTTON).click();
     await page.keyboard.press("Escape");
@@ -105,7 +105,7 @@ test.describe("the saved page's batch read", () => {
   });
 
   test("the request carries no cookie – credentials: 'omit' (DR1-Q2)", async ({ page }) => {
-    await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
+    await openRoute(page, "/", DETAIL_DESKTOP, { readySelector: CARD });
     await page.locator(CARD).first().click();
     await page.locator(SAVE_BUTTON).click();
     await page.keyboard.press("Escape");

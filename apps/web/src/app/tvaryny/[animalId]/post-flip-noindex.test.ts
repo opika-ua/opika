@@ -22,7 +22,7 @@ const animalLoad = (
     shelter: makeDetailShelter(shelter),
     cityName: "Бровари",
     cityPlace: "м. Бровари",
-    backToGalleryHref: "/tvaryny",
+    backToGalleryHref: "/",
   },
 });
 

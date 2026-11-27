@@ -29,7 +29,7 @@ beforeEach(async () => {
  * as `../page.test.tsx`: `force-dynamic` means `next build` never exercises
  * this path, so nothing else does either.
  */
-describe("/tvaryny (renderGallery)", () => {
+describe("the gallery (renderGallery)", () => {
   it("renders a real seeded animal's card with its resolved city name", async () => {
     const city = makeCity({
       name: { uk: "Бровари", en: { text: "Brovary", provenance: "human" } },
@@ -248,7 +248,7 @@ describe("/tvaryny (renderGallery)", () => {
  * never reach the contract as an invalid input and land on the error page. (The deck and the
  * overlay read the same `cityTokensOf`, whose unit test is in `filter-url.test.ts`.)
  */
-describe("/tvaryny (renderGallery) with a malformed place param", () => {
+describe("the gallery (renderGallery) with a malformed place param", () => {
   it.each([
     ["an empty value", { misto: "" }],
     ["a trailing comma", { misto: "unknown-city," }],

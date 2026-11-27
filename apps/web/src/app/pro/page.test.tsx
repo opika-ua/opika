@@ -88,7 +88,7 @@ describe("AboutPage", () => {
     render(renderAboutPage(false));
 
     const link = within(screen.getByRole("banner")).getByRole("link", { name: "Opika" });
-    expect(link.getAttribute("href")).toBe("/tvaryny");
+    expect(link.getAttribute("href")).toBe("/");
   });
 });
 

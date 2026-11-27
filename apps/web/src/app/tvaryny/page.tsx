@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import { anonymousRouterClient } from "../../api/server-client";
+import { GALLERY_PATH } from "../../features/chrome/gallery-path";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
 import { SiteFooter } from "../../features/chrome/SiteFooter";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
@@ -18,7 +19,6 @@ import {
   anyFilterSet,
   cityPagePath,
   cityTokensOf,
-  GALLERY_PATH,
   galleryCanonicalPath,
   parseGalleryQuery,
   redirectHrefForNonCanonicalCities,
@@ -64,7 +64,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Handoff B2's title and description, for the page and its previews alike. Every filter, sort and
- * page variant shares the canonical `/tvaryny` (owner, PR B), except one city alone: that is its
+ * page variant shares the bare gallery's canonical (owner, PR B), except one city alone: that is its
  * landing page's state, so the city page with the same page number is canonical (owner, B3).
  */
 export async function generateMetadata({
@@ -215,9 +215,9 @@ const EAGER_CARD_COUNT = 4;
  * built, then removed in Phase D (O-3, `docs/observations.md`): it duplicated
  * the filter rail and the result count, and delayed the content it sat
  * above. See that section's own amendment note for what survives
- * (`uk.firstRun.promise` as `og:description` only). `/` still redirects here
- * (`next.config.ts`) rather than serving its own route - a standalone `/`
- * page was tried first and reverted for contradicting the original spec.
+ * (`uk.firstRun.promise` as `og:description` only). `/` is served from this
+ * route by a rewrite (`next.config.ts`, SEO PR 6); a standalone `/` page was
+ * tried first and reverted for contradicting the original spec.
  *
  * **Correction, 2026-09-10 - found by Oleksii, not by any test; a first
  * draft of this correction then had its own history wrong, found by the

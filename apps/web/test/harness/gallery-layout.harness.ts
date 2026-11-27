@@ -1,5 +1,5 @@
 /**
- * The gallery's photos actually load - `/tvaryny`, real seeded rows.
+ * The gallery's photos actually load - `/`, real seeded rows.
  *
  * Until 2026-10-20 this file also measured column counts per breakpoint, the
  * card photo's shape, the content width, the photo box staying the same size while its image loads, the
@@ -16,7 +16,7 @@ import { openRoute } from "./harness";
 import { PHONE } from "./viewports";
 
 /**
- * `proxy.ts` rate-limits `/tvaryny` at 100 req/min per IP, shared across
+ * `proxy.ts` rate-limits `/` at 100 req/min per IP, shared across
  * every harness file that requests it under the real local identity - see
  * `gallery-arrow-nav.harness.ts`'s comment for the real, reproducing 429
  * this caused once that file's requests joined this one's and
@@ -29,7 +29,7 @@ import { PHONE } from "./viewports";
  */
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.23" } });
 
-const ROUTE = "/tvaryny";
+const ROUTE = "/";
 const CARD = "[data-testid='animal-card']";
 const GALLERY_PAGE_SIZE = 24;
 

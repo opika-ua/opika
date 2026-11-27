@@ -70,7 +70,7 @@ function expectedSlugFor(visibleCityNameUk: string): string {
   return citySlugOf(nameEn);
 }
 
-const GALLERY_ROUTE = "/tvaryny";
+const GALLERY_ROUTE = "/";
 const CARD = "[data-testid='animal-card']";
 const PHOTO = "section[aria-label='Фотогалерея'] img";
 

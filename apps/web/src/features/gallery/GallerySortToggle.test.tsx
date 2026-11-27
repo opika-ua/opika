@@ -28,9 +28,9 @@ describe("GallerySortToggle", () => {
 
   it("both links navigate with the same filters, only the sort changing", () => {
     render(<GallerySortToggle filters={NO_FILTERS} sort="freshest" citySlugs={new Map()} />);
-    expect(screen.getByRole("link", { name: FRESHEST }).getAttribute("href")).toBe("/tvaryny");
+    expect(screen.getByRole("link", { name: FRESHEST }).getAttribute("href")).toBe("/");
     expect(screen.getByRole("link", { name: LONGEST }).getAttribute("href")).toBe(
-      "/tvaryny?sort=longest_waiting",
+      "/?sort=longest_waiting",
     );
   });
 
@@ -40,6 +40,6 @@ describe("GallerySortToggle", () => {
     );
     const track = container.querySelector("a[aria-hidden='true']");
     expect(track?.getAttribute("tabindex")).toBe("-1");
-    expect(track?.getAttribute("href")).toBe("/tvaryny?sort=longest_waiting");
+    expect(track?.getAttribute("href")).toBe("/?sort=longest_waiting");
   });
 });

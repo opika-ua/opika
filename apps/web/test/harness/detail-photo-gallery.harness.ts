@@ -33,7 +33,7 @@ import { DETAIL_DESKTOP } from "./viewports";
 const SPOOFED_IP_HEADERS = { "x-forwarded-for": "198.51.100.33" };
 test.use({ extraHTTPHeaders: SPOOFED_IP_HEADERS });
 
-const GALLERY_ROUTE = "/tvaryny";
+const GALLERY_ROUTE = "/";
 const CARD = "[data-testid='animal-card']";
 const DETAIL_READY = "section[aria-label='Фотогалерея'] img";
 const MAX_CANDIDATES = 8;

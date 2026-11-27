@@ -2,6 +2,7 @@ import { ukPublic as uk } from "@opika/i18n/public";
 import { WORDMARK } from "../../brand";
 import { Container } from "../../ui/Container";
 import { BrandLogo } from "./BrandLogo";
+import { GALLERY_PATH } from "./gallery-path";
 
 /**
  * The header of a segment's own 404. Next renders a segment's `not-found` element into that
@@ -15,12 +16,12 @@ export function NotFoundHeader() {
   return (
     <header className="bg-page">
       <Container className="flex flex-wrap items-center gap-x-8 gap-y-1 py-2">
-        <a href="/tvaryny" className="mr-auto inline-flex min-h-target items-center focus-ring">
+        <a href={GALLERY_PATH} className="mr-auto inline-flex min-h-target items-center focus-ring">
           <BrandLogo />
           <span className="sr-only">{WORDMARK}</span>
         </a>
         <nav aria-label={WORDMARK} className="flex flex-wrap items-center gap-x-6">
-          <a href="/tvaryny" className={LINK}>
+          <a href={GALLERY_PATH} className={LINK}>
             {uk.nav.animals}
           </a>
           <a href="/prytulkam" className={LINK}>

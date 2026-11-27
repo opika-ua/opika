@@ -16,7 +16,7 @@ test.describe("web app manifest, against a real server", () => {
     expect(response.headers()["content-type"]).toMatch(/application\/(manifest\+)?json/);
     expect(response.headers()["x-content-type-options"]).toBe("nosniff");
     const manifest = await response.json();
-    expect(manifest.start_url).toBe("/tvaryny");
+    expect(manifest.start_url).toBe("/");
     expect(manifest.display).toBe("standalone");
 
     for (const icon of manifest.icons as { src: string; type: string }[]) {
@@ -30,7 +30,7 @@ test.describe("web app manifest, against a real server", () => {
   });
 
   test("the page head keeps the svg favicon and adds the apple touch icon", async ({ page }) => {
-    await page.goto("/tvaryny");
+    await page.goto("/");
     await expect(page.locator('link[rel="icon"][href*="/icon.svg"]')).toHaveCount(1);
     await expect(page.locator('link[rel="apple-touch-icon"][href*="/apple-icon.png"]')).toHaveCount(
       1,
@@ -46,7 +46,7 @@ test.describe("web app manifest, against a real server", () => {
     expect(ico.status()).toBe(200);
     expect(ico.headers()["content-type"]).toMatch(/^image\/(x-icon|vnd\.microsoft\.icon)/);
 
-    await page.goto("/tvaryny");
+    await page.goto("/");
     await expect(page.locator('link[rel="icon"][href*="/favicon.ico"]')).toHaveCount(1);
     for (const [file, sizes] of [
       ["/icon1.png", "48x48"],
@@ -68,7 +68,7 @@ test.describe("web app manifest, against a real server", () => {
       (await page.locator('script[type="application/ld+json"]').allTextContents()).map(
         (text) => JSON.parse(text)["@type"],
       );
-    await page.goto("/tvaryny");
+    await page.goto("/");
     expect(await emittedTypes()).toEqual(["WebSite", "Organization"]);
     await page.goto("/pro");
     expect(await emittedTypes()).toEqual([]);

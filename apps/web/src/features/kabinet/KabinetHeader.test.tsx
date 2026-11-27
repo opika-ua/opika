@@ -49,7 +49,7 @@ describe("KabinetHeader", () => {
   it("«На сайт» is one link that opens the public gallery in a new tab and says so", () => {
     render(<KabinetHeader account={admin} person={null} />);
     const link = screen.getByRole("link", { name: "На сайт (відкриється в новій вкладці)" });
-    expect(link.getAttribute("href")).toBe("/tvaryny");
+    expect(link.getAttribute("href")).toBe("/");
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toContain("noopener");
     expect(screen.queryByText("Переглянути сайт")).toBeNull();

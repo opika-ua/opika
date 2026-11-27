@@ -12,9 +12,9 @@ import { openRoute } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
 
 /**
- * `proxy.ts` rate-limits `/tvaryny` at 100 req/min per IP
+ * `proxy.ts` rate-limits `/` at 100 req/min per IP
  * (`api/rate-limit.ts`), keyed on the real client IP unless spoofed -
- * every test file that requests `/tvaryny` under its real identity shares
+ * every test file that requests `/` under its real identity shares
  * ONE budget with every other one, in the same 60s window, on a suite that
  * only grows. `gallery-rate-limit.harness.ts`'s own file comment named
  * this risk directly ("present or future" tests colliding) and solved it
@@ -45,7 +45,7 @@ import { DESKTOP, PHONE } from "./viewports";
 const SPOOFED_IP_HEADERS = { "x-forwarded-for": "198.51.100.21" };
 test.use({ extraHTTPHeaders: SPOOFED_IP_HEADERS });
 
-const ROUTE = "/tvaryny";
+const ROUTE = "/";
 const CARD = "[data-testid='animal-card']";
 
 async function focusedIndex(page: { evaluate: <T>(fn: () => T) => Promise<T> }): Promise<number> {

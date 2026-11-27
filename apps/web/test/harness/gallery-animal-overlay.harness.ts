@@ -23,7 +23,7 @@ import { ANDROID_PHONE, ANDROID_PHONE_TALL, DETAIL_DESKTOP, DETAIL_PHONE } from 
 const ipHeaders = (lastOctet: number) => ({ "x-forwarded-for": `198.51.100.${lastOctet}` });
 
 /** Page 2, so "back" has a query string to restore, not just the bare path. */
-const GALLERY_PAGE_2 = "/tvaryny?stor=2";
+const GALLERY_PAGE_2 = "/?stor=2";
 const CARD = "[data-testid='animal-card']";
 
 async function openGallery(page: Page, viewport = DETAIL_DESKTOP) {
@@ -129,10 +129,31 @@ test.describe("the gallery's animal overlay", () => {
       await expect(dialog).toHaveClass(/animate-panel-up/);
     });
 
+    // SEO PR 6: the gallery is `/`, rewritten to the route under `app/tvaryny/` whose `@preview`
+    // slot holds the overlay. Reached by a client navigation, then opened from the bare `/`.
+    test("the overlay opens from the gallery at `/`, reached by a client navigation", async ({
+      page,
+    }) => {
+      await openRoute(page, "/pro", DETAIL_DESKTOP);
+      // Survives only a client navigation: a document load would start a fresh window.
+      await page.evaluate(() => Reflect.set(window, "__softNavigation", true));
+      await page.getByTestId("nav-animals").first().click();
+      await page.waitForURL((url) => url.pathname === "/" && url.search === "");
+      expect(await page.evaluate(() => Reflect.get(window, "__softNavigation"))).toBe(true);
+      await page.locator(CARD).first().waitFor({ state: "visible" });
+      const { href } = await openOverlayFrom(page);
+      expect(new URL(page.url()).pathname).toBe(href);
+      await expect(page.locator(CARD).first()).toBeAttached();
+
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      expect(new URL(page.url()).pathname).toBe("/");
+    });
+
     /**
      * Pet card PR 5, decision B: the overlay's own prev/next links are
      * deliberately prefetched (`AnimalOverlay.tsx`'s own comment on
-     * `NeighbourLink` - the one `/tvaryny` link in this codebase that is,
+     * `NeighbourLink` - the one `/` link in this codebase that is,
      * unlike every other gallery/animal link's `prefetch={false}`), so
      * opening a card fetches the opened animal's own path plus up to two
      * more - its neighbours. Since 2026-11-20 (owner) a route-tree prefetch
@@ -140,19 +161,19 @@ test.describe("the gallery's animal overlay", () => {
      * the head) is charged, once per neighbour. What this test
      * guards: no *unbounded* or *gallery* re-fetch - every fetched path is
      * the opened animal or a real `/tvaryny/{uuid}` neighbour, never a second
-     * `/tvaryny` gallery-list fetch or more than two distinct neighbours.
+     * gallery-list fetch (`/`) or more than two distinct neighbours.
      */
     test("opening a card charges only itself and its own neighbours - never a re-prefetch of the gallery", async ({
       page,
     }) => {
       await openGallery(page);
-      // Every request to the page routes under /tvaryny, documents and client fetches alike;
+      // Every request to the gallery and the page routes under /tvaryny, documents and client fetches alike;
       // `charged` leaves out the router prefetches the proxy's matcher skips.
       const fetched: string[] = [];
       const charged: string[] = [];
       page.on("request", (request) => {
         const { pathname, search } = new URL(request.url());
-        if (pathname === "/tvaryny" || pathname.startsWith("/tvaryny/")) {
+        if (pathname === "/" || pathname.startsWith("/tvaryny/")) {
           fetched.push(pathname + search);
           const headers = request.headers();
           const free =
@@ -244,6 +265,24 @@ test.describe("the gallery's animal overlay", () => {
 
       await expect(page.getByRole("dialog")).toHaveCount(0);
       expect(new URL(page.url()).pathname + new URL(page.url()).search).toBe(GALLERY_PAGE_2);
+      await expect(page.locator(CARD).first()).toBeVisible();
+    });
+
+    // SEO PR 6 (owner): a filtered gallery loaded at `/` keeps its query through the overlay and back.
+    test("a hard load of `/?vyd=dog`, the overlay, then back returns to `/?vyd=dog`", async ({
+      page,
+    }) => {
+      await openRoute(page, "/?vyd=dog", DETAIL_DESKTOP, { readySelector: CARD });
+      const card = page.locator(CARD).first();
+      const name = (await card.getByTestId("card-name").textContent())?.trim() ?? "";
+      await card.click();
+      await expect(page.getByRole("dialog", { name })).toBeVisible();
+      expect(new URL(page.url()).pathname).toMatch(/^\/tvaryny\/[0-9a-f-]{36}$/);
+
+      await page.goBack();
+
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      expect(new URL(page.url()).pathname + new URL(page.url()).search).toBe("/?vyd=dog");
       await expect(page.locator(CARD).first()).toBeVisible();
     });
   });

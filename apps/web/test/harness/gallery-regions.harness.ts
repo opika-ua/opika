@@ -9,12 +9,12 @@ import { expect, test } from "@playwright/test";
 import { openRoute } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
 
-// TEST-NET-2 (198.51.100.0/24), a fixed address of its own: `proxy.ts` rate-limits `/tvaryny` per
+// TEST-NET-2 (198.51.100.0/24), a fixed address of its own: `proxy.ts` rate-limits `/` per
 // IP and the other gallery files each take theirs (see `gallery-filters.harness.ts`).
 const SPOOFED_IP_HEADERS = { "x-forwarded-for": "198.51.100.23" };
 test.use({ extraHTTPHeaders: SPOOFED_IP_HEADERS });
 
-const ROUTE = "/tvaryny";
+const ROUTE = "/";
 const CARD = "[data-testid='animal-card']";
 const SHEET = "#tvaryny-filters";
 

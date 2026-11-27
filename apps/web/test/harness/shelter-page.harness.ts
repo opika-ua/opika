@@ -26,7 +26,7 @@ const ANIMALS_LIST = /^Шукають дім: \d+$/;
 
 /** A gallery card's animal, read from the gallery before anything is clicked. */
 async function firstGalleryAnimal(page: Page) {
-  await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
+  await openRoute(page, "/", DETAIL_DESKTOP, { readySelector: CARD });
   const card = page.locator(CARD).first();
   const href = await card.getAttribute("href");
   const name = (await card.getByTestId("card-name").textContent())?.trim() ?? "";
@@ -109,10 +109,7 @@ test.describe("a shelter adopters can't see", () => {
     const response = await page.goto(`/prytulky/${suspended.id}`, { waitUntil: "load" });
     expect(response?.status()).toBe(404);
     await expect(page.getByRole("heading", { level: 1, name: "НЕ ЗНАЙДЕНО" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Усі тварини" })).toHaveAttribute(
-      "href",
-      "/tvaryny",
-    );
+    await expect(page.getByRole("link", { name: "Усі тварини" })).toHaveAttribute("href", "/");
     await expect(page.getByText(suspended.displayName)).toHaveCount(0);
   });
 });

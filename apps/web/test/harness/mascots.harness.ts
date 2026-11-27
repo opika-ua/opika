@@ -112,24 +112,24 @@ interface Placement {
 
 const CARD = "[data-testid='animal-card']";
 const PLACEMENTS: readonly Placement[] = [
-  { name: "1-hero-cat", route: "/tvaryny", ready: CARD, expected: ["cat-lie"] },
-  { name: "1-hero-dog", route: "/tvaryny?vyd=dog", ready: CARD, expected: ["dog-lie"] },
+  { name: "1-hero-cat", route: "/", ready: CARD, expected: ["cat-lie"] },
+  { name: "1-hero-dog", route: "/?vyd=dog", ready: CARD, expected: ["dog-lie"] },
   {
     name: "2a-no-match-cat",
-    route: "/tvaryny?vyd=cat&rozmir=large",
+    route: "/?vyd=cat&rozmir=large",
     ready: "[data-testid='gallery-no-match']",
     expected: ["cat-lie"],
   },
   {
     name: "2a-no-match-dog",
-    route: "/tvaryny?vyd=dog&obl=zhytomyrska",
+    route: "/?vyd=dog&obl=zhytomyrska",
     ready: "[data-testid='gallery-no-match']",
     expected: ["dog-lie"],
   },
   // The seeded corpus decides these cases; `cards` checks each is still the case it claims to be.
   {
     name: "6-list-end-cat",
-    route: "/tvaryny?vik=adult&stor=4",
+    route: "/?vik=adult&stor=4",
     ready: "[data-testid='gallery-list-end']",
     expected: ["cat-lie", "cat-stand-tail"],
     scrollTo: "[data-testid='gallery-list-end']",
@@ -137,7 +137,7 @@ const PLACEMENTS: readonly Placement[] = [
   },
   {
     name: "6-list-end-dog",
-    route: "/tvaryny?vyd=dog&rozmir=medium&stor=2",
+    route: "/?vyd=dog&rozmir=medium&stor=2",
     ready: "[data-testid='gallery-list-end']",
     expected: ["dog-lie", "dog-stand"],
     scrollTo: "[data-testid='gallery-list-end']",
@@ -146,7 +146,7 @@ const PLACEMENTS: readonly Placement[] = [
   {
     // A short last page: the closing mascot would share the hero's screen, so it stays off.
     name: "6-short-last-page",
-    route: "/tvaryny?stor=10",
+    route: "/?stor=10",
     ready: CARD,
     expected: ["cat-lie"],
     cards: (n) => n > 0 && n < LIST_END_MIN_CARDS,
@@ -179,7 +179,7 @@ const PLACEMENTS: readonly Placement[] = [
   },
   {
     name: "3-error",
-    route: "/tvaryny?opika_test_fail=1",
+    route: "/?opika_test_fail=1",
     ready: "[data-testid='gallery-error']",
     expected: ["cat-sit-collar"],
   },
@@ -209,7 +209,7 @@ for (const viewport of [DESKTOP_1440, PHONE_393, PHONE_360, PHONE_320]) {
     test("4-reveal: the contact dialog seats the cat and the dog together as one moment", async ({
       page,
     }) => {
-      await openRoute(page, "/tvaryny", viewport, { readySelector: CARD });
+      await openRoute(page, "/", viewport, { readySelector: CARD });
       const href = await page.locator(CARD).first().getAttribute("href");
       await page.goto(href as string, { waitUntil: "load" });
       await page.getByTestId("reveal-trigger").click();
@@ -268,8 +268,8 @@ for (const viewport of [DESKTOP_1440, PHONE_393, PHONE_360, PHONE_320]) {
  */
 const PERCH_WIDTHS = [320, 360, 393, 1024, 1440] as const;
 const PERCH_VARIANTS = [
-  { name: "hero-cat", route: "/tvaryny", ready: CARD, heading: "h1", key: "cat-lie" },
-  { name: "hero-dog", route: "/tvaryny?vyd=dog", ready: CARD, heading: "h1", key: "dog-lie" },
+  { name: "hero-cat", route: "/", ready: CARD, heading: "h1", key: "cat-lie" },
+  { name: "hero-dog", route: "/?vyd=dog", ready: CARD, heading: "h1", key: "dog-lie" },
 ] as const;
 
 test.describe("mascot on a word", () => {

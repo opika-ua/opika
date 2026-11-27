@@ -1,4 +1,5 @@
 import { SITE_ORIGIN, WORDMARK, WORDMARK_CYRILLIC } from "../brand";
+import { GALLERY_PATH } from "../features/chrome/gallery-path";
 import { LOGO_ICON } from "../pwa";
 
 export type JsonLdObject = Readonly<Record<string, unknown>>;
@@ -13,7 +14,7 @@ export function absoluteUrl(path: string): string {
 /** Only profiles the owner has supplied the exact URL for (2026-11-18); never a guessed one. */
 export const ORGANIZATION_SAME_AS = ["https://www.instagram.com/opika.ua/"] as const;
 
-/** Google reads the site name from this on the home page (`/` redirects to `/tvaryny`). */
+/** Google reads the site name from this on the home page (the gallery, at `/`). */
 export function webSiteJsonLd(): JsonLdObject {
   return {
     "@context": "https://schema.org",
@@ -54,7 +55,7 @@ export function animalBreadcrumbs(
   animal: { readonly id: string; readonly name: string },
 ): JsonLdObject {
   return breadcrumbListJsonLd([
-    { name: galleryName, path: "/tvaryny" },
+    { name: galleryName, path: GALLERY_PATH },
     { name: animal.name, path: `/tvaryny/${animal.id}` },
   ]);
 }
@@ -64,7 +65,7 @@ export function shelterBreadcrumbs(
   shelter: { readonly id: string; readonly displayName: string },
 ): JsonLdObject {
   return breadcrumbListJsonLd([
-    { name: galleryName, path: "/tvaryny" },
+    { name: galleryName, path: GALLERY_PATH },
     { name: shelter.displayName, path: `/prytulky/${shelter.id}` },
   ]);
 }

@@ -1,5 +1,6 @@
 import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
+import { GALLERY_PATH } from "../../../features/chrome/gallery-path";
 import { NotFoundHeader } from "../../../features/chrome/NotFoundHeader";
 import { LinkButton } from "../../../ui/Button";
 import { Container } from "../../../ui/Container";
@@ -25,7 +26,7 @@ export default function NotFound() {
           <Heading level={1} look="title">
             {uk.detail.notFound.eyebrow}
           </Heading>
-          <LinkButton href="/tvaryny">{uk.detail.notFound.action}</LinkButton>
+          <LinkButton href={GALLERY_PATH}>{uk.detail.notFound.action}</LinkButton>
         </Panel>
       </Container>
     </div>

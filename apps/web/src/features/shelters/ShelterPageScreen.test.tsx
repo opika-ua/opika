@@ -193,9 +193,7 @@ describe("the shelter page, states", () => {
     expect(screen.queryByRole("navigation", { name: "Сортування" })).toBeNull();
     const note = screen.getByTestId("shelter-no-animals");
     expect(within(note).getByText("Зараз тут немає тварин, які шукають дім.")).toBeTruthy();
-    expect(within(note).getByRole("link", { name: "Усі тварини" }).getAttribute("href")).toBe(
-      "/tvaryny",
-    );
+    expect(within(note).getByRole("link", { name: "Усі тварини" }).getAttribute("href")).toBe("/");
   });
 
   it("shows no card text beyond the card, and no per-card button", () => {

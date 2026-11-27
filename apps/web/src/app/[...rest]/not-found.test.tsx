@@ -19,9 +19,7 @@ describe("the root 404", () => {
     expect(
       within(main).getByText("Можливо, посилання застаріло або в адресі помилка."),
     ).toBeTruthy();
-    expect(within(main).getByRole("link", { name: "На головну" }).getAttribute("href")).toBe(
-      "/tvaryny",
-    );
+    expect(within(main).getByRole("link", { name: "На головну" }).getAttribute("href")).toBe("/");
     // The header is outside main: a visitor still has navigation.
     expect(screen.getByRole("banner")).toBeTruthy();
   });

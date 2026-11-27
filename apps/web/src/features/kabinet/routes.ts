@@ -1,3 +1,5 @@
+import { GALLERY_PATH } from "../chrome/gallery-path";
+
 /**
  * The operator's list (R-UI S1): where `/kabinet` sends the operator (RU-T1)
  * and the root of every operator page. Its own module, free of server code,
@@ -17,7 +19,7 @@ export const NEW_SHELTER_PATH = `${OPERATOR_HOME}/novyi`;
 export const SHELTER_HOME = "/kabinet";
 
 /** The public gallery, for the header's «На сайт» (opened in a new tab). */
-export const PUBLIC_GALLERY_PATH = "/tvaryny";
+export const PUBLIC_GALLERY_PATH = GALLERY_PATH;
 
 /** Притулок (renamed from «Профіль притулку»): K4's profile editor, moved off `SHELTER_HOME`. */
 export const SHELTER_PROFILE_PATH = "/kabinet/prytulok";

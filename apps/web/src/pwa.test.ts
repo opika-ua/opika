@@ -14,7 +14,7 @@ describe("web app manifest", () => {
 
   it("starts in the gallery, installs standalone, in Ukrainian", () => {
     expect(m).toMatchObject({
-      start_url: "/tvaryny",
+      start_url: "/",
       scope: "/",
       display: "standalone",
       lang: "uk",

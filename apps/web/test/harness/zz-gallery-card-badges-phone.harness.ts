@@ -107,7 +107,7 @@ test("393 px: the under-review and reserved badges sit on the photo, clear of th
       // The seeded animals fill the first pages: walk the pages until the card shows up.
       const card = pub.getByTestId("animal-card").filter({ hasText: name });
       for (let n = 1; n <= 15; n++) {
-        await pub.goto(n === 1 ? "/tvaryny" : `/tvaryny?stor=${n}`, { waitUntil: "load" });
+        await pub.goto(n === 1 ? "/" : `/?stor=${n}`, { waitUntil: "load" });
         if ((await card.count()) > 0) break;
       }
       await expect(card).toHaveCount(1);

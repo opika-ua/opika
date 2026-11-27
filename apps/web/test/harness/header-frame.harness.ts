@@ -104,7 +104,7 @@ test.describe("header frame: public site and kabinet", () => {
     test(`the logo is at the content's left edge on /tvaryny and /kabinet/tvaryny at ${width}`, async () => {
       const page = await signedInPage();
       await page.setViewportSize({ width, height: 800 });
-      await page.goto("/tvaryny");
+      await page.goto("/");
       expect(await logoX(page, "[data-testid='site-header']")).toBe(await contentX(page, false));
       await page.goto("/kabinet/tvaryny");
       expect(await logoX(page, "header")).toBe(await contentX(page, true));
@@ -151,7 +151,7 @@ test.describe("header frame: public site and kabinet", () => {
   test("neither header scrolls sideways at 320", async () => {
     const page = await signedInPage();
     await page.setViewportSize({ width: 320, height: 700 });
-    for (const path of ["/tvaryny", "/kabinet/tvaryny"]) {
+    for (const path of ["/", "/kabinet/tvaryny"]) {
       await page.goto(path);
       expect(await noSidewaysScroll(page), path).toBe(true);
     }

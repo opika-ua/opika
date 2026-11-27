@@ -27,6 +27,7 @@ import {
   type SizeBucket,
 } from "@opika/domain/core";
 import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
+import { GALLERY_PATH } from "../chrome/gallery-path";
 import type { CityTokenResolution } from "./city-tokens";
 
 /**
@@ -253,7 +254,7 @@ export const anyFilterSet = (filters: FeedFilters): boolean =>
 /**
  * The gallery's canonical. Its links would move to a city page (`placedOf`'s rule): that city
  * page's canonical, page number kept. Otherwise each page of the plain list is its own (owner,
- * 2026-11-27), and a filter or a sort other than the default canonicalises to bare `/tvaryny`.
+ * 2026-11-27), and a filter or a sort other than the default canonicalises to the bare gallery.
  */
 export function galleryCanonicalPath(
   filters: FeedFilters,
@@ -551,9 +552,6 @@ export function galleryHref(
   return qs ? `${placed.path}?${qs}` : placed.path;
 }
 
-/** The gallery's own path; a shelter page passes its own as `basePath` to reuse the same links. */
-export const GALLERY_PATH = "/tvaryny";
-
 /**
  * A page link, unlike `galleryHref` above: filters and sort are carried
  * forward unchanged (a page link refines "where in this result set,"
@@ -587,7 +585,7 @@ export function galleryPageHref(
  * without it, every card link would open an animal with no idea which
  * gallery it came from. Same param scheme as `galleryHref`/`galleryPageHref`
  * (reuses `filterAndSortParams`), just rooted at `/tvaryny/{id}` instead of
- * `/tvaryny`. No `page` param, for the same reason `galleryHref` carries
+ * the gallery (`/`). No `page` param, for the same reason `galleryHref` carries
  * none: opening one animal isn't "go to this result-set page."
  */
 export function animalPageHref(

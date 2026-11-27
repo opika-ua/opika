@@ -37,7 +37,7 @@ test("pause and resume, seen by an adopter", async ({ browser }) => {
     const animalPath = `/tvaryny/${fixture.animalId}`;
     const page = await adopter.newPage();
     const galleryCount = async () => {
-      await page.goto("/tvaryny");
+      await page.goto("/");
       const text = await page
         .getByText(/Знайдено \d+/)
         .first()

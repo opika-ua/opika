@@ -21,10 +21,10 @@ test.beforeEach(async ({ page }, testInfo) => {
   await page.setExtraHTTPHeaders({ "x-forwarded-for": `192.0.2.${lastOctet}` });
 });
 
-test("/tvaryny's title is SEO handoff B2's, ending in the owner's en-dash separator and the brand", async ({
+test("/'s title is SEO handoff B2's, ending in the owner's en-dash separator and the brand", async ({
   page,
 }) => {
-  await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
+  await openRoute(page, "/", DETAIL_DESKTOP, { readySelector: CARD });
   const title = await page.title();
   expect(title.endsWith(EN_DASH_SEPARATOR)).toBe(true);
   expect(title).toBe(`Взяти собаку чи кота з притулку${EN_DASH_SEPARATOR}`);
@@ -41,7 +41,7 @@ test("the privacy policy's title is «Політика конфіденційн�
 test("an animal page's title is SEO handoff B2's, dropping « – Opika» only past 60 characters", async ({
   page,
 }) => {
-  await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
+  await openRoute(page, "/", DETAIL_DESKTOP, { readySelector: CARD });
   const href = await page.locator(CARD).first().getAttribute("href");
   await page.goto(href as string);
   const title = await page.title();
@@ -53,7 +53,7 @@ test("an animal page's title is SEO handoff B2's, dropping « – Opika» only p
 test("the shelter page's title is SEO handoff B2's, dropping « – Opika» only past 60 characters", async ({
   page,
 }) => {
-  await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
+  await openRoute(page, "/", DETAIL_DESKTOP, { readySelector: CARD });
   const href = await page.locator(CARD).first().getAttribute("href");
   await page.goto(href as string);
   const animalTitle = await page.title();
