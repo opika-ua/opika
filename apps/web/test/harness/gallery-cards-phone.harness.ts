@@ -22,7 +22,7 @@ const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harne
 for (const viewport of [P360, P393]) {
   test.describe(`gallery at ${viewport.name}`, () => {
     test("no sideways scroll; each card is one link with no button inside", async ({ page }) => {
-      await openRoute(page, "/tvaryny", viewport, { readySelector: CARD });
+      await openRoute(page, "/", viewport, { readySelector: CARD });
       expect(await noSidewaysScroll(page)).toBe(true);
       const cards = page.locator(CARD);
       expect(await cards.count()).toBeGreaterThan(1);
@@ -31,7 +31,7 @@ for (const viewport of [P360, P393]) {
     });
 
     test("«Фільтри» and the sort are on one row", async ({ page }) => {
-      await openRoute(page, "/tvaryny", viewport, { readySelector: CARD });
+      await openRoute(page, "/", viewport, { readySelector: CARD });
       const filters = await page.getByTestId("filter-sheet-trigger").boundingBox();
       // `getByRole` skips the desktop copy (display: none on a phone).
       const sort = await page.getByRole("navigation", { name: "Сортування" }).boundingBox();
@@ -49,7 +49,7 @@ for (const viewport of [P360, P393]) {
 }
 
 test("at 393x852 four cards fit the first screen", async ({ page }) => {
-  await openRoute(page, "/tvaryny", P393, { readySelector: CARD });
+  await openRoute(page, "/", P393, { readySelector: CARD });
   const inView = await page
     .locator(CARD)
     .evaluateAll(

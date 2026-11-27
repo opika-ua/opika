@@ -33,7 +33,7 @@ test.describe("an address no route owns", () => {
       locator: page.getByRole("link", { name: "На головну" }),
     });
     await page.getByRole("link", { name: "На головну" }).press("Enter");
-    await expect(page).toHaveURL(/\/tvaryny$/);
+    await expect(page).toHaveURL(/\/$/);
   });
 
   test("a deeper unknown address under a real section gets the same page", async ({ page }) => {
@@ -59,10 +59,10 @@ test.describe("skip link", () => {
   });
 });
 
-test.describe("/tvaryny?stor= with a hostile value", () => {
+test.describe("/?stor= with a hostile value", () => {
   for (const stor of ["1e21", "999999999999999999999", "abc", "-5", "0", "2.5"]) {
     test(`?stor=${stor} answers 200, not an error page`, async ({ page }) => {
-      const response = await page.goto(`/tvaryny?stor=${stor}`, { waitUntil: "load" });
+      const response = await page.goto(`/?stor=${stor}`, { waitUntil: "load" });
       expect(response?.status()).toBe(200);
       await expect(page.getByText("Сторінку не вдалося завантажити.")).toHaveCount(0);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();

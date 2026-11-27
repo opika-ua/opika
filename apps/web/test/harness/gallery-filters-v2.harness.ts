@@ -11,7 +11,7 @@ import { ANDROID_PHONE, type Viewport } from "./viewports";
 /** TEST-NET-2, `.62`: the next address no other harness file claims (see `gallery-filters.harness.ts`). */
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.62" } });
 
-const ROUTE = "/tvaryny";
+const ROUTE = "/";
 const CARD = "[data-testid='animal-card']";
 const WIDE: Viewport = { name: "1440x900 desktop", width: 1440, height: 900 };
 

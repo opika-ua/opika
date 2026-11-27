@@ -23,7 +23,7 @@ const VIEWPORTS: readonly Viewport[] = [
 
 /** Three real animal ids from the gallery, saved the way the app saves them (`likes.v1`). */
 async function saveThreeFromGallery(page: Page, viewport: Viewport): Promise<void> {
-  await openRoute(page, "/tvaryny", viewport, { readySelector: CARD });
+  await openRoute(page, "/", viewport, { readySelector: CARD });
   const ids = await page.locator(CARD).evaluateAll((cards) =>
     cards
       .map((card) => card.getAttribute("href")?.match(/\/tvaryny\/([0-9a-f-]{36})/)?.[1])

@@ -15,8 +15,8 @@ describe("SiteFooter (A2)", () => {
       .getAllByRole("link")
       .map((link) => [link.textContent, link.getAttribute("href")]);
     expect(links).toEqual([
-      ["Opika", "/tvaryny"],
-      ["Тварини", "/tvaryny"],
+      ["Opika", "/"],
+      ["Тварини", "/"],
       ["Для притулків", "/prytulkam"],
       ["Про проєкт", "/pro"],
       ["hello@opika.org.ua", "mailto:hello@opika.org.ua"],
@@ -43,7 +43,7 @@ describe("SiteFooter (A2)", () => {
     const mascots = el.querySelector(".footer-mascots");
     expect(mascots?.getAttribute("aria-hidden")).toBe("true");
     // The logo link is named by the wordmark alone; the icons add nothing to the contacts' names.
-    expect(within(el).getByRole("link", { name: "Opika" }).getAttribute("href")).toBe("/tvaryny");
+    expect(within(el).getByRole("link", { name: "Opika" }).getAttribute("href")).toBe("/");
     expect(within(el).getByRole("link", { name: "hello@opika.org.ua" })).toBeTruthy();
   });
 

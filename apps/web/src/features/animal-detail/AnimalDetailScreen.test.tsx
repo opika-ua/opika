@@ -635,11 +635,11 @@ describe("AnimalDetailScreen – the full page on a phone (pet card on phones, S
         shelter={makeShelter()}
         cityName="Бровари"
         cityPlace="м. Бровари"
-        backToGalleryHref="/tvaryny?misto=brovary"
+        backToGalleryHref="/?misto=brovary"
       />,
     );
     expect(screen.getByRole("link", { name: "Усі тварини" }).getAttribute("href")).toBe(
-      "/tvaryny?misto=brovary",
+      "/?misto=brovary",
     );
     expect(screen.queryByRole("button", { name: "Закрити" })).toBeNull();
     expect(screen.queryByTestId("overlay-prev")).toBeNull();

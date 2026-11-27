@@ -63,7 +63,7 @@ describe("SavedPageScreen", () => {
     render(<SavedPageScreen />);
     expect(await screen.findByTestId("saved-empty")).toBeTruthy();
     expect(screen.getByText(/Тут поки нічого немає/)).toBeTruthy();
-    expect(screen.getByRole("link", { name: "До галереї" }).getAttribute("href")).toBe("/tvaryny");
+    expect(screen.getByRole("link", { name: "До галереї" }).getAttribute("href")).toBe("/");
     expect(cardsByIds).not.toHaveBeenCalled();
   });
 

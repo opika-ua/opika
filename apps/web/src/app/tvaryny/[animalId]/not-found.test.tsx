@@ -11,8 +11,6 @@ describe("the card 404", () => {
     expect(
       within(main).getByRole("heading", { level: 1, name: "Цієї картки більше немає." }),
     ).toBeTruthy();
-    expect(within(main).getByRole("link", { name: "Усі тварини" }).getAttribute("href")).toBe(
-      "/tvaryny",
-    );
+    expect(within(main).getByRole("link", { name: "Усі тварини" }).getAttribute("href")).toBe("/");
   });
 });

@@ -11,7 +11,7 @@ import type { Viewport } from "./viewports";
 const WIDE: Viewport = { name: "1440x900 desktop", width: 1440, height: 900 };
 const CARD = "[data-testid='animal-card']";
 
-// One TEST-NET-1 address per repetition (offset past anchored-popover's): `/tvaryny` is limited per IP.
+// One TEST-NET-1 address per repetition (offset past anchored-popover's): `/` is limited per IP.
 test.beforeEach(async ({ page }, testInfo) => {
   const lastOctet = 1 + ((100 + testInfo.repeatEachIndex) % 254);
   await page.setExtraHTTPHeaders({ "x-forwarded-for": `192.0.2.${lastOctet}` });
@@ -31,7 +31,7 @@ for (const name of ["Область", "Місто"]) {
   test(`${name}: a click at the chevron opens the list and focuses the input; a second click closes it`, async ({
     page,
   }) => {
-    await openRoute(page, "/tvaryny", WIDE, { readySelector: CARD });
+    await openRoute(page, "/", WIDE, { readySelector: CARD });
     const input = page.getByRole("combobox", { name });
     const field = input.locator("xpath=..");
 
@@ -50,7 +50,7 @@ for (const name of ["Вік", "Розмір", "Стать"]) {
   test(`${name}: a click at the chevron opens the panel; a second click closes it`, async ({
     page,
   }) => {
-    await openRoute(page, "/tvaryny", WIDE, { readySelector: CARD });
+    await openRoute(page, "/", WIDE, { readySelector: CARD });
     const trigger = page.getByRole("button", { name: `${name}: ${name}` });
 
     await clickChevron(page, trigger);
@@ -64,7 +64,7 @@ for (const name of ["Вік", "Розмір", "Стать"]) {
 }
 
 test("Область: the ✕ only clears, it does not also open the list", async ({ page }) => {
-  await openRoute(page, "/tvaryny", WIDE, { readySelector: CARD });
+  await openRoute(page, "/", WIDE, { readySelector: CARD });
   const field = page.getByRole("combobox", { name: "Область" });
   await field.focus();
   await page.keyboard.type("київ");
@@ -83,7 +83,7 @@ test("Область: the ✕ only clears, it does not also open the list", asyn
 });
 
 test("Стать: the ✕ only clears, it does not also open the panel", async ({ page }) => {
-  await openRoute(page, "/tvaryny", WIDE, { readySelector: CARD });
+  await openRoute(page, "/", WIDE, { readySelector: CARD });
   await page.getByRole("button", { name: "Стать: Стать" }).click();
   await page.getByRole("button", { name: /^Дівчинка, / }).click();
   await page.waitForURL(/stat=female/);

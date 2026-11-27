@@ -19,9 +19,9 @@ const VIEWPORTS = [
 ] as const;
 // The seeded verified animal and its shelter (packages/db seed).
 const ROUTES: readonly { path: string; ready?: string }[] = [
-  { path: "/tvaryny" },
+  { path: "/" },
   // Zhytomyr holds no seeded animal: the gallery's empty state, which has no grid.
-  { path: "/tvaryny?obl=zhytomyrska", ready: "[data-testid='gallery-no-match']" },
+  { path: "/?obl=zhytomyrska", ready: "[data-testid='gallery-no-match']" },
   { path: "/tvaryny/a0000000-0000-4000-8000-000000000000" },
   { path: "/prytulky/51000000-0000-4000-8000-000000000000" },
   { path: "/zberezheni" },

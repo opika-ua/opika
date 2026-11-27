@@ -8,7 +8,7 @@ describe("RateLimitedScreen", () => {
     render(<RateLimitedScreen />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(uk.detail.rateLimited);
     const link = screen.getByRole("link", { name: uk.detail.notFound.action });
-    expect(link.getAttribute("href")).toBe("/tvaryny");
+    expect(link.getAttribute("href")).toBe("/");
   });
 
   it("keeps the site header, so the visitor still has navigation", () => {

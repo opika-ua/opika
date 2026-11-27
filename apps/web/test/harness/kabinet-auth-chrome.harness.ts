@@ -66,10 +66,7 @@ test.describe("pre-sign-in pages wear the public header", () => {
       await open(page, origin(), path, 1440);
       await expect(page.getByRole("contentinfo"), path).toHaveCount(1);
       const nav = page.locator(HEADER).getByRole("navigation", { name: "Opika" });
-      await expect(nav.getByRole("link", { name: "Тварини" }), path).toHaveAttribute(
-        "href",
-        "/tvaryny",
-      );
+      await expect(nav.getByRole("link", { name: "Тварини" }), path).toHaveAttribute("href", "/");
       await expect(nav.getByRole("link", { name: "Для притулків" }), path).toHaveAttribute(
         "href",
         "/prytulkam",
@@ -82,7 +79,7 @@ test.describe("pre-sign-in pages wear the public header", () => {
       const entry = page.getByTestId("nav-kabinet");
       await expect(entry, path).toBeVisible();
       await expect(entry, path).toHaveAttribute("aria-current", "true");
-      await expect(page.getByTestId("site-wordmark"), path).toHaveAttribute("href", "/tvaryny");
+      await expect(page.getByTestId("site-wordmark"), path).toHaveAttribute("href", "/");
       expect(await noSidewaysScroll(page), `${path} scrolls sideways`).toBe(true);
 
       // The owner saw the card off-centre (2026-11-20): its centre is the page's.

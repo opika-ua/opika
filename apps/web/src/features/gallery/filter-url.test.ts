@@ -216,23 +216,21 @@ describe("withToggled*", () => {
 
 describe("galleryHref", () => {
   it("is the bare route with no filters and the default sort", () => {
-    expect(galleryHref(NO_FILTERS, "freshest", NO_CITIES)).toBe("/tvaryny");
+    expect(galleryHref(NO_FILTERS, "freshest", NO_CITIES)).toBe("/");
   });
 
   it("omits the sort param for the default sort but includes a non-default one", () => {
-    expect(galleryHref(NO_FILTERS, "longest_waiting", NO_CITIES)).toBe(
-      "/tvaryny?sort=longest_waiting",
-    );
+    expect(galleryHref(NO_FILTERS, "longest_waiting", NO_CITIES)).toBe("/?sort=longest_waiting");
   });
 
   it("writes the city as its slug, not the raw id", () => {
     const filters = withToggledCity(NO_FILTERS, CITY_A);
-    expect(galleryHref(filters, "freshest", CITY_SLUGS)).toBe(`/tvaryny?misto=${SLUG_A}`);
+    expect(galleryHref(filters, "freshest", CITY_SLUGS)).toBe(`/?misto=${SLUG_A}`);
   });
 
   it("drops a city the slug map has no entry for, rather than leaking the raw id", () => {
     const filters = withToggledCity(NO_FILTERS, CITY_A);
-    expect(galleryHref(filters, "freshest", NO_CITIES)).toBe("/tvaryny");
+    expect(galleryHref(filters, "freshest", NO_CITIES)).toBe("/");
   });
 
   it("round-trips through parseGalleryQuery", () => {
@@ -252,17 +250,17 @@ describe("galleryHref", () => {
 
 describe("resetFiltersHref", () => {
   it("clears every filter but keeps the sort", () => {
-    expect(resetFiltersHref("longest_waiting")).toBe("/tvaryny?sort=longest_waiting");
+    expect(resetFiltersHref("longest_waiting")).toBe("/?sort=longest_waiting");
   });
 });
 
 describe("galleryPageHref", () => {
   it("page 1 has no stor param - matching sort's absent-param-is-default convention", () => {
-    expect(galleryPageHref(NO_FILTERS, "freshest", 1, NO_CITIES)).toBe("/tvaryny");
+    expect(galleryPageHref(NO_FILTERS, "freshest", 1, NO_CITIES)).toBe("/");
   });
 
   it("carries a non-default page as ?stor=N", () => {
-    expect(galleryPageHref(NO_FILTERS, "freshest", 3, NO_CITIES)).toBe("/tvaryny?stor=3");
+    expect(galleryPageHref(NO_FILTERS, "freshest", 3, NO_CITIES)).toBe("/?stor=3");
   });
 
   it("carries filters and sort forward unchanged, unlike galleryHref", () => {
@@ -277,7 +275,7 @@ describe("galleryPageHref", () => {
 
   it("orders params the same way galleryHref does, stor last", () => {
     expect(galleryPageHref(NO_FILTERS, "longest_waiting", 2, NO_CITIES)).toBe(
-      "/tvaryny?sort=longest_waiting&stor=2",
+      "/?sort=longest_waiting&stor=2",
     );
   });
 });
@@ -297,46 +295,40 @@ const resolved = (...tokens: string[]) => tokens.map(resolveToken);
 
 describe("redirectHrefForNonCanonicalCities", () => {
   it("is a no-op when there is no city param at all", () => {
-    expect(redirectHrefForNonCanonicalCities({}, "/tvaryny", [])).toBeNull();
+    expect(redirectHrefForNonCanonicalCities({}, "/", [])).toBeNull();
   });
 
   it("is a no-op when the city param is already a current slug", () => {
-    expect(
-      redirectHrefForNonCanonicalCities({ misto: SLUG_A }, "/tvaryny", resolved(SLUG_A)),
-    ).toBeNull();
+    expect(redirectHrefForNonCanonicalCities({ misto: SLUG_A }, "/", resolved(SLUG_A))).toBeNull();
   });
 
   it("rewrites a raw CityId to its slug", () => {
-    expect(redirectHrefForNonCanonicalCities({ misto: CITY_A }, "/tvaryny", resolved(CITY_A))).toBe(
-      `/tvaryny?misto=${SLUG_A}`,
+    expect(redirectHrefForNonCanonicalCities({ misto: CITY_A }, "/", resolved(CITY_A))).toBe(
+      `/?misto=${SLUG_A}`,
     );
   });
 
   it("rewrites a former slug to the current one (the renamed Kyiv-oblast cities)", () => {
     expect(
-      redirectHrefForNonCanonicalCities(
-        { misto: "brovary-old" },
-        "/tvaryny",
-        resolved("brovary-old"),
-      ),
-    ).toBe(`/tvaryny?misto=${SLUG_A}`);
+      redirectHrefForNonCanonicalCities({ misto: "brovary-old" }, "/", resolved("brovary-old")),
+    ).toBe(`/?misto=${SLUG_A}`);
   });
 
   it("rewrites every legacy id and former slug when the lookup resolves all of them", () => {
     const href = redirectHrefForNonCanonicalCities(
       { misto: `${CITY_A},kyiv-old` },
-      "/tvaryny",
+      "/",
       resolved(CITY_A, "kyiv-old"),
     );
     const url = new URL(href ?? "", "http://x");
-    expect(url.pathname).toBe("/tvaryny");
+    expect(url.pathname).toBe("/");
     expect(url.searchParams.get("misto")).toBe(`${SLUG_A},${SLUG_B}`);
   });
 
   it("preserves an already-slugged city alongside a rewritten legacy id, rather than dropping it", () => {
     const href = redirectHrefForNonCanonicalCities(
       { misto: `${CITY_A},${SLUG_B}` },
-      "/tvaryny",
+      "/",
       resolved(CITY_A, SLUG_B),
     );
     const url = new URL(href ?? "", "http://x");
@@ -348,30 +340,30 @@ describe("redirectHrefForNonCanonicalCities", () => {
     expect(
       redirectHrefForNonCanonicalCities(
         { misto: `${CITY_A},${unknownId}` },
-        "/tvaryny",
+        "/",
         resolved(CITY_A, unknownId),
       ),
     ).toBeNull();
   });
 
   it("does not redirect on an unresolvable id even when it's the only city token", () => {
-    expect(redirectHrefForNonCanonicalCities({ misto: CITY_B }, "/tvaryny", [])).toBeNull();
+    expect(redirectHrefForNonCanonicalCities({ misto: CITY_B }, "/", [])).toBeNull();
   });
 
   it("leaves an unknown slug alone: it degrades to no city constraint, it is not a redirect", () => {
     expect(
-      redirectHrefForNonCanonicalCities({ misto: "nowhere" }, "/tvaryny", resolved("nowhere")),
+      redirectHrefForNonCanonicalCities({ misto: "nowhere" }, "/", resolved("nowhere")),
     ).toBeNull();
   });
 
   it("preserves every other param byte-for-byte, including repeated ones", () => {
     const href = redirectHrefForNonCanonicalCities(
       { misto: CITY_A, obl: SLUG_KYIVSKA, vyd: ["dog", "cat"], stor: "3" },
-      "/tvaryny",
+      "/",
       resolved(CITY_A),
     );
     const url = new URL(href ?? "", "http://x");
-    expect(url.pathname).toBe("/tvaryny");
+    expect(url.pathname).toBe("/");
     expect(url.searchParams.getAll("vyd")).toEqual(["dog", "cat"]);
     expect(url.searchParams.get("stor")).toBe("3");
     expect(url.searchParams.get("obl")).toBe(SLUG_KYIVSKA);
@@ -413,7 +405,7 @@ describe("the oblast filter in the URL", () => {
       cities: { kind: "oneOf", values: [CITY_A] },
     } as const;
     const href = galleryHref(filters, "freshest", CITY_SLUGS);
-    expect(href).toBe(`/tvaryny?obl=${SLUG_KYIVSKA}&misto=${SLUG_A}`);
+    expect(href).toBe(`/?obl=${SLUG_KYIVSKA}&misto=${SLUG_A}`);
     const reparsed = parseGalleryQuery(
       Object.fromEntries(new URL(href, "http://x").searchParams),
       CITIES_BY_SLUG,
@@ -424,7 +416,7 @@ describe("the oblast filter in the URL", () => {
   it("carries the oblast onto page links and card links", () => {
     const filters = { ...NO_FILTERS, regions: { kind: "oneOf", values: [LVIV_OBL] } } as const;
     expect(galleryPageHref(filters, "freshest", 3, CITY_SLUGS)).toBe(
-      `/tvaryny?obl=${SLUG_LVIVSKA}&stor=3`,
+      `/?obl=${SLUG_LVIVSKA}&stor=3`,
     );
     expect(animalPageHref("a" as AnimalId, filters, "freshest", CITY_SLUGS)).toBe(
       `/tvaryny/a?obl=${SLUG_LVIVSKA}`,
@@ -522,7 +514,7 @@ describe("the sex filter in the URL", () => {
   it("round-trips through galleryHref with the other filters and the sort", () => {
     const filters = withToggledSex(withOnlySpecies(NO_FILTERS, "cat"), "female");
     const href = galleryHref(filters, "longest_waiting", NO_CITIES);
-    expect(href).toBe("/tvaryny?vyd=cat&stat=female&sort=longest_waiting");
+    expect(href).toBe("/?vyd=cat&stat=female&sort=longest_waiting");
     const reparsed = parseGalleryQuery(
       Object.fromEntries(new URL(href, "http://x").searchParams),
       NO_SLUGS,
@@ -532,7 +524,7 @@ describe("the sex filter in the URL", () => {
 
   it("is carried into a page link", () => {
     const filters = withToggledSex(NO_FILTERS, "unknown");
-    expect(galleryPageHref(filters, "freshest", 2, NO_CITIES)).toBe("/tvaryny?stat=unknown&stor=2");
+    expect(galleryPageHref(filters, "freshest", 2, NO_CITIES)).toBe("/?stat=unknown&stor=2");
   });
 
   it("toggling it off again leaves no filter", () => {
@@ -540,7 +532,7 @@ describe("the sex filter in the URL", () => {
   });
 
   it("«Скинути» clears it", () => {
-    expect(resetFiltersHref("freshest")).toBe("/tvaryny");
+    expect(resetFiltersHref("freshest")).toBe("/");
   });
 });
 
@@ -551,9 +543,9 @@ describe("the sex filter in the URL", () => {
  */
 describe("similarAnimalsHref", () => {
   it.each([
-    ["dog", { dimension: "ages", value: "young" }, "/tvaryny?vyd=dog&vik=young"],
-    ["cat", { dimension: "sizes", value: "small" }, "/tvaryny?vyd=cat&rozmir=small"],
-    ["dog", { dimension: "sexes", value: "male" }, "/tvaryny?vyd=dog&stat=male"],
+    ["dog", { dimension: "ages", value: "young" }, "/?vyd=dog&vik=young"],
+    ["cat", { dimension: "sizes", value: "small" }, "/?vyd=cat&rozmir=small"],
+    ["dog", { dimension: "sexes", value: "male" }, "/?vyd=dog&stat=male"],
   ] as const)("%s + %o → %s", (species, chip, expected) => {
     expect(similarAnimalsHref(species, chip)).toBe(expected);
   });
@@ -676,10 +668,10 @@ describe("links to one city with a landing page go to that page (SEO B3)", () =>
 
   it("stays on the gallery for a city without a page, two cities, or a city with an oblast", () => {
     expect(galleryHref(withToggledCity(NO_FILTERS, CITY_B), "freshest", WITH_PAGE)).toBe(
-      `/tvaryny?misto=${SLUG_B}`,
+      `/?misto=${SLUG_B}`,
     );
     expect(galleryHref(withToggledCity(oneCity, CITY_B), "freshest", WITH_PAGE)).toBe(
-      `/tvaryny?misto=${SLUG_A}%2C${SLUG_B}`,
+      `/?misto=${SLUG_A}%2C${SLUG_B}`,
     );
     expect(
       galleryHref(
@@ -687,7 +679,7 @@ describe("links to one city with a landing page go to that page (SEO B3)", () =>
         "freshest",
         WITH_PAGE,
       ),
-    ).toBe(`/tvaryny?obl=${SLUG_KYIVSKA}&misto=${SLUG_A}`);
+    ).toBe(`/?obl=${SLUG_KYIVSKA}&misto=${SLUG_A}`);
   });
 
   it("a shelter page's own links never move", () => {
@@ -737,22 +729,20 @@ describe("galleryCanonicalPath (SEO B3, owner 2026-11-18; plain pages 2026-11-27
   });
 
   it("the plain list: each page past the first is its own canonical", () => {
-    expect(galleryCanonicalPath(NO_FILTERS, DEFAULT, 1, WITH_PAGE)).toBe("/tvaryny");
-    expect(galleryCanonicalPath(NO_FILTERS, DEFAULT, 2, WITH_PAGE)).toBe("/tvaryny?stor=2");
-    expect(galleryCanonicalPath(NO_FILTERS, DEFAULT, 7, WITH_PAGE)).toBe("/tvaryny?stor=7");
+    expect(galleryCanonicalPath(NO_FILTERS, DEFAULT, 1, WITH_PAGE)).toBe("/");
+    expect(galleryCanonicalPath(NO_FILTERS, DEFAULT, 2, WITH_PAGE)).toBe("/?stor=2");
+    expect(galleryCanonicalPath(NO_FILTERS, DEFAULT, 7, WITH_PAGE)).toBe("/?stor=7");
   });
 
   it("a filter or a sort other than the default keeps the bare gallery, whatever the page", () => {
-    expect(galleryCanonicalPath(NO_FILTERS, "longest_waiting", 2, WITH_PAGE)).toBe("/tvaryny");
+    expect(galleryCanonicalPath(NO_FILTERS, "longest_waiting", 2, WITH_PAGE)).toBe("/");
     expect(galleryCanonicalPath(withOnlySpecies(NO_FILTERS, "dog"), DEFAULT, 2, WITH_PAGE)).toBe(
-      "/tvaryny",
+      "/",
     );
     expect(galleryCanonicalPath(withToggledCity(NO_FILTERS, CITY_B), DEFAULT, 2, WITH_PAGE)).toBe(
-      "/tvaryny",
+      "/",
     );
-    expect(galleryCanonicalPath(withToggledCity(oneCity, CITY_B), DEFAULT, 1, WITH_PAGE)).toBe(
-      "/tvaryny",
-    );
+    expect(galleryCanonicalPath(withToggledCity(oneCity, CITY_B), DEFAULT, 1, WITH_PAGE)).toBe("/");
     expect(
       galleryCanonicalPath(
         { ...oneCity, regions: { kind: "oneOf", values: [KYIV_OBL] } },
@@ -760,20 +750,20 @@ describe("galleryCanonicalPath (SEO B3, owner 2026-11-18; plain pages 2026-11-27
         2,
         WITH_PAGE,
       ),
-    ).toBe("/tvaryny");
+    ).toBe("/");
   });
 });
 
 describe("servedPageHref (owner, 2026-11-27)", () => {
   it("swaps in the served page and keeps every other param, in order, repeats included", () => {
     expect(
-      servedPageHref("/tvaryny", { vyd: "dog", stor: "99", misto: ["kyiv", "bucha"] }, 4),
-    ).toBe("/tvaryny?vyd=dog&stor=4&misto=kyiv&misto=bucha");
+      servedPageHref("/", { vyd: "dog", stor: "99", misto: ["kyiv", "bucha"] }, 4),
+    ).toBe("/?vyd=dog&stor=4&misto=kyiv&misto=bucha");
   });
 
   it("page 1 drops «stor»; nothing else left means no query at all", () => {
-    expect(servedPageHref("/tvaryny", { stor: "99", sort: "longest_waiting" }, 1)).toBe(
-      "/tvaryny?sort=longest_waiting",
+    expect(servedPageHref("/", { stor: "99", sort: "longest_waiting" }, 1)).toBe(
+      "/?sort=longest_waiting",
     );
     expect(servedPageHref("/tvaryny/misto/kyiv", { stor: "1e21" }, 1)).toBe("/tvaryny/misto/kyiv");
   });

@@ -14,7 +14,7 @@ import type { Viewport } from "./viewports";
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.91" } });
 
 const HEADER = "[data-testid='site-header']";
-const ROUTES = ["/tvaryny", "/prytulkam", "/pro", "/zberezheni"] as const;
+const ROUTES = ["/", "/prytulkam", "/pro", "/zberezheni"] as const;
 const at = (width: number): Viewport => ({ name: `${width} wide`, width, height: 800 });
 const WIDTHS: readonly Viewport[] = [320, 360, 393, 1024, 1440].map(at);
 
@@ -63,7 +63,7 @@ test.describe("no layout shift: the header is laid out before hydration", () => 
       await seedSaved(page, 3);
       // Hold the framework chunks back: the inline pre-paint script still runs, nothing hydrates.
       await page.route("**/_next/static/**/*.js", (route) => route.abort());
-      await openRoute(page, "/tvaryny", at(width), { readySelector: HEADER });
+      await openRoute(page, "/", at(width), { readySelector: HEADER });
       const before = await headerBoxes(page);
       if (width >= 1024) expect(Object.keys(before)).toContain("nav-saved");
 
@@ -164,7 +164,7 @@ test.describe("audience rules", () => {
     }) => {
       await seedSaved(page, 3);
       await signInHint(page);
-      await openRoute(page, "/tvaryny", at(width), { readySelector: HEADER });
+      await openRoute(page, "/", at(width), { readySelector: HEADER });
       await expect(page.locator("[data-testid='nav-kabinet']")).toBeHidden();
       await page.locator("[data-testid='nav-menu-trigger']").click();
       const rows = page.locator("[data-testid='nav-menu-sheet'] nav > a:visible");

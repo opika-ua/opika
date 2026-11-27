@@ -23,7 +23,7 @@ describe("NoMatch: the sex suggestion", () => {
     expect(screen.getByRole("link", { name: "Прибрати «стать» (+3 тварини)" })).toBeTruthy();
     expect(
       screen.getByRole("link", { name: "Прибрати «стать» (+3 тварини)" }).getAttribute("href"),
-    ).toBe("/tvaryny?rozmir=small");
+    ).toBe("/?rozmir=small");
   });
 });
 
@@ -59,7 +59,7 @@ describe("NoMatch: an empty oblast", () => {
       />,
     );
     const link = screen.getByRole("link", { name: "Сусідня область: Київська (+5 тварин)" });
-    expect(link.getAttribute("href")).toBe("/tvaryny?obl=kyivska&vyd=dog");
+    expect(link.getAttribute("href")).toBe("/?obl=kyivska&vyd=dog");
   });
 
   it("names the oblast relaxation like the city one", () => {
@@ -72,7 +72,7 @@ describe("NoMatch: an empty oblast", () => {
       />,
     );
     const link = screen.getByRole("link", { name: "Показати всі області (+12 тварин)" });
-    expect(link.getAttribute("href")).toBe("/tvaryny");
+    expect(link.getAttribute("href")).toBe("/");
   });
 
   it("never offers a removal that would add nothing", () => {
@@ -109,7 +109,7 @@ describe("NoMatch: an empty oblast", () => {
     expect(screen.queryByText(/\+0/)).toBeNull();
     expect(screen.getByTestId("gallery-no-match")).toBeTruthy();
     const reset = screen.getByRole("link", { name: "Скинути" });
-    expect(reset.getAttribute("href")).toBe("/tvaryny?sort=longest_waiting");
+    expect(reset.getAttribute("href")).toBe("/?sort=longest_waiting");
   });
 
   it("keeps «Скинути» on a shelter page's own path", () => {

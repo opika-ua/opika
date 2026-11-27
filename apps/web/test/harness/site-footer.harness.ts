@@ -37,7 +37,7 @@ test("every public page ends with one footer", async ({ page }) => {
   expect(shelterPage, "the animal page links its shelter").toMatch(/^\/prytulky\//);
 
   for (const route of [
-    "/tvaryny",
+    "/",
     "/tvaryny/misto/brovary",
     animalPage,
     shelterPage as string,
@@ -62,8 +62,8 @@ test("the footer's links lead to the site's pages, the email, Instagram and the 
     .getByRole("link")
     .evaluateAll((all) => all.map((a) => [a.textContent, a.getAttribute("href")]));
   expect(links).toEqual([
-    ["Opika", "/tvaryny"],
-    ["Тварини", "/tvaryny"],
+    ["Opika", "/"],
+    ["Тварини", "/"],
     ["Для притулків", "/prytulkam"],
     ["Про проєкт", "/pro"],
     ["hello@opika.org.ua", "mailto:hello@opika.org.ua"],
@@ -85,7 +85,7 @@ test("on a phone every footer link is a 48px target", async ({ page }) => {
 });
 
 test("at 320 the footer wraps without widening the page", async ({ page }) => {
-  for (const route of ["/tvaryny", "/prytulkam"]) {
+  for (const route of ["/", "/prytulkam"]) {
     await openRoute(page, route, NARROW_PHONE, { readySelector: HEADER });
     await page.getByRole("contentinfo").scrollIntoViewIfNeeded();
     await expect(page.getByRole("contentinfo").getByText(INDEPENDENT)).toBeVisible();

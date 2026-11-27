@@ -171,7 +171,7 @@ describe("FilterSheet: the main screen", () => {
       "longest_waiting",
     );
     fireEvent.click(screen.getByRole("link", { name: "Скинути", hidden: true }));
-    expect(router.replace).toHaveBeenCalledWith("/tvaryny?sort=longest_waiting", {
+    expect(router.replace).toHaveBeenCalledWith("/?sort=longest_waiting", {
       scroll: false,
     });
   });
@@ -369,7 +369,7 @@ describe("FilterSheet: without JS (the server-rendered form)", () => {
   it("is a GET form to the gallery", () => {
     const form = doc.querySelector("form");
     expect(form?.getAttribute("method")?.toLowerCase()).toBe("get");
-    expect(form?.getAttribute("action")).toBe("/tvaryny");
+    expect(form?.getAttribute("action")).toBe("/");
   });
 
   it("falls back to submittable checkboxes for the oblasts, cities, ages", () => {

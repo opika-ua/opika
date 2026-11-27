@@ -29,7 +29,7 @@ describe("loadAnimalPage", () => {
     const { client } = stubAnimalPageClient();
     const without = await loadAnimalPage(ANIMAL_ID, client);
     if (without.kind !== "animal") throw new Error(`expected the animal, got ${without.kind}`);
-    expect(without.view.backToGalleryHref).toBe("/tvaryny?misto=brovary");
+    expect(without.view.backToGalleryHref).toBe("/?misto=brovary");
 
     vi.mocked(client.cities.withPages).mockResolvedValueOnce([
       { cityId: CITY_LABEL.id, species: ["cat"] },
@@ -98,6 +98,6 @@ describe("loadAnimalPage", () => {
     const load = await loadAnimalPage(ANIMAL_ID, client);
     if (load.kind !== "animal") throw new Error(`expected the animal, got ${load.kind}`);
     expect(load.view.cityName).toBeNull();
-    expect(load.view.backToGalleryHref).toBe("/tvaryny");
+    expect(load.view.backToGalleryHref).toBe("/");
   });
 });

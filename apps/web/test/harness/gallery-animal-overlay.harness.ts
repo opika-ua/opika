@@ -153,7 +153,7 @@ test.describe("the gallery's animal overlay", () => {
     /**
      * Pet card PR 5, decision B: the overlay's own prev/next links are
      * deliberately prefetched (`AnimalOverlay.tsx`'s own comment on
-     * `NeighbourLink` - the one `/tvaryny` link in this codebase that is,
+     * `NeighbourLink` - the one `/` link in this codebase that is,
      * unlike every other gallery/animal link's `prefetch={false}`), so
      * opening a card fetches the opened animal's own path plus up to two
      * more - its neighbours. Since 2026-11-20 (owner) a route-tree prefetch

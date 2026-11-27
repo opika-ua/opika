@@ -18,7 +18,7 @@ import { openRoute } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
 
 /**
- * `proxy.ts` rate-limits `/tvaryny` at 100 req/min per IP, shared across
+ * `proxy.ts` rate-limits `/` at 100 req/min per IP, shared across
  * every harness file that requests it under the real local identity -
  * `gallery-rate-limit.harness.ts`'s own comment names this as a risk for
  * "present or future" tests. Confirmed as a real, reproducing 429 once
@@ -38,7 +38,7 @@ import { DESKTOP, PHONE } from "./viewports";
 const SPOOFED_IP_HEADERS = { "x-forwarded-for": "198.51.100.22" };
 test.use({ extraHTTPHeaders: SPOOFED_IP_HEADERS });
 
-const ROUTE = "/tvaryny";
+const ROUTE = "/";
 const CARD = "[data-testid='animal-card']";
 /** The id the no-JS `:target` reveal keys on - `FilterSheet`'s `SHEET_ID`. */
 const SHEET = "#tvaryny-filters";
@@ -180,7 +180,7 @@ test.describe("/tvaryny legacy city-id links redirect to their real slug", () =>
     });
 
     await expect(page, "the legacy id form must redirect to the real slug").toHaveURL(
-      /\/tvaryny\?misto=brovary$/,
+      /\/\?misto=brovary$/,
     );
     await page.locator(CARD).first().waitFor({ state: "visible" });
     // The city selector's trigger names the chosen city in place of the

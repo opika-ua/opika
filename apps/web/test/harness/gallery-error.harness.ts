@@ -13,13 +13,13 @@ import { expect, test } from "@playwright/test";
 import { expectReachableByTab, openRoute } from "./harness";
 import { DESKTOP } from "./viewports";
 
-const ROUTE = "/tvaryny";
+const ROUTE = "/";
 const CARD = "[data-testid='animal-card']";
 const ERROR_CARD = "[data-testid='gallery-error']";
 
 /**
  * TEST-NET-2 (198.51.100.0/24), `.26` - the next unused address in this
- * block; `.21`-`.25` are already claimed by the other `/tvaryny` harness
+ * block; `.21`-`.25` are already claimed by the other gallery harness
  * files (`gallery-arrow-nav`, `gallery-filters`, `gallery-layout`,
  * `gallery-pagination`; `.25` was `freshness-pip-contrast`'s, removed
  * 2026-10-20). Without a distinct
@@ -29,7 +29,7 @@ const ERROR_CARD = "[data-testid='gallery-error']";
  */
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.26" } });
 
-test.describe("/tvaryny, a page past the last one", () => {
+test.describe("the gallery, a page past the last one", () => {
   /**
    * The seeded corpus is 10 pages (`gallery-pagination.harness.ts`'s "genuinely multi-page"
    * precondition), so 50 is past it without being past `MAX_GALLERY_PAGE`.
@@ -41,7 +41,7 @@ test.describe("/tvaryny, a page past the last one", () => {
       maxRedirects: 0,
     });
     expect(response.status()).toBe(308);
-    expect(response.headers().location).toMatch(/\/tvaryny\?stor=10&utm_source=share$/);
+    expect(response.headers().location).toMatch(/\/\?stor=10&utm_source=share$/);
 
     await openRoute(page, `${ROUTE}?stor=50`, DESKTOP, { readySelector: CARD });
     expect(new URL(page.url()).searchParams.get("stor")).toBe("10");
@@ -66,7 +66,7 @@ test.describe("/tvaryny, a page past the last one", () => {
   }
 });
 
-test.describe("/tvaryny error card", () => {
+test.describe("the gallery error card", () => {
   /**
    * The only way into `app/tvaryny/error.tsx` in a real browser: the test-only hook
    * (`features/gallery/test-only-failure.ts`) makes the page throw for `?opika_test_fail=1`.
@@ -101,7 +101,7 @@ test.describe("/tvaryny error card", () => {
   });
 });
 
-test.describe("/tvaryny no-match – relaxation counts are real numbers", () => {
+test.describe("the gallery no-match – relaxation counts are real numbers", () => {
   /**
    * `gallery.relaxationCounts` (E2) had no verified consumer through a
    * real browser render before this test - `NoMatch.tsx`'s own unit-level

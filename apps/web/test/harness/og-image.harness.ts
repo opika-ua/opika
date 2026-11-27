@@ -16,7 +16,7 @@ function pngSize(bytes: Buffer): { width: number; height: number } {
 }
 
 test("an animal page's preview tags point at a 1200x630 PNG that renders", async ({ page }) => {
-  await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
+  await openRoute(page, "/", DETAIL_DESKTOP, { readySelector: CARD });
   const href = await page.locator(CARD).first().getAttribute("href");
   await page.goto(href as string);
 
@@ -44,7 +44,7 @@ test("an animal page's preview tags point at a 1200x630 PNG that renders", async
 test("every public page type previews with a 1200x630 PNG in og:image and twitter:image", async ({
   page,
 }) => {
-  await openRoute(page, "/tvaryny", DETAIL_DESKTOP, { readySelector: CARD });
+  await openRoute(page, "/", DETAIL_DESKTOP, { readySelector: CARD });
   const animal = (await page.locator(CARD).first().getAttribute("href")) as string;
   await page.goto(animal);
   const shelter = (await page
@@ -54,7 +54,7 @@ test("every public page type previews with a 1200x630 PNG in og:image and twitte
 
   const checked = new Set<string>();
   for (const route of [
-    "/tvaryny",
+    "/",
     "/pro",
     "/prytulkam",
     "/polityka-konfidentsiinosti",

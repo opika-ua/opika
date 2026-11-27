@@ -22,7 +22,7 @@ import { DESKTOP, DETAIL_PHONE, NARROW_PHONE, PHONE } from "./viewports";
 
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.31" } });
 
-const GALLERY = "/tvaryny";
+const GALLERY = "/";
 const ABOUT = "/pro";
 const FOR_SHELTERS = "/prytulkam";
 const SAVED = "/zberezheni";

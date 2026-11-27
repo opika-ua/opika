@@ -30,7 +30,7 @@ describe("GalleryPageNav", () => {
     );
     expect(screen.queryByRole("link", { name: uk.pagination.prev })).toBeNull();
     expect(screen.getByRole("link", { name: uk.pagination.next }).getAttribute("href")).toBe(
-      "/tvaryny?stor=2",
+      "/?stor=2",
     );
   });
 
@@ -46,7 +46,7 @@ describe("GalleryPageNav", () => {
     );
     expect(screen.queryByRole("link", { name: uk.pagination.next })).toBeNull();
     expect(screen.getByRole("link", { name: uk.pagination.prev }).getAttribute("href")).toBe(
-      "/tvaryny?stor=2",
+      "/?stor=2",
     );
   });
 

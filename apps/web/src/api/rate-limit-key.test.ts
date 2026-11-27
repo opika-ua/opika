@@ -242,7 +242,7 @@ describe("no limiter key carries the raw IP (EM-Q11)", () => {
             headers: { "x-vercel-forwarded-for": IPV4 },
           }),
         );
-      expect((await at("/tvaryny")).status).toBe(200);
+      expect((await at("/")).status).toBe(200);
       expectNoIpIn(api.keys, IPV4);
       expect((await at("/kabinet/vkhid")).status).toBe(200);
       expectNoIpIn(

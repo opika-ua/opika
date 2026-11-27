@@ -9,14 +9,14 @@ describe("ReplaceNav", () => {
     render(
       <WithMockRouter router={router}>
         <ReplaceNav>
-          <a href="/tvaryny?vyd=dog">Собаки</a>
+          <a href="/?vyd=dog">Собаки</a>
         </ReplaceNav>
       </WithMockRouter>,
     );
 
     fireEvent.click(screen.getByRole("link", { name: "Собаки" }));
 
-    expect(router.replace).toHaveBeenCalledWith("/tvaryny?vyd=dog", { scroll: false });
+    expect(router.replace).toHaveBeenCalledWith("/?vyd=dog", { scroll: false });
   });
 
   it("does not intercept a modified click (new-tab intent) - ctrl/cmd/shift/middle-click pass through", () => {
@@ -24,7 +24,7 @@ describe("ReplaceNav", () => {
     render(
       <WithMockRouter router={router}>
         <ReplaceNav>
-          <a href="/tvaryny?vyd=dog">Собаки</a>
+          <a href="/?vyd=dog">Собаки</a>
         </ReplaceNav>
       </WithMockRouter>,
     );
@@ -41,7 +41,7 @@ describe("ReplaceNav", () => {
     render(
       <WithMockRouter router={router}>
         <ReplaceNav>
-          <a href="/tvaryny?vyd=dog" target="_blank" rel="noopener">
+          <a href="/?vyd=dog" target="_blank" rel="noopener">
             Собаки
           </a>
         </ReplaceNav>
