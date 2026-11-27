@@ -38,6 +38,7 @@ import { GalleryPageNav } from "../../features/gallery/GalleryPageNav";
 import { GallerySortToggle } from "../../features/gallery/GallerySortToggle";
 import { railResultCount } from "../../features/gallery/gallery-copy";
 import { hasPagination } from "../../features/gallery/gallery-pagination";
+import { LIST_END_MIN_CARDS } from "../../features/gallery/list-end-rule";
 import { NoMatch } from "../../features/gallery/NoMatch";
 import { type PlaceBook, placeBookOf } from "../../features/gallery/place-book";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
@@ -508,9 +509,11 @@ export async function renderGallery(
               />
 
               {/* Only a paginated list has a "last page"; a single page keeps the hero's mascot alone on screen. */}
-              {page.totalPages > 1 && page.page === page.totalPages && (
-                <GalleryListEnd mascotKind={mascotKind} />
-              )}
+              {page.totalPages > 1 &&
+                page.page === page.totalPages &&
+                page.items.length >= LIST_END_MIN_CARDS && (
+                  <GalleryListEnd mascotKind={mascotKind} />
+                )}
             </>
           )}
         </div>
