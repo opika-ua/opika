@@ -78,6 +78,7 @@ export function makeShelterPageView(overrides: Partial<ShelterPageView> = {}): S
     query: { sort: "freshest", page: 1, filters: NO_FILTERS },
     // The freshest sort, unfiltered: the list's total is the shelter's.
     listedTotal: animals.totalMatching,
+    sheltersIndexListed: true,
     filterUi: null,
     ...overrides,
   };

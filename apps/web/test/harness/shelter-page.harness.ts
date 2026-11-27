@@ -6,7 +6,7 @@
  *
  * His copy is transcribed from his message (`docs/designer-round-1.md` §11
  * item 4), never read from the catalogue. Its own `x-forwarded-for` addresses
- * (TEST-NET-2, .51 to .53), one per group, for the same reason as its
+ * (TEST-NET-2, .51 to .54), one per group, for the same reason as its
  * siblings: `proxy.ts`'s limiter is per IP, and it covers `/prytulky` too.
  */
 
@@ -84,6 +84,39 @@ test.describe("from an animal to its shelter's page", () => {
     await expect(page).toHaveURL(/\/prytulky\/[0-9a-f-]{36}$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(shelterName);
     await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+});
+
+test.describe("the shelter page's way up and its breadcrumbs", () => {
+  test.use({ extraHTTPHeaders: ipHeaders(54) });
+
+  test("the back link is «Притулки», and every breadcrumb item (gallery, shelters, shelter) answers 200", async ({
+    page,
+    request,
+  }) => {
+    const animal = await firstGalleryAnimal(page);
+    await page.goto(animal.href, { waitUntil: "load" });
+    const { link } = await shelterRowLinkOn(page);
+    await link.click();
+    await expect(page).toHaveURL(/\/prytulky\/[0-9a-f-]{36}$/);
+
+    const back = page.getByTestId("shelter-back-link");
+    await expect(back).toHaveText(/Притулки$/);
+    await expect(back).toHaveAttribute("href", "/prytulky");
+
+    const lists = (await page.locator('script[type="application/ld+json"]').allTextContents())
+      .map((text) => JSON.parse(text))
+      .filter((entry) => entry["@type"] === "BreadcrumbList");
+    expect(lists).toHaveLength(1);
+    const items = lists[0].itemListElement as { position: number; item: string }[];
+    expect(items.map((i) => i.position)).toEqual([1, 2, 3]);
+    const paths = items.map((i) => new URL(i.item).pathname);
+    expect(paths.slice(0, 2)).toEqual(["/", "/prytulky"]);
+    expect(paths[2]).toBe(new URL(page.url()).pathname);
+    for (const path of paths) {
+      // The page names the production origin; the server under test answers the same path.
+      expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(200);
+    }
   });
 });
 

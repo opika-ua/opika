@@ -66,7 +66,13 @@ export function renderShelterPage(load: ShelterPageLoad, kabinetSignedIn: boolea
     case "shelter":
       return (
         <>
-          <JsonLd data={shelterBreadcrumbs(uk.feed.galleryTitle, load.view.shelter)} />
+          <JsonLd
+            data={shelterBreadcrumbs(
+              uk.feed.galleryTitle,
+              load.view.sheltersIndexListed ? uk.sheltersIndex.footerLink : null,
+              load.view.shelter,
+            )}
+          />
           <ShelterPageScreen {...load.view} kabinetSignedIn={kabinetSignedIn} />
         </>
       );

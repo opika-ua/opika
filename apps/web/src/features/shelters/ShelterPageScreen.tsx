@@ -44,6 +44,7 @@ import { ShelterLogoAvatar } from "./ShelterLogoAvatar";
 import { isLongShelterName } from "./shelter-identity";
 import type { ShelterPageView } from "./shelter-page-load";
 import { shelterPageHref, shelterPagePath } from "./shelter-url";
+import { SHELTERS_INDEX_PATH } from "./shelters-index-path";
 
 /** The shelter page parses no filters, so `GalleryCard`'s href gets the "never consulted" pair (as the saved page). */
 const EMPTY_CITY_SLUGS: CitySlugsById = new Map();
@@ -63,6 +64,7 @@ export function ShelterPageScreen({
   animalCities,
   query,
   listedTotal,
+  sheltersIndexListed,
   filterUi,
   kabinetSignedIn = false,
 }: ShelterPageView & { kabinetSignedIn?: boolean }) {
@@ -124,13 +126,21 @@ export function ShelterPageScreen({
 
       {/* One `<main>` around the whole body, so the main landmark contains the animal list. */}
       <Container as="main" className="flex flex-col gap-13 pt-10 pb-10 desktop:pb-14">
+        {/* Up to the shelters list when it exists (it is a 404 with no listed shelter), else the gallery. */}
         <LinkButton
-          href={GALLERY_PATH}
+          href={sheltersIndexListed ? SHELTERS_INDEX_PATH : GALLERY_PATH}
           variant="ghost"
           data-testid="shelter-back-link"
           className="w-fit self-start"
         >
-          {uk.feed.backToList}
+          {sheltersIndexListed ? (
+            <>
+              <span aria-hidden="true">← </span>
+              {uk.sheltersIndex.footerLink}
+            </>
+          ) : (
+            uk.feed.backToList
+          )}
         </LinkButton>
 
         {/* Identity (option A): the logo beside the name; from `desktop` it is a left column. A name

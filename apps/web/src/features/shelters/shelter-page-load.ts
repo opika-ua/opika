@@ -44,6 +44,8 @@ export interface ShelterPageView {
   query: ShelterPageQuery;
   /** All of the shelter's discoverable animals, whatever the filters and the sort: the heading's number. */
   listedTotal: number;
+  /** Whether `/prytulky` lists this shelter, so it answers 200 and the page may link and name it. */
+  sheltersIndexListed: boolean;
   /** The filter controls' data; null while the shelter has {@link SHELTER_FILTERS_ABOVE} animals or fewer and no filter is on. */
   filterUi: ShelterFilterUi | null;
 }
@@ -52,6 +54,20 @@ export interface ShelterPageView {
 export const SHELTER_FILTERS_ABOVE = 12;
 
 const ukrainianOrder = new Intl.Collator("uk");
+
+/**
+ * `/prytulky` lists verified shelters with a listed animal and answers 404 with none, so a shelter
+ * of that kind proves the list exists, with no extra read. Any other (paused, under review, no
+ * animal) may or may not be on it: false, which only ever drops the `/prytulky` link.
+ */
+export function listedInSheltersIndex(
+  shelter: Pick<PublicShelterView, "verification" | "availability">,
+  listedTotal: number,
+): boolean {
+  return (
+    shelter.verification === "verified" && shelter.availability.kind !== "paused" && listedTotal > 0
+  );
+}
 
 /**
  * The cities a shelter's listed animals are in (§12.2: derived, never entered), the shelter's own
@@ -195,6 +211,7 @@ export async function loadShelterPage(
         animalCities: animalCitiesOf(shelterCityId, listedCityLabels),
         query,
         listedTotal,
+        sheltersIndexListed: listedInSheltersIndex(shelter, listedTotal),
         filterUi,
       },
     };
