@@ -4,7 +4,7 @@ import { placeName, placeText } from "@opika/i18n";
 import { pageRefusalOf } from "../../api/page-refusal";
 import { anonymousRouterClient } from "../../api/server-client";
 import { GALLERY_PATH } from "../chrome/gallery-path";
-import { galleryHref } from "../gallery/filter-url";
+import { cityPagePath, galleryHref } from "../gallery/filter-url";
 import { placeBookOf } from "../gallery/place-book";
 
 /** The procedures the animal page reads; a test passes a stub of just these. */
@@ -21,6 +21,8 @@ export interface AnimalPageView {
   cityName: string | null;
   /** The place as a meta line prints it («м. Бровари», «с. Миколаївка, Березівський р-н, Одеська обл.»). */
   cityPlace: string | null;
+  /** The city's landing page when it has one, else null; the breadcrumb and the link use it. */
+  cityPagePath: string | null;
   backToGalleryHref: string;
 }
 
@@ -85,6 +87,7 @@ export async function loadAnimalPage(
      * (SEO B3). The unfiltered gallery only when the city doesn't resolve (never expected: every
      * animal's location is a real city).
      */
+    const hasCityPage = city !== null && pages.some((page) => page.cityId === city.id);
     const backToGalleryHref = city
       ? galleryHref(
           { ...NO_FILTERS, cities: { kind: "oneOf", values: [city.id] } },
@@ -100,6 +103,7 @@ export async function loadAnimalPage(
         shelter,
         cityName: city ? placeName(city) : null,
         cityPlace: city ? placeText(city, "full") : null,
+        cityPagePath: city && hasCityPage ? cityPagePath(city.slug) : null,
         backToGalleryHref,
       },
     };

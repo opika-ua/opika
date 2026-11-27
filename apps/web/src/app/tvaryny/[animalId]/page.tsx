@@ -75,7 +75,15 @@ export function renderAnimalPage(load: AnimalPageLoad, kabinetSignedIn: boolean)
     case "animal":
       return (
         <>
-          <JsonLd data={animalBreadcrumbs(uk.feed.galleryTitle, load.view.animal)} />
+          <JsonLd
+            data={animalBreadcrumbs(
+              uk.feed.galleryTitle,
+              load.view.animal,
+              load.view.cityName && load.view.cityPagePath
+                ? { name: load.view.cityName, path: load.view.cityPagePath }
+                : null,
+            )}
+          />
           <AnimalDetailScreen {...load.view} kabinetSignedIn={kabinetSignedIn} />
         </>
       );

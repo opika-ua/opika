@@ -50,14 +50,35 @@ export function breadcrumbListJsonLd(crumbs: readonly Crumb[]): JsonLdObject {
   };
 }
 
+/** A city's landing page as a breadcrumb level: its name as the page headings print it, and its path. */
+export type CityCrumb = { readonly name: string; readonly path: string };
+
+/**
+ * The trail gallery > city > animal. The city level is left out when the caller has no city page
+ * for it (a city with no indexable animal has none), so no item ever points at a 404.
+ */
+export function galleryTrail(
+  galleryName: string,
+  city: CityCrumb | null,
+  animal: { readonly id: string; readonly name: string } | null,
+): readonly Crumb[] {
+  return [
+    { name: galleryName, path: GALLERY_PATH },
+    ...(city ? [city] : []),
+    ...(animal ? [{ name: animal.name, path: `/tvaryny/${animal.id}` }] : []),
+  ];
+}
+
 export function animalBreadcrumbs(
   galleryName: string,
   animal: { readonly id: string; readonly name: string },
+  city: CityCrumb | null = null,
 ): JsonLdObject {
-  return breadcrumbListJsonLd([
-    { name: galleryName, path: GALLERY_PATH },
-    { name: animal.name, path: `/tvaryny/${animal.id}` },
-  ]);
+  return breadcrumbListJsonLd(galleryTrail(galleryName, city, animal));
+}
+
+export function cityBreadcrumbs(galleryName: string, city: CityCrumb): JsonLdObject {
+  return breadcrumbListJsonLd(galleryTrail(galleryName, city, null));
 }
 
 export function shelterBreadcrumbs(

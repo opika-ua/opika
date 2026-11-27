@@ -30,6 +30,7 @@ describe("loadAnimalPage", () => {
     const without = await loadAnimalPage(ANIMAL_ID, client);
     if (without.kind !== "animal") throw new Error(`expected the animal, got ${without.kind}`);
     expect(without.view.backToGalleryHref).toBe("/?misto=brovary");
+    expect(without.view.cityPagePath).toBeNull();
 
     vi.mocked(client.cities.withPages).mockResolvedValueOnce([
       { cityId: CITY_LABEL.id, species: ["cat"] },
@@ -37,6 +38,7 @@ describe("loadAnimalPage", () => {
     const withPage = await loadAnimalPage(ANIMAL_ID, client);
     if (withPage.kind !== "animal") throw new Error(`expected the animal, got ${withPage.kind}`);
     expect(withPage.view.backToGalleryHref).toBe("/tvaryny/misto/brovary");
+    expect(withPage.view.cityPagePath).toBe("/tvaryny/misto/brovary");
     expect(vi.mocked(client.cities.withPages)).toHaveBeenLastCalledWith({ ids: [CITY_LABEL.id] });
   });
 
@@ -99,5 +101,6 @@ describe("loadAnimalPage", () => {
     if (load.kind !== "animal") throw new Error(`expected the animal, got ${load.kind}`);
     expect(load.view.cityName).toBeNull();
     expect(load.view.backToGalleryHref).toBe("/");
+    expect(load.view.cityPagePath).toBeNull();
   });
 });

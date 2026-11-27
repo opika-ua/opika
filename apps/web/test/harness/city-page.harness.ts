@@ -6,7 +6,7 @@
  * links back to the city page.
  */
 
-import { expect, test } from "@playwright/test";
+import { type APIRequestContext, expect, type Page, test } from "@playwright/test";
 import { openRoute } from "./harness";
 import { DESKTOP, PHONE } from "./viewports";
 
@@ -69,10 +69,50 @@ test("an animal page's way back is the city page", async ({ page }) => {
   await openRoute(page, CITY_PAGE, PHONE, { readySelector: CARD });
   const href = await page.locator(CARD).first().getAttribute("href");
   await page.goto(href?.split("?")[0] as string);
-  await expect(page.getByRole("link", { name: "Усі тварини" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Тварини – Бровари" })).toHaveAttribute(
     "href",
     "/tvaryny/misto/brovary",
   );
+});
+
+/** Every breadcrumb item of the page the browser is on: positions from 1, each URL answering 200. */
+async function expectBreadcrumbItemsAnswer(
+  page: Page,
+  request: APIRequestContext,
+  expectedPaths: readonly string[],
+) {
+  const lists = (await page.locator('script[type="application/ld+json"]').allTextContents())
+    .map((text) => JSON.parse(text))
+    .filter((entry) => entry["@type"] === "BreadcrumbList");
+  expect(lists).toHaveLength(1);
+  const items = lists[0].itemListElement as { position: number; item: string }[];
+  expect(items.map((i) => i.position)).toEqual(items.map((_, index) => index + 1));
+  expect(items.map((i) => new URL(i.item).pathname)).toEqual(expectedPaths);
+  for (const { item } of items) {
+    // The page links to the production origin; the server under test answers the same path.
+    const response = await request.get(new URL(item).pathname, { maxRedirects: 0 });
+    expect(response.status(), item).toBe(200);
+  }
+}
+
+test("the city page's breadcrumbs are gallery > city, and every item answers 200", async ({
+  page,
+  request,
+}) => {
+  await page.goto(CITY_PAGE);
+  await expectBreadcrumbItemsAnswer(page, request, ["/", CITY_PAGE]);
+});
+
+test("an animal page's breadcrumbs are gallery > city > animal, and every item answers 200", async ({
+  page,
+  request,
+}) => {
+  await openRoute(page, CITY_PAGE, PHONE, { readySelector: CARD });
+  const animalPath = ((await page.locator(CARD).first().getAttribute("href")) as string).split(
+    "?",
+  )[0] as string;
+  await page.goto(animalPath);
+  await expectBreadcrumbItemsAnswer(page, request, ["/", CITY_PAGE, animalPath]);
 });
 
 test("a card on the city page opens the animal in the overlay, over the city page", async ({

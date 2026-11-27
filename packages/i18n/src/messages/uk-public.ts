@@ -521,6 +521,8 @@ export const ukPublic = {
       body: "Цієї тварини вже немає на сайті, або посилання застаріло.",
       action: "Усі тварини",
     },
+    /** The animal page's link to its city's landing page (owner-approved 2026-11-27, verbatim; en dash). */
+    cityLink: "Тварини – {city}",
     /**
      * An adopted animal's page for 90 days after the adoption, instead of the 404 (owner-approved
      * 2026-11-24, both strings). No gendered verb: «знайшла» agrees with «тварина». The link

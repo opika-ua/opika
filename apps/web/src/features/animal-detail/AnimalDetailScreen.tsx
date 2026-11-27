@@ -72,8 +72,18 @@ export function AnimalDetailScreen({
   // testing; the one real caller (`app/tvaryny/[animalId]/page.tsx`) always passes it.
   kabinetSignedIn = false,
   backToGalleryHref = GALLERY_PATH,
+  cityPagePath = null,
   ...content
-}: AnimalDetailScreenProps & { kabinetSignedIn?: boolean; backToGalleryHref?: string }) {
+}: AnimalDetailScreenProps & {
+  kabinetSignedIn?: boolean;
+  backToGalleryHref?: string;
+  /** Set when the city has its landing page: the link then names the city. */
+  cityPagePath?: string | null;
+}) {
+  const backLabel =
+    cityPagePath && content.cityName
+      ? fillTemplate(uk.detail.cityLink, { city: content.cityName })
+      : uk.detail.notFound.action;
   return (
     <div className="site-page bg-page">
       <SiteHeader kabinetSignedIn={kabinetSignedIn} current="animals" />
@@ -98,7 +108,7 @@ export function AnimalDetailScreen({
             className="inline-flex min-h-target items-center gap-1 rounded-field text-label focus-ring"
           >
             <Icon name="chevron-left" size="sm" />
-            {uk.detail.notFound.action}
+            {backLabel}
           </Link>
         </div>
         {/* From desktop the panel sits on page columns 2-11, the same place as the overlay's sheet. */}
