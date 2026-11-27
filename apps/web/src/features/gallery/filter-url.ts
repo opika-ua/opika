@@ -29,6 +29,7 @@ import {
 import { fillTemplate, ukPublic as uk } from "@opika/i18n/public";
 import { GALLERY_PATH } from "../chrome/gallery-path";
 import type { CityTokenResolution } from "./city-tokens";
+import { speciesPagePath } from "./species-pages";
 
 /**
  * The design's own URL example (`/tvaryny?misto=brovary&stor=1`,
@@ -158,8 +159,9 @@ export const NO_PLACE_IDS: PlaceIdsBySlug = { cities: new Map(), regions: new Ma
  * UUIDs from disjoint sources (regions are fixed `uuidV5(code)` constants, cities random or
  * `uuidV5(katottg_code)`), so a lookup can never answer for the wrong kind. Built by the page from
  * the labels it already holds; an id it has no slug for is dropped from the link it writes.
+ * A species key («dog», never a UUID) is present only while that species' page exists.
  */
-export type CitySlugsById = ReadonlyMap<CityId | RegionId, string | CityWithPage>;
+export type CitySlugsById = ReadonlyMap<CityId | RegionId | AnimalSpecies, string | CityWithPage>;
 
 /** A city whose landing page exists (SEO B3): a link to it alone goes to that page, not `?misto=`. */
 export type CityWithPage = { readonly slug: string; readonly hasPage: true };
@@ -194,7 +196,8 @@ export const servedPageHref = (path: string, searchParams: SearchParams, page: n
 
 /**
  * Where a gallery link for `filters` lives: one city with a page and no oblast is that city's
- * page, its own `misto` dropped (the other filters stay); anything else is `basePath`. Only the
+ * page, its own `misto` dropped (the other filters stay). Otherwise one species with a page is
+ * that species' page, its `vyd` dropped: the city rule wins. Anything else is `basePath`. Only the
  * gallery's links move: a shelter page passes its own `basePath` and keeps it.
  */
 function placedOf(
@@ -203,14 +206,24 @@ function placedOf(
   basePath: string,
 ): { path: string; filters: FeedFilters } {
   const canonical = canonicalizeFilters(filters);
-  if (basePath !== GALLERY_PATH || canonical.regions.kind !== "any") {
-    return { path: basePath, filters: canonical };
+  if (basePath !== GALLERY_PATH) return { path: basePath, filters: canonical };
+  const city = soleValue(canonical.cities);
+  const cityEntry =
+    canonical.regions.kind === "any" && city !== undefined ? citySlugs.get(city) : undefined;
+  if (cityEntry !== undefined && typeof cityEntry !== "string") {
+    return { path: cityPagePath(cityEntry.slug), filters: { ...canonical, cities: ANY } };
   }
-  const [only, ...more] = canonical.cities.kind === "oneOf" ? canonical.cities.values : [];
-  const entry = only !== undefined && more.length === 0 ? citySlugs.get(only) : undefined;
-  return entry !== undefined && typeof entry !== "string"
-    ? { path: cityPagePath(entry.slug), filters: { ...canonical, cities: ANY } }
-    : { path: basePath, filters: canonical };
+  const species = soleValue(canonical.species);
+  if (species !== undefined && citySlugs.has(species)) {
+    return { path: speciesPagePath(species), filters: { ...canonical, species: ANY } };
+  }
+  return { path: basePath, filters: canonical };
+}
+
+/** The selection's value when exactly one is chosen. */
+function soleValue<T>(selection: FilterSelection<T>): T | undefined {
+  const [only, ...more] = selection.kind === "oneOf" ? selection.values : [];
+  return more.length === 0 ? only : undefined;
 }
 
 /** The most `obl` tokens a request reads: 27 regions exist. City tokens share the contract's cap. */
@@ -237,6 +250,12 @@ export function withoutPlaceParams(searchParams: SearchParams): SearchParams {
   return rest;
 }
 
+/** `searchParams` without its species param: a species page takes its species from the path. */
+export function withoutSpeciesParam(searchParams: SearchParams): SearchParams {
+  const { [SPECIES_PARAM]: _species, ...rest } = searchParams;
+  return rest;
+}
+
 /**
  * A city page's canonical (owner, B3): the bare city page, plus the page number past page 1;
  * sort and filters are dropped, as the gallery's own canonical drops them.
@@ -252,8 +271,8 @@ export const anyFilterSet = (filters: FeedFilters): boolean =>
   );
 
 /**
- * The gallery's canonical. Its links would move to a city page (`placedOf`'s rule): that city
- * page's canonical, page number kept. Otherwise each page of the plain list is its own (owner,
+ * The gallery's canonical. Its links would move to a city or a species page (`placedOf`'s rule):
+ * that page's canonical, page number kept. Otherwise each page of the plain list is its own (owner,
  * 2026-11-27), and a filter or a sort other than the default canonicalises to the bare gallery.
  */
 export function galleryCanonicalPath(

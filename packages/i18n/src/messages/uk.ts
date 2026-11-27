@@ -2594,6 +2594,11 @@ export const uk = {
     intro:
       "Тварини з притулків і від волонтерів із міста {city}. Оберіть тварину й напишіть напряму – контакти на кожній картці.",
   },
+  /** The species landing pages, `/tvaryny/vyd/{slug}` (owner, 2026-11-27, verbatim). */
+  speciesPage: {
+    /** `{species}` is the capitalised nominative phrase: «Собаки шукають дім». */
+    heading: "{species} шукають дім",
+  },
   /**
    * Page titles and meta descriptions (SEO handoff B1, B2; approved by the owner 2026-11-18,
    * verbatim). `{site}` is the brand from `brand.ts`; `{city}` is the nominative name, never declined.
@@ -2653,6 +2658,14 @@ export const uk = {
       /** `{species}` is the capitalised nominative phrase. */
       description:
         "{species} в добрі руки з притулків і від волонтерів – {city}. Напишіть напряму, контакти – на картці.",
+    },
+    /** A species landing page (owner, 2026-11-27, verbatim). */
+    species: {
+      /** Before `titleWithSite`; `{species}` is the accusative phrase. */
+      title: "Взяти {species} з притулку",
+      /** `{species}` is the capitalised nominative phrase. */
+      description:
+        "{species} з притулків і від волонтерів України шукають дім. Оберіть місто й вік та напишіть притулку напряму.",
     },
     about: {
       title: "Про {site} – сайт, де тварини з притулків шукають дім",

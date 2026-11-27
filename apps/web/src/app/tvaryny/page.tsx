@@ -1,8 +1,14 @@
 import type { CityLabelView, GalleryFacetCounts } from "@opika/contracts";
-import { ANY, type FeedFilters, type GallerySort, type RegionId } from "@opika/domain";
+import {
+  ANY,
+  type AnimalSpecies,
+  type FeedFilters,
+  type GallerySort,
+  type RegionId,
+} from "@opika/domain";
 import { fillTemplate, placeName, uk } from "@opika/i18n";
 import type { Metadata } from "next";
-import { permanentRedirect } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import { anonymousRouterClient } from "../../api/server-client";
 import { GALLERY_PATH } from "../../features/chrome/gallery-path";
@@ -27,6 +33,7 @@ import {
   type SearchParams,
   servedPageHref,
   withoutPlaceParams,
+  withoutSpeciesParam,
 } from "../../features/gallery/filter-url";
 import { GalleryCard } from "../../features/gallery/GalleryCard";
 import { GalleryControlBlock } from "../../features/gallery/GalleryControlBlock";
@@ -43,6 +50,8 @@ import { LIST_END_MIN_CARDS } from "../../features/gallery/list-end-rule";
 import { NoMatch } from "../../features/gallery/NoMatch";
 import { type PlaceBook, placeBookOf } from "../../features/gallery/place-book";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
+import { speciesPageHeading } from "../../features/gallery/species-page-text";
+import { speciesPagePath, speciesWithPages } from "../../features/gallery/species-pages";
 import { throwIfGalleryTestFailure } from "../../features/gallery/test-only-failure";
 import { HomeJsonLd } from "../../seo/home-json-ld";
 import { gallerySeo } from "../../seo/page-metadata";
@@ -66,7 +75,8 @@ export const dynamic = "force-dynamic";
 /**
  * Handoff B2's title and description, for the page and its previews alike. Every filter, sort and
  * page variant shares the bare gallery's canonical (owner, PR B), except one city alone: that is its
- * landing page's state, so the city page with the same page number is canonical (owner, B3).
+ * landing page's state, so the city page with the same page number is canonical (owner, B3). One
+ * species alone with a page is that species page's state the same way, the city rule first.
  */
 export async function generateMetadata({
   searchParams,
@@ -95,9 +105,18 @@ export function galleryCanonicalOf(reads: GalleryReads): string {
 /** The landing page's variant of the gallery (SEO B3): the city fixed, its own heading and intro. */
 export type GalleryCityPage = { readonly city: CityLabelView };
 
-/** What the gallery reads before it renders: a former-slug redirect, or the page's data. */
+/** A species landing page's variant (owner, 2026-11-27): the species fixed, its own heading. */
+export type GallerySpeciesPage = { readonly species: AnimalSpecies };
+
+export type GalleryVariant = GalleryCityPage | GallerySpeciesPage;
+
+/**
+ * What the gallery reads before it renders: a redirect (a former slug, a page past the last), a
+ * species page below its threshold (a 404), or the page's data.
+ */
 export type GalleryReads =
   | { readonly kind: "redirect"; readonly href: string }
+  | { readonly kind: "not_found" }
   | {
       readonly kind: "reads";
       readonly filters: FeedFilters;
@@ -122,10 +141,21 @@ export type GalleryReads =
 export async function readGallery(
   client: ReturnType<typeof anonymousRouterClient>,
   rawSearchParams: SearchParams,
-  cityPage?: GalleryCityPage,
+  variant?: GalleryVariant,
 ): Promise<GalleryReads> {
-  // A city page fixes its city from the path, so its own query's place params are ignored.
-  const queryParams = cityPage ? withoutPlaceParams(rawSearchParams) : rawSearchParams;
+  const cityPage = variant && "city" in variant ? variant : undefined;
+  const speciesPage = variant && "species" in variant ? variant : undefined;
+  // A landing page fixes its city or species from the path, so its query's own param is ignored.
+  const queryParams = cityPage
+    ? withoutPlaceParams(rawSearchParams)
+    : speciesPage
+      ? withoutSpeciesParam(rawSearchParams)
+      : rawSearchParams;
+  const ownPath = cityPage
+    ? cityPagePath(cityPage.city.slug)
+    : speciesPage
+      ? speciesPagePath(speciesPage.species)
+      : GALLERY_PATH;
   const cityTokens = cityTokensOf(queryParams);
   const [regions, urlResolutions] = await Promise.all([
     client.regions.list({}),
@@ -136,14 +166,16 @@ export async function readGallery(
     : urlResolutions;
 
   if (!cityPage) {
-    const href = redirectHrefForNonCanonicalCities(rawSearchParams, GALLERY_PATH, resolutions);
+    const href = redirectHrefForNonCanonicalCities(rawSearchParams, ownPath, resolutions);
     if (href) return { kind: "redirect", href };
   }
 
   const parsed = parseGalleryQuery(queryParams, placeBookOf(regions, [], resolutions).placeIds);
   const filters: FeedFilters = cityPage
     ? { ...parsed.filters, regions: ANY, cities: { kind: "oneOf", values: [cityPage.city.id] } }
-    : parsed.filters;
+    : speciesPage
+      ? { ...parsed.filters, species: { kind: "oneOf", values: [speciesPage.species] } }
+      : parsed.filters;
   // The selectors' counts ride with the page rather than a fetch when a selector opens: one
   // grouped scan, in parallel with the page's own, so they cost no extra wait and reach the
   // no-JS sheet too (measured and argued in the filter selectors PR).
@@ -151,9 +183,11 @@ export async function readGallery(
     client.gallery.list({ filters, sort: parsed.sort, page: parsed.page }),
     client.gallery.facetCounts({ filters, sort: parsed.sort }),
   ]);
+  // The threshold rides the facet counts the page reads anyway (filters ignored there).
+  const speciesPages = speciesWithPages(facetCounts.indexableBySpecies);
+  if (speciesPage && !speciesPages.has(speciesPage.species)) return { kind: "not_found" };
   if (page.page < parsed.page) {
-    const path = cityPage ? cityPagePath(cityPage.city.slug) : GALLERY_PATH;
-    return { kind: "redirect", href: servedPageHref(path, rawSearchParams, page.page) };
+    return { kind: "redirect", href: servedPageHref(ownPath, rawSearchParams, page.page) };
   }
 
   // Labels for every link the page writes: the cities with an animal (the filter's options), the
@@ -163,6 +197,7 @@ export async function readGallery(
     [...facetCounts.cities.map((entry) => entry.label), ...page.cityLabels],
     resolutions,
     new Set(facetCounts.cities.filter((entry) => entry.hasPage).map((entry) => entry.cityId)),
+    speciesPages,
   );
   return {
     kind: "reads",
@@ -258,12 +293,14 @@ export async function renderGallery(
   // scope"), caught by running this suite, not inferred. `Page` below is
   // the one real caller and always computes the real value.
   kabinetSignedIn = false,
-  cityPage?: GalleryCityPage,
+  variant?: GalleryVariant,
   /** Already read (`Page` shares them with `generateMetadata`); read here when absent. */
   preread?: GalleryReads,
 ) {
-  const reads = preread ?? (await readGallery(client, rawSearchParams, cityPage));
+  const reads = preread ?? (await readGallery(client, rawSearchParams, variant));
   if (reads.kind === "redirect") permanentRedirect(reads.href);
+  if (reads.kind === "not_found") notFound();
+  const cityPage = variant && "city" in variant ? variant : undefined;
   const { filters, sort, page, facetCounts, resolutions, book } = reads;
   const selectedCities = resolutions.flatMap(({ city }) => (city ? [city] : []));
   const citySlugs = book.slugs;
@@ -290,7 +327,9 @@ export async function renderGallery(
   const mascotKind = mascotKindFor(filters.species);
   const heading = cityPage
     ? fillTemplate(uk.cityPage.heading, { city: placeName(cityPage.city) })
-    : uk.feed.galleryTitle;
+    : variant && "species" in variant
+      ? speciesPageHeading(variant.species)
+      : uk.feed.galleryTitle;
   // An empty «Зачекались» (it leaves stale cards out) is a result, not an empty registry.
   const registryEmpty =
     page.totalMatching === 0 && !anyFilterSet(filters) && sort !== "longest_waiting";
