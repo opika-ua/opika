@@ -16,6 +16,7 @@ import type { CityTokenResolution } from "../../features/gallery/city-tokens";
 import { FilterSheet } from "../../features/gallery/FilterSheetLazy";
 import {
   anyFilterSet,
+  cityPagePath,
   cityTokensOf,
   GALLERY_PATH,
   galleryCanonicalPath,
@@ -23,6 +24,7 @@ import {
   redirectHrefForNonCanonicalCities,
   resetFiltersHref,
   type SearchParams,
+  servedPageHref,
   withoutPlaceParams,
 } from "../../features/gallery/filter-url";
 import { GalleryCard } from "../../features/gallery/GalleryCard";
@@ -37,7 +39,6 @@ import { GallerySortToggle } from "../../features/gallery/GallerySortToggle";
 import { railResultCount } from "../../features/gallery/gallery-copy";
 import { hasPagination } from "../../features/gallery/gallery-pagination";
 import { NoMatch } from "../../features/gallery/NoMatch";
-import { OutOfRangeNotice } from "../../features/gallery/OutOfRangeNotice";
 import { type PlaceBook, placeBookOf } from "../../features/gallery/place-book";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
 import { throwIfGalleryTestFailure } from "../../features/gallery/test-only-failure";
@@ -145,6 +146,10 @@ export async function readGallery(
     client.gallery.list({ filters, sort: parsed.sort, page: parsed.page }),
     client.gallery.facetCounts({ filters, sort: parsed.sort }),
   ]);
+  if (page.page < parsed.page) {
+    const path = cityPage ? cityPagePath(cityPage.city.slug) : GALLERY_PATH;
+    return { kind: "redirect", href: servedPageHref(path, rawSearchParams, page.page) };
+  }
 
   // Labels for every link the page writes: the cities with an animal (the filter's options), the
   // cards' cities, and the cities the URL names (which may have no animal).
@@ -191,7 +196,7 @@ const EAGER_CARD_COUNT = 4;
  * match") is now built. E4 adds two more of this route's states: one error
  * state covering both a cold-visit failure and a failed page navigation
  * (`error.tsx` - see its own comment for why there is one, not the
- * design's stated two), and the out-of-range-page notice, below. A
+ * design's stated two), and a page past the last one, which 308s to it (`readGallery`). A
  * loading state (L1/L2) was investigated and deliberately NOT built this
  * pass - Next's route-level `loading.tsx` convention forces every
  * response through Suspense/streaming, which broke the no-JS path
@@ -254,7 +259,7 @@ export async function renderGallery(
 ) {
   const reads = preread ?? (await readGallery(client, rawSearchParams, cityPage));
   if (reads.kind === "redirect") permanentRedirect(reads.href);
-  const { filters, sort, pageNumber, page, facetCounts, resolutions, book } = reads;
+  const { filters, sort, page, facetCounts, resolutions, book } = reads;
   const selectedCities = resolutions.flatMap(({ city }) => (city ? [city] : []));
   const citySlugs = book.slugs;
   const cityNames = new Map([...book.cities].map(([id, label]) => [id, placeName(label)] as const));
@@ -468,26 +473,6 @@ export async function renderGallery(
             </main>
           ) : (
             <>
-              {/*
-                E4, docs/design/README.md's "Out-of-range page (P1/P2)":
-                `pageNumber` is what was requested (parseGalleryQuery,
-                unclamped beyond 1); `page.page` is what gallery.list
-                actually resolved and served (E0's clamp). They differ only
-                when the requested page was beyond `totalPages` but within
-                `MAX_GALLERY_PAGE` - anything past that ceiling fails oRPC's
-                own input validation before this component ever renders,
-                and is caught by error.tsx instead.
-              */}
-              {pageNumber !== page.page && (
-                <OutOfRangeNotice
-                  requestedPage={pageNumber}
-                  totalPages={page.totalPages}
-                  filters={filters}
-                  sort={sort}
-                  citySlugs={citySlugs}
-                />
-              )}
-
               {hasPagination(page.totalPages) && (
                 <a
                   href="#pagination"

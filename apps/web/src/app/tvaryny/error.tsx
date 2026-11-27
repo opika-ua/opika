@@ -18,13 +18,8 @@ import { LoadErrorScreen } from "../../features/gallery/LoadErrorScreen";
  *
  * Next.js's error-boundary convention: this file is a Client Component
  * (required) that implicitly wraps `page.tsx`, catching any error thrown
- * during that Server Component's render - including a `gallery.list` call
- * whose `page` input exceeds `MAX_GALLERY_PAGE` (2000), which fails oRPC's
- * own input-schema validation before the handler runs. That is the "beyond
- * the ceiling" half of the out-of-range behaviour: within `totalPages..
- * MAX_GALLERY_PAGE` clamps server-side to a 200 (see the out-of-range
- * notice, wired in `page.tsx`); above `MAX_GALLERY_PAGE` throws, and lands
- * here.
+ * during that Server Component's render. A page past the last one is not an
+ * error: it 308s to the last page (`readGallery`).
  *
  * `retry()`, not `reset()` - found via round-2 review, not assumed: Next
  * passes both to every error boundary, and they are not equivalent

@@ -24,6 +24,7 @@ import {
   parseGalleryQuery,
   redirectHrefForNonCanonicalCities,
   resetFiltersHref,
+  servedPageHref,
   similarAnimalsHref,
   similarAnimalsLabel,
   withOnlySpecies,
@@ -760,5 +761,20 @@ describe("galleryCanonicalPath (SEO B3, owner 2026-11-18; plain pages 2026-11-27
         WITH_PAGE,
       ),
     ).toBe("/tvaryny");
+  });
+});
+
+describe("servedPageHref (owner, 2026-11-27)", () => {
+  it("swaps in the served page and keeps every other param, in order, repeats included", () => {
+    expect(
+      servedPageHref("/tvaryny", { vyd: "dog", stor: "99", misto: ["kyiv", "bucha"] }, 4),
+    ).toBe("/tvaryny?vyd=dog&stor=4&misto=kyiv&misto=bucha");
+  });
+
+  it("page 1 drops «stor»; nothing else left means no query at all", () => {
+    expect(servedPageHref("/tvaryny", { stor: "99", sort: "longest_waiting" }, 1)).toBe(
+      "/tvaryny?sort=longest_waiting",
+    );
+    expect(servedPageHref("/tvaryny/misto/kyiv", { stor: "1e21" }, 1)).toBe("/tvaryny/misto/kyiv");
   });
 });

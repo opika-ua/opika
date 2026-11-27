@@ -1,8 +1,6 @@
 /**
- * E4's error state and out-of-range notice - both rendered assertions, per
- * `docs/build-plan.md`'s own words for the notice ("the note must actually
- * render") and this project's standing rule that a UI item isn't done on
- * the basis of inspecting markup.
+ * E4's error state, rendered, and a page past the last one: a 308 to the last page (owner,
+ * 2026-11-27; it replaced E4's notice on a 200).
  *
  * No loading.tsx coverage here: it was built, found to break the no-JS
  * path, and reverted - see `docs/gallery-contract-decisions.md`'s note and
@@ -17,7 +15,6 @@ import { DESKTOP } from "./viewports";
 
 const ROUTE = "/tvaryny";
 const CARD = "[data-testid='animal-card']";
-const NOTICE = "[data-testid='gallery-out-of-range-notice']";
 const ERROR_CARD = "[data-testid='gallery-error']";
 
 /**
@@ -32,45 +29,38 @@ const ERROR_CARD = "[data-testid='gallery-error']";
  */
 test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.26" } });
 
-test.describe("/tvaryny out-of-range page", () => {
+test.describe("/tvaryny, a page past the last one", () => {
   /**
-   * `docs/design/README.md`, "Out-of-range page (P1/P2)": `?stor=50` with
-   * 10 real pages returns the last page, 200, with a visible notice - not
-   * a 404, not a silent redirect. The seeded corpus's own page count
-   * (`gallery-pagination.harness.ts`'s "genuinely multi-page" precondition)
-   * is 10, so 50 is comfortably past it without being past
-   * `MAX_GALLERY_PAGE`.
+   * The seeded corpus is 10 pages (`gallery-pagination.harness.ts`'s "genuinely multi-page"
+   * precondition), so 50 is past it without being past `MAX_GALLERY_PAGE`.
    */
-  test("?stor=50 against a 10-page corpus clamps to the last page AND shows the notice", async ({
+  test("?stor=50 is a 308 to the last page, the other params kept, and that page is served", async ({
     page,
   }) => {
+    const response = await page.request.get(`${ROUTE}?stor=50&utm_source=share`, {
+      maxRedirects: 0,
+    });
+    expect(response.status()).toBe(308);
+    expect(response.headers().location).toMatch(/\/tvaryny\?stor=10&utm_source=share$/);
+
     await openRoute(page, `${ROUTE}?stor=50`, DESKTOP, { readySelector: CARD });
-
-    await expect(page.locator(NOTICE)).toBeVisible();
-    await expect(page.locator(NOTICE)).toContainText("Сторінки 50 не існує");
-    await expect(page.locator(NOTICE)).toContainText("сторінка 10");
-
-    // The clamp actually happened, not just the notice: real cards render,
-    // and the pagination nav (if present) agrees this is page 10.
-    await expect(page.locator(CARD).first()).toBeVisible();
+    expect(new URL(page.url()).searchParams.get("stor")).toBe("10");
     const activePage = page.locator("[data-testid='gallery-pagination'] [aria-current='page']");
     await expect(activePage).toContainText("10");
   });
 
   /**
    * Beyond `MAX_GALLERY_PAGE` (2000) the contract's input validation used to throw into `error.tsx`
-   * (a 500 for a hostile URL, QA 2026-10-29). The page parser now clamps any huge number to that
-   * ceiling and the repo clamps on to the last page: the same notice as `?stor=50`, never an error.
-   * The error card is reached in a browser only through the test-only hook, below.
+   * (a 500 for a hostile URL, QA 2026-10-29). The parser clamps any huge number to that ceiling,
+   * the list clamps on to the last page, and the same 308 follows: never an error.
    */
   for (const stor of [String(MAX_GALLERY_PAGE + 1), "1e21", "999999999999999999999"]) {
-    test(`?stor=${stor} clamps to the last page with the notice, not an error`, async ({
-      page,
-    }) => {
+    test(`?stor=${stor} lands on the last page, not an error`, async ({ page }) => {
       const response = await page.goto(`${ROUTE}?stor=${stor}`, { waitUntil: "load" });
       expect(response?.status()).toBe(200);
+      expect(response?.request().redirectedFrom()).not.toBeNull();
+      expect(new URL(page.url()).searchParams.get("stor")).toBe("10");
       await expect(page.locator(CARD).first()).toBeVisible();
-      await expect(page.locator(NOTICE)).toBeVisible();
       await expect(page.locator(ERROR_CARD)).toHaveCount(0);
     });
   }
