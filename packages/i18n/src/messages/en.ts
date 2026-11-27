@@ -489,13 +489,6 @@ export const en = {
     showAll: "Show all animals",
   },
 
-  // --- Gallery out-of-range page notice - see the uk key's own note ---
-  outOfRangePage: {
-    notFound: "Page {requested} doesn't exist – there are only {total}.",
-    showingLast: "Showing page {total} – the last one. Nothing was lost.",
-    backToFirst: "Back to the first page",
-  },
-
   // --- Site-wide header links (Phase T) - see the uk key's own note ---
   nav: {
     animals: "Animals",

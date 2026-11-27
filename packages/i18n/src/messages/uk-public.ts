@@ -1051,21 +1051,6 @@ export const ukPublic = {
     showAll: "Показати всіх тварин",
   },
 
-  // --- Gallery out-of-range page notice (E4, V2 mock frames P1/P2) ---
-  outOfRangePage: {
-    /** Template: "Сторінки {requested} не існує - тут лише {total}." */
-    notFound: "Сторінки {requested} не існує – тут лише {total}.",
-    /** Template: "Показуємо сторінку {total} - останню. Нічого не
-     * загубилось." Numerals, not the mock's spelled ordinal ("десяту") -
-     * Ukrainian ordinal declension for an arbitrary N is real grammar work
-     * with no groundwork in this codebase (same class of gap as
-     * `noMatch`'s own dropped middle sentence, docs/design/README.md
-     * records this one too), so a numeral phrasing avoids asserting an
-     * ordinal form that might be wrong. */
-    showingLast: "Це сторінка {total}, остання. Нічого не загубилося.",
-    backToFirst: "На першу сторінку",
-  },
-
   /**
    * Phase T. The site-wide header's own links, shared with the gallery
    * footer - `footer.about` used to hold this same string separately, which

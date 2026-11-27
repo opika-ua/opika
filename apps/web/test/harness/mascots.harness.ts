@@ -11,6 +11,7 @@ import { createDatabase } from "@opika/db";
 import { shelters } from "@opika/db/schema";
 import { assertDisposableTestDatabase, testDatabaseUrl } from "@opika/db/test";
 import { expect, type Page, test } from "@playwright/test";
+import { LIST_END_MIN_CARDS } from "../../src/features/gallery/list-end-rule";
 import { noSidewaysScroll, openRoute } from "./harness";
 import type { Viewport } from "./viewports";
 
@@ -105,6 +106,8 @@ interface Placement {
   /** The `data-mascot` keys that page shows, in page order ("group" is a seated pair). */
   expected: readonly string[];
   scrollTo?: string;
+  /** The page's card count this case needs, when it depends on the seeded corpus. */
+  cards?: (count: number) => boolean;
 }
 
 const CARD = "[data-testid='animal-card']";
@@ -123,19 +126,38 @@ const PLACEMENTS: readonly Placement[] = [
     ready: "[data-testid='gallery-no-match']",
     expected: ["dog-lie"],
   },
+  // The seeded corpus decides these cases; `cards` checks each is still the case it claims to be.
   {
     name: "6-list-end-cat",
-    route: "/tvaryny?stor=50",
+    route: "/tvaryny?vik=adult&stor=4",
     ready: "[data-testid='gallery-list-end']",
     expected: ["cat-lie", "cat-stand-tail"],
     scrollTo: "[data-testid='gallery-list-end']",
+    cards: (n) => n >= LIST_END_MIN_CARDS,
   },
   {
     name: "6-list-end-dog",
-    route: "/tvaryny?vyd=dog&stor=50",
+    route: "/tvaryny?vyd=dog&rozmir=medium&stor=2",
     ready: "[data-testid='gallery-list-end']",
     expected: ["dog-lie", "dog-stand"],
     scrollTo: "[data-testid='gallery-list-end']",
+    cards: (n) => n >= LIST_END_MIN_CARDS,
+  },
+  {
+    // A short last page: the closing mascot would share the hero's screen, so it stays off.
+    name: "6-short-last-page",
+    route: "/tvaryny?stor=10",
+    ready: CARD,
+    expected: ["cat-lie"],
+    cards: (n) => n > 0 && n < LIST_END_MIN_CARDS,
+  },
+  {
+    // One page, two animals: no list end on a single page.
+    name: "6-single-page-city",
+    route: "/tvaryny/misto/fastiv?vyd=cat",
+    ready: CARD,
+    expected: ["cat-lie"],
+    cards: (n) => n === 2,
   },
   {
     name: "3-not-found-card",
@@ -171,6 +193,10 @@ for (const viewport of [DESKTOP_1440, PHONE_393, PHONE_360, PHONE_320]) {
         page,
       }) => {
         await openRoute(page, placement.route, viewport, { readySelector: placement.ready });
+        if (placement.cards !== undefined) {
+          const count = await page.locator(`[data-testid='gallery-grid'] > ${CARD}`).count();
+          expect(placement.cards(count), `${placement.name}: ${count} cards`).toBe(true);
+        }
         const found = await expectWellBehaved(page, viewport);
         expect(
           found.sort((a, b) => a.top - b.top).map((m) => m.key),

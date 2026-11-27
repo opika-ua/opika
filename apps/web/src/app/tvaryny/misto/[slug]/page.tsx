@@ -14,6 +14,7 @@ import {
   NO_PLACE_IDS,
   parseGalleryQuery,
   type SearchParams,
+  withQuery,
 } from "../../../../features/gallery/filter-url";
 import { seoMetadata, withSite } from "../../../../seo/page-metadata";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../../seo-flags";
@@ -51,6 +52,7 @@ export default async function Page({
     case "rate_limited":
       return <RateLimitedScreen />;
     case "moved":
+      // The former slug's 308 keeps the visitor's filters, sort and page.
       return permanentRedirect(withQuery(cityPagePath(load.slug), rawSearchParams));
     case "city":
       return renderGallery(anonymousRouterClient(), rawSearchParams, kabinetSignedIn, {
@@ -100,16 +102,4 @@ export function citySeoText(
   if (REGISTRY_HAS_NO_REAL_SHELTERS) return { title, description: uk.demo.bannerNotice };
   const description = fillTemplate(uk.seo.city.description, { species, city: cityName });
   return { title, description: truncateDescription(description) };
-}
-
-/** The former slug's 308 keeps the visitor's filters, sort and page. */
-function withQuery(path: string, searchParams: SearchParams): string {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(searchParams)) {
-    for (const v of Array.isArray(value) ? value : value === undefined ? [] : [value]) {
-      params.append(key, v);
-    }
-  }
-  const qs = params.toString();
-  return qs ? `${path}?${qs}` : path;
 }

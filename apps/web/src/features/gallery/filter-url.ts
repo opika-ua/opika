@@ -172,6 +172,25 @@ export const CITY_PAGE_PATH = "/tvaryny/misto";
 
 export const cityPagePath = (slug: string): string => `${CITY_PAGE_PATH}/${slug}`;
 
+/** `path` with the request's own query, in its order; an `undefined` value drops that param. */
+export function withQuery(path: string, searchParams: SearchParams): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    for (const v of Array.isArray(value) ? value : value === undefined ? [] : [value]) {
+      params.append(key, v);
+    }
+  }
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
+}
+
+/**
+ * A page past the last one, as the list served it instead: the same address and query with that
+ * page (none for page 1). A 308 there, not the last page under a stale number (owner, 2026-11-27).
+ */
+export const servedPageHref = (path: string, searchParams: SearchParams, page: number): string =>
+  withQuery(path, { ...searchParams, [PAGE_PARAM]: page > 1 ? String(page) : undefined });
+
 /**
  * Where a gallery link for `filters` lives: one city with a page and no oblast is that city's
  * page, its own `misto` dropped (the other filters stay); anything else is `basePath`. Only the
