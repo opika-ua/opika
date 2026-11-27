@@ -10,16 +10,35 @@ export function withheldFile(name = "IMG_0001.png", type = "image/png"): File {
   return file;
 }
 
-/** Picked files that read until `drop()`: iOS removes their temp copies when the input is reset. */
-export function tempFiles(names: readonly string[]): { files: File[]; drop: () => void } {
+/**
+ * Picked files that read until `drop()`: iOS removes their temp copies when the input is reset.
+ * `held` is one whose read waits for `release()` and fails if the copy was dropped by then.
+ */
+export function tempFiles(names: readonly string[]): {
+  files: File[];
+  drop: () => void;
+  held: (name: string) => { file: File; release: () => void };
+} {
   let dropped = false;
+  const make = (name: string) => new File([name], name, { type: "image/jpeg" });
   const files = names.map((name) => {
-    const file = new File([name], name, { type: "image/jpeg" });
+    const file = make(name);
     const read = file.arrayBuffer.bind(file);
     file.arrayBuffer = () => (dropped ? Promise.reject(notReadableError()) : read());
     return file;
   });
-  return { files, drop: () => (dropped = true) };
+  const held = (name: string) => {
+    const file = make(name);
+    const read = file.arrayBuffer.bind(file);
+    let release = () => {};
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    file.arrayBuffer = () =>
+      released.then(() => (dropped ? Promise.reject(notReadableError()) : read()));
+    return { file, release: () => release() };
+  };
+  return { files, drop: () => (dropped = true), held };
 }
 
 /** Calls `onReset` when the input's value is cleared, keeping the element's own setter. */

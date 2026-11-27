@@ -689,4 +689,52 @@ describe("a picked file the device won't hand over (Sentry 163896225)", () => {
     expect(calls.add).toHaveBeenCalledTimes(3);
     expect(reportFailure).not.toHaveBeenCalled();
   });
+
+  it("two quick picks: the input waits for both reads, and the first pick goes first", async () => {
+    const order: string[] = [];
+    const compress = vi.fn(async (file: File) => {
+      await file.arrayBuffer();
+      order.push(file.name);
+      return okJpeg(file);
+    });
+    const { calls } = setup(view([key(1)]), true, { compress });
+    const input = screen.getByTestId("photo-file-input") as HTMLInputElement;
+    const picked = tempFiles(["IMG_0002.jpg"]);
+    const slow = picked.held("IMG_0001.jpg");
+    let resets = 0;
+    watchReset(input, () => {
+      resets += 1;
+      picked.drop();
+    });
+    fireEvent.change(input, { target: { files: [slow.file] } });
+    fireEvent.change(input, { target: { files: picked.files } });
+    await settle();
+    // The second pick is read; the first still isn't, so nothing is reset under it.
+    expect(resets).toBe(0);
+    slow.release();
+    await settle();
+    expect(resets).toBe(1);
+    expect(order).toEqual(["IMG_0001.jpg", "IMG_0002.jpg"]);
+    expect(calls.add).toHaveBeenCalledTimes(2);
+  });
+
+  it("«Спробувати ще раз» resends the in-memory copy, not the file the phone has dropped", async () => {
+    const compress = vi.fn(async (file: File) => {
+      await file.arrayBuffer();
+      return okJpeg(file);
+    });
+    const reportFailure = vi.fn();
+    const { calls } = setup(view([key(1)]), true, { compress, reportFailure });
+    calls.add.mockRejectedValueOnce(new Error("network"));
+    const input = screen.getByTestId("photo-file-input") as HTMLInputElement;
+    const picked = tempFiles(["IMG_0001.jpg"]);
+    watchReset(input, picked.drop);
+    fireEvent.change(input, { target: { files: picked.files } });
+    fireEvent.click(await screen.findByRole("button", { name: "Спробувати ще раз" }));
+    await settle();
+    expect(compress).toHaveBeenCalledTimes(2);
+    expect(calls.add).toHaveBeenCalledTimes(2);
+    expect(reportFailure).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Спробувати ще раз" })).toBeNull();
+  });
 });

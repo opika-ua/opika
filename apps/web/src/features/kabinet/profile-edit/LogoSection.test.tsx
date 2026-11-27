@@ -2,7 +2,7 @@ import type { KabinetShelterView } from "@opika/contracts";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CompressedPhoto } from "../photos/compress-photo";
-import { withheldFile } from "../photos/picked-fixtures";
+import { tempFiles, watchReset, withheldFile } from "../photos/picked-fixtures";
 import { LogoSection } from "./LogoSection";
 
 // A set logo renders a real next/image, through ShelterLogoAvatar. next/image's
@@ -135,6 +135,36 @@ describe("LogoSection", () => {
       expect(reportFailure).toHaveBeenCalledTimes(1);
       expect(reportFailure.mock.calls[0]?.[0]).toMatchObject({ kind: "not_readable" });
       expect(reportFailure.mock.calls[0]?.[1]).toBe("logo.png");
+    });
+
+    it("the input is reset only once the file is copied, so the copy still compresses", async () => {
+      const compress = vi.fn(async (file: File): Promise<CompressedPhoto> => {
+        await file.arrayBuffer();
+        return { kind: "ok", file: new Blob(["j"]), width: 160, height: 160 };
+      });
+      const set = vi.fn().mockResolvedValue({ logo: null });
+      const reportFailure = vi.fn();
+      render(
+        <LogoSection
+          logo={null}
+          displayName="Лапа допомоги"
+          onView={() => {}}
+          client={{ shelter: { logo: { set, remove: vi.fn() } } } as never}
+          compress={compress}
+          reportFailure={reportFailure}
+        />,
+      );
+      const input = screen.getByTestId("logo-file-input") as HTMLInputElement;
+      const picked = tempFiles(["logo.jpg"]);
+      let reset = false;
+      watchReset(input, () => {
+        reset = true;
+        picked.drop();
+      });
+      fireEvent.change(input, { target: { files: picked.files } });
+      await vi.waitFor(() => expect(set).toHaveBeenCalledTimes(1));
+      expect(reset).toBe(true);
+      expect(reportFailure).not.toHaveBeenCalled();
     });
 
     it("a logo that compressed is not reported", async () => {

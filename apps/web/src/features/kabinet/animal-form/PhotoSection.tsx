@@ -199,6 +199,8 @@ function PhotoManager({
   const queue = useRef<Promise<void>>(Promise.resolve());
   // Picks still being copied into memory; the input is reset only when none is (`read-picked.ts`).
   const reading = useRef(0);
+  // Picks go on the queue in the order they were made, whichever finishes reading first.
+  const picks = useRef<Promise<void>>(Promise.resolve());
   // A fresh lazy component per opening: `lazy` would keep a failed chunk load for good.
   const [cropping, setCropping] = useState<{
     key: string;
@@ -455,9 +457,12 @@ function PhotoManager({
     }));
     setUploads((current) => [...current, ...added]);
     // Every file is copied before any waits its turn, and they go on the queue in picked order.
-    const picked = await Promise.all(
+    const reads = Promise.all(
       added.map(async (upload) => ({ upload, read: await readPicked(upload.file) })),
     );
+    const turn = picks.current.then(() => reads);
+    picks.current = turn.then(noop, noop);
+    const picked = await turn;
     for (const { upload, read } of picked) {
       if (read.kind === "not_readable") {
         reportFailure(read, upload.file.name);

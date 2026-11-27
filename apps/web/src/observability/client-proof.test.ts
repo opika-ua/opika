@@ -163,11 +163,14 @@ describe("the in-app browser's own errors (Sentry 164064616)", () => {
     Sentry.captureException(injected("FRAME-FROM-IABJS"));
     Sentry.captureException(new Error("Error invoking postMessage: Java object is gone"));
     Sentry.captureException(new Error("OUR-OWN-ERROR"));
+    // On Sentry's default ignore list, which stays off: a real bug of ours, minified, on Safari.
+    Sentry.captureException(new Error("undefined is not an object (evaluating 'a.B')"));
     await Sentry.flush(2000);
     const text = sent.json();
     expect(text).not.toContain("FRAME-FROM-IABJS");
     expect(text).not.toContain("Java object is gone");
     expect(text).toContain("OUR-OWN-ERROR");
+    expect(text).toContain("evaluating 'a.B'");
   });
 });
 

@@ -20,7 +20,9 @@ export function initClientSentry(
     defaultIntegrations: false,
     integrations: [
       // Not ours: the Facebook/Instagram Android in-app browser's injected script (Sentry 164064616).
+      // Sentry's default ignore list stays off: it would also drop real minified Safari errors.
       Sentry.eventFiltersIntegration({
+        disableErrorDefaults: true,
         denyUrls: [/^iabjs:\/\//],
         ignoreErrors: [/Java object is gone/],
       }),
