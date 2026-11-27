@@ -1,4 +1,6 @@
-import { uk } from "@opika/i18n";
+import type { AnimalDetailView } from "@opika/contracts";
+import { animalNoun } from "@opika/domain";
+import { fillTemplate, uk } from "@opika/i18n";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "./seo-flags";
 
 /**
@@ -10,6 +12,23 @@ import { REGISTRY_HAS_NO_REAL_SHELTERS } from "./seo-flags";
 export const LINK_PREVIEW_DESCRIPTION = REGISTRY_HAS_NO_REAL_SHELTERS
   ? uk.demo.bannerNotice
   : uk.firstRun.promise;
+
+/**
+ * «{name} – {noun} шукає дім, {city}» (handoff B1/B2): the animal page's title before the site
+ * name, and its photos' alt where the shelter wrote none (owner, 2026-11-27).
+ */
+export function animalSeoSubject(
+  animal: Pick<AnimalDetailView, "name" | "species" | "sex" | "ageBucket">,
+  cityName: string | null,
+): string {
+  const values = {
+    name: animal.name,
+    noun: uk.seo.nouns[animalNoun(animal.species, animal.sex, animal.ageBucket)],
+  };
+  return cityName === null
+    ? fillTemplate(uk.seo.animal.titleNoCity, values)
+    : fillTemplate(uk.seo.animal.title, { ...values, city: cityName });
+}
 
 /** The shared meta-description ceiling (Google's practical limit) - one constant, not a
  * copy in every page that builds one. */

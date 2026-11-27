@@ -685,6 +685,31 @@ describe("links in the shelter's words", () => {
   });
 });
 
+describe("AnimalDetailScreen – the photos' alt text (owner, 2026-11-27)", () => {
+  const photo = (storageKey: string, alt: string | null): AnimalDetailView["photos"][number] => ({
+    storageKey,
+    width: 1200,
+    height: 1500,
+    alt: alt === null ? null : { uk: alt, en: null },
+  });
+
+  it("a photo with no alt of its own reads «{name} – {noun} шукає дім, {city}»", async () => {
+    await renderAnimal({
+      name: "Мурка",
+      species: "cat",
+      sex: "female",
+      ageBucket: "adult",
+      photos: [photo("/a.jpg", null)],
+    });
+    expect(screen.getByRole("img", { name: "Мурка – кішка шукає дім, Бровари" })).toBeTruthy();
+  });
+
+  it("the shelter's own alt still wins", async () => {
+    await renderAnimal({ photos: [photo("/a.jpg", "Мурчик спить на ковдрі")] });
+    expect(screen.getByRole("img", { name: "Мурчик спить на ковдрі" })).toBeTruthy();
+  });
+});
+
 /**
  * The desktop strip (owner, 2026-11-12): photo slots are columns 1-4 / 5-8 / 9-12, and a slot the
  * photos leave free takes the text that would otherwise sit below, never shown twice.

@@ -3,7 +3,7 @@ import {
   MAX_CITY_TOKENS,
   MAX_GALLERY_PAGE,
 } from "@opika/contracts/constants";
-import type { AnimalId, CityId, RegionId } from "@opika/domain";
+import type { AnimalId, CityId, FeedFilterDimension, RegionId } from "@opika/domain";
 import {
   AGE_BUCKETS,
   type AgeBucket,
@@ -18,6 +18,7 @@ import {
   type FilterSelection,
   GALLERY_SORTS,
   type GallerySort,
+  isConstrained,
   isExplicitlySelected,
   NO_FILTERS,
   parseCityId,
@@ -224,17 +225,27 @@ export function cityPageCanonicalPath(slug: string, page: number): string {
   return page > 1 ? `${cityPagePath(slug)}?${PAGE_PARAM}=${page}` : cityPagePath(slug);
 }
 
+/** Whether any filter is set: with none and zero matches, the registry itself is empty. */
+export const anyFilterSet = (filters: FeedFilters): boolean =>
+  (Object.keys(filters) as FeedFilterDimension[]).some((dimension) =>
+    isConstrained(filters, dimension),
+  );
+
 /**
- * The gallery's canonical: `/tvaryny` whatever the filters, sort or page, unless its links would
- * move to a city page (`placedOf`'s rule): then that city page's canonical, page number kept.
+ * The gallery's canonical. Its links would move to a city page (`placedOf`'s rule): that city
+ * page's canonical, page number kept. Otherwise each page of the plain list is its own (owner,
+ * 2026-11-27), and a filter or a sort other than the default canonicalises to bare `/tvaryny`.
  */
 export function galleryCanonicalPath(
   filters: FeedFilters,
+  sort: GallerySort,
   page: number,
   citySlugs: CitySlugsById,
 ): string {
   const placed = placedOf(filters, citySlugs, GALLERY_PATH);
-  if (placed.path === GALLERY_PATH) return GALLERY_PATH;
+  const plain =
+    placed.path === GALLERY_PATH && !anyFilterSet(filters) && sort === DEFAULT_GALLERY_SORT;
+  if (placed.path === GALLERY_PATH && !plain) return GALLERY_PATH;
   return page > 1 ? `${placed.path}?${PAGE_PARAM}=${page}` : placed.path;
 }
 

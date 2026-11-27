@@ -16,7 +16,7 @@ export function DetailPhotoGallery({
   organisationWord,
 }: {
   photos: readonly AnimalPhoto[];
-  /** `animal.name` - used when a photo's own `alt` is unset. */
+  /** «{name} – {noun} шукає дім, {city}» (`animalSeoSubject`): used when a photo's own `alt` is unset. */
   altFallback: string;
   /** Its place on the sheet's desktop grid: the columns it spans («1-4») and their classes. */
   slot?: { columns: string; className: string } | null;

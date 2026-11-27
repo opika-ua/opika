@@ -1,5 +1,5 @@
 import type { AnimalDetailView } from "@opika/contracts";
-import { animalNoun, textIn } from "@opika/domain";
+import { textIn } from "@opika/domain";
 import { fillTemplate, forOrganisation, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -18,7 +18,7 @@ import { JsonLd } from "../../../seo/json-ld";
 import { animalBreadcrumbs } from "../../../seo/json-ld-builders";
 import { seoMetadata, withSite } from "../../../seo/page-metadata";
 import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../../../seo-flags";
-import { fitTitle, truncateDescription } from "../../../seo-text";
+import { animalSeoSubject, fitTitle, truncateDescription } from "../../../seo-text";
 
 /**
  * Same reasoning as `../page.tsx` and `../../page.tsx`: prerendering at
@@ -156,17 +156,12 @@ export function animalSeoText(
   cityName: string | null,
 ): { title: string; description: string } {
   const t = uk.seo.animal;
-  const noun = uk.seo.nouns[animalNoun(animal.species, animal.sex, animal.ageBucket)];
   const values = {
     name: animal.name,
-    noun,
     shelter: shelterName,
     story: firstSentenceOf(textIn(animal.description, "uk")),
   };
-  const subject =
-    cityName === null
-      ? fillTemplate(t.titleNoCity, values)
-      : fillTemplate(t.title, { ...values, city: cityName });
+  const subject = animalSeoSubject(animal, cityName);
   const description =
     cityName === null
       ? fillTemplate(t.descriptionNoCity, values)
