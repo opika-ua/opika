@@ -70,6 +70,7 @@ export function makeShelterPageView(overrides: Partial<ShelterPageView> = {}): S
     shelter: makeShelterPageShelter(),
     cityName: "Бровари",
     cityPlace: "м. Бровари",
+    cityPageSlug: null,
     animals,
     listedSpecies: ["dog"],
     cityNames: new Map([[CITY_ID as never, "Бровари"]]),
@@ -103,6 +104,8 @@ export function stubShelterPageClient(
   byId: ShelterByIdBehaviour = { kind: "answer" },
   list: ListOutput = makeListOutput([makeCardView(1)]),
   city: CityLabelView = BROVARY_LABEL,
+  /** Whether the shelter's city has a landing page (`cities.withPages`). */
+  cityHasPage = false,
 ) {
   const sheltersById = vi.fn(async () => {
     switch (byId.kind) {
@@ -120,7 +123,10 @@ export function stubShelterPageClient(
   const client = {
     shelters: { byId: sheltersById },
     gallery: { list: galleryList, facetCounts, relaxationCounts },
-    cities: { byIds: vi.fn(async () => [city]) },
+    cities: {
+      byIds: vi.fn(async () => [city]),
+      withPages: vi.fn(async () => (cityHasPage ? [{ cityId: city.id, species: ["dog"] }] : [])),
+    },
   };
   return {
     client: client as unknown as ShelterPageClient,

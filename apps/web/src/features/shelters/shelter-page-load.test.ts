@@ -2,6 +2,7 @@ import { type FeedFilters, NO_FILTERS } from "@opika/domain";
 import { describe, expect, it } from "vitest";
 import { loadShelterPage, SHELTER_FILTERS_ABOVE } from "./shelter-page-load";
 import {
+  CITY_ID,
   makeCardView,
   makeFacetCounts,
   makeListOutput,
@@ -173,5 +174,20 @@ describe("the species a shelter lists (for its title and description)", () => {
     const { client } = stubShelterPageClient({ kind: "answer" }, listOf(0));
     const load = await loadShelterPage(SHELTER_ID, QUERY, client);
     expect(load.kind === "shelter" && load.view.listedSpecies).toEqual([]);
+  });
+});
+
+describe("the shelter page's city page (loader)", () => {
+  it("carries the city's slug when its page exists, asking about that one city only", async () => {
+    const { client } = stubShelterPageClient({ kind: "answer" }, undefined, undefined, true);
+    const load = await loadShelterPage(SHELTER_ID, QUERY, client);
+    expect(load.kind === "shelter" && load.view.cityPageSlug).toBe("brovary");
+    expect(client.cities.withPages).toHaveBeenCalledWith({ ids: [CITY_ID] });
+  });
+
+  it("carries none when the city has no page", async () => {
+    const { client } = stubShelterPageClient({ kind: "answer" });
+    const load = await loadShelterPage(SHELTER_ID, QUERY, client);
+    expect(load.kind === "shelter" && load.view.cityPageSlug).toBeNull();
   });
 });

@@ -31,6 +31,8 @@ export interface ShelterPageView {
   cityName: string | null;
   /** The same city as the page's location line prints it («м. Бровари, Київська обл.»; a city that is its own region stays bare). */
   cityPlace: string | null;
+  /** The slug of the shelter's city page, only when that page exists (a city with no indexable animal has none). */
+  cityPageSlug: string | null;
   /** One page of the shelter's discoverable animals, in the requested date sort. */
   animals: Awaited<ReturnType<ShelterPageClient["gallery"]["list"]>>;
   /** The species the shelter lists, whatever the filters or page; empty when it lists none. */
@@ -140,7 +142,7 @@ export async function loadShelterPage(
     // the list).
     const shelterCityId = shelter.publicLocation.cityId;
     const needsCounts = filtersOn || listedTotal > SHELTER_FILTERS_ABOVE;
-    const [counts, relaxed, cityRows] = await Promise.all([
+    const [counts, relaxed, cityRows, cityPages] = await Promise.all([
       early ??
         (needsCounts
           ? client.gallery.facetCounts({ filters: query.filters, sort: query.sort, scope })
@@ -151,6 +153,7 @@ export async function loadShelterPage(
       animals.cityLabels.some((city) => city.id === shelterCityId)
         ? null
         : client.cities.byIds({ ids: [shelterCityId] }),
+      client.cities.withPages({ ids: [shelterCityId] }),
     ]);
     // The shelter's own facts (species, cities) come from the whole; `counts` is the whole only
     // when neither a filter nor the sort narrows the list.
@@ -185,6 +188,7 @@ export async function loadShelterPage(
         shelter,
         cityName: shelterCity ? placeName(shelterCity) : null,
         cityPlace: shelterCity ? placeText(shelterCity, "address") : null,
+        cityPageSlug: shelterCity && cityPages.length > 0 ? shelterCity.slug : null,
         animals,
         listedSpecies,
         cityNames,

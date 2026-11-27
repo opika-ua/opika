@@ -355,3 +355,19 @@ describe("the shelter page under «Зачекались» (it leaves stale cards
     expect(screen.queryByTestId("gallery-no-match")).toBeNull();
   });
 });
+
+describe("the shelter page's link to its city page", () => {
+  it("links the city line to the city page when that page exists", () => {
+    renderScreen({ cityPageSlug: "brovary" });
+    const link = screen.getByRole("link", { name: "м. Бровари" });
+    expect(link.getAttribute("href")).toBe("/tvaryny/misto/brovary");
+  });
+
+  it("prints the city line as plain text, with no link to a city page, when there is none", () => {
+    renderScreen({ cityPageSlug: null });
+    expect(screen.getByText("м. Бровари")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "м. Бровари" })).toBeNull();
+    const hrefs = screen.getAllByRole("link").map((link) => link.getAttribute("href"));
+    expect(hrefs.some((href) => href?.startsWith("/tvaryny/misto/"))).toBe(false);
+  });
+});

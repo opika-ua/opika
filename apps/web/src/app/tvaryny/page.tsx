@@ -12,6 +12,7 @@ import { SiteHeader } from "../../features/chrome/SiteHeader";
 import { ActiveFilterChips } from "../../features/gallery/ActiveFilterChips";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
 import { activeFilterChips } from "../../features/gallery/active-filters";
+import { CityLinks, cityLinksOf } from "../../features/gallery/CityLinks";
 import { cardCityId } from "../../features/gallery/card-text";
 import type { CityTokenResolution } from "../../features/gallery/city-tokens";
 import { FilterSheet } from "../../features/gallery/FilterSheetLazy";
@@ -519,6 +520,9 @@ export async function renderGallery(
                 )}
             </>
           )}
+
+          {/* Also under an empty result: a dead end still offers the cities that have animals. */}
+          <CityLinks cities={cityLinksOf(facetCounts.cities, cityPage?.city.id)} />
         </div>
       </Container>
       <SiteFooter />
