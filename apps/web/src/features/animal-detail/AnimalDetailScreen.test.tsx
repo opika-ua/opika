@@ -645,6 +645,38 @@ describe("AnimalDetailScreen – the full page on a phone (pet card on phones, S
     expect(screen.queryByTestId("overlay-prev")).toBeNull();
     expect(screen.queryByTestId("overlay-next")).toBeNull();
   });
+
+  it("names the city in the link when the city has its landing page, and keeps «Усі тварини» when not", async () => {
+    const { AnimalDetailScreen } = await import("./AnimalDetailScreen");
+    const { rerender } = render(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter()}
+        cityName="Бровари"
+        cityPlace="м. Бровари"
+        cityPagePath="/tvaryny/misto/brovary"
+        backToGalleryHref="/tvaryny/misto/brovary"
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Тварини – Бровари" }).getAttribute("href")).toBe(
+      "/tvaryny/misto/brovary",
+    );
+    expect(screen.queryByRole("link", { name: "Усі тварини" })).toBeNull();
+
+    rerender(
+      <AnimalDetailScreen
+        animal={makeAnimal()}
+        shelter={makeShelter()}
+        cityName="Бровари"
+        cityPlace="м. Бровари"
+        cityPagePath={null}
+        backToGalleryHref="/?misto=brovary"
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Усі тварини" }).getAttribute("href")).toBe(
+      "/?misto=brovary",
+    );
+  });
 });
 
 describe("AnimalDetailScreen – reserved chip", () => {

@@ -16,6 +16,8 @@ import {
   type SearchParams,
   withQuery,
 } from "../../../../features/gallery/filter-url";
+import { JsonLd } from "../../../../seo/json-ld";
+import { cityBreadcrumbs } from "../../../../seo/json-ld-builders";
 import { pagedTitle, seoMetadata } from "../../../../seo/page-metadata";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../../seo-flags";
 import {
@@ -59,9 +61,21 @@ export default async function Page({
       // The former slug's 308 keeps the visitor's filters, sort and page.
       return permanentRedirect(withQuery(cityPagePath(load.slug), rawSearchParams));
     case "city":
-      return renderGallery(anonymousRouterClient(), rawSearchParams, kabinetSignedIn, {
-        city: load.city,
-      });
+      return (
+        <>
+          <JsonLd
+            data={cityBreadcrumbs(uk.feed.galleryTitle, {
+              name: placeName(load.city),
+              path: cityPagePath(load.city.slug),
+            })}
+          />
+          {
+            await renderGallery(anonymousRouterClient(), rawSearchParams, kabinetSignedIn, {
+              city: load.city,
+            })
+          }
+        </>
+      );
   }
 }
 

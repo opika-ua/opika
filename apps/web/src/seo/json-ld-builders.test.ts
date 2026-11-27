@@ -4,6 +4,9 @@ import { describe, expect, it } from "vitest";
 import { SITE_ORIGIN } from "../brand";
 import {
   animalBreadcrumbs,
+  cityBreadcrumbs,
+  galleryTrail,
+  type JsonLdObject,
   organizationJsonLd,
   serializeJsonLd,
   shelterBreadcrumbs,
@@ -54,6 +57,60 @@ describe("json-ld builders", () => {
       `${SITE_ORIGIN}/tvaryny/a1`,
     ]);
     expect(list.itemListElement[1]?.name).toBe("Рекс");
+  });
+
+  describe("the gallery > city > animal trail", () => {
+    const brovary = { name: "Бровари", path: "/tvaryny/misto/brovary" };
+    const rex = { id: "a1", name: "Рекс" };
+    type Item = { position: number; name: string; item: string };
+    const itemsOf = (list: JsonLdObject): Item[] =>
+      JSON.parse(serializeJsonLd(list)).itemListElement;
+
+    it.each([
+      {
+        case: "an animal whose city has a page",
+        trail: galleryTrail("Шукають дім", brovary, rex),
+        paths: ["/", "/tvaryny/misto/brovary", "/tvaryny/a1"],
+        names: ["Шукають дім", "Бровари", "Рекс"],
+      },
+      {
+        case: "an animal whose city has no page",
+        trail: galleryTrail("Шукають дім", null, rex),
+        paths: ["/", "/tvaryny/a1"],
+        names: ["Шукають дім", "Рекс"],
+      },
+      {
+        case: "a city page",
+        trail: galleryTrail("Шукають дім", brovary, null),
+        paths: ["/", "/tvaryny/misto/brovary"],
+        names: ["Шукають дім", "Бровари"],
+      },
+    ])("$case", ({ trail, paths, names }) => {
+      expect(trail.map((crumb) => crumb.path)).toEqual(paths);
+      expect(trail.map((crumb) => crumb.name)).toEqual(names);
+    });
+
+    it("renders valid JSON with positions from 1 and absolute urls, for each page type", () => {
+      const withCity = animalBreadcrumbs("Шукають дім", rex, brovary);
+      const lists = [
+        withCity,
+        animalBreadcrumbs("Шукають дім", rex),
+        cityBreadcrumbs("Шукають дім", brovary),
+      ];
+      for (const list of lists) {
+        const items = itemsOf(list);
+        expect(items.map((i) => i.position)).toEqual(items.map((_, index) => index + 1));
+        for (const { item } of items) {
+          expect(new URL(item).origin).toBe(SITE_ORIGIN);
+          expect(item.startsWith("https://")).toBe(true);
+        }
+      }
+      expect(itemsOf(withCity).map((i) => i.item)).toEqual([
+        `${SITE_ORIGIN}/`,
+        `${SITE_ORIGIN}/tvaryny/misto/brovary`,
+        `${SITE_ORIGIN}/tvaryny/a1`,
+      ]);
+    });
   });
 
   it("points the last shelter crumb at the shelter page", () => {
