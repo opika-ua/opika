@@ -375,7 +375,7 @@ describe("/pro – description is its own, never the demo swap", () => {
   );
 });
 
-/** `/tvaryny` (SEO handoff B2): its description claims shelters exist, so it keeps D-2's swap. */
+/** The gallery (SEO handoff B2): its description claims shelters exist, so it keeps D-2's swap. */
 describe("/tvaryny – handoff B2's description, the demo disclosure while no real shelters exist", () => {
   it.each([
     [true, DEMO_BANNER_NOTICE],
@@ -392,7 +392,7 @@ describe("/tvaryny – handoff B2's description, the demo disclosure while no re
     }));
 
     const { galleryMetadataOf } = await import("./app/tvaryny/page");
-    const metadata = galleryMetadataOf("/tvaryny");
+    const metadata = galleryMetadataOf("/");
 
     expect(metadata.description).toBe(description);
     expect(metadata.openGraph?.description).toBe(description);
