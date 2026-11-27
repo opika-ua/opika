@@ -478,8 +478,9 @@ export function galleryRepo(db: Database) {
      * over the groups. A typed `.select()`, never a raw `db.execute()`, for the
      * driver reason `relaxationCounts` gives. `scope` narrows the counted rows as `list`'s does
      * (the same `buildScopePredicate`); optional here, unlike in `list`: everyone is the default,
-     * as in the contract. `sort` is required: its clause (`buildSortPredicate`) joins every count,
-     * but not the grouped scan, so the city options and `hasPage` stay the same under either sort.
+     * as in the contract. `sort` is required: its clause (`buildSortPredicate`) joins every count
+     * except the indexable ones, and not the grouped scan, so the city options, `hasPage` and
+     * `indexableBySpecies` stay the same under either sort.
      */
     async facetCounts(opts: {
       filters: FeedFilters;
