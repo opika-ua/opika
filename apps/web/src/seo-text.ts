@@ -37,11 +37,16 @@ export function animalSeoSubject(
 export function animalSeoFacts(
   animal: Pick<AnimalDetailView, "species" | "sex" | "ageBucket" | "ageSpan" | "size">,
 ): string {
-  const noun = uk.seo.nouns[animalNoun(animal.species, animal.sex, animal.ageBucket)];
+  const nounKey = animalNoun(animal.species, animal.sex, animal.ageBucket);
+  // «цуценя»/«кошеня» already say «малюк» (owner, 2026-11-27); a declared range still adds facts.
+  const babyNoun = nounKey === "puppy" || nounKey === "kitten";
   const age =
-    animal.ageSpan === null
-      ? ageWordFor(animal.ageBucket, animal.sex)
-      : ageSpanLabel(animal.ageSpan);
+    animal.ageSpan !== null
+      ? ageSpanLabel(animal.ageSpan)
+      : babyNoun
+        ? null
+        : ageWordFor(animal.ageBucket, animal.sex);
+  const noun = uk.seo.nouns[nounKey];
   const traits = [sexWordFor(animal.sex), age, sizeWordFor(animal.size, animal.sex)]
     .filter((trait): trait is string => trait !== null && trait !== "")
     .map((trait) => trait.toLocaleLowerCase("uk"));
