@@ -64,24 +64,30 @@ const nextConfig: NextConfig = {
   // Transpile workspace packages so Next.js can resolve .ts source files
   transpilePackages: ["@opika/contracts", "@opika/domain", "@opika/db"],
   /**
-   * Retired routes, all 308: `/tvaryny/gortaty` was the swipe deck (retired 2026-11-02, owner
-   * decision); `/discovery` was its earlier placeholder URL. Next carries the query string over,
-   * so a deck link with filters lands on the gallery with the same filters.
+   * Retired routes, all 308, straight to the gallery at `/` (no chain): `/tvaryny` was the gallery
+   * until SEO PR 6 (owner, 2026-11-27); `/tvaryny/gortaty` was the swipe deck (retired 2026-11-02);
+   * `/discovery` was its placeholder URL. Next carries the query string over, filters included.
    */
   async redirects() {
     return [
-      { source: "/discovery", destination: "/tvaryny", permanent: true },
-      { source: "/tvaryny/gortaty", destination: "/tvaryny", permanent: true },
-      { source: "/tvaryny/gortaty/:path*", destination: "/tvaryny", permanent: true },
-      /**
-       * `docs/design/README.md:427`'s "01 First run" is explicit that the
-       * gallery, not a separate screen, is the first-visit surface - see
-       * `tvaryny/page.tsx`. A standalone `/` route was built first,
-       * contradicted that spec, and was reverted in favour of this
-       * redirect once the conflict was found.
-       */
-      { source: "/", destination: "/tvaryny", permanent: true },
+      { source: "/tvaryny", destination: "/", permanent: true },
+      { source: "/discovery", destination: "/", permanent: true },
+      { source: "/tvaryny/gortaty", destination: "/", permanent: true },
+      { source: "/tvaryny/gortaty/:path*", destination: "/", permanent: true },
     ];
+  },
+  /**
+   * The gallery is served at `/` (Google reads the site name only from the domain root), but its
+   * route stays in `app/tvaryny/` beside the `@preview` slot that holds the animal overlay: moving
+   * the slot into the root layout would open the overlay from every page. Redirects match only the
+   * incoming URL, so this rewrite and the `/tvaryny` redirect above never loop.
+   */
+  async rewrites() {
+    return {
+      beforeFiles: [{ source: "/", destination: "/tvaryny" }],
+      afterFiles: [],
+      fallback: [],
+    };
   },
   /**
    * `SITE_IS_PUBLICLY_DISCOVERABLE` (`src/seo-flags.ts`) - every route is

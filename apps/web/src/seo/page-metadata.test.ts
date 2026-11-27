@@ -20,7 +20,7 @@ describe("seoMetadata's preview image", () => {
   });
 
   it.each([
-    ["/tvaryny", GALLERY_SEO],
+    ["/", GALLERY_SEO],
     ["/pro", ABOUT_SEO],
     ["/polityka-konfidentsiinosti", PRIVACY_SEO],
   ])("%s carries the site card", (_route, metadata) => {

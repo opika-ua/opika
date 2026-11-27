@@ -16,7 +16,7 @@ test.describe("web app manifest, against a real server", () => {
     expect(response.headers()["content-type"]).toMatch(/application\/(manifest\+)?json/);
     expect(response.headers()["x-content-type-options"]).toBe("nosniff");
     const manifest = await response.json();
-    expect(manifest.start_url).toBe("/tvaryny");
+    expect(manifest.start_url).toBe("/");
     expect(manifest.display).toBe("standalone");
 
     for (const icon of manifest.icons as { src: string; type: string }[]) {

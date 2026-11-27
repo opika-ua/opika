@@ -134,9 +134,9 @@ export default defineConfig({
         "pnpm --filter @opika/db run db:seed",
         `pnpm exec next start --port ${PORT} --hostname 127.0.0.1`,
       ].join(" && "),
-      // /tvaryny is the real front door and needs no redirect hop to confirm the server is
-      // actually serving pages.
-      url: `${ORIGIN}/tvaryny`,
+      // `/` is the real front door (the gallery) and needs no redirect hop to confirm the server
+      // is actually serving pages.
+      url: `${ORIGIN}/`,
       // Not `!process.env.CI`, which is the usual idiom. Reusing a server that
       // an aborted run left behind on its port would grade the build that server
       // started with - the same stale-artefact false green the comment above

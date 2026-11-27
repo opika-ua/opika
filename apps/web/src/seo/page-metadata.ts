@@ -46,7 +46,7 @@ export function withSite(template: string, values: Readonly<Record<string, strin
   return fillTemplate(template, { ...values, site: WORDMARK });
 }
 
-/** `/tvaryny`. D-2: while the registry holds no real shelters, the preview keeps the demo disclosure. */
+/** The gallery (`/`). D-2: while the registry holds no real shelters, the preview keeps the demo disclosure. */
 export const GALLERY_SEO: Metadata = seoMetadata(
   withSite(uk.seo.gallery.title),
   REGISTRY_HAS_NO_REAL_SHELTERS ? LINK_PREVIEW_DESCRIPTION : uk.seo.gallery.description,

@@ -11,6 +11,7 @@ import { Panel } from "../../ui/Panel";
 import { Skeleton } from "../../ui/Skeleton";
 import { ToastProvider, useToast } from "../../ui/Toast";
 import { Tooltip } from "../../ui/Tooltip";
+import { GALLERY_PATH } from "../chrome/gallery-path";
 import { cardCityId } from "../gallery/card-text";
 import type { CitySlugsById } from "../gallery/filter-url";
 import { GalleryCard } from "../gallery/GalleryCard";
@@ -218,7 +219,7 @@ function SavedCardsBody({ intro }: SavedCardsProps) {
           <p ref={emptyRef} tabIndex={-1} className="text-body text-ink-2 text-pretty outline-none">
             {uk.likes.empty}
           </p>
-          <LinkButton href="/tvaryny">{uk.likes.emptyLink}</LinkButton>
+          <LinkButton href={GALLERY_PATH}>{uk.likes.emptyLink}</LinkButton>
         </Panel>
       )}
 

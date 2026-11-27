@@ -37,6 +37,6 @@ describe("/tvaryny's own metadata (SEO handoff B2)", () => {
     expect(galleryMetadataOf("/tvaryny/misto/kyiv?stor=2").alternates?.canonical).toBe(
       "/tvaryny/misto/kyiv?stor=2",
     );
-    expect(galleryCanonicalOf({ kind: "redirect", href: "/tvaryny?misto=kyiv" })).toBe("/tvaryny");
+    expect(galleryCanonicalOf({ kind: "redirect", href: "/?misto=kyiv" })).toBe("/");
   });
 });

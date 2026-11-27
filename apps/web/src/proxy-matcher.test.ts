@@ -51,7 +51,7 @@ describe("proxy matcher", () => {
     "next-router-prefetch": "1",
     "next-router-segment-prefetch": "/_tree",
   };
-  const DISCOVERY = ["/tvaryny", "/tvaryny/some-animal", "/tvaryny/misto/kyiv", "/prytulky/x"];
+  const DISCOVERY = ["/", "/tvaryny/some-animal", "/tvaryny/misto/kyiv", "/prytulky/x"];
 
   it.each(DISCOVERY)("skips a router prefetch of %s, so it is never charged", async (path) =>
     expect(await matches(path, PREFETCH)).toBe(false),
@@ -66,9 +66,10 @@ describe("proxy matcher", () => {
     ["rsc alone (a navigation, which renders the page)", { rsc: "1" }],
     ["a runtime prefetch (value 2 renders data)", { rsc: "1", "next-router-prefetch": "2" }],
     ["a server action dressed as a prefetch", { ...PREFETCH, "next-action": "abc" }],
-  ])("still charges a discovery page for %s", async (_label, headers) =>
-    expect(await matches("/tvaryny", headers)).toBe(true),
-  );
+  ])("still charges a discovery page for %s", async (_label, headers) => {
+    expect(await matches("/", headers)).toBe(true);
+    expect(await matches("/tvaryny/misto/kyiv", headers)).toBe(true);
+  });
 
   // Review of #564, finding a: a route handler ignores the prefetch headers and answers in full.
   it.each([
@@ -91,7 +92,7 @@ describe("proxy matcher", () => {
   // `next-router-state-tree` is charged, matched on presence: the server URL-decodes the value.
   // An empty value isn't matched (Next reads it as absent). The server can't parse it either
   // (`parseAndValidateFlightRouterState('')` throws): an uncharged 500 that reads no head and no
-  // data, which any path outside the matcher (`/`) already allows.
+  // data, which any path outside the matcher (`/api/auth`) already allows.
   it.each([
     ["the metadata-only tree", '["",{},null,"metadata-only"]'],
     ["the same tree URL-encoded", "%5B%22%22%2C%7B%7D%2Cnull%2C%22metadata-only%22%5D"],
@@ -100,6 +101,7 @@ describe("proxy matcher", () => {
     const headers = { rsc: "1", "next-router-prefetch": "1", "next-router-state-tree": tree };
     expect(await matches("/tvaryny/cccccccc-cccc-4ccc-8ccc-cccccccccccc", headers)).toBe(true);
     expect(await matches("/prytulky/dddddddd-dddd-4ddd-8ddd-dddddddddddd", headers)).toBe(true);
+    expect(await matches("/", headers)).toBe(true);
   });
 
   // A route handler under the discovery paths ignores the prefetch headers. Metadata files are
@@ -117,7 +119,7 @@ describe("proxy matcher", () => {
     expect(found).toEqual([]);
   });
 
-  it.each(["/kabinet", "/kabinet/vkhid", "/prytulkam", "/tvarynyx", "/"])(
+  it.each(["/kabinet", "/kabinet/vkhid", "/prytulkam", "/tvarynyx", "/pro"])(
     "still runs on a router prefetch of %s",
     async (path) => expect(await matches(path, PREFETCH)).toBe(true),
   );

@@ -1,5 +1,6 @@
 import { ukPublic as uk } from "@opika/i18n/public";
 import type { Metadata } from "next";
+import { GALLERY_PATH } from "../features/chrome/gallery-path";
 import { NotFoundHeader } from "../features/chrome/NotFoundHeader";
 import { LinkButton } from "../ui/Button";
 import { Container } from "../ui/Container";
@@ -30,7 +31,7 @@ export default function NotFound() {
           <Text look="lead" className="text-ink-2">
             {copy.body}
           </Text>
-          <LinkButton href="/tvaryny" data-testid="not-found-action">
+          <LinkButton href={GALLERY_PATH} data-testid="not-found-action">
             {copy.action}
           </LinkButton>
         </Panel>

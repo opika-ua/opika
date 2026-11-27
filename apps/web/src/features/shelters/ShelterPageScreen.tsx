@@ -17,6 +17,7 @@ import { Heading } from "../../ui/Heading";
 import { Mascot } from "../../ui/Mascot";
 import { Pagination } from "../../ui/Pagination";
 import { Toggle } from "../../ui/Toggle";
+import { GALLERY_PATH } from "../chrome/gallery-path";
 import { SiteFooter } from "../chrome/SiteFooter";
 import { SiteHeader } from "../chrome/SiteHeader";
 import { ActiveFilterChips } from "../gallery/ActiveFilterChips";
@@ -115,7 +116,7 @@ export function ShelterPageScreen({
       {/* One `<main>` around the whole body, so the main landmark contains the animal list. */}
       <Container as="main" className="flex flex-col gap-13 pt-10 pb-10 desktop:pb-14">
         <LinkButton
-          href="/tvaryny"
+          href={GALLERY_PATH}
           variant="ghost"
           data-testid="shelter-back-link"
           className="w-fit self-start"
@@ -229,7 +230,7 @@ export function ShelterPageScreen({
               offset={24}
             />
             <p className="text-body-l text-ink-2">{uk.shelterPage.noAnimals}</p>
-            <LinkButton href="/tvaryny" variant="ghost">
+            <LinkButton href={GALLERY_PATH} variant="ghost">
               {uk.detail.notFound.action}
             </LinkButton>
           </div>

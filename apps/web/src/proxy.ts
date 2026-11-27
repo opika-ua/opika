@@ -67,7 +67,7 @@ async function respectingRateLimit(request: NextRequest): Promise<NextResponse> 
   // `kabinet/runtime` (Better Auth, its Drizzle adapter, the database
   // client) is imported here, lazily, and only once the IP is within its
   // budget, not at the top of this file: the proxy runs on every route, and a
-  // static import put Better Auth into every cold start, `/tvaryny`
+  // static import put Better Auth into every cold start, the gallery
   // included (review of the hardening, finding 3; measured in the inbox,
   // KH-T4). The limiters themselves come from `kabinet/limiters`, which is
   // as light as the adopter limiter above.
@@ -140,7 +140,7 @@ export function isPageNavigation(request: Request): boolean {
 }
 
 /**
- * RL-F1: the per-IP refusal on `/tvaryny` pages (and, since S6, the shelter page under
+ * RL-F1: the per-IP refusal on the gallery and `/tvaryny` pages (and, since S6, the shelter page under
  * `/prytulky`); since 2026-11-20 (owner) every page navigation's 429, `/kabinet` included. Oleksii, 2026-10-20, verbatim: "gives the rate-limited case its own state on both
  * the full page and the drawer, using the existing «Забагато запитів. Спробуйте ще раз пізніше.».
  * It never shows «Це не помилка…» for a rate limit."
@@ -164,20 +164,26 @@ function rateLimitedPage(request: NextRequest, retryAfterSeconds: number): NextR
 const RATE_LIMITED_PATH = "/rate-limited";
 
 /**
- * The public pages that read listings on every load: the gallery, the deck,
- * the animal page, and (designer round 1, S6) the shelter page, which reads
- * the shelter and a page of its animals the same way. Matched by whole path
- * segment, so `/prytulkam` (the static page for shelters) isn't one.
+ * The public pages that read listings on every load: the gallery (at `/`, SEO PR 6), the animal
+ * and city pages, and (designer round 1, S6) the shelter page, which reads the shelter and a page
+ * of its animals the same way. Matched by whole path segment, so `/prytulkam` (the static page
+ * for shelters) isn't one.
  */
 const DISCOVERY_PAGE_PREFIXES = ["/tvaryny", "/prytulky"] as const;
 
 function isDiscoveryPagePath(pathname: string): boolean {
-  return DISCOVERY_PAGE_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  return (
+    pathname === "/" ||
+    DISCOVERY_PAGE_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    )
   );
 }
 
 /**
+ * The gallery at `/` takes the discovery pages' entries below, one by one: a matcher `source` is a
+ * path pattern, and no single one covers `/` and those two sections alike.
+ *
  * Every request except Next's hashed static assets, `favicon.ico`, and `/api/kabinet` and
  * `/api/auth`. Those two are out because a matched non-GET request has its whole body buffered
  * before the route runs, which defeats `/api/kabinet`'s 16 KB cap; buffering for the rest is
@@ -202,8 +208,12 @@ export const config = {
   matcher: [
     {
       source:
-        "/((?!_next/static|_next/image|favicon.ico|api/kabinet(?:/|$)|api/auth(?:/|$)|tvaryny(?:/|$)|prytulky(?:/|$)).*)",
+        "/((?!$|_next/static|_next/image|favicon.ico|api/kabinet(?:/|$)|api/auth(?:/|$)|tvaryny(?:/|$)|prytulky(?:/|$)).*)",
     },
+    { source: "/", missing: [{ type: "header", key: "rsc", value: "1" }] },
+    { source: "/", missing: [{ type: "header", key: "next-router-prefetch", value: "1" }] },
+    { source: "/", has: [{ type: "header", key: "next-action" }] },
+    { source: "/", has: [{ type: "header", key: "next-router-state-tree" }] },
     {
       source: "/:section(tvaryny|prytulky)/:rest*",
       missing: [{ type: "header", key: "rsc", value: "1" }],

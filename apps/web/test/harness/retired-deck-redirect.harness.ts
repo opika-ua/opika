@@ -8,10 +8,10 @@ test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.62" } });
 
 test.describe("the retired deck routes redirect to the gallery", () => {
   for (const [from, to] of [
-    ["/tvaryny/gortaty", "/tvaryny"],
-    ["/tvaryny/gortaty/extra/path", "/tvaryny"],
-    ["/tvaryny/gortaty?vyd=cat&total=5", "/tvaryny?vyd=cat&total=5"],
-    ["/discovery", "/tvaryny"],
+    ["/tvaryny/gortaty", "/"],
+    ["/tvaryny/gortaty/extra/path", "/"],
+    ["/tvaryny/gortaty?vyd=cat&total=5", "/?vyd=cat&total=5"],
+    ["/discovery", "/"],
   ] as const) {
     test(`${from} -> ${to} (308)`, async ({ request }) => {
       const response = await request.get(from, { maxRedirects: 0 });

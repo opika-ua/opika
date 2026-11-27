@@ -2,6 +2,7 @@ import { fillTemplate, uk } from "@opika/i18n";
 import Link from "next/link";
 import { INSTAGRAM, OPERATOR_CONTACT, WORDMARK } from "../../brand";
 import { Container } from "../../ui/Container";
+import { GALLERY_PATH } from "./gallery-path";
 import { PRIVACY_PATH } from "./privacy-path";
 
 /** MK-7, moved here from /prytulkam's body so it is shown once (owner, 2026-11-20). */
@@ -10,13 +11,13 @@ const INDEPENDENT = fillTemplate(uk.about.independent, { site: WORDMARK });
 interface FooterSection {
   readonly href: string;
   readonly label: string;
-  /** /tvaryny is charged to the visitor's per-IP budget (`proxy.ts`), so never prefetched. */
+  /** The gallery is charged to the visitor's per-IP budget (`proxy.ts`), so never prefetched. */
   readonly prefetch?: false;
 }
 
 /** In order; the privacy policy sits with the contacts, as a plain link (owner's A2 lists sections only). */
 const SECTIONS: readonly FooterSection[] = [
-  { href: "/tvaryny", label: uk.nav.animals, prefetch: false },
+  { href: GALLERY_PATH, label: uk.nav.animals, prefetch: false },
   { href: "/prytulkam", label: uk.nav.forShelters },
   { href: "/pro", label: uk.nav.about },
 ];
@@ -33,8 +34,8 @@ export function SiteFooter() {
       <Container className="relative flex flex-col gap-8 py-10 desktop:flex-row desktop:justify-between desktop:py-12">
         <div aria-hidden="true" className="footer-mascots" />
         <div className="flex max-w-80 flex-col gap-4">
-          {/* Not prefetched: `/tvaryny` is charged to the visitor's per-IP budget. */}
-          <Link href="/tvaryny" prefetch={false} className="footer-logo">
+          {/* Not prefetched: the gallery is charged to the visitor's per-IP budget. */}
+          <Link href={GALLERY_PATH} prefetch={false} className="footer-logo">
             <span className="sr-only">{WORDMARK}</span>
           </Link>
           <p className="footer-note">{INDEPENDENT}</p>

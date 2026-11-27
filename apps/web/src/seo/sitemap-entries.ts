@@ -1,3 +1,4 @@
+import { GALLERY_PATH } from "../features/chrome/gallery-path";
 import { PRIVACY_PATH } from "../features/chrome/privacy-path";
 import { cityPagePath } from "../features/gallery/filter-url";
 import { absoluteUrl } from "./json-ld-builders";
@@ -7,8 +8,8 @@ export type SitemapEntry = { readonly url: string; readonly lastModified?: Date 
 /** The sitemap protocol allows 50,000 URLs per file. */
 export const SITEMAP_URL_LIMIT = 50_000;
 
-/** No "/": it redirects to /tvaryny, and a sitemap lists only URLs that answer 200. */
-export const STATIC_SITEMAP_PATHS = ["/tvaryny", "/pro", "/prytulkam", PRIVACY_PATH] as const;
+/** The gallery is `/`; `/tvaryny` redirects there, and a sitemap lists only URLs that answer 200. */
+export const STATIC_SITEMAP_PATHS = [GALLERY_PATH, "/pro", "/prytulkam", PRIVACY_PATH] as const;
 
 export type SitemapSource = {
   /** Every public animal, in the gallery's order: ids with their shelter ids (one read, not a page loop). */

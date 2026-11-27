@@ -7,6 +7,7 @@ import { Mascot } from "../../ui/Mascot";
 import { Panel } from "../../ui/Panel";
 import { Photo } from "../../ui/Photo";
 import { Text } from "../../ui/Text";
+import { GALLERY_PATH } from "../chrome/gallery-path";
 import { SiteFooter } from "../chrome/SiteFooter";
 import { SiteHeader } from "../chrome/SiteHeader";
 
@@ -68,7 +69,7 @@ export function HomeFoundScreen({
       <Container as="main" className="flex flex-1 items-start justify-center py-8 desktop:py-14">
         <Panel padding="lg" className="flex w-full max-w-140 flex-col items-start gap-4">
           <HomeFoundContent view={view} headingLevel={1} />
-          <LinkButton href="/tvaryny" data-testid="home-found-action">
+          <LinkButton href={GALLERY_PATH} data-testid="home-found-action">
             {uk.detail.notFound.action}
           </LinkButton>
         </Panel>

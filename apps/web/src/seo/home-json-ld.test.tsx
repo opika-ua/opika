@@ -8,7 +8,7 @@ function emitted(container: HTMLElement): unknown[] {
   );
 }
 
-describe("the home page's structured data (/tvaryny, where / redirects)", () => {
+describe("the home page's structured data (the gallery, at /)", () => {
   it("emits exactly a WebSite and an Organization", () => {
     const { container } = render(<HomeJsonLd discoverable />);
     expect(emitted(container)).toEqual([

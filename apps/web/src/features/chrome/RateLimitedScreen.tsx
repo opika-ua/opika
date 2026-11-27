@@ -3,6 +3,7 @@ import { buttonClass } from "../../ui/Button";
 import { Container } from "../../ui/Container";
 import { Heading } from "../../ui/Heading";
 import { Panel } from "../../ui/Panel";
+import { GALLERY_PATH } from "./gallery-path";
 import { SiteFooter } from "./SiteFooter";
 import { SiteHeader } from "./SiteHeader";
 
@@ -36,7 +37,7 @@ export function RateLimitedScreen() {
           <Heading level={1} look="title">
             {uk.detail.rateLimited}
           </Heading>
-          <a href="/tvaryny" className={buttonClass("primary")}>
+          <a href={GALLERY_PATH} className={buttonClass("primary")}>
             {uk.detail.notFound.action}
           </a>
         </Panel>

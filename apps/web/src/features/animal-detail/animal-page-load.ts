@@ -3,6 +3,7 @@ import { AnimalIdSchema, DEFAULT_GALLERY_SORT, NO_FILTERS } from "@opika/domain"
 import { placeName, placeText } from "@opika/i18n";
 import { pageRefusalOf } from "../../api/page-refusal";
 import { anonymousRouterClient } from "../../api/server-client";
+import { GALLERY_PATH } from "../chrome/gallery-path";
 import { galleryHref } from "../gallery/filter-url";
 import { placeBookOf } from "../gallery/place-book";
 
@@ -81,7 +82,7 @@ export async function loadAnimalPage(
      * actually return to Brovary, not the unfiltered gallery: the link's
      * own text is a claim about where it goes. Built through `galleryHref`,
      * the one URL scheme every city link uses, so it is the city's landing page when that exists
-     * (SEO B3). `/tvaryny` unfiltered only when the city doesn't resolve (never expected: every
+     * (SEO B3). The unfiltered gallery only when the city doesn't resolve (never expected: every
      * animal's location is a real city).
      */
     const backToGalleryHref = city
@@ -90,7 +91,7 @@ export async function loadAnimalPage(
           DEFAULT_GALLERY_SORT,
           placeBookOf(regions, [city], [], new Set(pages.map((page) => page.cityId))).slugs,
         )
-      : "/tvaryny";
+      : GALLERY_PATH;
 
     return {
       kind: "animal",

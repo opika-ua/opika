@@ -28,6 +28,7 @@ import { MAIN_LANDMARK } from "../../ui/landmark";
 import { MetaLine } from "../../ui/MetaLine";
 import { BOTTOM_BAR } from "../../ui/sticky-bar";
 import { Text } from "../../ui/Text";
+import { GALLERY_PATH } from "../chrome/gallery-path";
 import { SiteFooter } from "../chrome/SiteFooter";
 import { SiteHeader } from "../chrome/SiteHeader";
 import { chipDisplayLabel, similarAnimalsHref, similarAnimalsLabel } from "../gallery/filter-url";
@@ -70,7 +71,7 @@ export function AnimalDetailScreen({
   // Defaulted so the tests of this screen's own content don't all need a prop they aren't
   // testing; the one real caller (`app/tvaryny/[animalId]/page.tsx`) always passes it.
   kabinetSignedIn = false,
-  backToGalleryHref = "/tvaryny",
+  backToGalleryHref = GALLERY_PATH,
   ...content
 }: AnimalDetailScreenProps & { kabinetSignedIn?: boolean; backToGalleryHref?: string }) {
   return (

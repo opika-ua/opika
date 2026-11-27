@@ -6,6 +6,7 @@ import { SiteHeader } from "../features/chrome/SiteHeader";
 import { reportClientError } from "../observability/load-client";
 import { MAIN_LANDMARK } from "../ui/landmark";
 import "./globals.css";
+import { GALLERY_PATH } from "../features/chrome/gallery-path";
 
 /**
  * Next renders this instead of the root layout when the layout itself throws, so it owns the page
@@ -55,7 +56,7 @@ export default function GlobalError({
                   {uk.galleryError.action}
                 </button>
                 <a
-                  href="/tvaryny"
+                  href={GALLERY_PATH}
                   data-testid="global-error-show-all"
                   className="focus-ring inline-flex min-h-target items-center px-3 font-bold text-ink text-label underline"
                 >

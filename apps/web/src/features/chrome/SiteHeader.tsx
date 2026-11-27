@@ -7,6 +7,7 @@ import { KabinetEntryLink } from "../kabinet/KabinetEntryLink";
 import { SavedButton } from "../likes/SavedButton";
 import { audienceOf } from "./audience";
 import { BrandLogo } from "./BrandLogo";
+import { GALLERY_PATH } from "./gallery-path";
 import { MobileNavMenu } from "./MobileNavMenu";
 
 /**
@@ -66,7 +67,7 @@ function WordmarkText() {
 }
 
 const ENTRIES = [
-  { key: "animals", href: "/tvaryny", testId: "nav-animals", label: uk.nav.animals },
+  { key: "animals", href: GALLERY_PATH, testId: "nav-animals", label: uk.nav.animals },
   { key: "forShelters", href: "/prytulkam", testId: "nav-for-shelters", label: uk.nav.forShelters },
   { key: "about", href: "/pro", testId: "nav-about", label: uk.nav.about },
 ] as const;
@@ -94,7 +95,7 @@ function NavLinks({
           <Link
             key={entry.key}
             href={entry.href}
-            // Not prefetched: `/tvaryny` is charged to the visitor's per-IP budget (`proxy.ts`).
+            // Not prefetched: the gallery is charged to the visitor's per-IP budget (`proxy.ts`).
             {...(entry.key === "animals" ? { prefetch: false } : {})}
             aria-current={isCurrent ? "page" : undefined}
             data-testid={`${entry.testId}${suffix}`}
@@ -163,9 +164,9 @@ export function SiteHeader({
             <WordmarkText />
           </span>
         ) : (
-          // Not prefetched: `/tvaryny` is charged to the visitor's per-IP budget (`proxy.ts`).
+          // Not prefetched: the gallery is charged to the visitor's per-IP budget (`proxy.ts`).
           <Link
-            href="/tvaryny"
+            href={GALLERY_PATH}
             prefetch={false}
             data-testid="site-wordmark"
             className="inline-flex min-h-target items-center rounded-field focus-ring"
