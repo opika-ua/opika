@@ -30,6 +30,11 @@ export function animalSeoSubject(
     : fillTemplate(uk.seo.animal.title, { ...values, city: cityName });
 }
 
+/** «{name} – фото {n}»: the alt of the animal page's photos after the first, `position` 1-based. */
+export function animalPhotoAlt(name: string, position: number): string {
+  return fillTemplate(uk.seo.animal.photoAlt, { name, n: String(position) });
+}
+
 /**
  * «кіт, хлопчик, молодий, малий»: the noun, then each card trait the shelter recorded (an unknown
  * sex has no word). Card fields only, so a description never carries the shelter's own text.

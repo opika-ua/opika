@@ -1,5 +1,6 @@
 import type { AnimalPhoto, OrganisationWord } from "@opika/domain";
 import { forOrganisation, uk } from "@opika/i18n";
+import { animalPhotoAlt } from "../../seo-text";
 import { PhotoSlider } from "../../ui/PhotoSlider";
 
 /**
@@ -11,12 +12,14 @@ const BLEED = "-mx-4 tablet:-mx-6 order-first desktop:mx-0 desktop:order-none";
 /** The pet card's photos on the kit's `PhotoSlider` (`hero`); the first is the one priority image. */
 export function DetailPhotoGallery({
   photos,
+  name,
   altFallback,
   slot,
   organisationWord,
 }: {
   photos: readonly AnimalPhoto[];
-  /** «{name} – {noun} шукає дім, {city}» (`animalSeoSubject`): used when a photo's own `alt` is unset. */
+  name: string;
+  /** «{name} – {noun} шукає дім, {city}» (`animalSeoSubject`): the first photo's alt when it has none of its own. */
   altFallback: string;
   /** Its place on the sheet's desktop grid: the columns it spans («1-4») and their classes. */
   slot?: { columns: string; className: string } | null;
@@ -43,9 +46,10 @@ export function DetailPhotoGallery({
   return (
     <div data-columns={slot?.columns} className={`${BLEED} relative ${slot?.className ?? ""}`}>
       <PhotoSlider
-        photos={photos.map((photo) => ({
+        photos={photos.map((photo, index) => ({
           src: photo.storageKey,
-          alt: photo.alt?.uk ?? altFallback,
+          // Same alt on every slide reads as one photo repeated; later ones say their place.
+          alt: photo.alt?.uk ?? (index === 0 ? altFallback : animalPhotoAlt(name, index + 1)),
         }))}
         sizes="(max-width: 599px) 100vw, (max-width: 1023px) 640px, 300px"
         label={uk.detail.photoGalleryLabel}
