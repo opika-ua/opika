@@ -14,10 +14,10 @@ describe("runRoundTripsSmoke against the local database", () => {
   });
   afterAll(async () => cleanup?.());
 
-  it("passes every check, and there are 5", async () => {
+  it("passes every check, and there are 6", async () => {
     const outcomes = await runRoundTripsSmoke(db);
     expect(outcomes.filter((o) => !o.ok)).toEqual([]);
-    expect(outcomes).toHaveLength(5);
+    expect(outcomes).toHaveLength(6);
   });
 
   /**

@@ -1,3 +1,4 @@
+import { isRealPhotoKey, r2PublicUrl } from "@opika/db/image-pipeline";
 import type { AnimalSpecies } from "@opika/domain";
 import { GALLERY_PATH } from "../features/chrome/gallery-path";
 import { PRIVACY_PATH } from "../features/chrome/privacy-path";
@@ -6,7 +7,13 @@ import { speciesPagePath, speciesWithPages } from "../features/gallery/species-p
 import { SHELTERS_INDEX_PATH } from "../features/shelters/shelters-index-path";
 import { absoluteUrl } from "./json-ld-builders";
 
-export type SitemapEntry = { readonly url: string; readonly lastModified?: Date };
+/** A page entry, or an animal page with its photos (`<image:image>`); never an empty image list. */
+export type SitemapEntry = PageSitemapEntry | ImageSitemapEntry;
+type PageSitemapEntry = { readonly url: string; readonly lastModified?: Date };
+type ImageSitemapEntry = {
+  readonly url: string;
+  readonly images: readonly [string, ...string[]];
+};
 
 /** The sitemap protocol allows 50,000 URLs per file. */
 export const SITEMAP_URL_LIMIT = 50_000;
@@ -15,13 +22,35 @@ export const SITEMAP_URL_LIMIT = 50_000;
 export const STATIC_SITEMAP_PATHS = [GALLERY_PATH, "/pro", "/prytulkam", PRIVACY_PATH] as const;
 
 export type SitemapSource = {
-  /** Every public animal, in the gallery's order: ids with their shelter ids (one read, not a page loop). */
-  readonly animals: () => Promise<readonly { readonly id: string; readonly shelterId: string }[]>;
+  /** Every public animal, in the gallery's order: ids, shelter ids and stored photos (one read, not a page loop). */
+  readonly animals: () => Promise<readonly SitemapAnimal[]>;
   /** The cities with a landing page (SEO B3), each with its newest indexable animal's update. */
   readonly cities: () => Promise<readonly { readonly slug: string; readonly lastModified: Date }[]>;
   /** `gallery.facetCounts`' `indexableBySpecies`, unfiltered: the species pages' threshold. */
   readonly speciesCounts: () => Promise<Readonly<Record<AnimalSpecies, number>>>;
+  /** `NEXT_PUBLIC_R2_PUBLIC_BASE_URL`, the base the gallery's own photo URLs use. */
+  readonly photoBaseUrl: string | undefined;
 };
+
+export type SitemapAnimal = {
+  readonly id: string;
+  readonly shelterId: string;
+  readonly photos: readonly { readonly storageKey: string }[];
+};
+
+/**
+ * The `detail` WebP of each real photo, in stored order. Seed keys have no R2 object, so they are
+ * left out; without a base URL there is nothing to point at, and the page entries still ship.
+ */
+function animalImageUrls(
+  photos: SitemapAnimal["photos"],
+  photoBaseUrl: string | undefined,
+): readonly string[] {
+  if (!photoBaseUrl) return [];
+  return photos
+    .filter((photo) => isRealPhotoKey(photo.storageKey))
+    .map((photo) => r2PublicUrl(photoBaseUrl, photo.storageKey, "detail", "webp"));
+}
 
 /**
  * Empty while the site is not discoverable: no source is read at all. Shelter
@@ -44,9 +73,11 @@ export async function buildSitemapEntries(
   const paths = new Set<string>(STATIC_SITEMAP_PATHS);
   if (animals.length > 0) paths.add(SHELTERS_INDEX_PATH);
   const shelterPaths = new Set<string>();
-  const animalPaths: string[] = [];
+  const animalEntries: SitemapEntry[] = [];
   for (const item of animals) {
-    animalPaths.push(`/tvaryny/${item.id}`);
+    const url = absoluteUrl(`/tvaryny/${item.id}`);
+    const [first, ...rest] = animalImageUrls(item.photos, source.photoBaseUrl);
+    animalEntries.push(first === undefined ? { url } : { url, images: [first, ...rest] });
     shelterPaths.add(`/prytulky/${item.shelterId}`);
   }
   const cityEntries: SitemapEntry[] = cities.map((city) => ({
@@ -60,7 +91,8 @@ export async function buildSitemapEntries(
     ...[...paths].map((path) => ({ url: absoluteUrl(path) })),
     ...speciesEntries,
     ...cityEntries,
-    ...[...shelterPaths, ...animalPaths].map((path) => ({ url: absoluteUrl(path) })),
+    ...[...shelterPaths].map((path) => ({ url: absoluteUrl(path) })),
+    ...animalEntries,
   ];
   return all.slice(0, SITEMAP_URL_LIMIT);
 }

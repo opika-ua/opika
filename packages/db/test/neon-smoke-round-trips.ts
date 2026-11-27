@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { type CityId, EVERYONE_SCOPE, MAX_GALLERY_NAVIGABLE_ROWS, NO_FILTERS } from "@opika/domain";
 import { and, count } from "drizzle-orm";
 import type { Database } from "../src/client";
@@ -18,8 +19,8 @@ const NOW = new Date();
  * Round-trip PR: the statements that read a card's animal, shelter and city together (JOINs, a
  * nested select whose joined object is null when the row is absent) and the sitemap's single
  * read, through neon-http. `neon-smoke.ts` calls this from `main`; no earlier step is edited.
- * Fixtures: two cities, a verified shelter, a published animal at the shelter's city, a fostered
- * one in the other city and a draft, so every count is exact on a child branch of production.
+ * Fixtures: two cities, a verified shelter, a published animal (with two photos) at the shelter's
+ * city, a fostered one in the other city and a draft, so every count is exact on a child branch.
  * Rows stay on the child branch, which is thrown away; use a fresh one.
  */
 export async function runRoundTripsSmoke(db: Database): Promise<Outcome[]> {
@@ -39,7 +40,17 @@ export async function runRoundTripsSmoke(db: Database): Promise<Outcome[]> {
     },
   });
   await shelterRepo(db).insert(shelter);
-  const atHome = makeAnimal({ shelterId: shelter.id, name: "Смоук вдома" });
+  // Two photos, so the image sitemap's jsonb read is checked whole and in order over neon-http.
+  const homePhotos = [
+    {
+      storageKey: `smoke/${randomUUID()}/b`,
+      width: 1600,
+      height: 2000,
+      alt: { uk: "Смоук", en: null },
+    },
+    { storageKey: `smoke/${randomUUID()}/a`, width: 1200, height: 1500, alt: null },
+  ];
+  const atHome = makeAnimal({ shelterId: shelter.id, name: "Смоук вдома", photos: homePhotos });
   const fostered = makeAnimal({
     shelterId: shelter.id,
     name: "Смоук тимчасова",
@@ -141,6 +152,32 @@ export async function runRoundTripsSmoke(db: Database): Promise<Outcome[]> {
       !ids.has(draft.id) &&
       (!fits || (ids.has(atHome.id) && ids.has(fostered.id))),
     `${sitemap.length} rows of ${indexable} public at verified shelters`,
+  );
+
+  // Read-only: the image sitemap's variant is the same statement with `photos` added.
+  const withPhotos = await galleryRepo(db).sitemapRowsWithPhotos({ now: NOW });
+  const sameRows =
+    withPhotos.length === sitemap.length &&
+    withPhotos.every(
+      (row, i) => row.id === sitemap[i]?.id && row.shelterId === sitemap[i]?.shelterId,
+    );
+  const photoShaped = withPhotos.every(
+    (row) =>
+      Array.isArray(row.photos) &&
+      row.photos.every(
+        (photo) =>
+          typeof photo.storageKey === "string" &&
+          Number.isInteger(photo.width) &&
+          Number.isInteger(photo.height),
+      ),
+  );
+  const homeRow = withPhotos.find((row) => row.id === atHome.id);
+  // jsonb reorders object keys, so a deep compare, never a string one.
+  const roundTrip = isDeepStrictEqual(homeRow?.photos, homePhotos);
+  check(
+    "sitemapRowsWithPhotos: the sitemapRows rows in the same order, each with its photos array (jsonb) read back whole and in order",
+    sameRows && photoShaped && (!fits || roundTrip),
+    `${withPhotos.length} rows, same ${sameRows}, shaped ${photoShaped}, fixture photos ${homeRow ? roundTrip : "not listed"}`,
   );
   return out;
 }
