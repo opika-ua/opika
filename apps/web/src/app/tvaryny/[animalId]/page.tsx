@@ -1,5 +1,4 @@
 import type { AnimalDetailView } from "@opika/contracts";
-import { textIn } from "@opika/domain";
 import { fillTemplate, forOrganisation, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -18,7 +17,13 @@ import { JsonLd } from "../../../seo/json-ld";
 import { animalBreadcrumbs } from "../../../seo/json-ld-builders";
 import { seoMetadata, withSite } from "../../../seo/page-metadata";
 import { REGISTRY_HAS_NO_REAL_SHELTERS, SITE_IS_PUBLICLY_DISCOVERABLE } from "../../../seo-flags";
-import { animalSeoSubject, fitTitle, truncateDescription } from "../../../seo-text";
+import {
+  animalSeoFacts,
+  animalSeoSubject,
+  fitTitle,
+  truncateDescription,
+  withoutTrailingPeriod,
+} from "../../../seo-text";
 
 /**
  * Same reasoning as `../page.tsx` and `../../page.tsx`: prerendering at
@@ -138,34 +143,28 @@ export function animalMetadataOf(load: AnimalPageLoad): Metadata {
   };
 }
 
-/** The story's first sentence, whitespace collapsed; the whole text when it has no sentence end. */
-export function firstSentenceOf(text: string): string {
-  const normalized = text.replace(/\s+/g, " ").trim();
-  return /^.*?[.!?…](?=\s|$)/u.exec(normalized)?.[0] ?? normalized;
-}
-
 /**
- * Handoff B2's title and description for the animal page, in the effective city (its own, or the
- * shelter's); a city that doesn't resolve takes the owner's no-city pair (2026-11-18). The title
- * drops « – Opika» past 60 characters (`fitTitle`); the description stays under 155 with «…»
- * (`truncateDescription`) and, with no story, ends after the shelter.
+ * The animal page's title and description, in the effective city (its own, or the shelter's); a
+ * city that doesn't resolve takes the owner's no-city pair (2026-11-18). The title drops
+ * « – Opika» past 60 characters (`fitTitle`). The description is built from card fields only,
+ * never the shelter's story (a story can carry a phone number), under 155 with «…».
  */
 export function animalSeoText(
-  animal: Pick<AnimalDetailView, "name" | "species" | "sex" | "ageBucket" | "description">,
+  animal: Pick<AnimalDetailView, "name" | "species" | "sex" | "ageBucket" | "ageSpan" | "size">,
   shelterName: string,
   cityName: string | null,
 ): { title: string; description: string } {
   const t = uk.seo.animal;
   const values = {
     name: animal.name,
-    shelter: shelterName,
-    story: firstSentenceOf(textIn(animal.description, "uk")),
+    facts: animalSeoFacts(animal),
+    shelter: withoutTrailingPeriod(shelterName),
   };
   const subject = animalSeoSubject(animal, cityName);
   const description =
     cityName === null
       ? fillTemplate(t.descriptionNoCity, values)
-      : fillTemplate(t.description, { ...values, city: cityName });
+      : fillTemplate(t.description, { ...values, city: withoutTrailingPeriod(cityName) });
   return {
     title: fitTitle(withSite(uk.seo.titleWithSite, { title: subject }), subject),
     description: truncateDescription(description),

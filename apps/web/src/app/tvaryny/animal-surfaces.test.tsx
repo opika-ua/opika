@@ -89,11 +89,11 @@ describe("the full page", () => {
       });
     });
 
-    it("the description is the name, the city, the shelter and the story's first sentence", async () => {
+    it("the description is the name, the card traits, the city and the shelter, never the story", async () => {
       current = stubAnimalPageClient();
       const { description } = await generateMetadata({ params });
       expect(description).toMatch(
-        /^Мурчик шукає дім\. Бровари · .+\. Лагідний кіт, любить сидіти на підвіконні\.$/u,
+        /^Мурчик – кіт, хлопчик, молодий, малий\. Шукає дім – Бровари\. .+\.$/u,
       );
     });
 
@@ -107,7 +107,7 @@ describe("the full page", () => {
       const metadata = await generateMetadata({ params });
       expect(metadata.title).toEqual({ absolute: "Мурчик – кіт шукає дім – Opika" });
       expect(metadata.description).toMatch(
-        /^Мурчик шукає дім\. [^·]+\. Лагідний кіт, любить сидіти на підвіконні\.$/u,
+        /^Мурчик – кіт, хлопчик, молодий, малий\. Шукає дім\. .+\.$/u,
       );
       expect(metadata.openGraph).toMatchObject({ title: "Мурчик – кіт шукає дім – Opika" });
     });

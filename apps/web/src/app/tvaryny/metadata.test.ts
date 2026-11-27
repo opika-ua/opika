@@ -39,4 +39,21 @@ describe("the gallery's own metadata (SEO handoff B2)", () => {
     );
     expect(galleryCanonicalOf({ kind: "redirect", href: "/?misto=kyiv" })).toBe("/");
   });
+
+  it("page 1 carries no page suffix", () => {
+    expect(galleryMetadataOf("/", 1).title).toEqual({ absolute: TITLE });
+  });
+});
+
+describe("the paginated gallery's head (page 2)", () => {
+  it("title, description, canonical, Open Graph and Twitter in full", () => {
+    const title = "Взяти собаку чи кота з притулку – сторінка 2 – Opika";
+    const metadata = galleryMetadataOf("/?stor=2", 2);
+    expect(Array.from(title).length).toBeLessThanOrEqual(60);
+    expect(metadata.title).toEqual({ absolute: title });
+    expect(metadata.description).toBe(DESCRIPTION);
+    expect(metadata.alternates?.canonical).toBe("/?stor=2");
+    expect(metadata.openGraph).toMatchObject({ title, description: DESCRIPTION });
+    expect(metadata.twitter).toMatchObject({ title, description: DESCRIPTION });
+  });
 });

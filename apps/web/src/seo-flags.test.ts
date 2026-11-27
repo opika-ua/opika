@@ -406,7 +406,7 @@ describe("/tvaryny/misto/{slug} – handoff B2's city description, the demo disc
     [true, DEMO_BANNER_NOTICE],
     [
       false,
-      "Собаки з притулків і від волонтерів шукають дім – Бровари. Напишіть напряму, контакти – на картці.",
+      "Собаки в добрі руки з притулків і від волонтерів – Бровари. Напишіть напряму, контакти – на картці.",
     ],
   ])("REGISTRY_HAS_NO_REAL_SHELTERS=%s", async (registryHasNoRealShelters, description) => {
     vi.resetModules();
@@ -427,8 +427,7 @@ describe("/tvaryny/misto/{slug} – handoff B2's city description, the demo disc
  * `/tvaryny/[animalId]` at all - Next does not merge a route's own
  * `generateMetadata` with the root layout's, it overrides it, and this
  * route builds its own `description`/`openGraph.description` from the
- * animal's own data (SEO handoff B2: name, city, shelter name and the
- * story's first sentence; `animalSeoText`'s own test in
+ * animal's own data (SEO handoff B2: name, card traits, city and shelter name; `animalSeoText`'s own test in
  * `[animalId]/animal-seo-text.test.ts` covers that formatting in detail). Without its own demo swap this route would preview a fictional
  * animal with no demo-data disclosure - exactly the shared-link surface
  * `/prytulkam` tells shelters they can paste into Telegram, so the one
@@ -447,6 +446,7 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS – /tvaryny/[animalId] link-preview des
     sex: "male",
     ageBucket: "adult",
     size: "medium",
+    ageSpan: null,
     description: { uk: "Лагідний кіт.", en: null },
     photos: [],
     publicLocation: null,
@@ -456,7 +456,8 @@ describe("REGISTRY_HAS_NO_REAL_SHELTERS – /tvaryny/[animalId] link-preview des
       publicLocation: { cityId: CITY_ID },
     },
   };
-  const REAL_DESCRIPTION = "Мурчик шукає дім. Бровари · Добрі лапи. Лагідний кіт.";
+  const REAL_DESCRIPTION =
+    "Мурчик – кіт, хлопчик, дорослий, середній. Шукає дім – Бровари. Добрі лапи.";
 
   beforeEach(() => {
     vi.resetModules();

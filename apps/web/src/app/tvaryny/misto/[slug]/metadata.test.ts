@@ -18,32 +18,54 @@ const city = (name: string, slug = "brovary-kyivska"): CityLabelView =>
 const loaded = (species: readonly AnimalSpecies[], name = "Бровари") =>
   ({ kind: "city", city: city(name), species }) as const;
 
-describe("citySeoText: handoff B2's city row", () => {
+describe("citySeoText: the city row (variant B)", () => {
   it.each([
-    [["dog"], "Собаки в добрі руки – Бровари – Opika", "Собаки з притулків"],
-    [["cat"], "Коти в добрі руки – Бровари – Opika", "Коти з притулків"],
-    [["dog", "cat"], "Собаки й коти в добрі руки – Бровари – Opika", "Собаки й коти з притулків"],
+    [
+      ["dog"],
+      "Взяти собаку з притулку – Бровари – Opika",
+      "Собаки в добрі руки з притулків і від волонтерів – Бровари. Напишіть напряму, контакти – на картці.",
+    ],
+    [
+      ["cat"],
+      "Взяти кота з притулку – Бровари – Opika",
+      "Коти в добрі руки з притулків і від волонтерів – Бровари. Напишіть напряму, контакти – на картці.",
+    ],
+    [
+      ["dog", "cat"],
+      "Взяти собаку чи кота з притулку – Бровари – Opika",
+      "Собаки й коти в добрі руки з притулків і від волонтерів – Бровари. Напишіть напряму, контакти – на картці.",
+    ],
   ] as const)(
-    "%j: the species phrase leads the title and the description",
-    (species, title, lead) => {
+    "%j: the species decides the title and the description",
+    (species, title, description) => {
       const metadata = cityPageMetadataOf(loaded(species), 1);
       expect(metadata.title).toEqual({ absolute: title });
-      expect(metadata.description).toBe(
-        `${lead} і від волонтерів шукають дім – Бровари. Напишіть напряму, контакти – на картці.`,
-      );
+      expect(metadata.description).toBe(description);
     },
   );
 
   it("drops « – Opika» only when the title would pass 60 characters", () => {
-    const short = citySeoText("Бровари", { kind: "listed", key: "dogsAndCats" }).title;
+    const both = { kind: "listed", key: "dogsAndCats" } as const;
+    const short = citySeoText("Бровари", both).title;
     expect(short.endsWith(" – Opika")).toBe(true);
     expect(Array.from(short).length).toBeLessThanOrEqual(60);
 
-    // 29 characters of subject before the city: a 24-character name passes 60 only with the suffix.
-    const longName = "Олександрівка-Покровська";
-    const long = citySeoText(longName, { kind: "listed", key: "dogsAndCats" }).title;
-    expect(long).toBe(`Собаки й коти в добрі руки – ${longName}`);
+    // «Взяти собаку чи кота з притулку – » is 34 characters: a 20-character city passes 60 only with the suffix.
+    const longName = "Олександрівка-Покров";
+    const long = citySeoText(longName, both).title;
+    expect(long).toBe(`Взяти собаку чи кота з притулку – ${longName}`);
     expect(Array.from(`${long} – Opika`).length).toBeGreaterThan(60);
+  });
+
+  it("a label ending in «обл.» ends its sentence with one period, not two", () => {
+    const { description } = citySeoText("Вишневе, Чернівецька обл.", {
+      kind: "listed",
+      key: "dogs",
+    });
+    expect(description).toBe(
+      "Собаки в добрі руки з притулків і від волонтерів – Вишневе, Чернівецька обл. Напишіть напряму, контакти – на картці.",
+    );
+    expect(description).not.toContain("..");
   });
 
   it("a long description is cut at a word under 155 characters, ending in «…»", () => {
@@ -52,18 +74,42 @@ describe("citySeoText: handoff B2's city row", () => {
     expect(Array.from(description).length).toBeLessThan(155);
     expect(description.endsWith("…")).toBe(true);
   });
+});
 
-  it("the link preview and the Twitter card carry the same strings", () => {
+describe("the city page's head, page 1 and page 2", () => {
+  it("page 1: title, description, canonical, Open Graph and Twitter in full", () => {
+    const title = "Взяти кота з притулку – Бровари – Opika";
+    const description =
+      "Коти в добрі руки з притулків і від волонтерів – Бровари. Напишіть напряму, контакти – на картці.";
     const metadata = cityPageMetadataOf(loaded(["cat"]), 1);
+    expect(metadata.title).toEqual({ absolute: title });
+    expect(metadata.description).toBe(description);
+    expect(metadata.alternates?.canonical).toBe("/tvaryny/misto/brovary-kyivska");
     expect(metadata.openGraph).toMatchObject({
-      title: "Коти в добрі руки – Бровари – Opika",
-      description: metadata.description,
+      title,
+      description,
       siteName: "Opika",
       locale: "uk_UA",
     });
-    expect(metadata.twitter).toMatchObject({
-      title: "Коти в добрі руки – Бровари – Opika",
-      description: metadata.description,
+    expect(metadata.twitter).toMatchObject({ title, description });
+  });
+
+  it("page 2: «– сторінка 2» before the site name, the same description, a self-referencing canonical", () => {
+    const title = "Взяти кота з притулку – Бровари – сторінка 2 – Opika";
+    const description =
+      "Коти в добрі руки з притулків і від волонтерів – Бровари. Напишіть напряму, контакти – на картці.";
+    const metadata = cityPageMetadataOf(loaded(["cat"]), 2);
+    expect(metadata.title).toEqual({ absolute: title });
+    expect(metadata.description).toBe(description);
+    expect(metadata.alternates?.canonical).toBe("/tvaryny/misto/brovary-kyivska?stor=2");
+    expect(metadata.openGraph).toMatchObject({ title, description });
+    expect(metadata.twitter).toMatchObject({ title, description });
+  });
+
+  it("a long page-2 title drops the site name first and keeps the page", () => {
+    const title = cityPageMetadataOf(loaded(["dog", "cat"], "Олександрівка-Покров"), 3).title;
+    expect(title).toEqual({
+      absolute: "Взяти собаку чи кота з притулку – Олександрівка-Покров – сторінка 3",
     });
   });
 });

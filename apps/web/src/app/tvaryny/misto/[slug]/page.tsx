@@ -16,9 +16,13 @@ import {
   type SearchParams,
   withQuery,
 } from "../../../../features/gallery/filter-url";
-import { seoMetadata, withSite } from "../../../../seo/page-metadata";
+import { pagedTitle, seoMetadata } from "../../../../seo/page-metadata";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../../../seo-flags";
-import { fitTitle, LINK_PREVIEW_DESCRIPTION, truncateDescription } from "../../../../seo-text";
+import {
+  LINK_PREVIEW_DESCRIPTION,
+  truncateDescription,
+  withoutTrailingPeriod,
+} from "../../../../seo-text";
 import { renderGallery } from "../../page";
 
 /** Live listing data, like `/tvaryny`: prerendering would bake in a stale snapshot. */
@@ -77,7 +81,11 @@ export async function generateMetadata({
 export function cityPageMetadataOf(load: CityPageLoad, page: number): Metadata {
   if (load.kind === "rate_limited") return { robots: { index: false, follow: false } };
   if (load.kind !== "city") return {};
-  const { title, description } = citySeoText(placeName(load.city), speciesPhrase(load.species));
+  const { title, description } = citySeoText(
+    placeName(load.city),
+    speciesPhrase(load.species),
+    page,
+  );
   return {
     ...seoMetadata(title, description),
     alternates: { canonical: cityPageCanonicalPath(load.city.slug, page) },
@@ -88,6 +96,7 @@ export function cityPageMetadataOf(load: CityPageLoad, page: number): Metadata {
 export function citySeoText(
   cityName: string,
   phrase: SpeciesPhrase,
+  page = 1,
 ): { title: string; description: string } {
   // A page exists only with a listed animal, so `none` cannot reach here; the heading stands in.
   if (phrase.kind === "none") {
@@ -96,10 +105,15 @@ export function citySeoText(
       description: LINK_PREVIEW_DESCRIPTION,
     };
   }
-  const species = uk.seo.speciesPhrase.capitalised[phrase.key];
-  const subject = fillTemplate(uk.seo.city.title, { species, city: cityName });
-  const title = fitTitle(withSite(uk.seo.titleWithSite, { title: subject }), subject);
+  const subject = fillTemplate(uk.seo.city.title, {
+    species: uk.seo.speciesPhrase.accusative[phrase.key],
+    city: cityName,
+  });
+  const title = pagedTitle(subject, page);
   if (REGISTRY_HAS_NO_REAL_SHELTERS) return { title, description: uk.demo.bannerNotice };
-  const description = fillTemplate(uk.seo.city.description, { species, city: cityName });
+  const description = fillTemplate(uk.seo.city.description, {
+    species: uk.seo.speciesPhrase.capitalised[phrase.key],
+    city: withoutTrailingPeriod(cityName),
+  });
   return { title, description: truncateDescription(description) };
 }

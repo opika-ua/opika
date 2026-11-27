@@ -2267,6 +2267,7 @@ export const en = {
   /** Page titles and meta descriptions; see the Ukrainian catalogue. */
   seo: {
     titleWithSite: "{title} – {site}",
+    pageSuffix: "{title} – page {page}",
     nouns: {
       puppy: "puppy",
       dog: "dog",
@@ -2277,17 +2278,18 @@ export const en = {
     speciesPhrase: {
       lower: { dogs: "dogs", cats: "cats", dogsAndCats: "dogs and cats" },
       capitalised: { dogs: "Dogs", cats: "Cats", dogsAndCats: "Dogs and cats" },
+      accusative: { dogs: "a dog", cats: "a cat", dogsAndCats: "a dog or a cat" },
     },
     gallery: {
-      title: "Adopt a dog or a cat from a shelter – {site}",
+      title: "Adopt a dog or a cat from a shelter",
       description:
         "Dogs and cats from shelters across Ukraine are looking for a home. Choose a city, age and size, and write to the shelter directly.",
     },
     animal: {
       title: "{name} – a {noun} looking for a home, {city}",
-      description: "{name} is looking for a home. {city} · {shelter}. {story}",
+      description: "{name} – {facts}. Looking for a home – {city}. {shelter}.",
       titleNoCity: "{name} – a {noun} looking for a home",
-      descriptionNoCity: "{name} is looking for a home. {shelter}. {story}",
+      descriptionNoCity: "{name} – {facts}. Looking for a home. {shelter}.",
     },
     shelter: {
       title: "{shelter} – animals looking for a home, {city}",
@@ -2302,9 +2304,9 @@ export const en = {
         "List the animals of your shelter or initiative on {site} for free, with no ads and no fees. Signing up takes 3 minutes.",
     },
     city: {
-      title: "{species} for adoption – {city}",
+      title: "Adopt {species} from a shelter – {city}",
       description:
-        "{species} from shelters and volunteers looking for a home – {city}. Write directly, the contacts are on the card.",
+        "{species} for a good home from shelters and volunteers – {city}. Write directly, the contacts are on the card.",
     },
     about: {
       title: "About {site} – a site where shelter animals look for a home",

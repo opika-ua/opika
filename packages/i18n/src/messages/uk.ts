@@ -2601,6 +2601,8 @@ export const uk = {
   seo: {
     /** A title that ends with the brand; a long dynamic one drops this suffix first. */
     titleWithSite: "{title} – {site}",
+    /** A paged list's title: the page number goes before the site name. */
+    pageSuffix: "{title} – сторінка {page}",
     nouns: {
       puppy: "цуценя",
       dog: "собака",
@@ -2611,20 +2613,23 @@ export const uk = {
     speciesPhrase: {
       lower: { dogs: "собаки", cats: "коти", dogsAndCats: "собаки й коти" },
       capitalised: { dogs: "Собаки", cats: "Коти", dogsAndCats: "Собаки й коти" },
+      /** After «Взяти», for the city title. */
+      accusative: { dogs: "собаку", cats: "кота", dogsAndCats: "собаку чи кота" },
     },
     gallery: {
-      title: "Взяти собаку чи кота з притулку – {site}",
+      /** Before `titleWithSite`. */
+      title: "Взяти собаку чи кота з притулку",
       description:
         "Собаки й коти з притулків України шукають дім. Оберіть місто, вік і розмір та напишіть притулку напряму.",
     },
     animal: {
       /** Before `titleWithSite`. */
       title: "{name} – {noun} шукає дім, {city}",
-      /** `{story}`: the first sentence of the animal's story, trimmed. */
-      description: "{name} шукає дім. {city} · {shelter}. {story}",
+      /** Card fields only, never the story. `{facts}`: noun, then the recorded sex, age, size. */
+      description: "{name} – {facts}. Шукає дім – {city}. {shelter}.",
       /** When the animal's city doesn't resolve (owner, 2026-11-18). Before `titleWithSite`. */
       titleNoCity: "{name} – {noun} шукає дім",
-      descriptionNoCity: "{name} шукає дім. {shelter}. {story}",
+      descriptionNoCity: "{name} – {facts}. Шукає дім. {shelter}.",
     },
     shelter: {
       /** Before `titleWithSite`. */
@@ -2641,10 +2646,11 @@ export const uk = {
         "Розмістіть тварин свого притулку чи ініціативи на {site} безкоштовно, без реклами й комісій. Реєстрація – 3 хвилини.",
     },
     city: {
-      /** Before `titleWithSite`; `{species}` is the capitalised species phrase. */
-      title: "{species} в добрі руки – {city}",
+      /** Before `titleWithSite`; `{species}` is the accusative phrase. */
+      title: "Взяти {species} з притулку – {city}",
+      /** `{species}` is the capitalised nominative phrase. */
       description:
-        "{species} з притулків і від волонтерів шукають дім – {city}. Напишіть напряму, контакти – на картці.",
+        "{species} в добрі руки з притулків і від волонтерів – {city}. Напишіть напряму, контакти – на картці.",
     },
     about: {
       title: "Про {site} – сайт, де тварини з притулків шукають дім",
