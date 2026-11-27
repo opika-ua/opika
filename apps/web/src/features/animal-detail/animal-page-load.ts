@@ -21,8 +21,8 @@ export interface AnimalPageView {
   cityName: string | null;
   /** The place as a meta line prints it («м. Бровари», «с. Миколаївка, Березівський р-н, Одеська обл.»). */
   cityPlace: string | null;
-  /** The city's landing page when it has one (an absent field reads as none); the breadcrumb and the link use it. */
-  cityPagePath?: string | null;
+  /** The city's landing page when it has one, else null; the breadcrumb and the link use it. */
+  cityPagePath: string | null;
   backToGalleryHref: string;
 }
 

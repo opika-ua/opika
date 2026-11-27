@@ -23,6 +23,7 @@ const animalLoad = (
     cityName: "Бровари",
     cityPlace: "м. Бровари",
     backToGalleryHref: "/",
+    cityPagePath: null,
   },
 });
 
