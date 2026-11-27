@@ -100,10 +100,7 @@ export function cityPageMetadataOf(load: CityPageLoad, page: number): Metadata {
     speciesPhrase(load.species),
     page,
   );
-  return {
-    ...seoMetadata(title, description),
-    alternates: { canonical: cityPageCanonicalPath(load.city.slug, page) },
-  };
+  return seoMetadata(title, description, cityPageCanonicalPath(load.city.slug, page));
 }
 
 /** Exported for its table test: handoff B2's city row, before the metadata shape. */

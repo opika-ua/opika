@@ -17,7 +17,7 @@ import { loadShelterPage } from "../../../../features/shelters/shelter-page-load
 import { buildSitemapEntries } from "../../../../seo/sitemap-entries";
 import { renderShelterPage } from "../../../prytulky/[shelterId]/page";
 import { galleryCanonicalOf, readGallery, renderGallery } from "../../page";
-import Page from "./page";
+import Page, { renderSpeciesPage } from "./page";
 
 let h: TestHarness;
 
@@ -120,6 +120,22 @@ describe("/tvaryny/vyd/{slug}: a page only with enough indexable animals", () =>
       </WithMockRouter>,
     );
     expect(screen.getByRole("heading", { level: 1, name: "Собаки шукають дім" })).toBeTruthy();
+  });
+
+  it("carries a BreadcrumbList: gallery, then the species page under its own heading", async () => {
+    await kyivWithDogs(SPECIES_PAGE_MIN_ANIMALS);
+    const reads = await readGallery(client(), {}, { species: "dog" });
+    const { container } = render(
+      <WithMockRouter>{await renderSpeciesPage(client(), "dog", {}, false, reads)}</WithMockRouter>,
+    );
+    const lists = [...container.querySelectorAll('script[type="application/ld+json"]')]
+      .map((script) => JSON.parse(script.textContent ?? ""))
+      .filter((entry) => entry["@type"] === "BreadcrumbList");
+    expect(lists).toHaveLength(1);
+    const items: { position: number; name: string; item: string }[] = lists[0].itemListElement;
+    expect(items.map((i) => i.position)).toEqual([1, 2]);
+    expect(items.map((i) => new URL(i.item).pathname)).toEqual(["/", "/tvaryny/vyd/sobaky"]);
+    expect(items[1]?.name).toBe("Собаки шукають дім");
   });
 
   it("an unknown slug is a 404 before anything is read", async () => {

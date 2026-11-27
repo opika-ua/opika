@@ -4,6 +4,7 @@ import {
   SHELTER_ID,
   stubShelterPageClient,
 } from "../../../features/shelters/test-fixtures";
+import { expectOgUrlIsCanonical } from "../../../seo/og-url-assert";
 
 /**
  * `generateMetadata` (unlike `loadShelterPage`, which every other test in this
@@ -48,6 +49,14 @@ describe("the shelter page's metadata (PR B, the SEO review of page titles)", ()
     expect(
       (await generateMetadata({ params, searchParams: withQuery })).alternates?.canonical,
     ).toBe(`/prytulky/${SHELTER_ID}`);
+  });
+
+  it("og:url is the bare shelter URL, absolute, whatever the query", async () => {
+    const withQuery = Promise.resolve({ sort: "longest_waiting", page: "2" });
+    expectOgUrlIsCanonical(
+      await generateMetadata({ params, searchParams: withQuery }),
+      `/prytulky/${SHELTER_ID}`,
+    );
   });
 
   it("openGraph carries the same title as the page", async () => {

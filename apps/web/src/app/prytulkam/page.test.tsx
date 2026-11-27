@@ -1,6 +1,7 @@
 import { uk } from "@opika/i18n";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { expectOgUrlIsCanonical } from "../../seo/og-url-assert";
 import { forSheltersMetadata, renderForSheltersPage, whatToPrepareFor } from "./page";
 
 const OFF = { selfRegistration: false };
@@ -34,8 +35,8 @@ describe("«Для притулків»", () => {
   });
 
   it("sets its own canonical (PR B, the SEO review of page titles)", () => {
-    expect(forSheltersMetadata(false).alternates?.canonical).toBe("/prytulkam");
-    expect(forSheltersMetadata(true).alternates?.canonical).toBe("/prytulkam");
+    expectOgUrlIsCanonical(forSheltersMetadata(false), "/prytulkam");
+    expectOgUrlIsCanonical(forSheltersMetadata(true), "/prytulkam");
   });
 });
 

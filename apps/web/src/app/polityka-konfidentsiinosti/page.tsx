@@ -5,7 +5,6 @@ import type { ReactNode } from "react";
 import { OPERATOR_CONTACT, WORDMARK } from "../../brand";
 import { ContentPageLayout } from "../../features/chrome/ContentPageLayout";
 import { kabinetSessionCookiePresent } from "../../features/chrome/kabinet-signed-in";
-import { PRIVACY_PATH } from "../../features/chrome/privacy-path";
 import { withSlot } from "../../features/chrome/with-slot";
 import { isSelfRegistrationEnabled } from "../../features/registration/flag";
 import { PRIVACY_SEO } from "../../seo/page-metadata";
@@ -18,7 +17,6 @@ export const PRIVACY_POLICY_UPDATED = new Date(Date.UTC(2026, 10, 20));
 
 export const metadata: Metadata = {
   ...PRIVACY_SEO,
-  alternates: { canonical: PRIVACY_PATH },
 };
 
 /** Reads the kabinet cookie for the role-aware header, as /pro and /prytulkam do. */

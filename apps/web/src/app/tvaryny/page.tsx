@@ -92,7 +92,7 @@ export async function generateMetadata({
 
 /** Exported for its test. The title names page 2 onwards; the canonical is the caller's. */
 export function galleryMetadataOf(canonical: string, page = 1): Metadata {
-  return { ...gallerySeo(page), alternates: { canonical } };
+  return gallerySeo(page, canonical);
 }
 
 /** The canonical for what the page read; a former-slug redirect never renders, so it is moot there. */

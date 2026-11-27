@@ -1,6 +1,7 @@
 import type { CityLabelView } from "@opika/contracts";
 import type { AnimalSpecies, CityId } from "@opika/domain";
 import { describe, expect, it } from "vitest";
+import { expectOgUrlIsCanonical } from "../../../../seo/og-url-assert";
 import { cityPageMetadataOf, citySeoText } from "./page";
 
 const city = (name: string, slug = "brovary-kyivska"): CityLabelView =>
@@ -130,5 +131,18 @@ describe("the city page's canonical (owner, 2026-11-18)", () => {
     });
     expect(cityPageMetadataOf({ kind: "not_found" }, 1)).toEqual({});
     expect(cityPageMetadataOf({ kind: "moved", slug: "brovary-kyivska" }, 1)).toEqual({});
+  });
+});
+
+describe("the city page's og:url is its canonical", () => {
+  it("page 1 and page 2 are each their own, absolute", () => {
+    expectOgUrlIsCanonical(
+      cityPageMetadataOf(loaded(["dog"]), 1),
+      "/tvaryny/misto/brovary-kyivska",
+    );
+    expectOgUrlIsCanonical(
+      cityPageMetadataOf(loaded(["dog"]), 2),
+      "/tvaryny/misto/brovary-kyivska?stor=2",
+    );
   });
 });

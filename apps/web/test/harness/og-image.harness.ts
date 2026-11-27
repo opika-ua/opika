@@ -82,6 +82,37 @@ test("every public page type previews with a 1200x630 PNG in og:image and twitte
   }
 });
 
+// og:url once named nothing: it must be the page's own canonical, absolute, on every public page type.
+test("every public page type's og:url is its canonical link, absolute", async ({ page }) => {
+  await openRoute(page, "/", DETAIL_DESKTOP, { readySelector: CARD });
+  const animal = (await page.locator(CARD).first().getAttribute("href")) as string;
+  await page.goto(animal);
+  const shelter = (await page
+    .locator("a[href^='/prytulky/']")
+    .first()
+    .getAttribute("href")) as string;
+
+  for (const route of [
+    "/",
+    "/?stor=2",
+    "/?vyd=dog",
+    "/pro",
+    "/prytulkam",
+    "/prytulky",
+    "/polityka-konfidentsiinosti",
+    "/tvaryny/misto/brovary",
+    "/tvaryny/vyd/sobaky",
+    shelter,
+    animal,
+  ]) {
+    await page.goto(route);
+    const canonical = await page.locator("link[rel='canonical']").getAttribute("href");
+    const ogUrl = await page.locator("meta[property='og:url']").first().getAttribute("content");
+    expect(canonical, route).toMatch(/^https:\/\//);
+    expect(ogUrl, route).toBe(canonical);
+  }
+});
+
 test("the site card renders and an unknown animal falls back to a card, with no cookie", async ({
   playwright,
   baseURL,

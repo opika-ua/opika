@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { expectOgUrlIsCanonical } from "../../seo/og-url-assert";
 import { sheltersIndexMetadataOf } from "./page";
 
 const TITLE = "Притулки для тварин на Opika – перевірені вручну";
@@ -17,6 +18,7 @@ describe("/prytulky's metadata (the owner's approved title and description)", ()
         images: [{ url: "/opengraph-image", width: 1200, height: 630, type: "image/png" }],
         title: TITLE,
         description: DESCRIPTION,
+        url: "https://opika.org.ua/prytulky",
       },
       twitter: {
         card: "summary_large_image",
@@ -26,6 +28,10 @@ describe("/prytulky's metadata (the owner's approved title and description)", ()
       },
       alternates: { canonical: "/prytulky" },
     });
+  });
+
+  it("og:url is the canonical, absolute", () => {
+    expectOgUrlIsCanonical(sheltersIndexMetadataOf({ kind: "index", groups: [] }), "/prytulky");
   });
 
   it("sets no robots of its own, so it is indexable as the site is", () => {

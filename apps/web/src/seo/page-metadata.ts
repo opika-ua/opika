@@ -1,8 +1,10 @@
 import { fillTemplate, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { titled, WORDMARK } from "../brand";
+import { PRIVACY_PATH } from "../features/chrome/privacy-path";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../seo-flags";
 import { fitTitle, LINK_PREVIEW_DESCRIPTION } from "../seo-text";
+import { absoluteUrl } from "./json-ld-builders";
 import { OG_CONTENT_TYPE, OG_SIZE } from "./og-image-size";
 
 /**
@@ -26,17 +28,26 @@ export type PreviewImage = "site" | "segment";
 /**
  * One title and description for the page, its link preview and its Twitter card (handoff B2).
  * `absolute`: these approved titles carry their own brand, so `TITLE_TEMPLATE` must not add one.
+ * `canonical` is the one source of both `<link rel="canonical">` and `og:url` (made absolute here),
+ * so a page cannot name one without the other.
  */
 export function seoMetadata(
   title: string,
   description: string,
+  canonical: string,
   image: PreviewImage = "site",
 ): Metadata {
   const site = image === "site";
   return {
     title: { absolute: title },
     description,
-    openGraph: { ...(site ? OPEN_GRAPH_SITE : OPEN_GRAPH_BASE), title, description },
+    alternates: { canonical },
+    openGraph: {
+      ...(site ? OPEN_GRAPH_SITE : OPEN_GRAPH_BASE),
+      title,
+      description,
+      url: absoluteUrl(canonical),
+    },
     twitter: { ...(site ? TWITTER_CARD : TWITTER_BASE), title, description },
   };
 }
@@ -57,23 +68,24 @@ export function pagedTitle(subject: string, page: number): string {
 }
 
 /** The gallery (`/`) at a page. D-2: while the registry holds no real shelters, the preview keeps the demo disclosure. */
-export function gallerySeo(page: number): Metadata {
+export function gallerySeo(page: number, canonical: string): Metadata {
   return seoMetadata(
     pagedTitle(uk.seo.gallery.title, page),
     REGISTRY_HAS_NO_REAL_SHELTERS ? LINK_PREVIEW_DESCRIPTION : uk.seo.gallery.description,
+    canonical,
   );
 }
-
-export const GALLERY_SEO: Metadata = gallerySeo(1);
 
 /** The privacy policy: its own title through `titled()`, « – Opika». */
 export const PRIVACY_SEO: Metadata = seoMetadata(
   titled(uk.privacy.title),
   uk.seo.privacy.description,
+  PRIVACY_PATH,
 );
 
 /** `/pro`. */
 export const ABOUT_SEO: Metadata = seoMetadata(
   withSite(uk.seo.about.title),
   withSite(uk.seo.about.description),
+  "/pro",
 );

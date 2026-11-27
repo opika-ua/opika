@@ -82,6 +82,21 @@ export function cityBreadcrumbs(galleryName: string, city: CityCrumb): JsonLdObj
   return breadcrumbListJsonLd(galleryTrail(galleryName, city, null));
 }
 
+/** The trail gallery > species page; the species level is the page's own heading, as on a city page. */
+export function speciesTrail(
+  galleryName: string,
+  species: { readonly name: string; readonly path: string },
+): readonly Crumb[] {
+  return [{ name: galleryName, path: GALLERY_PATH }, species];
+}
+
+export function speciesBreadcrumbs(
+  galleryName: string,
+  species: { readonly name: string; readonly path: string },
+): JsonLdObject {
+  return breadcrumbListJsonLd(speciesTrail(galleryName, species));
+}
+
 /**
  * The trail gallery > shelters > shelter. The gallery stays the root, as on the animal and city
  * trails; the shelters level is left out (`sheltersName` null) when `/prytulky` would answer 404.
