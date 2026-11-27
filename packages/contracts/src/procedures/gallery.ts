@@ -183,6 +183,11 @@ export const GalleryFacetCountsOutputSchema = z.object({
   sexes: z.record(AnimalSexSchema, countSchema),
   /** The species switch's own counts (its choice ignored); a shelter page shows the switch only when both are above zero. */
   species: z.record(AnimalSpeciesSchema, countSchema),
+  /**
+   * Listed animals of verified shelters per species, filters and sort ignored: the species pages'
+   * threshold. Required for every species (an enum-keyed record is exhaustive in Zod 4).
+   */
+  indexableBySpecies: z.record(AnimalSpeciesSchema, countSchema),
 });
 export type GalleryFacetCounts = z.infer<typeof GalleryFacetCountsOutputSchema>;
 

@@ -85,6 +85,8 @@ describe("gallery.facetCounts", () => {
       sizes: { small: 1, medium: 0, large: 1 },
       sexes: { male: 1, female: 0, unknown: 0 },
       species: { dog: 1, cat: 1 },
+      // The species pages' threshold: every verified-shelter animal, the dog and size filters ignored.
+      indexableBySpecies: { dog: 2, cat: 1 },
     });
   });
 
@@ -111,6 +113,11 @@ describe("gallery.facetCounts", () => {
     expect(viaHttp.status).toBe(200);
     expect((viaHttp.body as { sizes: unknown }).sizes).toEqual({ small: 0, medium: 0, large: 1 });
     expect(everyone.sizes).toEqual({ small: 2, medium: 0, large: 2 });
+    expect((viaHttp.body as { indexableBySpecies: unknown }).indexableBySpecies).toEqual({
+      dog: 0,
+      cat: 1,
+    });
+    expect(everyone.indexableBySpecies).toEqual({ dog: 2, cat: 2 });
   });
 
   it("gallery.relaxationCounts under a shelter scope counts that shelter's animals only (goes red if the handler drops the scope)", async () => {

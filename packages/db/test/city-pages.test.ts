@@ -201,3 +201,113 @@ describe("galleryRepo.facetCounts' hasPage: the same rule, riding the facet grou
     expect(hasPage).toEqual({ early: false, irpin: true, kyiv: false });
   });
 });
+
+describe("galleryRepo.facetCounts' indexableBySpecies: the species pages' threshold", () => {
+  const facets = (
+    filters: Parameters<ReturnType<typeof galleryRepo>["facetCounts"]>[0]["filters"] = NO_FILTERS,
+    extra: Partial<Parameters<ReturnType<typeof galleryRepo>["facetCounts"]>[0]> = {},
+  ) => galleryRepo(db).facetCounts({ sort: "freshest", filters, now: NOW, ...extra });
+
+  it("counts a verified shelter's listed dogs and cats, fostered or reserved, across cities", async () => {
+    const kyiv = await city("kyiv");
+    const irpin = await city("irpin");
+    const shelter = await shelterIn(kyiv);
+    const reserved = {
+      kind: "reserved",
+      since: daysBefore(1),
+      publishedAt: daysBefore(10),
+      confirmedAt: daysBefore(10),
+      undoable: null,
+    } as const;
+    await animalRepo(db).insertMany([
+      { animal: makeAnimal({ shelterId: shelter, species: "dog" }), cityId: kyiv },
+      { animal: makeAnimal({ shelterId: shelter, species: "dog" }), cityId: irpin },
+      {
+        animal: makeAnimal({ shelterId: shelter, species: "cat", listing: reserved }),
+        cityId: kyiv,
+      },
+    ]);
+
+    expect((await facets()).indexableBySpecies).toEqual({ dog: 2, cat: 1 });
+  });
+
+  it("does not count a shelter under review (early-listed), though its animals are in the gallery", async () => {
+    const kyiv = await city("kyiv");
+    const verified = await shelterIn(kyiv);
+    const underReview = await shelterIn(kyiv, {
+      verification: PENDING,
+      earlyListingSince: daysBefore(3),
+    });
+    await animalRepo(db).insertMany([
+      { animal: makeAnimal({ shelterId: verified, species: "dog" }), cityId: kyiv },
+      { animal: makeAnimal({ shelterId: underReview, species: "dog" }), cityId: kyiv },
+      { animal: makeAnimal({ shelterId: underReview, species: "cat" }), cityId: kyiv },
+    ]);
+
+    const counts = await facets();
+    // The gallery lists all three; only the verified shelter's dog counts towards a species page.
+    expect(counts.species).toEqual({ dog: 2, cat: 1 });
+    expect(counts.indexableBySpecies).toEqual({ dog: 1, cat: 0 });
+  });
+
+  it("does not count a paused shelter's animals, an adopted animal or a draft", async () => {
+    const kyiv = await city("kyiv");
+    const verified = await shelterIn(kyiv);
+    const paused = await shelterIn(kyiv, { verification: PAUSED });
+    await animalRepo(db).insertMany([
+      { animal: makeAnimal({ shelterId: paused, species: "dog" }), cityId: kyiv },
+      {
+        animal: makeAnimal({
+          shelterId: verified,
+          species: "dog",
+          listing: { kind: "adopted", adoptedAt: NOW },
+        }),
+        cityId: kyiv,
+      },
+      {
+        animal: makeAnimal({ shelterId: verified, species: "cat", listing: { kind: "draft" } }),
+        cityId: kyiv,
+      },
+    ]);
+
+    expect((await facets()).indexableBySpecies).toEqual({ dog: 0, cat: 0 });
+  });
+
+  it("ignores the active filters and the sort", async () => {
+    const kyiv = await city("kyiv");
+    const lviv = await city("lviv");
+    const shelter = await shelterIn(kyiv);
+    await animalRepo(db).insertMany([
+      { animal: makeAnimal({ shelterId: shelter, species: "dog" }), cityId: kyiv },
+      { animal: makeAnimal({ shelterId: shelter, species: "dog" }), cityId: lviv },
+      { animal: makeAnimal({ shelterId: shelter, species: "cat" }), cityId: lviv },
+    ]);
+
+    const unfiltered = (await facets()).indexableBySpecies;
+    expect(unfiltered).toEqual({ dog: 2, cat: 1 });
+    const filtered = await facets({
+      ...NO_FILTERS,
+      species: { kind: "oneOf", values: ["cat"] },
+      cities: { kind: "oneOf", values: [lviv] },
+      ages: { kind: "oneOf", values: ["senior"] },
+    });
+    expect(filtered.indexableBySpecies).toEqual(unfiltered);
+    expect((await facets(NO_FILTERS, { sort: "longest_waiting" })).indexableBySpecies).toEqual(
+      unfiltered,
+    );
+  });
+
+  it("under a shelter scope counts that shelter's animals only, like hasPage", async () => {
+    const kyiv = await city("kyiv");
+    const one = await shelterIn(kyiv);
+    const other = await shelterIn(kyiv);
+    await animalRepo(db).insertMany([
+      { animal: makeAnimal({ shelterId: one, species: "dog" }), cityId: kyiv },
+      { animal: makeAnimal({ shelterId: other, species: "dog" }), cityId: kyiv },
+      { animal: makeAnimal({ shelterId: other, species: "cat" }), cityId: kyiv },
+    ]);
+
+    const scoped = await facets(NO_FILTERS, { scope: { kind: "shelter", shelterId: one } });
+    expect(scoped.indexableBySpecies).toEqual({ dog: 1, cat: 0 });
+  });
+});

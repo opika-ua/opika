@@ -140,5 +140,6 @@ export async function galleryFacetCounts(
     sizes: { ...counts.sizes },
     sexes: { ...counts.sexes },
     species: { ...counts.species },
+    indexableBySpecies: { ...counts.indexableBySpecies },
   };
 }

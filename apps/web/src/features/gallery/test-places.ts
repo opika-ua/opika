@@ -64,6 +64,7 @@ export const COUNTS: GalleryFacetCounts = {
   sizes: { small: 1, medium: 3, large: 5 },
   sexes: { male: 4, female: 6, unknown: 2 },
   species: { dog: 7, cat: 5 },
+  indexableBySpecies: { dog: 7, cat: 5 },
 };
 
 /** The slug maps a page builds from its labels. */

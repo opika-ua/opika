@@ -131,6 +131,27 @@ export async function runCityPagesSmoke(db: Database): Promise<Outcome[]> {
     `foster ${facetEntry(foster)?.hasPage}, early ${facetEntry(earlyCity)?.hasPage}`,
   );
 
+  // Shelter-scoped: the child branch carries production's own rows, which the unscoped total includes.
+  const indexableOf = async (shelterId: ShelterId) =>
+    (
+      await gallery.facetCounts({
+        sort: "freshest",
+        filters: { ...NO_FILTERS, species: { kind: "oneOf", values: ["cat"] } },
+        now: NOW,
+        scope: { kind: "shelter", shelterId },
+      })
+    ).indexableBySpecies;
+  const verifiedCounts = await indexableOf(verified);
+  const earlyCounts = await indexableOf(early);
+  check(
+    "facet counts: indexableBySpecies counts a verified shelter's species (the cat filter ignored), not an early-listed one's",
+    verifiedCounts.dog === 1 &&
+      verifiedCounts.cat === 2 &&
+      earlyCounts.dog === 0 &&
+      earlyCounts.cat === 0,
+    `verified ${JSON.stringify(verifiedCounts)}, early ${JSON.stringify(earlyCounts)}`,
+  );
+
   const narrowed = await pagesOf([foster, mixed, earlyCity]);
   check(
     "city pages: cityIds narrows to the asked cities that have a page",

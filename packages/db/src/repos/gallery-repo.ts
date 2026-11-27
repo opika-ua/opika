@@ -107,6 +107,11 @@ export type GalleryFacetCounts = {
   readonly sexes: Readonly<Record<AnimalSex, number>>;
   /** The species switch has no counts of its own; a shelter page reads these to show it only when both species are there. */
   readonly species: Readonly<Record<AnimalSpecies, number>>;
+  /**
+   * Listed animals of verified shelters per species, filters and sort ignored (the species pages'
+   * threshold). Like `hasPage`, a shelter scope counts that shelter's animals only.
+   */
+  readonly indexableBySpecies: Readonly<Record<AnimalSpecies, number>>;
 };
 
 /** A city with a landing page: its slug, the newest update among its indexable animals, their species. */
@@ -500,14 +505,28 @@ export function galleryRepo(db: Database) {
         countWhere(`n_species_${species}`, { ...opts.filters, species: only(species) });
 
       // Rides the same grouping, so the gallery's city links need no statement of their own.
-      const indexable = sql<number>`count(*) FILTER (WHERE ${animals.shelterId} IN (
+      const verifiedShelter = sql`${animals.shelterId} IN (
         SELECT ${shelters.id} FROM ${shelters}
         WHERE ${listedShelterCondition(opts.now, "verified_only")}
-      ))`
+      )`;
+      const indexable = sql<number>`count(*) FILTER (WHERE ${verifiedShelter})`
         .mapWith(Number)
         .as("n_indexable");
+      // The species pages' threshold: no filter or sort clause, so the visitor's choices never move it.
+      const indexableBySpecies = Object.fromEntries(
+        ANIMAL_SPECIES.map((species) => {
+          const alias = `n_indexable_${species}`;
+          const count = sql<number>`count(*) FILTER (WHERE ${verifiedShelter} AND ${animals.species} = ${species})`;
+          return [alias, count.mapWith(Number).as(alias)];
+        }),
+      );
       const grouped = db
-        .select({ cityId: animals.cityId, ...counted, n_indexable: indexable })
+        .select({
+          cityId: animals.cityId,
+          ...counted,
+          n_indexable: indexable,
+          ...indexableBySpecies,
+        })
         .from(animals)
         .where(
           and(
@@ -519,7 +538,10 @@ export function galleryRepo(db: Database) {
         .as("grouped");
       const counts = grouped as unknown as Record<string, SQL.Aliased<number>>;
       const countColumns = Object.fromEntries(
-        Object.keys(counted).map((alias) => [alias, counts[alias] ?? sql<number>`0`]),
+        [...Object.keys(counted), ...Object.keys(indexableBySpecies)].map((alias) => [
+          alias,
+          counts[alias] ?? sql<number>`0`,
+        ]),
       ) as Record<string, SQL.Aliased<number>>;
 
       const rows = await db
@@ -554,6 +576,7 @@ export function galleryRepo(db: Database) {
         sizes: tally(SIZE_BUCKETS, "size"),
         sexes: tally(ANIMAL_SEXES, "sex"),
         species: tally(ANIMAL_SPECIES, "species"),
+        indexableBySpecies: tally(ANIMAL_SPECIES, "indexable"),
       };
     },
 

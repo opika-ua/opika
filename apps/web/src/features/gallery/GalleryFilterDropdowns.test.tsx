@@ -31,6 +31,7 @@ const COUNTS: GalleryFacetCounts = {
   sizes: { small: 5, medium: 2, large: 1 },
   sexes: { male: 4, female: 6, unknown: 2 },
   species: { dog: 7, cat: 5 },
+  indexableBySpecies: { dog: 7, cat: 5 },
 };
 
 async function renderRow(filters: FeedFilters = NO_FILTERS, counts: GalleryFacetCounts = COUNTS) {
