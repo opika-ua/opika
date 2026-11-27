@@ -131,13 +131,43 @@ describe("the browser SDK as configured", () => {
         .integrations.map((i) => i.name) ?? [];
     expect(names).toBeGreaterThan(0);
     expect(installed.sort()).toEqual(
-      ["CoarseUserAgent", "Dedupe", "GlobalHandlers", "HttpContext", "LinkedErrors"].sort(),
+      [
+        "CoarseUserAgent",
+        "Dedupe",
+        "EventFilters",
+        "GlobalHandlers",
+        "HttpContext",
+        "LinkedErrors",
+      ].sort(),
     );
   });
 
   it("posts to its own tunnel, not to Sentry", () => {
     initClientSentry(DSN, { transport: recordingTransport().transport });
     expect(Sentry.getClient()?.getOptions().tunnel).toBe("/api/monitoring");
+  });
+});
+
+describe("the in-app browser's own errors (Sentry 164064616)", () => {
+  /** As Chrome writes it: the frame that threw is the Facebook/Instagram Android browser's injected script. */
+  const injected = (message: string): Error => {
+    const error = new Error(message);
+    error.stack = `Error: ${message}
+    at log (iabjs://navigation_performance_logger_android:1:2041)`;
+    return error;
+  };
+
+  it("drops an error thrown from an iabjs:// script and the «Java object is gone» one; ours still go", async () => {
+    const sent = recordingTransport();
+    initClientSentry(DSN, { transport: sent.transport });
+    Sentry.captureException(injected("FRAME-FROM-IABJS"));
+    Sentry.captureException(new Error("Error invoking postMessage: Java object is gone"));
+    Sentry.captureException(new Error("OUR-OWN-ERROR"));
+    await Sentry.flush(2000);
+    const text = sent.json();
+    expect(text).not.toContain("FRAME-FROM-IABJS");
+    expect(text).not.toContain("Java object is gone");
+    expect(text).toContain("OUR-OWN-ERROR");
   });
 });
 

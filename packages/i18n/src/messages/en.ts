@@ -1290,6 +1290,7 @@ export const en = {
       photoErrors: {
         unsupportedFormat: "Save the photo as JPEG or PNG",
         unreadable: "This file couldn't be opened as a photo.",
+        notReadable: "This file couldn't be read. Pick it again or take a screenshot of it.",
         tooLarge: "Even after shrinking, this photo is too large. Try another one.",
         rejected: "The site can't use this file as a photo.",
         limitReached: "This animal already has {max} photos.",

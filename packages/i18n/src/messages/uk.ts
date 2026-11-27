@@ -1238,6 +1238,9 @@ export const uk = {
         /** His gap-9 wording, verbatim: a HEIC (or other format) the device can't convert. */
         unsupportedFormat: "Збережіть фото як JPEG або PNG",
         unreadable: "Цей файл не вдалося відкрити як фото.",
+        /** Owner-approved 2026-11-27: the device wouldn't hand the picked file over (iOS temp copy gone). */
+        notReadable:
+          "Не вдалося прочитати цей файл. Виберіть його ще раз або зробіть знімок екрана.",
         tooLarge: "Навіть після зменшення це фото завелике. Спробуйте інше.",
         rejected: "Сайт не може використати цей файл як фото.",
         limitReached: "У цієї тварини вже {max} фото.",

@@ -52,6 +52,34 @@ describe("the event for a failed compression", () => {
     expect(JSON.stringify(event)).not.toContain(NAME);
   });
 
+  it("not_readable: step «read», what the read threw, type and size; the file name cut out", () => {
+    const error = new DOMException(
+      `The I/O read operation failed for ${NAME}.`,
+      "NotReadableError",
+    );
+    const event = photoFailureEvent(
+      { kind: "not_readable", error, type: "image/png", size: 1660000 },
+      NAME,
+    );
+    expect(event).toEqual({
+      level: "warning",
+      tags: {
+        "photo.outcome": "not_readable",
+        "photo.step": "read",
+        "photo.type": "image/png",
+        "photo.format": "none",
+      },
+      extra: {
+        attempts: [
+          { step: "read", error: "NotReadableError: The I/O read operation failed for [file]." },
+        ],
+        type: "image/png",
+        size: 1660000,
+      },
+      fingerprint: ["photo", "not_readable", "read", "image/png", "1660000"],
+    });
+  });
+
   it("too_large is reported; unsupported_format (a HEIC this browser can't decode) is not", () => {
     expect(photoFailureEvent({ kind: "too_large", diagnostics })?.tags["photo.outcome"]).toBe(
       "too_large",

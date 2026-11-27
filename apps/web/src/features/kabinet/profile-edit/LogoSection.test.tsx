@@ -2,6 +2,7 @@ import type { KabinetShelterView } from "@opika/contracts";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CompressedPhoto } from "../photos/compress-photo";
+import { withheldFile } from "../photos/picked-fixtures";
 import { LogoSection } from "./LogoSection";
 
 // A set logo renders a real next/image, through ShelterLogoAvatar. next/image's
@@ -107,6 +108,33 @@ describe("LogoSection", () => {
       await screen.findByText("Цей файл не вдалося відкрити як фото.");
       expect(reportFailure).toHaveBeenCalledTimes(1);
       expect(reportFailure.mock.calls[0]?.[0]).toMatchObject({ kind: "threw", error });
+    });
+
+    it("a file the device won't hand over says so, is reported, and is never decoded", async () => {
+      const reportFailure = vi.fn();
+      const compress = vi.fn(async (): Promise<CompressedPhoto> => ({ kind: "too_large" }));
+      const set = vi.fn();
+      render(
+        <LogoSection
+          logo={null}
+          displayName="Лапа допомоги"
+          onView={() => {}}
+          client={{ shelter: { logo: { set, remove: vi.fn() } } } as never}
+          compress={compress}
+          reportFailure={reportFailure}
+        />,
+      );
+      fireEvent.change(screen.getByTestId("logo-file-input"), {
+        target: { files: [withheldFile("logo.png")] },
+      });
+      await screen.findByText(
+        "Не вдалося прочитати цей файл. Виберіть його ще раз або зробіть знімок екрана.",
+      );
+      expect(compress).not.toHaveBeenCalled();
+      expect(set).not.toHaveBeenCalled();
+      expect(reportFailure).toHaveBeenCalledTimes(1);
+      expect(reportFailure.mock.calls[0]?.[0]).toMatchObject({ kind: "not_readable" });
+      expect(reportFailure.mock.calls[0]?.[1]).toBe("logo.png");
     });
 
     it("a logo that compressed is not reported", async () => {

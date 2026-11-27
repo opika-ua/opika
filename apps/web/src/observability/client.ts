@@ -19,6 +19,11 @@ export function initClientSentry(
     tunnel: TUNNEL_PATH,
     defaultIntegrations: false,
     integrations: [
+      // Not ours: the Facebook/Instagram Android in-app browser's injected script (Sentry 164064616).
+      Sentry.eventFiltersIntegration({
+        denyUrls: [/^iabjs:\/\//],
+        ignoreErrors: [/Java object is gone/],
+      }),
       Sentry.globalHandlersIntegration(),
       Sentry.linkedErrorsIntegration(),
       Sentry.dedupeIntegration(),
