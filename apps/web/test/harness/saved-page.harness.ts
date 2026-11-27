@@ -4,7 +4,7 @@
  * the gallery overlay, the saved page showing it after a reload (real
  * `localStorage`, which no component test can exercise), clicking a saved
  * card opening the full animal page - never an overlay, since `/zberezheni`
- * sits outside `/`'s intercepting layout - and the batch endpoint's
+ * sits outside `app/tvaryny`'s intercepting layout - and the batch endpoint's
  * `Cache-Control: no-store`, which only a real network response carries.
  *
  * Its own `x-forwarded-for` (TEST-NET-2 .44), the same reasoning every
@@ -51,7 +51,7 @@ test.describe("saving an animal, from the gallery, shows up on the saved page", 
 
     // The saved page is linked from the header, on the gallery - a real,
     // full navigation, never the intercepting route (`/zberezheni` sits
-    // outside `/`, so S4's `(.)[animalId]` cannot match it).
+    // outside `app/tvaryny`, so S4's `(.)[animalId]` cannot match it).
     await page.getByTestId("nav-saved").click();
     await page.waitForURL("**/zberezheni");
 

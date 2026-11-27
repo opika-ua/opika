@@ -43,7 +43,7 @@ test.describe("security headers (audit F5)", () => {
   test("a page and an API answer both carry them", async ({ request }) => {
     const page = await request.get("/", { headers: IP_HEADERS });
     expect(page.status()).toBe(200);
-    expectSecurityHeaders(page.headers(), "GET /tvaryny");
+    expectSecurityHeaders(page.headers(), "GET /");
 
     const api = await request.post("/api/rpc/animals/cardsByIds", {
       headers: { ...IP_HEADERS, origin: ORIGIN },
@@ -151,7 +151,7 @@ test.describe("security headers (audit F5)", () => {
   test("the proxy's rate-limit rewrite on a gallery page carries them", async ({ request }) => {
     const refused = await firstRefusal(request, "/", 100, "198.51.100.68");
     expect(refused.headers()["retry-after"]).toBeDefined();
-    expectEnforced(refused.headers(), "the proxy's /tvaryny 429");
+    expectEnforced(refused.headers(), "the proxy's gallery 429");
   });
 
   /** Every value of a header on the response, duplicates included. */

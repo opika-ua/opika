@@ -552,9 +552,6 @@ export function galleryHref(
   return qs ? `${placed.path}?${qs}` : placed.path;
 }
 
-/** A shelter page passes its own path as `basePath` to reuse the gallery's links. */
-export { GALLERY_PATH };
-
 /**
  * A page link, unlike `galleryHref` above: filters and sort are carried
  * forward unchanged (a page link refines "where in this result set,"

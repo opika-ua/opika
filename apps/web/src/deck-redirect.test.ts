@@ -3,8 +3,8 @@ import nextConfig from "../next.config";
 
 /**
  * The swipe deck is retired (owner, 2026-11-02) and the gallery moved from `/tvaryny` to `/`
- * (SEO PR 6): every old URL, deck sub-paths included, is a permanent redirect to the gallery. Next carries the query string over by itself; the harness
- * spec `retired-deck-redirect.harness.ts` pins that against a real server.
+ * (SEO PR 6): every old URL, deck sub-paths included, is a permanent redirect to the gallery.
+ * Next carries the query string over; `retired-deck-redirect.harness.ts` pins that on a server.
  */
 /** Next's `:name*` (zero or more segments) is the only pattern syntax the sources use. */
 function matches(source: string, pathname: string): boolean {

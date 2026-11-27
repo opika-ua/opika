@@ -12,6 +12,7 @@ import { cx } from "../../ui/cx";
 import { Icon } from "../../ui/Icon";
 import { MultiSelectChecklist } from "../../ui/MultiSelectRows";
 import { Sheet } from "../../ui/Sheet";
+import { GALLERY_PATH } from "../chrome/gallery-path";
 import { activeFilterCount } from "./active-filters";
 import { CityFacetChoices } from "./CityFacetChoices";
 import {
@@ -27,7 +28,6 @@ import {
 import type { CitySlugsById, PlaceIdsBySlug } from "./filter-url";
 import {
   GALLERY_PARAM,
-  GALLERY_PATH,
   galleryHref,
   parseGalleryQuery,
   resetFiltersHref,

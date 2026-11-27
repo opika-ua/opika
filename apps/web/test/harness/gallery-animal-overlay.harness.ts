@@ -267,6 +267,24 @@ test.describe("the gallery's animal overlay", () => {
       expect(new URL(page.url()).pathname + new URL(page.url()).search).toBe(GALLERY_PAGE_2);
       await expect(page.locator(CARD).first()).toBeVisible();
     });
+
+    // SEO PR 6 (owner): a filtered gallery loaded at `/` keeps its query through the overlay and back.
+    test("a hard load of `/?vyd=dog`, the overlay, then back returns to `/?vyd=dog`", async ({
+      page,
+    }) => {
+      await openRoute(page, "/?vyd=dog", DETAIL_DESKTOP, { readySelector: CARD });
+      const card = page.locator(CARD).first();
+      const name = (await card.getByTestId("card-name").textContent())?.trim() ?? "";
+      await card.click();
+      await expect(page.getByRole("dialog", { name })).toBeVisible();
+      expect(new URL(page.url()).pathname).toMatch(/^\/tvaryny\/[0-9a-f-]{36}$/);
+
+      await page.goBack();
+
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      expect(new URL(page.url()).pathname + new URL(page.url()).search).toBe("/?vyd=dog");
+      await expect(page.locator(CARD).first()).toBeVisible();
+    });
   });
 
   test.describe(() => {

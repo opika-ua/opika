@@ -140,8 +140,9 @@ export function isPageNavigation(request: Request): boolean {
 }
 
 /**
- * RL-F1: the per-IP refusal on the gallery and `/tvaryny` pages (and, since S6, the shelter page under
- * `/prytulky`); since 2026-11-20 (owner) every page navigation's 429, `/kabinet` included. Oleksii, 2026-10-20, verbatim: "gives the rate-limited case its own state on both
+ * RL-F1: the per-IP refusal on the gallery and `/tvaryny` pages (and, since S6, the shelter
+ * page under `/prytulky`); since 2026-11-20 (owner) every page navigation's 429, `/kabinet`
+ * included. Oleksii, 2026-10-20, verbatim: "gives the rate-limited case its own state on both
  * the full page and the drawer, using the existing «Забагато запитів. Спробуйте ще раз пізніше.».
  * It never shows «Це не помилка…» for a rate limit."
  *
