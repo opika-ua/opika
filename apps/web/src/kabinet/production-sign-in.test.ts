@@ -247,7 +247,7 @@ const KABINET_STRINGS_PER_GROUP: Readonly<Record<string, number>> = {
 
   listingStatus: 5,
 
-  animalForm: 156,
+  animalForm: 157,
 
   animalList: 80,
 
