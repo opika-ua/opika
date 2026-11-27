@@ -45,8 +45,10 @@ const HARNESS_DATABASE_URL = assertDisposableTestDatabase(testDatabaseUrl("harne
  * menu's row) adds 885 bytes, 78,917 -> 79,802; the budget is 81,000.
  * Footer A2 (owner, 2026-11-20: graphics as static SVG files, budget = measure + ~1 KB): 80,350 ->
  * 81,781; the budget is 83,000.
+ * #608 (owner, 2026-11-27): deliberate growth from the same-shelter block (up to four cards, about
+ * 13 KB uncompressed): content measured 95,899; the budget is 97,000.
  */
-export const ANIMAL_PAGE_HTML_BUDGET_BYTES = 83_000;
+export const ANIMAL_PAGE_HTML_BUDGET_BYTES = 97_000;
 
 /**
  * The document without its chunk references: the `<script src>` tags and preloads, and the chunk
