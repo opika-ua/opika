@@ -2,7 +2,7 @@ import { fillTemplate, uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { titled, WORDMARK } from "../brand";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../seo-flags";
-import { LINK_PREVIEW_DESCRIPTION } from "../seo-text";
+import { fitTitle, LINK_PREVIEW_DESCRIPTION } from "../seo-text";
 import { OG_CONTENT_TYPE, OG_SIZE } from "./og-image-size";
 
 /**
@@ -46,11 +46,25 @@ export function withSite(template: string, values: Readonly<Record<string, strin
   return fillTemplate(template, { ...values, site: WORDMARK });
 }
 
-/** The gallery (`/`). D-2: while the registry holds no real shelters, the preview keeps the demo disclosure. */
-export const GALLERY_SEO: Metadata = seoMetadata(
-  withSite(uk.seo.gallery.title),
-  REGISTRY_HAS_NO_REAL_SHELTERS ? LINK_PREVIEW_DESCRIPTION : uk.seo.gallery.description,
-);
+/**
+ * A paged list's title: «… – сторінка 2» goes before the site name, which `fitTitle` still drops
+ * first when the whole is over 60 characters. Page 1 has no suffix.
+ */
+export function pagedTitle(subject: string, page: number): string {
+  const paged =
+    page > 1 ? fillTemplate(uk.seo.pageSuffix, { title: subject, page: String(page) }) : subject;
+  return fitTitle(withSite(uk.seo.titleWithSite, { title: paged }), paged);
+}
+
+/** The gallery (`/`) at a page. D-2: while the registry holds no real shelters, the preview keeps the demo disclosure. */
+export function gallerySeo(page: number): Metadata {
+  return seoMetadata(
+    pagedTitle(uk.seo.gallery.title, page),
+    REGISTRY_HAS_NO_REAL_SHELTERS ? LINK_PREVIEW_DESCRIPTION : uk.seo.gallery.description,
+  );
+}
+
+export const GALLERY_SEO: Metadata = gallerySeo(1);
 
 /** The privacy policy: its own title through `titled()`, « – Opika». */
 export const PRIVACY_SEO: Metadata = seoMetadata(

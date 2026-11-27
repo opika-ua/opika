@@ -1,6 +1,6 @@
 import type { AnimalDetailView } from "@opika/contracts";
 import { animalNoun } from "@opika/domain";
-import { fillTemplate, uk } from "@opika/i18n";
+import { ageSpanLabel, ageWordFor, fillTemplate, sexWordFor, sizeWordFor, uk } from "@opika/i18n";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "./seo-flags";
 
 /**
@@ -28,6 +28,29 @@ export function animalSeoSubject(
   return cityName === null
     ? fillTemplate(uk.seo.animal.titleNoCity, values)
     : fillTemplate(uk.seo.animal.title, { ...values, city: cityName });
+}
+
+/**
+ * «кіт, хлопчик, молодий, малий»: the noun, then each card trait the shelter recorded (an unknown
+ * sex has no word). Card fields only, so a description never carries the shelter's own text.
+ */
+export function animalSeoFacts(
+  animal: Pick<AnimalDetailView, "species" | "sex" | "ageBucket" | "ageSpan" | "size">,
+): string {
+  const noun = uk.seo.nouns[animalNoun(animal.species, animal.sex, animal.ageBucket)];
+  const age =
+    animal.ageSpan === null
+      ? ageWordFor(animal.ageBucket, animal.sex)
+      : ageSpanLabel(animal.ageSpan);
+  const traits = [sexWordFor(animal.sex), age, sizeWordFor(animal.size, animal.sex)]
+    .filter((trait): trait is string => trait !== null && trait !== "")
+    .map((trait) => trait.toLocaleLowerCase("uk"));
+  return [noun, ...traits].join(", ");
+}
+
+/** A name that ends «обл.» before a sentence's own full stop would print «обл..». */
+export function withoutTrailingPeriod(text: string): string {
+  return text.replace(/\.+$/u, "");
 }
 
 /** The shared meta-description ceiling (Google's practical limit) - one constant, not a

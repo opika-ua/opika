@@ -44,7 +44,7 @@ import { type PlaceBook, placeBookOf } from "../../features/gallery/place-book";
 import { ReplaceNav } from "../../features/gallery/ReplaceNav";
 import { throwIfGalleryTestFailure } from "../../features/gallery/test-only-failure";
 import { HomeJsonLd } from "../../seo/home-json-ld";
-import { GALLERY_SEO } from "../../seo/page-metadata";
+import { gallerySeo } from "../../seo/page-metadata";
 import { Container } from "../../ui/Container";
 import { cx } from "../../ui/cx";
 import { Heading } from "../../ui/Heading";
@@ -73,12 +73,15 @@ export async function generateMetadata({
   searchParams: Promise<SearchParams>;
 }): Promise<Metadata> {
   const reads = await readGalleryOnce(JSON.stringify(await searchParams));
-  return galleryMetadataOf(galleryCanonicalOf(reads));
+  return galleryMetadataOf(
+    galleryCanonicalOf(reads),
+    reads.kind === "reads" ? reads.pageNumber : 1,
+  );
 }
 
-/** Exported for its test. */
-export function galleryMetadataOf(canonical: string): Metadata {
-  return { ...GALLERY_SEO, alternates: { canonical } };
+/** Exported for its test. The title names page 2 onwards; the canonical is the caller's. */
+export function galleryMetadataOf(canonical: string, page = 1): Metadata {
+  return { ...gallerySeo(page), alternates: { canonical } };
 }
 
 /** The canonical for what the page read; a former-slug redirect never renders, so it is moot there. */

@@ -31,7 +31,7 @@ test("the city page answers with its heading, the approved intro, the city's car
     ),
   ).toBeVisible();
   const title = await page.title();
-  expect(title).toMatch(/^(Собаки|Коти|Собаки й коти) в добрі руки – Бровари( – Opika)?$/u);
+  expect(title).toMatch(/^Взяти (собаку|кота|собаку чи кота) з притулку – Бровари( – Opika)?$/u);
   await expect(page.locator(CANONICAL)).toHaveAttribute("href", /\/tvaryny\/misto\/brovary$/);
 });
 
