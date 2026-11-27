@@ -333,6 +333,10 @@ export const en = {
     },
   },
 
+  sameShelter: {
+    heading: "More animals from this shelter",
+  },
+
   // --- Reserved badge ---
   underReview: {
     card: "Under review",

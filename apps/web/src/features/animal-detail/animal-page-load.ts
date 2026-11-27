@@ -1,5 +1,16 @@
-import type { AnimalDetailView, HomeFoundAnimalView, PublicShelterView } from "@opika/contracts";
-import { AnimalIdSchema, DEFAULT_GALLERY_SORT, NO_FILTERS } from "@opika/domain";
+import type {
+  AnimalDetailView,
+  FeedCardView,
+  HomeFoundAnimalView,
+  PublicShelterView,
+} from "@opika/contracts";
+import {
+  type AnimalId,
+  AnimalIdSchema,
+  type CityId,
+  DEFAULT_GALLERY_SORT,
+  NO_FILTERS,
+} from "@opika/domain";
 import { placeName, placeText } from "@opika/i18n";
 import { pageRefusalOf } from "../../api/page-refusal";
 import { anonymousRouterClient } from "../../api/server-client";
@@ -10,8 +21,17 @@ import { placeBookOf } from "../gallery/place-book";
 /** The procedures the animal page reads; a test passes a stub of just these. */
 export type AnimalPageClient = Pick<
   ReturnType<typeof anonymousRouterClient>,
-  "animals" | "shelters" | "cities" | "regions"
+  "animals" | "shelters" | "cities" | "regions" | "gallery"
 >;
+
+/** How many of the same shelter's other animals the page shows. */
+export const SAME_SHELTER_ANIMALS_MAX = 4;
+
+/** The same shelter's other animals, as the gallery's cards, with the names of the cities they carry. */
+export interface SameShelterAnimals {
+  cards: readonly FeedCardView[];
+  cityNames: ReadonlyMap<CityId, string>;
+}
 
 /** Everything `AnimalDetailScreen` is given except `now`, which is read at render. */
 export interface AnimalPageView {
@@ -24,6 +44,8 @@ export interface AnimalPageView {
   /** The city's landing page when it has one, else null; the breadcrumb and the link use it. */
   cityPagePath: string | null;
   backToGalleryHref: string;
+  /** Null when there are none to show, or when the page itself is not indexable. */
+  sameShelter: SameShelterAnimals | null;
 }
 
 /**
@@ -68,6 +90,7 @@ export async function loadAnimalPage(
       : animal.shelter.publicLocation.cityId;
     // One city by id, never the settlement list.
     const shelterRead = client.shelters.byId({ shelterId: animal.shelter.id });
+    const siblingsRead = readSameShelterAnimals(client, animal);
     const restRead = Promise.all([
       client.regions.list({}),
       client.cities.byIds({ ids: [cityId] }),
@@ -77,6 +100,7 @@ export async function loadAnimalPage(
     restRead.catch(() => undefined);
     const shelter = await shelterRead;
     const [regions, found, pages] = await restRead;
+    const sameShelter = await siblingsRead;
     const city = found.find((c) => c.id === cityId) ?? null;
 
     /**
@@ -105,6 +129,7 @@ export async function loadAnimalPage(
         cityPlace: city ? placeText(city, "full") : null,
         cityPagePath: city && hasCityPage ? cityPagePath(city.slug) : null,
         backToGalleryHref,
+        sameShelter,
       },
     };
   } catch (error) {
@@ -112,4 +137,42 @@ export async function loadAnimalPage(
     if (refusal) return { kind: refusal };
     throw error;
   }
+}
+
+/**
+ * Up to {@link SAME_SHELTER_ANIMALS_MAX} other animals the gallery lists for this animal's shelter
+ * (`gallery.list` with the shelter scope, the same read and visibility as the shelter page).
+ * That read also lists an early-listed shelter's animals, which are noindex and out of the sitemap,
+ * so a noindex page (the same rule as `animalMetadataOf`) links none: every link here is to a page
+ * a search engine may index. Never throws: a block of links is not worth failing the animal page.
+ */
+async function readSameShelterAnimals(
+  client: AnimalPageClient,
+  animal: AnimalDetailView,
+): Promise<SameShelterAnimals | null> {
+  if (animal.availability.kind === "paused") return null;
+  if (animal.shelter.verification === "listed_before_verification") return null;
+  try {
+    // One more than the cap, so dropping this animal from its own list still leaves the cap.
+    const list = await client.gallery.list({
+      filters: NO_FILTERS,
+      sort: DEFAULT_GALLERY_SORT,
+      page: 1,
+      pageSize: SAME_SHELTER_ANIMALS_MAX + 1,
+      scope: { kind: "shelter", shelterId: animal.shelter.id },
+    });
+    const cards = otherAnimals(list.items, animal.id);
+    if (cards.length === 0) return null;
+    return {
+      cards,
+      cityNames: new Map(list.cityLabels.map((city) => [city.id, placeName(city)])),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** The listed cards without the open animal, at most {@link SAME_SHELTER_ANIMALS_MAX}. */
+function otherAnimals(items: readonly FeedCardView[], currentId: AnimalId): FeedCardView[] {
+  return items.filter((card) => card.id !== currentId).slice(0, SAME_SHELTER_ANIMALS_MAX);
 }

@@ -1,11 +1,13 @@
 import { ORPCError } from "@orpc/server";
 import { describe, expect, it, vi } from "vitest";
-import { loadAnimalPage } from "./animal-page-load";
+import { loadAnimalPage, SAME_SHELTER_ANIMALS_MAX } from "./animal-page-load";
 import {
   ANIMAL_ID,
   CITY_LABEL,
   makeDetailAnimal,
   makeHomeFoundView,
+  makeSiblingCard,
+  SHELTER_ID,
   stubAnimalPageClient,
 } from "./test-fixtures";
 
@@ -102,5 +104,84 @@ describe("loadAnimalPage", () => {
     expect(load.view.cityName).toBeNull();
     expect(load.view.backToGalleryHref).toBe("/");
     expect(load.view.cityPagePath).toBeNull();
+  });
+});
+
+/** The block of the same shelter's other animals: one more read, scoped to the shelter, indexable pages only. */
+describe("loadAnimalPage: the same shelter's other animals", () => {
+  async function sameShelterOf(client: Parameters<typeof loadAnimalPage>[1]) {
+    const load = await loadAnimalPage(ANIMAL_ID, client);
+    if (load.kind !== "animal") throw new Error(`expected the animal, got ${load.kind}`);
+    return load.view.sameShelter;
+  }
+
+  it("lists the shelter's other animals, read through the shelter-scoped gallery list", async () => {
+    const { client, galleryList } = stubAnimalPageClient({ kind: "answer" }, [
+      makeSiblingCard(1),
+      makeSiblingCard(2),
+    ]);
+    const block = await sameShelterOf(client);
+    expect(block?.cards.map((card) => card.name)).toEqual(["Сусід 1", "Сусід 2"]);
+    expect(block?.cityNames.get(CITY_LABEL.id)).toBe("Бровари");
+    expect(galleryList).toHaveBeenCalledTimes(1);
+    expect(galleryList).toHaveBeenCalledWith(
+      expect.objectContaining({ scope: { kind: "shelter", shelterId: SHELTER_ID } }),
+    );
+  });
+
+  it("has no block when the shelter has no other animal", async () => {
+    const { client } = stubAnimalPageClient();
+    expect(await sameShelterOf(client)).toBeNull();
+  });
+
+  it("never lists the open animal itself, and keeps the cap when it is in the list", async () => {
+    const own = makeSiblingCard(9, { id: ANIMAL_ID as never, name: "Мурчик" });
+    const { client } = stubAnimalPageClient({ kind: "answer" }, [
+      makeSiblingCard(1),
+      own,
+      makeSiblingCard(2),
+      makeSiblingCard(3),
+      makeSiblingCard(4),
+    ]);
+    const block = await sameShelterOf(client);
+    expect(block?.cards.map((card) => card.id)).not.toContain(ANIMAL_ID);
+    expect(block?.cards).toHaveLength(SAME_SHELTER_ANIMALS_MAX);
+  });
+
+  it("shows at most four, and asks for just enough to fill them", async () => {
+    const many = [1, 2, 3, 4, 5, 6].map((index) => makeSiblingCard(index));
+    const { client, galleryList } = stubAnimalPageClient({ kind: "answer" }, many);
+    const block = await sameShelterOf(client);
+    expect(block?.cards).toHaveLength(4);
+    expect(galleryList).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 5 }));
+  });
+
+  it("reads nothing for a page that is not indexable (an early-listed shelter, a paused animal)", async () => {
+    const early = makeDetailAnimal();
+    const earlyShelter = { ...early.shelter, verification: "listed_before_verification" as const };
+    const cases = [
+      makeDetailAnimal({ shelter: earlyShelter }),
+      makeDetailAnimal({ availability: { kind: "paused" } }),
+    ];
+    for (const animal of cases) {
+      const { client, galleryList } = stubAnimalPageClient({ kind: "answer", animal }, [
+        makeSiblingCard(1),
+      ]);
+      expect(await sameShelterOf(client)).toBeNull();
+      expect(galleryList).not.toHaveBeenCalled();
+    }
+  });
+
+  it("a failed list read hides the block and leaves the page whole", async () => {
+    const { client, galleryList } = stubAnimalPageClient({ kind: "answer" }, [makeSiblingCard(1)]);
+    galleryList.mockRejectedValueOnce(new Error("connection terminated"));
+    expect(await sameShelterOf(client)).toBeNull();
+  });
+
+  it("a not-found shelter still wins over the list read beside it", async () => {
+    const { client, galleryList } = stubAnimalPageClient({ kind: "answer" }, [makeSiblingCard(1)]);
+    vi.mocked(client.shelters.byId).mockRejectedValueOnce(new ORPCError("NOT_FOUND"));
+    galleryList.mockRejectedValueOnce(new Error("connection terminated"));
+    expect(await loadAnimalPage(ANIMAL_ID, client)).toEqual({ kind: "not_found" });
   });
 });
