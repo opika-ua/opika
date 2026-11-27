@@ -25,7 +25,6 @@ const CODIFIER_LICENCE_URL = "http://www.opendefinition.org/licenses/cc-by";
 /** Handoff B2's title and description, for the page and its previews alike (not the demo default). */
 export const metadata: Metadata = {
   ...ABOUT_SEO,
-  alternates: { canonical: "/pro" },
 };
 
 /**

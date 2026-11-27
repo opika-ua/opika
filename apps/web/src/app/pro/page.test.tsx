@@ -1,5 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { expectOgUrlIsCanonical } from "../../seo/og-url-assert";
 import { metadata, renderAboutPage } from "./page";
 
 describe("AboutPage", () => {
@@ -17,7 +18,7 @@ describe("AboutPage", () => {
   });
 
   it("sets its own canonical (PR B, the SEO review of page titles)", () => {
-    expect(metadata.alternates?.canonical).toBe("/pro");
+    expectOgUrlIsCanonical(metadata, "/pro");
   });
 
   it("sets the approved title and description (SEO handoff B2), the same in every preview", () => {

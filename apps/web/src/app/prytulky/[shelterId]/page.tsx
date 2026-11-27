@@ -122,12 +122,9 @@ export function shelterMetadataOf(load: ShelterPageLoad): Metadata {
     shelter.description,
   );
   return {
-    ...seoMetadata(title, description),
-    // `shelter.id`, not the raw route param - same reasoning as the animal page's own
-    // canonical (found on review): a UUID's schema accepts any case, so a request that
-    // happened to use uppercase would otherwise get a canonical that disagrees with the
-    // lowercase form every other link on the site actually uses.
-    alternates: { canonical: `/prytulky/${shelter.id}` },
+    // `shelter.id`, not the raw route param: a UUID's schema accepts any case, so an uppercase
+    // request would otherwise get a canonical that disagrees with the lowercase links site-wide.
+    ...seoMetadata(title, description, `/prytulky/${shelter.id}`),
     // A paused page is reachable by link only: after the discoverability flip it must not be indexed.
     // Paused, or still under review: reachable by link, never indexed (owner, 2026-11-04).
     ...((shelter.availability.kind === "paused" ||

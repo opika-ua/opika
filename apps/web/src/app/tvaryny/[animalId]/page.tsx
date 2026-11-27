@@ -138,12 +138,11 @@ export function animalMetadataOf(load: AnimalPageLoad): Metadata {
       ? // A link preview must not suggest a verified shelter (N14).
         forOrganisation(uk.underReview.sharePreview, shelter.organisationWord)
       : own.description;
-  const seo = seoMetadata(own.title, description, "segment");
+  // `animal.id`, not the raw param: a UUID in any case would otherwise give a second canonical.
+  const seo = seoMetadata(own.title, description, `/tvaryny/${animal.id}`, "segment");
   return {
     ...seo,
     openGraph: { ...seo.openGraph, type: "article" },
-    // `animal.id`, not the raw param: a UUID in any case would otherwise give a second canonical.
-    alternates: { canonical: `/tvaryny/${animal.id}` },
     // Paused, or an early-listed shelter's animal: by link only, whatever the discoverability flag.
     ...((animal.availability.kind === "paused" || listedEarly) && {
       robots: { index: false, follow: SITE_IS_PUBLICLY_DISCOVERABLE },

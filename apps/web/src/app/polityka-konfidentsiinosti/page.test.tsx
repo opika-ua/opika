@@ -1,5 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { expectOgUrlIsCanonical } from "../../seo/og-url-assert";
 import { metadata, renderPrivacyPage } from "./page";
 
 /** Transcribed from the approved copy table, never read from the catalogue. */
@@ -93,7 +94,7 @@ describe("the privacy policy's metadata", () => {
   it("is titled «Політика конфіденційності – Opika» with its own canonical", () => {
     expect(metadata.title).toEqual({ absolute: "Політика конфіденційності – Opika" });
     expect(metadata.openGraph).toMatchObject({ title: "Політика конфіденційності – Opika" });
-    expect(metadata.alternates?.canonical).toBe("/polityka-konfidentsiinosti");
+    expectOgUrlIsCanonical(metadata, "/polityka-konfidentsiinosti");
   });
 
   it("describes the page in 120 to 160 characters, in every preview", () => {

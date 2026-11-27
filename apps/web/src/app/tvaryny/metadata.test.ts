@@ -1,4 +1,7 @@
+import { NO_FILTERS } from "@opika/domain";
 import { describe, expect, it } from "vitest";
+import { galleryCanonicalPath } from "../../features/gallery/filter-url";
+import { expectOgUrlIsCanonical } from "../../seo/og-url-assert";
 import { galleryCanonicalOf, galleryMetadataOf } from "./page";
 
 const TITLE = "Взяти собаку чи кота з притулку – Opika";
@@ -55,5 +58,17 @@ describe("the paginated gallery's head (page 2)", () => {
     expect(metadata.alternates?.canonical).toBe("/?stor=2");
     expect(metadata.openGraph).toMatchObject({ title, description: DESCRIPTION });
     expect(metadata.twitter).toMatchObject({ title, description: DESCRIPTION });
+  });
+});
+
+describe("the gallery's og:url is its canonical", () => {
+  it("page 1 and page 2 are each their own", () => {
+    expectOgUrlIsCanonical(galleryMetadataOf("/"), "/");
+    expectOgUrlIsCanonical(galleryMetadataOf("/?stor=2", 2), "/?stor=2");
+  });
+
+  it("a filtered or re-sorted gallery names the bare gallery, whatever the page", () => {
+    const canonical = galleryCanonicalPath(NO_FILTERS, "longest_waiting", 2, new Map());
+    expectOgUrlIsCanonical(galleryMetadataOf(canonical, 2), "/");
   });
 });

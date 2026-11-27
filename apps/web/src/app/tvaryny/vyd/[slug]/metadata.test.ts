@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { speciesPageHeading } from "../../../../features/gallery/species-page-text";
 import { speciesOfSlug, speciesPagePath } from "../../../../features/gallery/species-pages";
+import { expectOgUrlIsCanonical } from "../../../../seo/og-url-assert";
 import { speciesPageMetadataOf } from "./page";
 
 const SITE_IMAGE = { url: "/opengraph-image", width: 1200, height: 630, type: "image/png" };
@@ -16,6 +17,7 @@ const head = (title: string, description: string, canonical: string) => ({
     images: [SITE_IMAGE],
     title,
     description,
+    url: `https://opika.org.ua${canonical}`,
   },
   twitter: { card: "summary_large_image", images: ["/opengraph-image"], title, description },
   alternates: { canonical },
@@ -55,6 +57,19 @@ describe("the species pages' head (owner, 2026-11-27)", () => {
   it("the headings are «Собаки шукають дім» and «Коти шукають дім»", () => {
     expect(speciesPageHeading("dog")).toBe("Собаки шукають дім");
     expect(speciesPageHeading("cat")).toBe("Коти шукають дім");
+  });
+});
+
+describe("the species pages' og:url", () => {
+  it("is the page's canonical, absolute, on page 1 and page 2", () => {
+    expectOgUrlIsCanonical(
+      speciesPageMetadataOf("dog", 1, "/tvaryny/vyd/sobaky"),
+      "/tvaryny/vyd/sobaky",
+    );
+    expectOgUrlIsCanonical(
+      speciesPageMetadataOf("cat", 2, "/tvaryny/vyd/koty?stor=2"),
+      "/tvaryny/vyd/koty?stor=2",
+    );
   });
 });
 

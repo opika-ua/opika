@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { makeDetailAnimal, makeDetailShelter } from "../../../features/animal-detail/test-fixtures";
+import { expectOgUrlIsCanonical } from "../../../seo/og-url-assert";
 import { animalMetadataOf, animalSeoText } from "./page";
 
 /** SEO handoff B1–B2 for `/tvaryny/{id}`: the title, the description and the previews. */
@@ -170,7 +171,7 @@ describe("animalMetadataOf: one string for the page, Open Graph and Twitter", ()
     const description = "Мурчик – кіт, хлопчик, молодий, малий. Шукає дім – Бровари. Домівка.";
     expect(metadata.title).toEqual({ absolute: title });
     expect(metadata.description).toBe(description);
-    expect(metadata.alternates?.canonical).toBe(`/tvaryny/${animal.id}`);
+    expectOgUrlIsCanonical(metadata, `/tvaryny/${animal.id}`);
     expect(metadata.openGraph).toMatchObject({ type: "article", title, description });
     expect(metadata.twitter).toMatchObject({ title, description });
   });

@@ -43,6 +43,31 @@ test("the dogs' page has the approved title and is its own canonical", async ({ 
   await expect(page.locator(CANONICAL)).toHaveAttribute("href", /\/tvaryny\/vyd\/sobaky$/);
 });
 
+test("the dogs' page's breadcrumb items are absolute and each answers 200", async ({ page }) => {
+  await page.goto(SPECIES_PAGE);
+  const lists = (await page.locator('script[type="application/ld+json"]').allTextContents())
+    .map((text) => JSON.parse(text))
+    .filter((entry) => entry["@type"] === "BreadcrumbList");
+  expect(lists).toHaveLength(1);
+  const items: { position: number; name: string; item: string }[] = lists[0].itemListElement;
+  expect(items.map((i) => i.position)).toEqual([1, 2]);
+  expect(items[1]?.name).toBe("Собаки шукають дім");
+  for (const { item } of items) {
+    expect(item, item).toMatch(/^https:\/\//);
+    const { pathname, search } = new URL(item);
+    // The tags carry the public origin; the test server answers on its own host.
+    const response = await page.request.get(pathname + search);
+    expect(response.status(), item).toBe(200);
+  }
+  expect(new URL(items[1]?.item ?? "").pathname).toBe(SPECIES_PAGE);
+});
+
+test("the dogs' page's og:url is its canonical", async ({ page }) => {
+  await page.goto(SPECIES_PAGE);
+  const canonical = await page.locator(CANONICAL).getAttribute("href");
+  await expect(page.locator("meta[property='og:url']")).toHaveAttribute("content", canonical ?? "");
+});
+
 test("/?vyd=dog stays the gallery, with the dogs' page as its canonical", async ({ page }) => {
   await openRoute(page, "/?vyd=dog", DESKTOP, { readySelector: CARD });
   expect(new URL(page.url()).pathname).toBe("/");

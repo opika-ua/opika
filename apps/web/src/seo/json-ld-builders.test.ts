@@ -11,6 +11,8 @@ import {
   serializeJsonLd,
   shelterBreadcrumbs,
   shelterTrail,
+  speciesBreadcrumbs,
+  speciesTrail,
   webSiteJsonLd,
 } from "./json-ld-builders";
 
@@ -143,6 +145,29 @@ describe("json-ld builders", () => {
       expect(items.map((i) => i.item)).toEqual(paths.map((path) => `${SITE_ORIGIN}${path}`));
       expect(items.map((i) => i.name)).toEqual(names);
       for (const { item } of items) expect(item.startsWith("https://")).toBe(true);
+    });
+  });
+
+  describe("the gallery > species page trail", () => {
+    type Item = { position: number; name: string; item: string };
+
+    it.each([
+      { name: "Собаки шукають дім", path: "/tvaryny/vyd/sobaky" },
+      { name: "Коти шукають дім", path: "/tvaryny/vyd/koty" },
+    ])("$path: two levels, positions from 1, absolute urls, valid JSON", (species) => {
+      const trail = speciesTrail("Шукають дім", species);
+      expect(trail.map((crumb) => crumb.path)).toEqual(["/", species.path]);
+      expect(trail.map((crumb) => crumb.name)).toEqual(["Шукають дім", species.name]);
+
+      const list = JSON.parse(serializeJsonLd(speciesBreadcrumbs("Шукають дім", species)));
+      expect(list["@type"]).toBe("BreadcrumbList");
+      const items: Item[] = list.itemListElement;
+      expect(items.map((i) => i.position)).toEqual([1, 2]);
+      expect(items.map((i) => i.item)).toEqual([
+        `${SITE_ORIGIN}/`,
+        `${SITE_ORIGIN}${species.path}`,
+      ]);
+      expect(items.map((i) => i.name)).toEqual(["Шукають дім", species.name]);
     });
   });
 

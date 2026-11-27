@@ -1,14 +1,17 @@
 import type { AnimalSpecies } from "@opika/domain";
+import { uk } from "@opika/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { anonymousRouterClient } from "../../../../api/server-client";
 import { kabinetSessionCookiePresent } from "../../../../features/chrome/kabinet-signed-in";
 import type { SearchParams } from "../../../../features/gallery/filter-url";
-import { speciesSeoText } from "../../../../features/gallery/species-page-text";
-import { speciesOfSlug } from "../../../../features/gallery/species-pages";
+import { speciesPageHeading, speciesSeoText } from "../../../../features/gallery/species-page-text";
+import { speciesOfSlug, speciesPagePath } from "../../../../features/gallery/species-pages";
+import { JsonLd } from "../../../../seo/json-ld";
+import { speciesBreadcrumbs } from "../../../../seo/json-ld-builders";
 import { seoMetadata } from "../../../../seo/page-metadata";
-import { galleryCanonicalOf, readGallery, renderGallery } from "../../page";
+import { type GalleryReads, galleryCanonicalOf, readGallery, renderGallery } from "../../page";
 
 /** Live listing data, like the gallery: prerendering would bake in a stale snapshot. */
 export const dynamic = "force-dynamic";
@@ -39,12 +42,33 @@ export default async function Page({
     kabinetSessionCookiePresent(),
   ]);
   const reads = await readOnce(species, JSON.stringify(rawSearchParams));
-  return renderGallery(
+  return renderSpeciesPage(
     anonymousRouterClient(),
+    species,
     rawSearchParams,
     kabinetSignedIn,
-    { species },
     reads,
+  );
+}
+
+/** Exported so a test can render it over a database client; `Page` is the one real caller. */
+export async function renderSpeciesPage(
+  client: ReturnType<typeof anonymousRouterClient>,
+  species: AnimalSpecies,
+  rawSearchParams: SearchParams,
+  kabinetSignedIn: boolean,
+  reads: GalleryReads,
+) {
+  return (
+    <>
+      <JsonLd
+        data={speciesBreadcrumbs(uk.feed.galleryTitle, {
+          name: speciesPageHeading(species),
+          path: speciesPagePath(species),
+        })}
+      />
+      {await renderGallery(client, rawSearchParams, kabinetSignedIn, { species }, reads)}
+    </>
   );
 }
 
@@ -72,5 +96,5 @@ export function speciesPageMetadataOf(
   canonical: string,
 ): Metadata {
   const { title, description } = speciesSeoText(species, page);
-  return { ...seoMetadata(title, description), alternates: { canonical } };
+  return seoMetadata(title, description, canonical);
 }

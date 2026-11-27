@@ -49,14 +49,12 @@ export async function generateMetadata(): Promise<Metadata> {
 export function sheltersIndexMetadataOf(load: SheltersIndexLoad): Metadata {
   if (load.kind === "rate_limited") return { robots: { index: false, follow: false } };
   if (load.kind !== "index") return {};
-  return {
-    ...seoMetadata(
-      withSite(uk.sheltersIndex.seoTitle),
-      // D-2: no claim about checking shelters over a demo corpus.
-      REGISTRY_HAS_NO_REAL_SHELTERS
-        ? uk.demo.bannerNotice
-        : withSite(uk.sheltersIndex.seoDescription),
-    ),
-    alternates: { canonical: SHELTERS_INDEX_PATH },
-  };
+  return seoMetadata(
+    withSite(uk.sheltersIndex.seoTitle),
+    // D-2: no claim about checking shelters over a demo corpus.
+    REGISTRY_HAS_NO_REAL_SHELTERS
+      ? uk.demo.bannerNotice
+      : withSite(uk.sheltersIndex.seoDescription),
+    SHELTERS_INDEX_PATH,
+  );
 }

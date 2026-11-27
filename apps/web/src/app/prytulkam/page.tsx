@@ -25,13 +25,11 @@ const WHO_IS_BEHIND_THIS = fillTemplate(uk.forShelters.whoIsBehindThis, { site: 
  */
 export function forSheltersMetadata(selfRegistration: boolean): Metadata {
   const f = uk.seo.forShelters;
-  return {
-    ...seoMetadata(
-      withSite(f.title),
-      withSite(selfRegistration ? f.descriptionSelfRegistration : f.description),
-    ),
-    alternates: { canonical: "/prytulkam" },
-  };
+  return seoMetadata(
+    withSite(f.title),
+    withSite(selfRegistration ? f.descriptionSelfRegistration : f.description),
+    "/prytulkam",
+  );
 }
 
 export async function generateMetadata(): Promise<Metadata> {
