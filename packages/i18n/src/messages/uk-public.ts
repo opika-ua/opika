@@ -1093,6 +1093,11 @@ export const ukPublic = {
     action: "На головну",
   },
 
+  /** Owner-approved 2026-11-27: the cities block under the gallery and city pages (crawlable links). */
+  cityLinks: {
+    heading: "Міста",
+  },
+
   /**
    * "«Про проєкт» page, no mock - a volunteer deciding whether Opika is
    * legitimate looks for exactly this and finds nothing without it.

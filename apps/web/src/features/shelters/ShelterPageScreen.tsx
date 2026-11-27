@@ -16,6 +16,7 @@ import { cx } from "../../ui/cx";
 import { Heading } from "../../ui/Heading";
 import { Mascot } from "../../ui/Mascot";
 import { Pagination } from "../../ui/Pagination";
+import { TextLink } from "../../ui/TextLink";
 import { Toggle } from "../../ui/Toggle";
 import { GALLERY_PATH } from "../chrome/gallery-path";
 import { SiteFooter } from "../chrome/SiteFooter";
@@ -25,7 +26,12 @@ import { ArrowKeyGrid } from "../gallery/ArrowKeyGrid";
 import { activeFilterChips, activeFilterCount } from "../gallery/active-filters";
 import { cardCityId } from "../gallery/card-text";
 import { FilterSheet } from "../gallery/FilterSheetLazy";
-import { type CitySlugsById, NO_PLACE_IDS, resetFiltersHref } from "../gallery/filter-url";
+import {
+  type CitySlugsById,
+  cityPagePath,
+  NO_PLACE_IDS,
+  resetFiltersHref,
+} from "../gallery/filter-url";
 import { GalleryCard } from "../gallery/GalleryCard";
 import { GalleryControlBlock } from "../gallery/GalleryControlBlock";
 import { GalleryFilterDropdowns, SpeciesToggle } from "../gallery/GalleryFilterDropdowns";
@@ -51,6 +57,7 @@ const EMPTY_CITY_SLUGS: CitySlugsById = new Map();
 export function ShelterPageScreen({
   shelter,
   cityPlace,
+  cityPageSlug,
   animals,
   cityNames,
   animalCities,
@@ -67,6 +74,8 @@ export function ShelterPageScreen({
   const animalsCountText = fillTemplate(uk.shelterPage.animalsHeading, {
     count: String(listedTotal),
   });
+  // Only printed under `cityPlace !== null`.
+  const placeLine = fillTemplate(uk.cardMeta.atShelter, { place: cityPlace ?? "" });
   const withLong = (short: string, long: string) => `${short}. ${long}`;
   const { filters } = query;
   const basePath = shelterPagePath(shelter.id);
@@ -156,7 +165,13 @@ export function ShelterPageScreen({
                     unoptimized
                   />
                   <span className="text-body font-semibold text-accent-text desktop:text-body-l">
-                    {fillTemplate(uk.cardMeta.atShelter, { place: cityPlace })}
+                    {cityPageSlug === null ? (
+                      placeLine
+                    ) : (
+                      <TextLink href={cityPagePath(cityPageSlug)} prefetch={false}>
+                        {placeLine}
+                      </TextLink>
+                    )}
                   </span>
                 </span>
               )}

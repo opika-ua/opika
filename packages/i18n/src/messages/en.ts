@@ -509,6 +509,9 @@ export const en = {
     body: "The link may be out of date, or there is a typo in the address.",
     action: "To the home page",
   },
+  cityLinks: {
+    heading: "Cities",
+  },
 
   // --- About page - see the uk key's own note ---
   about: {
