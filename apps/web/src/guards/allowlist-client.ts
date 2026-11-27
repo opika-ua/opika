@@ -39,6 +39,8 @@ export const CLIENT_FILES: Readonly<Record<string, string>> = {
   "features/animal-detail/RevealFlow.tsx":
     "contact-reveal button + dialog open state, calls reveal",
   "features/animal-detail/ShareButton.tsx": "navigator.share / clipboard on click",
+  "features/animal-detail/SameShelterNav.tsx":
+    "same-shelter card clicks: a full page from the page, a replace inside the overlay",
   "features/animal-overlay/AnimalOverlay.tsx":
     "intercepted-route modal: router.back, Esc, focus trap, scroll lock, entrance animation",
   "features/chrome/SiteAnalytics.tsx": "Vercel Analytics component",
