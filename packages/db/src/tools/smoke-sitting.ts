@@ -428,8 +428,8 @@ pnpm --filter @opika/db db:import-settlements --prod --expect $ep --file $xlsx
 pnpm --filter @opika/db db:city-references --prod --expect $ep
 # Expected: ${p.expected.afterReferences}
 $site = Read-Host "Production site base URL (https://...)"
-curl.exe -s -o NUL -w "%{http_code} %{redirect_url}\`n" "$site/tvaryny"
-curl.exe -s -o NUL -w "%{http_code} %{redirect_url}\`n" "$site/tvaryny?misto=brovary"
+curl.exe -s -o NUL -w "%{http_code} %{redirect_url}\`n" "$site/"
+curl.exe -s -o NUL -w "%{http_code} %{redirect_url}\`n" "$site/?misto=brovary"
 # Expected: ${p.expected.site}
 
 ---- Cleanup ----
