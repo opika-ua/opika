@@ -10,11 +10,12 @@ import { SiteFooter } from "../../features/chrome/SiteFooter";
 import { SiteHeader } from "../../features/chrome/SiteHeader";
 import { ActiveFilterChips } from "../../features/gallery/ActiveFilterChips";
 import { ArrowKeyGrid } from "../../features/gallery/ArrowKeyGrid";
-import { activeFilterChips, anyFilterSet } from "../../features/gallery/active-filters";
+import { activeFilterChips } from "../../features/gallery/active-filters";
 import { cardCityId } from "../../features/gallery/card-text";
 import type { CityTokenResolution } from "../../features/gallery/city-tokens";
 import { FilterSheet } from "../../features/gallery/FilterSheetLazy";
 import {
+  anyFilterSet,
   cityTokensOf,
   GALLERY_PATH,
   galleryCanonicalPath,
@@ -81,7 +82,7 @@ export function galleryMetadataOf(canonical: string): Metadata {
 /** The canonical for what the page read; a former-slug redirect never renders, so it is moot there. */
 export function galleryCanonicalOf(reads: GalleryReads): string {
   return reads.kind === "reads"
-    ? galleryCanonicalPath(reads.filters, reads.pageNumber, reads.book.slugs)
+    ? galleryCanonicalPath(reads.filters, reads.sort, reads.pageNumber, reads.book.slugs)
     : GALLERY_PATH;
 }
 

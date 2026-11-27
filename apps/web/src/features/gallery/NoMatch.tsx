@@ -8,9 +8,8 @@ import { Mascot } from "../../ui/Mascot";
 import { mascotKindFor } from "../../ui/mascot-species";
 import { Panel } from "../../ui/Panel";
 import { Text } from "../../ui/Text";
-import { anyFilterSet } from "./active-filters";
 import type { CitySlugsById } from "./filter-url";
-import { galleryHref, resetFiltersHref } from "./filter-url";
+import { anyFilterSet, galleryHref, resetFiltersHref } from "./filter-url";
 
 interface NoMatchProps {
   filters: FeedFilters;

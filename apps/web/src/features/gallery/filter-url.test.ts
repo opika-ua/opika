@@ -719,31 +719,44 @@ describe("withoutPlaceParams", () => {
   });
 });
 
-describe("galleryCanonicalPath (SEO B3, owner 2026-11-18)", () => {
+describe("galleryCanonicalPath (SEO B3, owner 2026-11-18; plain pages 2026-11-27)", () => {
   const WITH_PAGE: CitySlugsById = new Map<CityId | RegionId, string | CityWithPage>([
     [CITY_A, { slug: SLUG_A, hasPage: true }],
     [CITY_B, SLUG_B],
     [KYIV_OBL, SLUG_KYIVSKA],
   ]);
   const oneCity = withToggledCity(NO_FILTERS, CITY_A);
+  const DEFAULT = "freshest";
 
   it("one city with a page: the city page, filters and sort dropped, the page number kept", () => {
-    expect(galleryCanonicalPath(oneCity, 1, WITH_PAGE)).toBe(`/tvaryny/misto/${SLUG_A}`);
-    expect(galleryCanonicalPath(withOnlySpecies(oneCity, "dog"), 3, WITH_PAGE)).toBe(
-      `/tvaryny/misto/${SLUG_A}?stor=3`,
-    );
+    expect(galleryCanonicalPath(oneCity, DEFAULT, 1, WITH_PAGE)).toBe(`/tvaryny/misto/${SLUG_A}`);
+    expect(
+      galleryCanonicalPath(withOnlySpecies(oneCity, "dog"), "longest_waiting", 3, WITH_PAGE),
+    ).toBe(`/tvaryny/misto/${SLUG_A}?stor=3`);
   });
 
-  it("anything else keeps the bare gallery, whatever the page", () => {
-    expect(galleryCanonicalPath(NO_FILTERS, 3, WITH_PAGE)).toBe("/tvaryny");
-    expect(galleryCanonicalPath(withToggledCity(NO_FILTERS, CITY_B), 2, WITH_PAGE)).toBe(
+  it("the plain list: each page past the first is its own canonical", () => {
+    expect(galleryCanonicalPath(NO_FILTERS, DEFAULT, 1, WITH_PAGE)).toBe("/tvaryny");
+    expect(galleryCanonicalPath(NO_FILTERS, DEFAULT, 2, WITH_PAGE)).toBe("/tvaryny?stor=2");
+    expect(galleryCanonicalPath(NO_FILTERS, DEFAULT, 7, WITH_PAGE)).toBe("/tvaryny?stor=7");
+  });
+
+  it("a filter or a sort other than the default keeps the bare gallery, whatever the page", () => {
+    expect(galleryCanonicalPath(NO_FILTERS, "longest_waiting", 2, WITH_PAGE)).toBe("/tvaryny");
+    expect(galleryCanonicalPath(withOnlySpecies(NO_FILTERS, "dog"), DEFAULT, 2, WITH_PAGE)).toBe(
       "/tvaryny",
     );
-    expect(galleryCanonicalPath(withToggledCity(oneCity, CITY_B), 1, WITH_PAGE)).toBe("/tvaryny");
+    expect(galleryCanonicalPath(withToggledCity(NO_FILTERS, CITY_B), DEFAULT, 2, WITH_PAGE)).toBe(
+      "/tvaryny",
+    );
+    expect(galleryCanonicalPath(withToggledCity(oneCity, CITY_B), DEFAULT, 1, WITH_PAGE)).toBe(
+      "/tvaryny",
+    );
     expect(
       galleryCanonicalPath(
         { ...oneCity, regions: { kind: "oneOf", values: [KYIV_OBL] } },
-        1,
+        DEFAULT,
+        2,
         WITH_PAGE,
       ),
     ).toBe("/tvaryny");

@@ -16,6 +16,7 @@ import { freshnessLabel } from "@opika/ui";
 import Image from "next/image";
 import Link from "next/link";
 import { REGISTRY_HAS_NO_REAL_SHELTERS } from "../../seo-flags";
+import { animalSeoSubject } from "../../seo-text";
 import { Avatar } from "../../ui/Avatar";
 import { buttonLookClass } from "../../ui/Button";
 import { Chip } from "../../ui/Chip";
@@ -262,7 +263,7 @@ export function AnimalDetailContent({
       <div className={`max-desktop:contents ${SHEET_GRID} desktop:gap-y-12 ${slots.body}`}>
         <DetailPhotoGallery
           photos={animal.photos}
-          altFallback={animal.name}
+          altFallback={animalSeoSubject(animal, cityName)}
           slot={slots.photos}
           organisationWord={word}
         />

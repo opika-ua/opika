@@ -124,6 +124,18 @@ describe("/tvaryny/misto/{slug}: the page exists only with an indexable animal (
   });
 });
 
+describe("/tvaryny: the heading", () => {
+  it("is named «Шукають дім»: the mascot perched on «дім» is hidden, the word is not", async () => {
+    const brovary = await seedCity("brovary", "Бровари");
+    await animalRepo(h.db).insert(makeAnimal({ shelterId: await seedShelter(brovary) }), brovary);
+
+    render(<WithMockRouter>{await renderGallery(anonymousRouterClient(h.db), {})}</WithMockRouter>);
+
+    const heading = screen.getByRole("heading", { level: 1, name: "Шукають дім" });
+    expect(heading.querySelector("svg[aria-hidden='true']")).not.toBeNull();
+  });
+});
+
 describe("/tvaryny/misto/{slug}: the page body", () => {
   it("shows the heading, the approved intro and the city's gallery, its links staying on the city page", async () => {
     const brovary = await seedCity("brovary", "Бровари");
@@ -201,6 +213,10 @@ describe("/tvaryny?misto=: keeps working, its links lead to the city page when i
     expect(await canonicalOf({ misto: "bucha", stor: "3" })).toBe("/tvaryny");
     expect(await canonicalOf({ misto: "brovary,bucha" })).toBe("/tvaryny");
     expect(await canonicalOf({ vyd: "dog", stor: "2" })).toBe("/tvaryny");
+    // The plain list's pages are each their own; a sort other than the default is a variant.
+    expect(await canonicalOf({ stor: "2" })).toBe("/tvaryny?stor=2");
+    expect(await canonicalOf({})).toBe("/tvaryny");
+    expect(await canonicalOf({ sort: "longest_waiting", stor: "2" })).toBe("/tvaryny");
   });
 
   it("a city whose only shelter is early-listed has no page, so its links keep «?misto=»", async () => {
