@@ -11,6 +11,7 @@ const view = (paused: boolean) => ({
     cityName: "Бровари",
     cityPlace: "м. Бровари",
     backToGalleryHref: "/",
+    sameShelter: null,
     cityPagePath: null,
   },
 });

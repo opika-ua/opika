@@ -740,6 +740,11 @@ export const ukPublic = {
     },
   },
 
+  /** Owner-approved 2026-11-27 (SEO wave): verbatim. The animal page's block of the same shelter's other animals. */
+  sameShelter: {
+    heading: "Ще тварини цього притулку",
+  },
+
   // --- Reserved badge ---
   /**
    * A shelter shown before its verification is complete (owner's copy table, 2026-11-04, N1–N3).

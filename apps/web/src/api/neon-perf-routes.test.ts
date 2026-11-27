@@ -33,9 +33,9 @@ describe("neon-perf-routes", () => {
     expect(text).toMatch(/DB calls: \d+ \| sequential waves/);
     expect(text).toContain("wave 1");
     expect(text).toContain("note:");
-    // The animal page: the animal with its shelter in one statement, then the shelter view, the city
-    // and whether the city has a landing page.
-    expect(text).toMatch(/\/tvaryny\/\[animalId\][\s\S]*?DB calls: 4/);
+    // The animal page: the animal with its shelter in one statement, then the shelter view, the city,
+    // whether the city has a landing page, and the shelter's other animals (two statements).
+    expect(text).toMatch(/\/tvaryny\/\[animalId\][\s\S]*?DB calls: 6/);
     expect(text).not.toMatch(/postgres(ql)?:\/\//);
     expect(lines.length).toBeLessThan(400);
   });
@@ -65,9 +65,9 @@ describe("neon-perf-routes", () => {
       expect(cost?.waves, label).toBeLessThanOrEqual(budget);
       expect(cost?.wallMs, label).toBeLessThan((budget + 0.9) * latencyMs);
     }
-    // The saved cards are one statement, the animal page four: not one per lookup.
+    // The saved cards are one statement, the animal page six (still two waves): not one per lookup.
     expect(costs.get("animals.cardsByIds (/zberezheni, 12 saved cards)")?.calls).toBe(1);
-    expect(costs.get("/tvaryny/[animalId] (animal page)")?.calls).toBe(4);
+    expect(costs.get("/tvaryny/[animalId] (animal page)")?.calls).toBe(6);
   });
 
   it("flags a repeated statement and a duplicate read in a synthetic route", () => {

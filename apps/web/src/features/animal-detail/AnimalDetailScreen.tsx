@@ -35,10 +35,12 @@ import { chipDisplayLabel, similarAnimalsHref, similarAnimalsLabel } from "../ga
 import { SaveButton } from "../likes/SaveButton";
 import { PauseNotice } from "../shelters/PauseNotice";
 import { shelterPagePath } from "../shelters/shelter-url";
+import type { SameShelterAnimals as SameShelterAnimalsView } from "./animal-page-load";
 import { DetailPhotoGallery } from "./DetailPhotoGallery";
 import { MedicalStatus } from "./MedicalStatus";
 import { spayNeuterRow, vaccinationRow } from "./medical-labels";
 import { RevealFlow } from "./RevealFlow";
+import { SameShelterAnimals } from "./SameShelterAnimals";
 import { ShareButton } from "./ShareButton";
 import { STRIP_SLOTS, stripLayoutFor } from "./strip-layout";
 
@@ -56,6 +58,8 @@ interface AnimalDetailScreenProps {
   cityName: string | null;
   /** The place as a meta line prints it, for the contact reveal (kind prefix, oblast where ambiguous). */
   cityPlace: string | null;
+  /** The shelter's other listed animals; absent or null shows no block. */
+  sameShelter?: SameShelterAnimalsView | null;
 }
 
 /**
@@ -141,6 +145,7 @@ export function AnimalDetailContent({
   shelter,
   cityName,
   cityPlace,
+  sameShelter = null,
 }: AnimalDetailScreenProps) {
   const showDocuments =
     animal.documentReadiness.kind === "tracked" && hasAnyDocumentEvidence(animal.documentReadiness);
@@ -351,6 +356,15 @@ export function AnimalDetailContent({
           </div>
         </div>
       </div>
+
+      {/* After the body, ahead of the phone's sticky bar (which is `order-last`). */}
+      {sameShelter && (
+        <div className={SHEET_GRID}>
+          <div className="desktop:col-span-12">
+            <SameShelterAnimals {...sameShelter} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

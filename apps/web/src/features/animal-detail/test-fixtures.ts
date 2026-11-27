@@ -1,6 +1,7 @@
 import type {
   AnimalDetailView,
   CityLabelView,
+  FeedCardView,
   HomeFoundAnimalView,
   PublicShelterView,
 } from "@opika/contracts";
@@ -104,7 +105,34 @@ export type ByIdBehaviour =
   | { kind: "refuse"; code: "NOT_FOUND" | "RATE_LIMITED" }
   | { kind: "fail" };
 
-export function stubAnimalPageClient(byId: ByIdBehaviour = { kind: "answer" }) {
+/** A gallery card for another animal of the test shelter. */
+export function makeSiblingCard(
+  index: number,
+  overrides: Partial<FeedCardView> = {},
+): FeedCardView {
+  return {
+    id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}` as FeedCardView["id"],
+    name: `Сусід ${index}`,
+    species: "dog",
+    sex: "female",
+    size: "medium",
+    coatLength: null,
+    ageBucket: "adult",
+    ageSpan: null,
+    publicLocation: null,
+    primaryPhoto: null,
+    freshness: { kind: "fresh", ageDays: 2, confirmedAt: AT },
+    listingKind: "published",
+    shelter: makeDetailAnimal().shelter,
+    ...overrides,
+  };
+}
+
+/** `siblings` is what `gallery.list` answers for the shelter, in its order. */
+export function stubAnimalPageClient(
+  byId: ByIdBehaviour = { kind: "answer" },
+  siblings: readonly FeedCardView[] = [],
+) {
   const animalsById = vi.fn(async () => {
     switch (byId.kind) {
       case "answer":
@@ -117,8 +145,17 @@ export function stubAnimalPageClient(byId: ByIdBehaviour = { kind: "answer" }) {
         throw new Error("connection terminated");
     }
   });
+  const galleryList = vi.fn(async (_input?: unknown) => ({
+    items: siblings,
+    cityLabels: [CITY_LABEL],
+    totalMatching: siblings.length,
+    totalShelters: siblings.length > 0 ? 1 : 0,
+    totalPages: 1,
+    page: 1,
+  }));
   const client = {
     animals: { byId: animalsById },
+    gallery: { list: galleryList },
     shelters: { byId: vi.fn(async () => makeDetailShelter()) },
     cities: {
       byIds: vi.fn(async () => [CITY_LABEL]),
@@ -126,5 +163,5 @@ export function stubAnimalPageClient(byId: ByIdBehaviour = { kind: "answer" }) {
     },
     regions: { list: vi.fn(async () => []) },
   };
-  return { client: client as unknown as AnimalPageClient, animalsById };
+  return { client: client as unknown as AnimalPageClient, animalsById, galleryList };
 }
