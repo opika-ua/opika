@@ -1,5 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { fitTitle, trimAtWordBoundary, truncateDescription } from "./seo-text";
+import { animalSeoFacts, fitTitle, trimAtWordBoundary, truncateDescription } from "./seo-text";
+
+describe("animalSeoFacts: a baby noun already says the age (owner, 2026-11-27)", () => {
+  it.each([
+    {
+      species: "dog",
+      sex: "male",
+      ageBucket: "baby",
+      ageSpan: null,
+      expected: "цуценя, хлопчик, малий",
+    },
+    {
+      species: "cat",
+      sex: "female",
+      ageBucket: "baby",
+      ageSpan: null,
+      expected: "кошеня, дівчинка, мала",
+    },
+    {
+      species: "dog",
+      sex: "male",
+      ageBucket: "young",
+      ageSpan: null,
+      expected: "собака, хлопчик, молодий, малий",
+    },
+    {
+      species: "dog",
+      sex: "male",
+      ageBucket: "baby",
+      ageSpan: { kind: "under_one" },
+      expected: "цуценя, хлопчик, до 1 року, малий",
+    },
+  ] as const)("$expected", ({ expected, ...animal }) => {
+    expect(animalSeoFacts({ ...animal, size: "small" })).toBe(expected);
+  });
+});
 
 describe("trimAtWordBoundary", () => {
   it("returns the text unchanged when it already fits", () => {
