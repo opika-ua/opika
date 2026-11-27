@@ -1802,3 +1802,75 @@ describe("«Зачекались» leaves stale cards out, and so does every cou
     expect(freshest.totalMatching).toBe(2);
   });
 });
+
+/**
+ * Image sitemap: the photos variant reads the very rows `sitemapRows` reads (one shared
+ * statement) and carries each animal's stored photos back unchanged, in stored order.
+ */
+describe("galleryRepo.sitemapRowsWithPhotos", () => {
+  it("the same rows as sitemapRows, each with its photos round-tripped; noindex animals absent", async () => {
+    const city = makeCity();
+    await cityRepo(db).insert(city);
+    const MODERATOR = randomUUID() as never;
+    const open = await makeShelterInCity(city.id, "Відкритий");
+    const paused = await makeShelterInCity(city.id, "На паузі", {
+      status: "paused",
+      verifiedAt: NOW,
+      verifiedBy: MODERATOR,
+      pausedAt: NOW,
+      pausedBy: { kind: "moderator", moderatorId: MODERATOR },
+      reason: { code: "relocation", note: null },
+      evidence: { items: [], submittedAt: NOW },
+    });
+    const base = makeShelter();
+    const earlyListed = makeShelter({
+      displayName: "Ще перевіряється",
+      verification: {
+        status: "pending",
+        submittedAt: NOW,
+        evidence: { items: [], submittedAt: NOW },
+      },
+      earlyListingSince: daysBefore(1),
+      publicLocation: { ...base.publicLocation, cityId: city.id },
+    });
+    await shelterRepo(db).insert(earlyListed);
+
+    const photos = [
+      {
+        storageKey: "animals/b/second",
+        width: 1600,
+        height: 2000,
+        alt: { uk: "Рудий кіт", en: null },
+      },
+      { storageKey: "seed-photos/cat-1.jpg", width: 800, height: 1000, alt: null },
+      { storageKey: "animals/b/first", width: 1200, height: 1500, alt: null },
+    ];
+    const withPhotos = makeAnimal({ shelterId: open.id, name: "Рудий", photos });
+    const noPhotos = makeAnimal({ shelterId: open.id, name: "Без фото", photos: [] });
+    const atPaused = makeAnimal({
+      shelterId: paused.id,
+      name: "На паузі",
+      photos: [{ storageKey: "animals/p/one", width: 800, height: 1000, alt: null }],
+    });
+    const atEarly = makeAnimal({
+      shelterId: earlyListed.id,
+      name: "Ранній",
+      photos: [{ storageKey: "animals/e/one", width: 800, height: 1000, alt: null }],
+    });
+    await animalRepo(db).insertMany(
+      [withPhotos, noPhotos, atPaused, atEarly].map((animal) => ({ animal, cityId: city.id })),
+    );
+    const gallery = galleryRepo(db);
+
+    const plain = await gallery.sitemapRows({ now: NOW });
+    const rows = await gallery.sitemapRowsWithPhotos({ now: NOW });
+    expect(rows.map(({ id, shelterId }) => ({ id, shelterId }))).toEqual(plain);
+    expect(new Set(rows.map((row) => row.id))).toEqual(new Set([withPhotos.id, noPhotos.id]));
+    expect(rows.find((row) => row.id === withPhotos.id)?.photos).toEqual(photos);
+    expect(rows.find((row) => row.id === noPhotos.id)?.photos).toEqual([]);
+
+    // The same cap: a limit cuts both variants to the same leading rows.
+    const one = await gallery.sitemapRowsWithPhotos({ now: NOW, limit: 1 });
+    expect(one.map((row) => row.id)).toEqual(plain.slice(0, 1).map((row) => row.id));
+  });
+});

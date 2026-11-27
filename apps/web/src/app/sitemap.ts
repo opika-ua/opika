@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const entries = await buildSitemapEntries(SITE_IS_PUBLICLY_DISCOVERABLE, {
-    animals: () => galleryRepo(getDb()).sitemapRows({ now }),
+    animals: () => galleryRepo(getDb()).sitemapRowsWithPhotos({ now }),
     cities: () => galleryRepo(getDb()).cityPages({ now }),
     speciesCounts: async () =>
       (
@@ -21,6 +21,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           now,
         })
       ).indexableBySpecies,
+    photoBaseUrl: process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
   });
-  return entries.map((entry) => ({ ...entry }));
+  // Next's type takes a mutable `images`; it emits the sitemap-image namespace and tags itself.
+  return entries.map((entry) =>
+    "images" in entry ? { url: entry.url, images: [...entry.images] } : { ...entry },
+  );
 }

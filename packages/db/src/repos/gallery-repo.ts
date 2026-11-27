@@ -4,6 +4,7 @@ import {
   ANIMAL_SEXES,
   ANIMAL_SPECIES,
   type AnimalId,
+  type AnimalPhoto,
   type AnimalSex,
   type AnimalSpecies,
   type City,
@@ -28,6 +29,7 @@ import {
   type SizeBucket,
 } from "@opika/domain";
 import { and, asc, desc, eq, getTableColumns, inArray, max, type SQL, sql } from "drizzle-orm";
+import type { PgSelect } from "drizzle-orm/pg-core";
 import type { Database } from "../client";
 import { animals } from "../schema/animals";
 import { cities } from "../schema/cities";
@@ -120,6 +122,18 @@ export type CityPageRow = {
   readonly slug: string;
   readonly lastModified: Date;
   readonly species: readonly AnimalSpecies[];
+};
+
+/** One sitemap animal: its page and its shelter's page. */
+export type SitemapRow = { readonly id: AnimalId; readonly shelterId: ShelterId };
+
+/** A sitemap animal with its stored photos, for the image entries. */
+export type SitemapPhotoRow = SitemapRow & { readonly photos: readonly AnimalPhoto[] };
+
+type SitemapRowsOptions = {
+  now: Date;
+  /** Lower than the navigable bound only in a test or a probe; the sitemap passes nothing. */
+  limit?: number;
 };
 
 export type NeighbourRow = { readonly id: AnimalId; readonly name: string };
@@ -336,19 +350,21 @@ export function galleryRepo(db: Database) {
      * statement per page (and, over neon-http, a round trip each). Same predicate and ordering as
      * `list`, so the sitemap names exactly the animals the gallery's pages reach.
      */
-    async sitemapRows(opts: {
-      now: Date;
-      /** Lower than the navigable bound only in a test or a probe; the sitemap passes nothing. */
-      limit?: number;
-    }): Promise<readonly { readonly id: AnimalId; readonly shelterId: ShelterId }[]> {
-      return (
+    async sitemapRows(opts: SitemapRowsOptions): Promise<readonly SitemapRow[]> {
+      return sitemapStatement(
+        db.select({ id: animals.id, shelterId: animals.shelterId }).from(animals).$dynamic(),
+        opts,
+      );
+    },
+
+    /** `sitemapRows` with each animal's stored photos, in their stored order: the image sitemap. */
+    async sitemapRowsWithPhotos(opts: SitemapRowsOptions): Promise<readonly SitemapPhotoRow[]> {
+      return sitemapStatement(
         db
-          .select({ id: animals.id, shelterId: animals.shelterId })
+          .select({ id: animals.id, shelterId: animals.shelterId, photos: animals.photos })
           .from(animals)
-          // Verified shelters only: an early-listed shelter is noindex and out of the sitemap.
-          .where(and(...buildFeedPredicate(NO_FILTERS, opts.now, "verified_only")))
-          .orderBy(...orderingFor("freshest"))
-          .limit(Math.min(opts.limit ?? MAX_GALLERY_NAVIGABLE_ROWS, MAX_GALLERY_NAVIGABLE_ROWS))
+          .$dynamic(),
+        opts,
       );
     },
 
@@ -634,6 +650,17 @@ function pageParts(opts: PageOptions): { where: SQL | undefined; ordering: SQL[]
     ...buildSortPredicate(opts.sort, opts.now),
   ];
   return { where: and(...conditions), ordering: orderingFor(opts.sort) };
+}
+
+/** The sitemap's WHERE, order and cap, shared by both column sets so the rows can never diverge. */
+function sitemapStatement<Query extends PgSelect>(query: Query, opts: SitemapRowsOptions): Query {
+  return (
+    query
+      // Verified shelters only: an early-listed shelter is noindex and out of the sitemap.
+      .where(and(...buildFeedPredicate(NO_FILTERS, opts.now, "verified_only")))
+      .orderBy(...orderingFor("freshest"))
+      .limit(Math.min(opts.limit ?? MAX_GALLERY_NAVIGABLE_ROWS, MAX_GALLERY_NAVIGABLE_ROWS))
+  );
 }
 
 /**

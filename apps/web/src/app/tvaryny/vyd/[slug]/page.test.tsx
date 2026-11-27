@@ -253,6 +253,7 @@ describe("the sitemap names exactly the species pages that answer 200", () => {
       animals: async () => [],
       cities: async () => [],
       speciesCounts: async () => counts.indexableBySpecies,
+      photoBaseUrl: undefined,
     });
     const listed = entries
       .map((entry) => new URL(entry.url).pathname)
