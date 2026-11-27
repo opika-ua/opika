@@ -9,8 +9,8 @@ import { absoluteUrl } from "./json-ld-builders";
 
 /** A page entry, or an animal page with its photos (`<image:image>`); never an empty image list. */
 export type SitemapEntry = PageSitemapEntry | ImageSitemapEntry;
-export type PageSitemapEntry = { readonly url: string; readonly lastModified?: Date };
-export type ImageSitemapEntry = {
+type PageSitemapEntry = { readonly url: string; readonly lastModified?: Date };
+type ImageSitemapEntry = {
   readonly url: string;
   readonly images: readonly [string, ...string[]];
 };
@@ -42,7 +42,7 @@ export type SitemapAnimal = {
  * The `detail` WebP of each real photo, in stored order. Seed keys have no R2 object, so they are
  * left out; without a base URL there is nothing to point at, and the page entries still ship.
  */
-export function animalImageUrls(
+function animalImageUrls(
   photos: SitemapAnimal["photos"],
   photoBaseUrl: string | undefined,
 ): readonly string[] {

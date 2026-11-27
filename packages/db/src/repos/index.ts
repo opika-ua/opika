@@ -32,8 +32,6 @@ export {
   type GalleryPage,
   type GalleryRelaxationCounts,
   galleryRepo,
-  type SitemapPhotoRow,
-  type SitemapRow,
 } from "./gallery-repo";
 export {
   CREDENTIAL_PROVIDER_ID,
