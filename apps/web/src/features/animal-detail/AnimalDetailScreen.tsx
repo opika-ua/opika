@@ -274,6 +274,7 @@ export function AnimalDetailContent({
       <div className={`max-desktop:contents ${SHEET_GRID} desktop:gap-y-12 ${slots.body}`}>
         <DetailPhotoGallery
           photos={animal.photos}
+          name={animal.name}
           altFallback={animalSeoSubject(animal, cityName)}
           slot={slots.photos}
           organisationWord={word}

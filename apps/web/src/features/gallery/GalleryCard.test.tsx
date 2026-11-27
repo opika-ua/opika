@@ -310,3 +310,18 @@ describe("GalleryCard photo loading", () => {
     expect(css).toMatch(/@utility gcard-dog \{\s*--dot: var\(--color-species-dog\);/);
   });
 });
+
+describe("GalleryCard photo and the link's name", () => {
+  it("the photo is decorative: the link's name carries the animal's name once, not twice", () => {
+    const card = makeCard({
+      primaryPhoto: { storageKey: "/seed-photos/cat-1.jpg" } as FeedCardView["primaryPhoto"],
+    });
+    const { container } = render(<GalleryCard card={card} cityName="Бровари" {...NO_CONTEXT} />);
+
+    expect(container.querySelector("img")).toBeTruthy();
+    expect(screen.queryByRole("img")).toBeNull();
+    const name = screen.getByRole("link").textContent ?? "";
+    expect(name.split("Мурчик")).toHaveLength(2);
+    expect(name).toContain("Бровари");
+  });
+});

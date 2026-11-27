@@ -64,7 +64,12 @@ describe("DetailPhotoGallery", () => {
   it("loads only the first photo until the others come into range, falling back to the animal's name for alt", () => {
     stubObserver();
     render(
-      <DetailPhotoGallery organisationWord="shelter" photos={THREE_PHOTOS} altFallback="Мурчик" />,
+      <DetailPhotoGallery
+        organisationWord="shelter"
+        photos={THREE_PHOTOS}
+        name="Мурчик"
+        altFallback="Мурчик"
+      />,
     );
     const region = screen.getByRole("region", REGION);
 
@@ -75,7 +80,27 @@ describe("DetailPhotoGallery", () => {
     expect(imgs).toHaveLength(2);
     expect(imgs[0]?.getAttribute("src")).toContain(encodeURIComponent("/a.jpg"));
     expect(imgs[1]?.getAttribute("src")).toContain(encodeURIComponent("/c.jpg"));
-    expect(imgs.every((img) => img.getAttribute("alt") === "Мурчик")).toBe(true);
+    // The first keeps the page's subject alt; a later one says its place, not the same words again.
+    expect(imgs.map((img) => img.getAttribute("alt"))).toEqual(["Мурчик", "Мурчик – фото 3"]);
+  });
+
+  it("names each photo after the first by its 1-based place, and a shelter's own alt still wins", () => {
+    stubObserver();
+    render(
+      <DetailPhotoGallery
+        organisationWord="shelter"
+        photos={[photo("/a.jpg"), photo("/b.jpg", "Мурчик у кошику"), photo("/c.jpg")]}
+        name="Мурчик"
+        altFallback="Мурчик – кіт шукає дім, Київ"
+      />,
+    );
+
+    reveal(1);
+    reveal(2);
+    expect(screen.getByRole("img", { name: "Мурчик – кіт шукає дім, Київ" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Мурчик у кошику" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Мурчик – фото 3" })).toBeTruthy();
+    expect(screen.queryByRole("img", { name: "Мурчик – фото 2" })).toBeNull();
   });
 
   it("uses a photo's own alt text when it has one", () => {
@@ -83,6 +108,7 @@ describe("DetailPhotoGallery", () => {
       <DetailPhotoGallery
         organisationWord="shelter"
         photos={[photo("/a.jpg", "Мурчик спить")]}
+        name="Мурчик"
         altFallback="Мурчик"
       />,
     );
@@ -93,7 +119,14 @@ describe("DetailPhotoGallery", () => {
   it.each([1, 5, MAX_ANIMAL_PHOTOS])("shows all %i photos, in order, once armed", (count) => {
     stubObserver();
     const photos = Array.from({ length: count }, (_, i) => photo(`/p${i}.jpg`));
-    render(<DetailPhotoGallery organisationWord="shelter" photos={photos} altFallback="Мурчик" />);
+    render(
+      <DetailPhotoGallery
+        organisationWord="shelter"
+        photos={photos}
+        name="Мурчик"
+        altFallback="Мурчик"
+      />,
+    );
     for (let i = 1; i < count; i++) reveal(i);
 
     const imgs = imagesIn(screen.getByRole("region", REGION));
@@ -106,7 +139,12 @@ describe("DetailPhotoGallery", () => {
   it("an armed slide stays loaded, and without IntersectionObserver every photo loads", () => {
     stubObserver();
     const { unmount } = render(
-      <DetailPhotoGallery organisationWord="shelter" photos={THREE_PHOTOS} altFallback="Мурчик" />,
+      <DetailPhotoGallery
+        organisationWord="shelter"
+        photos={THREE_PHOTOS}
+        name="Мурчик"
+        altFallback="Мурчик"
+      />,
     );
     reveal(1);
     reveal(1);
@@ -115,13 +153,25 @@ describe("DetailPhotoGallery", () => {
 
     vi.stubGlobal("IntersectionObserver", undefined);
     render(
-      <DetailPhotoGallery organisationWord="shelter" photos={THREE_PHOTOS} altFallback="Мурчик" />,
+      <DetailPhotoGallery
+        organisationWord="shelter"
+        photos={THREE_PHOTOS}
+        name="Мурчик"
+        altFallback="Мурчик"
+      />,
     );
     expect(imagesIn(screen.getByRole("region", REGION))).toHaveLength(3);
   });
 
   it("an animal with no photos gets the phone's placeholder text and no slider", () => {
-    render(<DetailPhotoGallery organisationWord="shelter" photos={[]} altFallback="Мурчик" />);
+    render(
+      <DetailPhotoGallery
+        organisationWord="shelter"
+        photos={[]}
+        name="Мурчик"
+        altFallback="Мурчик"
+      />,
+    );
 
     expect(screen.getByText("Фото немає – притулок ще не надіслав")).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Фотогалерея" })).toBeNull();
@@ -133,6 +183,7 @@ describe("DetailPhotoGallery", () => {
       <DetailPhotoGallery
         organisationWord="shelter"
         photos={[photo("/a.jpg"), photo("/b.jpg")]}
+        name="Мурчик"
         altFallback="Мурчик"
       />,
     );
@@ -147,6 +198,7 @@ describe("DetailPhotoGallery", () => {
       <DetailPhotoGallery
         organisationWord="shelter"
         photos={[photo("/only.jpg")]}
+        name="Мурчик"
         altFallback="Мурчик"
       />,
     );
@@ -161,6 +213,7 @@ describe("DetailPhotoGallery", () => {
       <DetailPhotoGallery
         organisationWord="shelter"
         photos={[photo("/only.jpg")]}
+        name="Мурчик"
         altFallback="Мурчик"
       />,
     );
@@ -175,6 +228,7 @@ describe("DetailPhotoGallery", () => {
       <DetailPhotoGallery
         organisationWord="shelter"
         photos={[photo("/a.jpg"), photo("/b.jpg")]}
+        name="Мурчик"
         altFallback="Мурчик"
       />,
     );
@@ -186,7 +240,12 @@ describe("DetailPhotoGallery", () => {
   it("when the photos overflow: next shows and scrolls forward one photo, prev appears once scrolled", () => {
     stubWidths(376, 1128);
     render(
-      <DetailPhotoGallery organisationWord="shelter" photos={THREE_PHOTOS} altFallback="Мурчик" />,
+      <DetailPhotoGallery
+        organisationWord="shelter"
+        photos={THREE_PHOTOS}
+        name="Мурчик"
+        altFallback="Мурчик"
+      />,
     );
     const scroller = screen.getByRole("region", REGION);
     const scrollTo = vi.fn();
@@ -206,7 +265,12 @@ describe("DetailPhotoGallery", () => {
   it("next disappears once scrolled to the end - no wrap-around", () => {
     stubWidths(360, 1128);
     render(
-      <DetailPhotoGallery organisationWord="shelter" photos={THREE_PHOTOS} altFallback="Мурчик" />,
+      <DetailPhotoGallery
+        organisationWord="shelter"
+        photos={THREE_PHOTOS}
+        name="Мурчик"
+        altFallback="Мурчик"
+      />,
     );
     const scroller = screen.getByRole("region", REGION);
 
@@ -222,7 +286,12 @@ describe("DetailPhotoGallery", () => {
       (query) => ({ matches: query.includes("reduce"), media: query }) as MediaQueryList,
     );
     render(
-      <DetailPhotoGallery organisationWord="shelter" photos={THREE_PHOTOS} altFallback="Мурчик" />,
+      <DetailPhotoGallery
+        organisationWord="shelter"
+        photos={THREE_PHOTOS}
+        name="Мурчик"
+        altFallback="Мурчик"
+      />,
     );
     const scroller = screen.getByRole("region", REGION);
     const scrollTo = vi.fn();

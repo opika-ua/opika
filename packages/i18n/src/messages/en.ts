@@ -2294,6 +2294,7 @@ export const en = {
       description: "{name} – {facts}. Looking for a home – {city}. {shelter}.",
       titleNoCity: "{name} – a {noun} looking for a home",
       descriptionNoCity: "{name} – {facts}. Looking for a home. {shelter}.",
+      photoAlt: "{name} – photo {n}",
     },
     shelter: {
       title: "{shelter} – animals looking for a home, {city}",

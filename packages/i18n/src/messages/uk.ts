@@ -2630,6 +2630,8 @@ export const uk = {
       /** When the animal's city doesn't resolve (owner, 2026-11-18). Before `titleWithSite`. */
       titleNoCity: "{name} – {noun} шукає дім",
       descriptionNoCity: "{name} – {facts}. Шукає дім. {shelter}.",
+      /** Alt of the animal page's photos after the first (owner, 2026-11-27); `{n}` is the 1-based place. */
+      photoAlt: "{name} – фото {n}",
     },
     shelter: {
       /** Before `titleWithSite`. */
